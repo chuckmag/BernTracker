@@ -74,6 +74,7 @@ When an engineer asks for help setting up the project, use the README Getting St
 | `P1001: Can't reach database server at localhost:5432` | Postgres container not running | `docker start berntracker-db` |
 | `Environment variable not found: DATABASE_URL` | `.env` file missing | `cp .env.example .env` from repo root |
 | `command not found: turbo` | Dependencies not installed | `npm install` from repo root |
+| `ConfigError: The expected package.json path: .../apps/mobile/package.json does not exist` | `expo start` run from repo root, or `npm install` not run after adding mobile workspace | Run from `apps/mobile`: `cd apps/mobile && npx expo start`. If new workspace was added, run `npm install` from root first to register the symlink. |
 
 ## Architecture
 
