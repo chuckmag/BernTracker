@@ -10,14 +10,20 @@ datasource db {
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 enum Role {
-  ADMIN
+  OWNER
+  PROGRAMMER
   COACH
   MEMBER
 }
 
 enum WorkoutType {
-  AMRAP
+  STRENGTH
   FOR_TIME
+  EMOM
+  CARDIO
+  AMRAP
+  METCON
+  WARMUP
 }
 
 enum WorkoutLevel {
@@ -80,7 +86,7 @@ model Gym {
   updatedAt DateTime @updatedAt
 
   members  UserGym[]
-  programs Program[]
+  programs GymProgram[]
 }
 
 model UserGym {
@@ -97,7 +103,6 @@ model UserGym {
 
 model Program {
   id          String    @id @default(cuid())
-  gymId       String
   name        String
   description String?
   startDate   DateTime
@@ -105,9 +110,21 @@ model Program {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  gym      Gym           @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  gyms     GymProgram[]
   members  UserProgram[]
   workouts Workout[]
+}
+
+// Join table: a Program can belong to many Gyms and vice versa
+model GymProgram {
+  gymId     String
+  programId String
+  createdAt DateTime @default(now())
+
+  gym     Gym     @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@id([gymId, programId])
 }
 
 model UserProgram {
@@ -123,17 +140,17 @@ model UserProgram {
 
 model Workout {
   id          String        @id @default(cuid())
-  programId   String
+  programId   String?
   title       String
   description String
   type        WorkoutType
-  level       WorkoutLevel  @default(RX)
   status      WorkoutStatus @default(DRAFT)
   scheduledAt DateTime
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  program Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  // nullable: members can log personal workouts outside any program
+  program Program?  @relation(fields: [programId], references: [id], onDelete: SetNull)
   results Result[]
 }
 

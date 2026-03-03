@@ -52,10 +52,10 @@ turbo build      # build all apps
 ## Key enums
 
 ```prisma
-enum WorkoutType  { AMRAP, FOR_TIME }
-enum WorkoutLevel { RX_PLUS, RX, SCALED, MODIFIED }
+enum Role          { OWNER, PROGRAMMER, COACH, MEMBER }
+enum WorkoutType   { STRENGTH, FOR_TIME, EMOM, CARDIO, AMRAP, METCON, WARMUP }
+enum WorkoutLevel  { RX_PLUS, RX, SCALED, MODIFIED }
 enum WorkoutStatus { DRAFT, PUBLISHED }
-enum Role          { ADMIN, COACH, MEMBER }
 ```
 
 ## Issue index
