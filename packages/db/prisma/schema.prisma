@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  COACH
+  MEMBER
+}
+
+enum WorkoutType {
+  AMRAP
+  FOR_TIME
+}
+
+enum WorkoutLevel {
+  RX_PLUS
+  RX
+  SCALED
+  MODIFIED
+}
+
+enum WorkoutStatus {
+  DRAFT
+  PUBLISHED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         Role     @default(MEMBER)
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  oauthAccounts OAuthAccount[]
+  refreshTokens RefreshToken[]
+  gyms          UserGym[]
+  programs      UserProgram[]
+  results       Result[]
+}
+
+model OAuthAccount {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String
+  providerId String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Gym {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  UserGym[]
+  programs Program[]
+}
+
+model UserGym {
+  userId   String
+  gymId    String
+  role     Role     @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gym  Gym  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@id([userId, gymId])
+}
+
+model Program {
+  id          String    @id @default(cuid())
+  gymId       String
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  gym      Gym           @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  members  UserProgram[]
+  workouts Workout[]
+}
+
+model UserProgram {
+  userId    String
+  programId String
+  joinedAt  DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@id([userId, programId])
+}
+
+model Workout {
+  id          String        @id @default(cuid())
+  programId   String
+  title       String
+  description String
+  type        WorkoutType
+  level       WorkoutLevel  @default(RX)
+  status      WorkoutStatus @default(DRAFT)
+  scheduledAt DateTime
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  program Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  results Result[]
+}
+
+model Result {
+  id        String       @id @default(cuid())
+  userId    String
+  workoutId String
+  level     WorkoutLevel
+  value     Json
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workoutId])
+}
