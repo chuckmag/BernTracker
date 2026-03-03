@@ -38,9 +38,15 @@ BernTracker/
 ```bash
 turbo dev          # start all apps concurrently
 turbo build        # build all apps
+turbo lint         # typecheck all workspaces (correct way to run tsc across the monorepo)
 npm run db:migrate # run Prisma migrations (uses root .env via dotenv-cli)
 npm run db:studio  # open Prisma Studio
 ```
+
+> **Note:** Do NOT run `npx tsc --noEmit` from the repo root. The root `tsconfig.json`
+> is a base config (Node.js settings, no JSX) extended by each workspace. Running it
+> at root will either error or apply the wrong settings to React files.
+> Use `turbo lint` for all workspaces, or `npm run lint --workspace=<name>` for one.
 
 ## Developer onboarding
 
