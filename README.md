@@ -87,12 +87,12 @@ BernTracker/
 # Install all dependencies
 npm install
 
-# Copy env files and set DATABASE_URL
-cp packages/db/.env.example packages/db/.env
-cp apps/api/.env.example apps/api/.env
+# Create your local env file from the root template (single file for all apps)
+cp .env.example .env
+# Edit .env and set DATABASE_URL, JWT_SECRET, etc.
 
-# Generate Prisma client and run migrations
-cd packages/db && npx prisma migrate dev --name init
+# Run database migrations
+npm run db:migrate
 
 # Start all apps
 turbo dev
