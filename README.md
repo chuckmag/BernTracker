@@ -76,33 +76,93 @@ BernTracker/
 
 ## Getting started
 
-### Prerequisites
+### Required tools
 
-- Node.js 18+
-- PostgreSQL (or Docker: `docker run -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16`)
+Everything below must be installed before the project will run. On macOS, [Homebrew](https://brew.sh) is the easiest way to install most of them — install it first if you don't have it:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+| Tool | Why | macOS (Homebrew) | Windows |
+|---|---|---|---|
+| **Git** | Version control | `brew install git` | [git-scm.com](https://git-scm.com/download/win) |
+| **Node.js 20+** | Runs the API, web app, and all tooling | `brew install node` | [nodejs.org](https://nodejs.org) |
+| **Docker Desktop** | Runs PostgreSQL locally in a container | `brew install --cask docker` | [docker.com](https://www.docker.com/products/docker-desktop/) |
+| **Expo Go** (mobile only) | Opens the mobile app on your phone during development | iOS / Android app store | iOS / Android app store |
+
+> **Windows note:** Node.js and npm work natively on Windows. Docker Desktop requires WSL2 — the installer will guide you through enabling it.
+
+> **iOS Simulator / Android Emulator (optional):** If you want to run the mobile app in a simulator rather than on a physical device, you additionally need Xcode (macOS, for iOS) or Android Studio (cross-platform, for Android). This is not required to get started.
+
+---
 
 ### Setup
 
+Follow these steps in order on a fresh clone. Steps marked **manual** require action in your terminal or a GUI app — Claude Code cannot perform them on your behalf. Steps marked **automatic** can be run by Claude.
+
+**1. Start Docker Desktop** *(manual)*
+Open Docker Desktop from your Applications folder (macOS) or Start Menu (Windows) and wait for it to fully start. The whale icon in your menu bar will stop animating when it's ready.
+
+**2. Start the database container** *(manual — first time only)*
 ```bash
-# Install all dependencies
+docker run --name berntracker-db \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=berntracker \
+  -p 5432:5432 \
+  -d postgres:16
+```
+On subsequent sessions, just run `docker start berntracker-db`.
+
+**3. Install dependencies** *(automatic)*
+```bash
 npm install
+```
 
-# Copy env files and set DATABASE_URL
-cp packages/db/.env.example packages/db/.env
-cp apps/api/.env.example apps/api/.env
+**4. Create your local env file** *(manual)*
+```bash
+cp .env.example .env
+```
+The default values in `.env.example` already match the Docker container above — no edits needed for local development.
 
-# Generate Prisma client and run migrations
-cd packages/db && npx prisma migrate dev --name init
+**5. Run database migrations** *(automatic)*
+```bash
+npm run db:migrate
+```
+When prompted for a migration name, enter `init`. This creates all tables in the database.
 
-# Start all apps
+**6. Verify the database** *(automatic)*
+```bash
+npm run db:studio
+```
+Prisma Studio opens in your browser. Confirm that all tables defined in `packages/db/prisma/schema.prisma` are present.
+
+**7. Start all apps** *(automatic)*
+```bash
 turbo dev
 ```
+- API → http://localhost:3000
+- Web admin → http://localhost:5173
+- Mobile → Expo QR code in terminal (scan with Expo Go)
+
+---
+
+### Daily workflow
+
+```bash
+docker start berntracker-db   # start the database (if not already running)
+turbo dev                      # start all apps
+```
+
+---
 
 ### Commands
 
 ```bash
-turbo dev        # start API (3000), web (5173), and Expo bundler concurrently
-turbo build      # build all apps and packages
+turbo dev          # start API (3000), web (5173), and Expo bundler concurrently
+turbo build        # build all apps and packages
+npm run db:migrate # run any new Prisma migrations
+npm run db:studio  # open Prisma Studio to inspect the database
 ```
 
 ## Issue index (will be out of date after v1 prototype)

@@ -36,11 +36,38 @@ BernTracker/
 ## Commands
 
 ```bash
-turbo dev        # start all apps concurrently
-turbo build      # build all apps
+turbo dev          # start all apps concurrently
+turbo build        # build all apps
+npm run db:migrate # run Prisma migrations (uses root .env via dotenv-cli)
+npm run db:studio  # open Prisma Studio
 ```
 
-> Commands will not work until Slice 1 is complete (#10).
+## Developer onboarding
+
+When an engineer asks for help setting up the project, use the README Getting Started section as the guide. Some steps can be run automatically via tools; others require manual action from the engineer.
+
+### Steps Claude CAN run automatically
+- `npm install` — install all workspace dependencies
+- `npm run db:migrate` — run migrations (once Docker + DB are running)
+- `npx prisma generate` — regenerate the Prisma client after schema changes
+- `npx tsc --noEmit` — typecheck any package
+- `git` operations, file creation, edits
+
+### Steps that require manual action from the engineer
+- Installing Homebrew, Node.js, Git, or Docker Desktop — requires system-level install
+- **Starting Docker Desktop** — must be opened as a GUI app before any `docker` commands work; if the engineer sees `dial unix /var/run/docker.sock: no such file or directory`, Docker Desktop is not running
+- **Running `docker run --name berntracker-db ...`** — creates the Postgres container; only needed once. On subsequent sessions: `docker start berntracker-db`
+- **Copying `.env.example` → `.env`** — file contains secrets and must be created manually
+- Installing Expo Go on a physical device
+
+### Common setup errors and fixes
+| Error | Cause | Fix |
+|---|---|---|
+| `dial unix /var/run/docker.sock: no such file or directory` | Docker Desktop not running | Open Docker Desktop and wait for it to start |
+| `Unable to find image 'berntracker-db:latest'` | Ran `docker run berntracker-db` instead of the full command | Run the full `docker run` command with `postgres:16` as the image |
+| `P1001: Can't reach database server at localhost:5432` | Postgres container not running | `docker start berntracker-db` |
+| `Environment variable not found: DATABASE_URL` | `.env` file missing | `cp .env.example .env` from repo root |
+| `command not found: turbo` | Dependencies not installed | `npm install` from repo root |
 
 ## Architecture
 
