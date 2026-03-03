@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  PROGRAMMER
+  COACH
+  MEMBER
+}
+
+enum WorkoutType {
+  STRENGTH
+  FOR_TIME
+  EMOM
+  CARDIO
+  AMRAP
+  METCON
+  WARMUP
+}
+
+enum WorkoutLevel {
+  RX_PLUS
+  RX
+  SCALED
+  MODIFIED
+}
+
+enum WorkoutStatus {
+  DRAFT
+  PUBLISHED
+}
+
+// Self-identified gender — stored on the user profile for demographics
+// and communication preferences. Nullable: users are never required to share.
+enum Gender {
+  WOMAN
+  MAN
+  NON_BINARY
+  PREFER_NOT_TO_SAY
+}
+
+// Competitive category used for leaderboard grouping and scaling standards
+// (e.g. Male RX uses heavier weights than Female RX).
+// OPEN = gender-neutral / no preference.
+enum WorkoutGender {
+  MALE
+  FEMALE
+  OPEN
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role             Role     @default(MEMBER)
+  identifiedGender Gender?
+  passwordHash     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  oauthAccounts OAuthAccount[]
+  refreshTokens RefreshToken[]
+  gyms          UserGym[]
+  programs      UserProgram[]
+  results       Result[]
+}
+
+model OAuthAccount {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String
+  providerId String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Gym {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  UserGym[]
+  programs GymProgram[]
+}
+
+model UserGym {
+  userId   String
+  gymId    String
+  role     Role     @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gym  Gym  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  @@id([userId, gymId])
+}
+
+model Program {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  gyms     GymProgram[]
+  members  UserProgram[]
+  workouts Workout[]
+}
+
+// Join table: a Program can belong to many Gyms and vice versa
+model GymProgram {
+  gymId     String
+  programId String
+  createdAt DateTime @default(now())
+
+  gym     Gym     @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@id([gymId, programId])
+}
+
+model UserProgram {
+  userId    String
+  programId String
+  joinedAt  DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@id([userId, programId])
+}
+
+model Workout {
+  id          String        @id @default(cuid())
+  programId   String?
+  title       String
+  description String
+  type        WorkoutType
+  status      WorkoutStatus @default(DRAFT)
+  scheduledAt DateTime
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // nullable: members can log personal workouts outside any program
+  program Program?  @relation(fields: [programId], references: [id], onDelete: SetNull)
+  results Result[]
+}
+
+model Result {
+  id        String       @id @default(cuid())
+  userId    String
+  workoutId String
+  level         WorkoutLevel
+  workoutGender WorkoutGender
+  value         Json
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workoutId])
+}

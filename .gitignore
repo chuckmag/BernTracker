@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Lockfile — not committed; use `npm install` to regenerate locally.
+# Reproducibility in CI is handled via pinned package versions in each
+# workspace's package.json.
+package-lock.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+.next/
+
+# Turbo
+.turbo/
+
+# Prisma
+packages/db/src/generated/
+
+# Expo
+apps/mobile/.expo/
+apps/mobile/node_modules/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# IDE
+.DS_Store
+*.local

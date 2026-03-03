@@ -20,6 +20,8 @@ A CrossFit workout tracking tool for gym members and trainers.
 
 ## Technology overview
 
+**Data model:** [`packages/db/README.md`](./packages/db/README.md)
+
 ### Turborepo
 
 A build system for monorepos. It understands that this codebase has multiple packages that depend on each other and coordinates running commands across all of them.
@@ -103,7 +105,7 @@ turbo dev        # start API (3000), web (5173), and Expo bundler concurrently
 turbo build      # build all apps and packages
 ```
 
-## Issue index
+## Issue index (will be out of date after v1 prototype)
 
 See the comment on #1 for the full navigation hub.
 
