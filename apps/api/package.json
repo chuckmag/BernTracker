@@ -1,0 +1,20 @@
+{
+  "name": "@berntracker/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "tsx --env-file=../../.env watch src/index.ts",
+    "build": "tsc",
+    "start": "node --env-file=../../.env dist/index.js"
+  },
+  "dependencies": {
+    "@berntracker/db": "*",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

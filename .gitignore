@@ -21,6 +21,7 @@ build/
 
 # Prisma
 packages/db/src/generated/
+packages/db/prisma/migrations/**/migration.sql
 
 # Expo
 apps/mobile/.expo/

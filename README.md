@@ -59,6 +59,36 @@ A framework and toolchain built on top of React Native that handles all the pain
 
 ---
 
+### Docker
+
+A containerization tool that packages software and its dependencies into an isolated, reproducible environment.
+
+**What it does here:** We use Docker exclusively to run PostgreSQL locally during development. Rather than installing Postgres directly on your machine (which varies by OS, requires manual version management, and can conflict with other projects), Docker spins up an official Postgres container in one command and tears it down just as easily.
+
+**If you've used:** Homebrew to `brew install postgresql` — Docker is similar in that it gets Postgres running on your machine, but the database lives inside a container rather than your system. The big difference: every developer gets the exact same Postgres version with zero configuration, and it doesn't touch your system outside of Docker.
+
+**Daily usage:**
+
+```bash
+# First time — start the database (runs in the background)
+docker run --name berntracker-db \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=berntracker \
+  -p 5432:5432 \
+  -d postgres:16
+
+# After the container exists — just start/stop it
+docker start berntracker-db
+docker stop berntracker-db
+
+# Check if it's running
+docker ps
+```
+
+> **Prerequisites:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) for Mac. No other Postgres installation needed.
+
+---
+
 ## Monorepo structure
 
 ```
@@ -76,93 +106,33 @@ BernTracker/
 
 ## Getting started
 
-### Required tools
+### Prerequisites
 
-Everything below must be installed before the project will run. On macOS, [Homebrew](https://brew.sh) is the easiest way to install most of them — install it first if you don't have it:
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-| Tool | Why | macOS (Homebrew) | Windows |
-|---|---|---|---|
-| **Git** | Version control | `brew install git` | [git-scm.com](https://git-scm.com/download/win) |
-| **Node.js 20+** | Runs the API, web app, and all tooling | `brew install node` | [nodejs.org](https://nodejs.org) |
-| **Docker Desktop** | Runs PostgreSQL locally in a container | `brew install --cask docker` | [docker.com](https://www.docker.com/products/docker-desktop/) |
-| **Expo Go** (mobile only) | Opens the mobile app on your phone during development | iOS / Android app store | iOS / Android app store |
-
-> **Windows note:** Node.js and npm work natively on Windows. Docker Desktop requires WSL2 — the installer will guide you through enabling it.
-
-> **iOS Simulator / Android Emulator (optional):** If you want to run the mobile app in a simulator rather than on a physical device, you additionally need Xcode (macOS, for iOS) or Android Studio (cross-platform, for Android). This is not required to get started.
-
----
+- Node.js 18+
+- Docker Desktop — used to run PostgreSQL locally (see [Docker](#docker) above)
 
 ### Setup
 
-Follow these steps in order on a fresh clone. Steps marked **manual** require action in your terminal or a GUI app — Claude Code cannot perform them on your behalf. Steps marked **automatic** can be run by Claude.
-
-**1. Start Docker Desktop** *(manual)*
-Open Docker Desktop from your Applications folder (macOS) or Start Menu (Windows) and wait for it to fully start. The whale icon in your menu bar will stop animating when it's ready.
-
-**2. Start the database container** *(manual — first time only)*
 ```bash
-docker run --name berntracker-db \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=berntracker \
-  -p 5432:5432 \
-  -d postgres:16
-```
-On subsequent sessions, just run `docker start berntracker-db`.
-
-**3. Install dependencies** *(automatic)*
-```bash
+# Install all dependencies
 npm install
-```
 
-**4. Create your local env file** *(manual)*
-```bash
+# Create your local env file from the root template (single file for all apps)
 cp .env.example .env
-```
-The default values in `.env.example` already match the Docker container above — no edits needed for local development.
+# Edit .env and set DATABASE_URL, JWT_SECRET, etc.
 
-**5. Run database migrations** *(automatic)*
-```bash
+# Run database migrations
 npm run db:migrate
-```
-When prompted for a migration name, enter `init`. This creates all tables in the database.
 
-**6. Verify the database** *(automatic)*
-```bash
-npm run db:studio
-```
-Prisma Studio opens in your browser. Confirm that all tables defined in `packages/db/prisma/schema.prisma` are present.
-
-**7. Start all apps** *(automatic)*
-```bash
+# Start all apps
 turbo dev
 ```
-- API → http://localhost:3000
-- Web admin → http://localhost:5173
-- Mobile → Expo QR code in terminal (scan with Expo Go)
-
----
-
-### Daily workflow
-
-```bash
-docker start berntracker-db   # start the database (if not already running)
-turbo dev                      # start all apps
-```
-
----
 
 ### Commands
 
 ```bash
-turbo dev          # start API (3000), web (5173), and Expo bundler concurrently
-turbo build        # build all apps and packages
-npm run db:migrate # run any new Prisma migrations
-npm run db:studio  # open Prisma Studio to inspect the database
+turbo dev        # start API (3000), web (5173), and Expo bundler concurrently
+turbo build      # build all apps and packages
 ```
 
 ## Issue index (will be out of date after v1 prototype)
