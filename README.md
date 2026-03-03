@@ -59,6 +59,36 @@ A framework and toolchain built on top of React Native that handles all the pain
 
 ---
 
+### Docker
+
+A containerization tool that packages software and its dependencies into an isolated, reproducible environment.
+
+**What it does here:** We use Docker exclusively to run PostgreSQL locally during development. Rather than installing Postgres directly on your machine (which varies by OS, requires manual version management, and can conflict with other projects), Docker spins up an official Postgres container in one command and tears it down just as easily.
+
+**If you've used:** Homebrew to `brew install postgresql` — Docker is similar in that it gets Postgres running on your machine, but the database lives inside a container rather than your system. The big difference: every developer gets the exact same Postgres version with zero configuration, and it doesn't touch your system outside of Docker.
+
+**Daily usage:**
+
+```bash
+# First time — start the database (runs in the background)
+docker run --name berntracker-db \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=berntracker \
+  -p 5432:5432 \
+  -d postgres:16
+
+# After the container exists — just start/stop it
+docker start berntracker-db
+docker stop berntracker-db
+
+# Check if it's running
+docker ps
+```
+
+> **Prerequisites:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) for Mac. No other Postgres installation needed.
+
+---
+
 ## Monorepo structure
 
 ```
@@ -79,7 +109,7 @@ BernTracker/
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL (or Docker: `docker run -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16`)
+- Docker Desktop — used to run PostgreSQL locally (see [Docker](#docker) above)
 
 ### Setup
 
