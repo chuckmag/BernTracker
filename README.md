@@ -57,6 +57,43 @@ A framework and toolchain built on top of React Native that handles all the pain
 
 **If you've used:** Create React App or Vite for web React — Expo is the same idea for mobile. It removes the setup burden so you can focus on writing app code rather than fighting toolchains.
 
+#### Expo has two distinct modes — know which one you need
+
+| Mode | Tool | Account required? | When to use |
+|---|---|---|---|
+| **Development** | Expo Go app | No | Running the app locally on your phone/simulator during development |
+| **Production builds** | EAS (Expo Application Services) | Yes | Building the app binary for App Store / TestFlight / Play Store |
+
+**Expo Go** is a free app from the App Store / Play Store. Point it at your running dev server (via QR code) and the app loads immediately. No Expo account, no Apple Developer account, no build step. This is what we use for all development work.
+
+**EAS (Expo Application Services)** is Expo's cloud build and deployment platform. It handles:
+- Building native iOS (`.ipa`) and Android (`.aab`) binaries in the cloud — so you don't need Xcode locally
+- Submitting those binaries to Apple App Store / Google Play Console
+- Over-the-air (OTA) updates to push JS changes to users without App Store review
+
+#### Do engineers need an Expo account?
+
+**For development:** No. Expo Go works without any account.
+
+**For app store distribution:** Yes — you need an EAS account. For a team project, use an **Expo organization account** rather than a personal one so the project isn't tied to one person's login. When the time comes, the owner creates the org at [expo.dev](https://expo.dev) and invites team members.
+
+#### EAS setup (defer until pre-launch)
+
+When you're ready to distribute to TestFlight or the Play Store, run:
+
+```bash
+# 1. Link the project to your Expo organization account (run once)
+npx eas-cli@latest init
+
+# 2. Configure build profiles (creates eas.json — commit this file)
+npx eas-cli@latest build:configure
+
+# 3. Build for both platforms and submit to stores (when ready to release)
+npx eas-cli@latest build --platform all --auto-submit
+```
+
+> **Not now:** `eas build` costs EAS build credits, requires an Apple Developer Program account ($99/yr) and Google Play Console account ($25 one-time), and is only relevant at the point of shipping to users. This is a Slice 5+ concern.
+
 ---
 
 ### Docker
