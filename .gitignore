@@ -21,6 +21,9 @@ packages/db/src/generated/
 apps/mobile/.expo/
 apps/mobile/node_modules/
 
+# TypeScript build info
+*.tsbuildinfo
+
 # IDE
 .DS_Store
 *.local
