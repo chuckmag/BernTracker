@@ -38,14 +38,33 @@ enum WorkoutStatus {
   PUBLISHED
 }
 
+// Self-identified gender — stored on the user profile for demographics
+// and communication preferences. Nullable: users are never required to share.
+enum Gender {
+  WOMAN
+  MAN
+  NON_BINARY
+  PREFER_NOT_TO_SAY
+}
+
+// Competitive category used for leaderboard grouping and scaling standards
+// (e.g. Male RX uses heavier weights than Female RX).
+// OPEN = gender-neutral / no preference.
+enum WorkoutGender {
+  MALE
+  FEMALE
+  OPEN
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   name         String
-  role         Role     @default(MEMBER)
-  passwordHash String?
+  role             Role     @default(MEMBER)
+  identifiedGender Gender?
+  passwordHash     String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -158,8 +177,9 @@ model Result {
   id        String       @id @default(cuid())
   userId    String
   workoutId String
-  level     WorkoutLevel
-  value     Json
+  level         WorkoutLevel
+  workoutGender WorkoutGender
+  value         Json
   notes     String?
   createdAt DateTime     @default(now())
 
