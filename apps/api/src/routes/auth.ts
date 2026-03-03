@@ -1,9 +1,20 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
+import { OAuth2Client } from 'google-auth-library'
 import { prisma } from '@berntracker/db'
 import { LoginSchema, RegisterSchema } from '@berntracker/types'
 import { signTokenPair, verifyRefreshToken } from '../lib/jwt.js'
 import { requireAuth } from '../middleware/auth.js'
+
+function googleClient() {
+  return new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3000/api/auth/google/callback',
+  )
+}
+
+const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173'
 
 const router = Router()
 
@@ -140,9 +151,120 @@ router.get('/me', requireAuth, async (req, res) => {
   res.json(user)
 })
 
-// Google OAuth stubs
-router.get('/google', (_req, res) => { res.sendStatus(501) })
-router.get('/google/callback', (_req, res) => { res.sendStatus(501) })
-router.post('/google/mobile', (_req, res) => { res.sendStatus(501) })
+// GET /google — redirect to Google consent screen
+router.get('/google', (_req, res) => {
+  const url = googleClient().generateAuthUrl({
+    access_type: 'offline',
+    scope: ['openid', 'email', 'profile'],
+  })
+  res.redirect(url)
+})
+
+// GET /google/callback — exchange code, findOrCreate user, issue tokens
+router.get('/google/callback', async (req, res) => {
+  const code = req.query.code as string | undefined
+  if (!code) {
+    res.status(400).json({ error: 'Missing code' })
+    return
+  }
+
+  let googleId: string, email: string, name: string
+  try {
+    const client = googleClient()
+    const { tokens } = await client.getToken(code)
+    client.setCredentials(tokens)
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token!,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    })
+    const payload = ticket.getPayload()!
+    googleId = payload.sub
+    email = payload.email!
+    name = payload.name ?? email
+  } catch {
+    res.status(401).json({ error: 'Google token verification failed' })
+    return
+  }
+
+  const user = await findOrCreateGoogleUser(googleId, email, name)
+  const { accessToken, refreshToken } = signTokenPair(user.id, user.role)
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      token: refreshToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  })
+
+  res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
+  // Redirect to frontend — silent refresh will pick up the cookie and issue accessToken
+  res.redirect(`${FRONTEND_URL}/dashboard`)
+})
+
+// POST /google/mobile — verify Google ID token from Expo, issue JWT pair
+router.post('/google/mobile', async (req, res) => {
+  const { idToken } = req.body as { idToken?: string }
+  if (!idToken) {
+    res.status(400).json({ error: 'Missing idToken' })
+    return
+  }
+
+  let googleId: string, email: string, name: string
+  try {
+    const ticket = await googleClient().verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    })
+    const payload = ticket.getPayload()!
+    googleId = payload.sub
+    email = payload.email!
+    name = payload.name ?? email
+  } catch {
+    res.status(401).json({ error: 'Google token verification failed' })
+    return
+  }
+
+  const user = await findOrCreateGoogleUser(googleId, email, name)
+  const { accessToken, refreshToken } = signTokenPair(user.id, user.role)
+  await prisma.refreshToken.create({
+    data: {
+      userId: user.id,
+      token: refreshToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  })
+
+  res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
+  res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
+})
+
+async function findOrCreateGoogleUser(googleId: string, email: string, name: string) {
+  // Check for existing OAuth account
+  const existing = await prisma.oAuthAccount.findUnique({
+    where: { provider_providerId: { provider: 'google', providerId: googleId } },
+    include: { user: { select: { id: true, email: true, name: true, role: true } } },
+  })
+  if (existing) return existing.user
+
+  // Try to link to an existing email user
+  const existingUser = await prisma.user.findUnique({ where: { email } })
+  if (existingUser) {
+    await prisma.oAuthAccount.create({
+      data: { userId: existingUser.id, provider: 'google', providerId: googleId },
+    })
+    return { id: existingUser.id, email: existingUser.email, name: existingUser.name, role: existingUser.role }
+  }
+
+  // Create new user + OAuthAccount
+  const user = await prisma.user.create({
+    data: {
+      email,
+      name,
+      oauthAccounts: { create: { provider: 'google', providerId: googleId } },
+    },
+    select: { id: true, email: true, name: true, role: true },
+  })
+  return user
+}
 
 export { router as authRouter }
