@@ -107,13 +107,11 @@ router.post('/refresh', async (req, res) => {
     return
   }
 
-  const stored = await prisma.refreshToken.findUnique({ where: { token } })
-  if (!stored) {
+  const { count } = await prisma.refreshToken.deleteMany({ where: { token } })
+  if (count === 0) {
     res.status(401).json({ error: 'Refresh token not found or already used' })
     return
   }
-
-  await prisma.refreshToken.delete({ where: { token } })
 
   const { accessToken, refreshToken: newRefresh } = signTokenPair(payload.sub, payload.role)
   await prisma.refreshToken.create({
