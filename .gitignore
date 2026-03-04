@@ -33,3 +33,6 @@ apps/mobile/node_modules/
 # IDE
 .DS_Store
 *.local
+
+# Claude Code
+.claude/worktrees/

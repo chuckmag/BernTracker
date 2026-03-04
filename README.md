@@ -156,7 +156,10 @@ npm install
 
 # Create your local env file from the root template (single file for all apps)
 cp .env.example .env
-# Edit .env and set DATABASE_URL, JWT_SECRET, etc.
+# Edit .env — required: DATABASE_URL, JWT_SECRET
+# For auth (Slice 2+): fill in GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+#   GOOGLE_IOS_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID
+# See issue #9 for how to create credentials in Google Cloud Console
 
 # Run database migrations
 npm run db:migrate
