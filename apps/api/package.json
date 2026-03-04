@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
+    "dev": "node --env-file=../../.env ../../node_modules/.bin/tsx watch src/index.ts",
     "build": "tsc",
     "start": "node --env-file=../../.env dist/index.js"
   },
