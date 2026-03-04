@@ -1,11 +1,15 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext.tsx'
+import RequireAuth from './components/RequireAuth.tsx'
 import Sidebar from './components/Sidebar.tsx'
+import Login from './pages/Login.tsx'
+import Register from './pages/Register.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Calendar from './pages/Calendar.tsx'
 import Members from './pages/Members.tsx'
 import Settings from './pages/Settings.tsx'
 
-export default function App() {
+function AppLayout() {
   return (
     <div className="flex h-screen bg-gray-950 text-white">
       <Sidebar />
@@ -19,5 +23,24 @@ export default function App() {
         </Routes>
       </main>
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route
+          path="/*"
+          element={
+            <RequireAuth>
+              <AppLayout />
+            </RequireAuth>
+          }
+        />
+      </Routes>
+    </AuthProvider>
   )
 }
