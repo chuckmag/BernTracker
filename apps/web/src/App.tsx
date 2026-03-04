@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext.tsx'
 import RequireAuth from './components/RequireAuth.tsx'
 import Sidebar from './components/Sidebar.tsx'
 import Login from './pages/Login.tsx'
+import Register from './pages/Register.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Calendar from './pages/Calendar.tsx'
 import Members from './pages/Members.tsx'
@@ -30,6 +31,7 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route
           path="/*"
           element={
