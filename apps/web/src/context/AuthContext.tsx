@@ -25,7 +25,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`${BASE_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
+    const controller = new AbortController()
+
+    fetch(`${BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      signal: controller.signal,
+    })
       .then(async (r) => {
         if (r.ok) {
           const data = await r.json()
@@ -33,12 +39,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const me = await fetch(`${BASE_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${data.accessToken}` },
             credentials: 'include',
+            signal: controller.signal,
           })
           if (me.ok) setUser(await me.json())
         }
       })
       .catch(() => {})
-      .finally(() => setIsLoading(false))
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
   }, [])
 
   function login(token: string, u: AuthUser) {
