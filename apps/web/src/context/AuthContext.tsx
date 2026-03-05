@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -24,14 +24,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const controller = new AbortController()
+  const didFetch = useRef(false)
 
-    fetch(`${BASE_URL}/api/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-      signal: controller.signal,
-    })
+  useEffect(() => {
+    if (didFetch.current) return
+    didFetch.current = true
+
+    fetch(`${BASE_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
       .then(async (r) => {
         if (r.ok) {
           const data = await r.json()
@@ -39,17 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const me = await fetch(`${BASE_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${data.accessToken}` },
             credentials: 'include',
-            signal: controller.signal,
           })
           if (me.ok) setUser(await me.json())
         }
       })
       .catch(() => {})
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false)
-      })
-
-    return () => controller.abort()
+      .finally(() => setIsLoading(false))
   }, [])
 
   function login(token: string, u: AuthUser) {
