@@ -25,6 +25,11 @@ const COOKIE_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60 * 1000,
 }
 
+// Deduplication map: concurrent requests with the same refresh token share one Promise.
+// Handles React StrictMode's double-invoke where both fetches hit the server before
+// the first response is processed and the cookie is rotated.
+const refreshPromises = new Map<string, Promise<{ accessToken: string; newRefresh: string }>>()
+
 // POST /register
 router.post('/register', async (req, res) => {
   const parsed = RegisterSchema.safeParse(req.body)
@@ -107,23 +112,36 @@ router.post('/refresh', async (req, res) => {
     return
   }
 
-  const { count } = await prisma.refreshToken.deleteMany({ where: { token } })
-  if (count === 0) {
-    res.status(401).json({ error: 'Refresh token not found or already used' })
-    return
+  // Share one Promise across concurrent requests for the same token (e.g. React
+  // StrictMode double-invoke). The Promise is stored synchronously before any await,
+  // so a second request always finds and awaits the same work rather than racing.
+  let work = refreshPromises.get(token)
+  if (!work) {
+    work = (async () => {
+      const { count } = await prisma.refreshToken.deleteMany({ where: { token } })
+      if (count === 0) throw new Error('not_found')
+
+      const { accessToken, refreshToken: newRefresh } = signTokenPair(payload.sub, payload.role)
+      await prisma.refreshToken.create({
+        data: {
+          userId: payload.sub,
+          token: newRefresh,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      })
+      return { accessToken, newRefresh }
+    })()
+    refreshPromises.set(token, work)
+    work.finally(() => setTimeout(() => refreshPromises.delete(token), 5000))
   }
 
-  const { accessToken, refreshToken: newRefresh } = signTokenPair(payload.sub, payload.role)
-  await prisma.refreshToken.create({
-    data: {
-      userId: payload.sub,
-      token: newRefresh,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  })
-
-  res.cookie('refreshToken', newRefresh, COOKIE_OPTIONS)
-  res.json({ accessToken })
+  try {
+    const { accessToken, newRefresh } = await work
+    res.cookie('refreshToken', newRefresh, COOKIE_OPTIONS)
+    res.json({ accessToken })
+  } catch {
+    res.status(401).json({ error: 'Refresh token not found or already used' })
+  }
 })
 
 // POST /logout
