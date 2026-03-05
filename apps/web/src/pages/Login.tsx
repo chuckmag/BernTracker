@@ -48,6 +48,7 @@ export default function Login() {
             <input
               id="email"
               type="email"
+              autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -63,6 +64,7 @@ export default function Login() {
             <input
               id="password"
               type="password"
+              autoComplete="current-password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -83,12 +85,21 @@ export default function Login() {
         </form>
 
         <div className="mt-4">
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-700" />
+            </div>
+            <div className="relative flex justify-center text-xs text-gray-500">
+              <span className="bg-gray-900 px-2">or</span>
+            </div>
+          </div>
+
           <button
-            disabled
-            title="Coming soon"
-            className="w-full cursor-not-allowed rounded-md border border-gray-700 py-2 text-sm font-medium text-gray-500"
+            type="button"
+            onClick={() => { window.location.href = '/api/auth/google' }}
+            className="w-full rounded-md border border-gray-700 py-2 text-sm font-medium text-gray-200 hover:bg-gray-800"
           >
-            Sign in with Google (coming soon)
+            Sign in with Google
           </button>
         </div>
 

@@ -49,6 +49,7 @@ export default function Register() {
             <input
               id="name"
               type="text"
+              autoComplete="name"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -64,6 +65,7 @@ export default function Register() {
             <input
               id="email"
               type="email"
+              autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -79,6 +81,7 @@ export default function Register() {
             <input
               id="password"
               type="password"
+              autoComplete="new-password"
               required
               minLength={8}
               value={password}
@@ -98,6 +101,23 @@ export default function Register() {
             {submitting ? 'Creating account…' : 'Create account'}
           </button>
         </form>
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-700" />
+          </div>
+          <div className="relative flex justify-center text-xs text-gray-500">
+            <span className="bg-gray-900 px-2">or</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => { window.location.href = '/api/auth/google' }}
+          className="w-full rounded-md border border-gray-700 py-2 text-sm font-medium text-gray-200 hover:bg-gray-800"
+        >
+          Sign up with Google
+        </button>
 
         <p className="mt-4 text-center text-sm text-gray-500">
           Already have an account?{' '}

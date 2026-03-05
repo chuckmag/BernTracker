@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -24,7 +24,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  const didFetch = useRef(false)
+
   useEffect(() => {
+    if (didFetch.current) return
+    didFetch.current = true
+
     fetch(`${BASE_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
       .then(async (r) => {
         if (r.ok) {
