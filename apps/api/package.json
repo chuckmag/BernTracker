@@ -3,16 +3,26 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "tsx --env-file=../../.env watch src/index.ts",
+    "dev": "node --env-file=../../.env ../../node_modules/.bin/tsx watch src/index.ts",
     "build": "tsc",
     "start": "node --env-file=../../.env dist/index.js"
   },
   "dependencies": {
     "@berntracker/db": "*",
-    "express": "^4.21.2"
+    "@berntracker/types": "*",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "google-auth-library": "^10.6.1",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.13.9",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
