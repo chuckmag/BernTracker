@@ -132,7 +132,7 @@ router.post('/refresh', async (req, res) => {
       return { accessToken, newRefresh }
     })()
     refreshPromises.set(token, work)
-    work.finally(() => setTimeout(() => refreshPromises.delete(token), 5000))
+    work.finally(() => setTimeout(() => refreshPromises.delete(token), 5000)).catch(() => {})
   }
 
   try {
