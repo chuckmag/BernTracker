@@ -76,6 +76,24 @@ When an engineer asks for help setting up the project, use the README Getting St
 | `command not found: turbo` | Dependencies not installed | `npm install` from repo root |
 | `ConfigError: The expected package.json path: .../apps/mobile/package.json does not exist` | `expo start` run from repo root, or `npm install` not run after adding mobile workspace | Run from `apps/mobile`: `cd apps/mobile && npx expo start`. If new workspace was added, run `npm install` from root first to register the symlink. |
 
+## Known patterns and pitfalls
+
+### React StrictMode double-invoke
+In development, React 18 StrictMode fires every `useEffect` twice (mount → cleanup → remount). Any one-shot side effect (auth check, analytics ping, etc.) must be guarded with a `useRef` flag so the second invocation is a no-op:
+
+```tsx
+const didFetch = useRef(false)
+useEffect(() => {
+  if (didFetch.current) return
+  didFetch.current = true
+  // ... fetch / side effect
+}, [])
+```
+
+`useRef` values persist across StrictMode's simulated remount (unlike state), so this reliably prevents the double call. **Do not try to solve this on the server side** — deduplication maps, Promise caches, and AbortControllers are all treating a client-side problem as a server-side one. The fix is always the ref guard.
+
+This came up with `AuthContext`'s silent refresh (`POST /api/auth/refresh`): two concurrent requests raced to consume the same refresh token, causing 401s (and a P2025 Prisma crash before the `deleteMany` fix). The ref guard in `apps/web/src/context/AuthContext.tsx` is the canonical solution.
+
 ## Architecture
 
 - API style: REST (see #8 for REST vs GraphQL analysis)
