@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react'
 import { api, type Member, type GymProgram, type Role } from '../lib/api'
 
 const ROLES: Role[] = ['MEMBER', 'COACH', 'PROGRAMMER', 'OWNER']
+const ROLE_LABELS: Record<Role, string> = {
+  MEMBER: 'Member',
+  COACH: 'Coach',
+  PROGRAMMER: 'Programmer',
+  OWNER: 'Owner',
+}
 
 export default function Members() {
   const [gymId] = useState<string | null>(() => localStorage.getItem('gymId'))
@@ -12,7 +18,6 @@ export default function Members() {
   const [showInviteModal, setShowInviteModal] = useState(false)
 
   // Invite form
-  const [inviteName, setInviteName] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<Role>('MEMBER')
   const [inviting, setInviting] = useState(false)
@@ -64,8 +69,7 @@ export default function Members() {
     setInviting(true)
     setError(null)
     try {
-      await api.gyms.members.invite(gymId, { name: inviteName, email: inviteEmail, role: inviteRole })
-      setInviteName('')
+      await api.gyms.members.invite(gymId, { email: inviteEmail, role: inviteRole })
       setInviteEmail('')
       setInviteRole('MEMBER')
       setShowInviteModal(false)
@@ -131,7 +135,7 @@ export default function Members() {
           <tbody>
             {members.map((member) => (
               <tr key={member.id} className="border-b border-gray-800">
-                <td className="py-2 pr-4">{member.name}</td>
+                <td className="py-2 pr-4">{member.name ?? <span className="text-gray-500 italic">Pending</span>}</td>
                 <td className="py-2 pr-4 text-gray-400">{member.email}</td>
                 <td className="py-2 pr-4">
                   <select
@@ -140,7 +144,7 @@ export default function Members() {
                     onChange={(e) => handleRoleChange(member.id, e.target.value as Role)}
                   >
                     {ROLES.map((r) => (
-                      <option key={r} value={r}>{r}</option>
+                      <option key={r} value={r}>{ROLE_LABELS[r]}</option>
                     ))}
                   </select>
                 </td>
@@ -185,15 +189,6 @@ export default function Members() {
             <h2 className="text-lg font-semibold mb-4">Invite Member</h2>
             {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
             <form onSubmit={handleInvite} className="space-y-3">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Name</label>
-                <input
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
-                  value={inviteName}
-                  onChange={(e) => setInviteName(e.target.value)}
-                  required
-                />
-              </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Email</label>
                 <input

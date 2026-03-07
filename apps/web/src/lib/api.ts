@@ -55,7 +55,7 @@ export interface Gym {
 export interface Member {
   id: string
   email: string
-  name: string
+  name: string | null
   role: Role
   joinedAt: string
 }
@@ -91,7 +91,7 @@ export const api = {
       list: (gymId: string, token?: string) =>
         req<Member[]>(`/api/gyms/${gymId}/members`, { token }),
 
-      invite: (gymId: string, data: { email: string; name: string; role?: Role }, token?: string) =>
+      invite: (gymId: string, data: { email: string; role?: Role }, token?: string) =>
         req<Member>(`/api/gyms/${gymId}/members/invite`, {
           method: 'POST',
           body: JSON.stringify(data),

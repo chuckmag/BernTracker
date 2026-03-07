@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma, type Prisma } from '@berntracker/db'
+import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -11,11 +12,17 @@ function slugify(name: string): string {
 }
 
 // POST /api/gyms
-router.post('/gyms', async (req, res) => {
+router.post('/gyms', requireAuth, async (req, res) => {
   const { name, timezone } = req.body as { name: string; timezone?: string }
   const slug = slugify(name)
-  const gym = await prisma.gym.create({
-    data: { name, slug, ...(timezone ? { timezone } : {}) },
+  const gym = await prisma.$transaction(async (tx) => {
+    const created = await tx.gym.create({
+      data: { name, slug, ...(timezone ? { timezone } : {}) },
+    })
+    await tx.userGym.create({
+      data: { userId: req.user!.id, gymId: created.id, role: 'OWNER' },
+    })
+    return created
   })
   res.status(201).json(gym)
 })
@@ -60,10 +67,10 @@ router.get('/gyms/:gymId/members', async (req, res) => {
 
 // POST /api/gyms/:gymId/members/invite
 router.post('/gyms/:gymId/members/invite', async (req, res) => {
-  const { email, name, role } = req.body as { email: string; name: string; role?: string }
+  const { email, role } = req.body as { email: string; role?: string }
   const gymId = req.params.gymId
 
-  if (!email || !name) return res.status(400).json({ error: 'email and name are required' })
+  if (!email) return res.status(400).json({ error: 'email is required' })
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email address' })
 
   const gym = await prisma.gym.findUnique({ where: { id: gymId } })
@@ -74,7 +81,7 @@ router.post('/gyms/:gymId/members/invite', async (req, res) => {
   const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     let user = await tx.user.findUnique({ where: { email } })
     if (!user) {
-      user = await tx.user.create({ data: { email, name, role: userRole } })
+      user = await tx.user.create({ data: { email } })
     }
     const membership = await tx.userGym.upsert({
       where: { userId_gymId: { userId: user.id, gymId } },
