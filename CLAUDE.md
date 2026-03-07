@@ -98,6 +98,18 @@ enum WorkoutGender { MALE, FEMALE, OPEN }                          // Result.wor
 
 When creating a PR, always link the relevant issue in the PR body using a GitHub closing keyword (e.g. `Closes #11`) or a plain reference (e.g. `Part of #11`) so that context is well linked. Use `Closes` when the PR fully resolves the issue; use `Part of` when it is one slice of a multi-PR issue.
 
+### Schema migrations — required pre-merge checklist item
+
+Every PR that modifies `packages/db/prisma/schema.prisma` **must** commit the generated migration file before merging:
+
+```bash
+npm run db:migrate   # generates packages/db/prisma/migrations/<timestamp>_<name>/migration.sql
+git add packages/db/prisma/migrations/
+git commit -m "chore(db): add migration for <description>"
+```
+
+**Why this matters:** Prisma migration files are the source of truth for schema history. If a migration is applied to a dev database without committing the file, other developers and production deployments will see drift errors and may need to run `prisma migrate reset --force` (which destroys all data). Always commit migration files as part of the PR that introduced the schema change — never after.
+
 ## Issue index
 
 See the comment on #1 for the full navigation hub.
