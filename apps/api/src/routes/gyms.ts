@@ -63,6 +63,9 @@ router.post('/gyms/:gymId/members/invite', async (req, res) => {
   const { email, name, role } = req.body as { email: string; name: string; role?: string }
   const gymId = req.params.gymId
 
+  if (!email || !name) return res.status(400).json({ error: 'email and name are required' })
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email address' })
+
   const gym = await prisma.gym.findUnique({ where: { id: gymId } })
   if (!gym) return res.status(404).json({ error: 'Gym not found' })
 
