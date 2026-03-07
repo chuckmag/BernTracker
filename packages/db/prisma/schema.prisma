@@ -61,7 +61,7 @@ enum WorkoutGender {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
-  name         String
+  name         String?
   role             Role     @default(MEMBER)
   identifiedGender Gender?
   passwordHash     String?
@@ -101,6 +101,7 @@ model Gym {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  timezone  String   @default("UTC")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

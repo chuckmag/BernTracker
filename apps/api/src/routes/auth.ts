@@ -200,6 +200,7 @@ router.get('/google/callback', async (req, res) => {
 })
 
 // POST /google/mobile — verify Google ID token from Expo, issue JWT pair
+// TODO: This is untested and should be seen as stubbed out for now.
 router.post('/google/mobile', async (req, res) => {
   const { idToken } = req.body as { idToken?: string }
   if (!idToken) {
