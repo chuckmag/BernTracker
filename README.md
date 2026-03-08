@@ -175,6 +175,19 @@ turbo dev        # start API (3000), web (5173), and Expo bundler concurrently
 turbo build      # build all apps and packages
 ```
 
+### Schema migrations
+
+Any time you change `packages/db/prisma/schema.prisma`, run the migration command and **commit the generated file** before opening or merging a PR:
+
+```bash
+npm run db:migrate
+# adds a new file under packages/db/prisma/migrations/<timestamp>_<name>/migration.sql
+git add packages/db/prisma/migrations/
+git commit -m "chore(db): add migration for <description>"
+```
+
+> **Important:** Never merge a PR that modifies the schema without the corresponding migration file committed. Missing migration files cause drift errors for other developers and in production — and recovering from drift requires a destructive `prisma migrate reset`.
+
 ## Issue index (will be out of date after v1 prototype)
 
 See the comment on #1 for the full navigation hub.
