@@ -58,6 +58,7 @@ export interface Member {
   name: string | null
   role: Role
   joinedAt: string
+  programs: { id: string; name: string }[]
 }
 
 export interface Program {

@@ -51,7 +51,20 @@ router.get('/gyms/:gymId/members', async (req, res) => {
 
   const memberships = await prisma.userGym.findMany({
     where: { gymId: req.params.gymId },
-    include: { user: { select: { id: true, email: true, name: true, createdAt: true } } },
+    include: {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          programs: {
+            where: { program: { gyms: { some: { gymId: req.params.gymId } } } },
+            include: { program: { select: { id: true, name: true } } },
+          },
+        },
+      },
+    },
   })
 
   const members = memberships.map((m) => ({
@@ -60,6 +73,7 @@ router.get('/gyms/:gymId/members', async (req, res) => {
     name: m.user.name,
     role: m.role,
     joinedAt: m.joinedAt,
+    programs: m.user.programs.map((up) => ({ id: up.program.id, name: up.program.name })),
   }))
 
   res.json(members)

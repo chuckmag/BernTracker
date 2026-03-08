@@ -84,6 +84,16 @@ export default function Members() {
   async function handleSubscribe(userId: string, programId: string) {
     try {
       await api.programs.subscribe(programId, userId)
+      await loadData()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
+  async function handleUnsubscribe(userId: string, programId: string) {
+    try {
+      await api.programs.unsubscribe(programId, userId)
+      await loadData()
     } catch (e) {
       setError((e as Error).message)
     }
@@ -128,7 +138,7 @@ export default function Members() {
               <th className="text-left py-2 pr-4">Email</th>
               <th className="text-left py-2 pr-4">Role</th>
               <th className="text-left py-2 pr-4">Joined</th>
-              {programs.length > 0 && <th className="text-left py-2 pr-4">Subscribe</th>}
+              {programs.length > 0 && <th className="text-left py-2 pr-4">Programs</th>}
               <th className="text-left py-2">Actions</th>
             </tr>
           </thead>
@@ -153,19 +163,40 @@ export default function Members() {
                 </td>
                 {programs.length > 0 && (
                   <td className="py-2 pr-4">
-                    <select
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-xs"
-                      defaultValue=""
-                      onChange={(e) => {
-                        if (e.target.value) handleSubscribe(member.id, e.target.value)
-                        e.target.value = ''
-                      }}
-                    >
-                      <option value="" disabled>Add to program…</option>
-                      {programs.map(({ program }) => (
-                        <option key={program.id} value={program.id}>{program.name}</option>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {member.programs.map((p) => (
+                        <span
+                          key={p.id}
+                          className="inline-flex items-center gap-1 bg-indigo-900/60 text-indigo-300 text-xs px-2 py-0.5 rounded-full"
+                        >
+                          {p.name}
+                          <button
+                            type="button"
+                            onClick={() => handleUnsubscribe(member.id, p.id)}
+                            className="text-indigo-400 hover:text-red-400 leading-none"
+                            aria-label={`Remove from ${p.name}`}
+                          >
+                            ×
+                          </button>
+                        </span>
                       ))}
-                    </select>
+                      {programs.some(({ program }) => !member.programs.find((p) => p.id === program.id)) && (
+                        <select
+                          className="bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-gray-400 text-xs"
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) handleSubscribe(member.id, e.target.value)
+                          }}
+                        >
+                          <option value="" disabled>+ Add…</option>
+                          {programs
+                            .filter(({ program }) => !member.programs.find((p) => p.id === program.id))
+                            .map(({ program }) => (
+                              <option key={program.id} value={program.id}>{program.name}</option>
+                            ))}
+                        </select>
+                      )}
+                    </div>
                   </td>
                 )}
                 <td className="py-2">
