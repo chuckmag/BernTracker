@@ -1,6 +1,16 @@
 import { Router } from 'express'
-import { prisma, type Prisma } from '@berntracker/db'
 import { requireAuth } from '../middleware/auth.js'
+import {
+  createGymAndAddOwnerMember,
+  findGymById,
+  updateGymNameAndTimezone,
+} from '../db/gymDbManager.js'
+import {
+  findMembersWithProgramSubscriptionsByGymId,
+  inviteUserToGymByEmail,
+  updateGymMemberRole,
+  removeGymMember,
+} from '../db/userGymDbManager.js'
 
 const router = Router()
 
@@ -14,22 +24,13 @@ function slugify(name: string): string {
 // POST /api/gyms
 router.post('/gyms', requireAuth, async (req, res) => {
   const { name, timezone } = req.body as { name: string; timezone?: string }
-  const slug = slugify(name)
-  const gym = await prisma.$transaction(async (tx) => {
-    const created = await tx.gym.create({
-      data: { name, slug, ...(timezone ? { timezone } : {}) },
-    })
-    await tx.userGym.create({
-      data: { userId: req.user!.id, gymId: created.id, role: 'OWNER' },
-    })
-    return created
-  })
+  const gym = await createGymAndAddOwnerMember({ name, slug: slugify(name), timezone }, req.user!.id)
   res.status(201).json(gym)
 })
 
 // GET /api/gyms/:id
 router.get('/gyms/:id', async (req, res) => {
-  const gym = await prisma.gym.findUnique({ where: { id: req.params.id } })
+  const gym = await findGymById(req.params.id)
   if (!gym) return res.status(404).json({ error: 'Gym not found' })
   res.json(gym)
 })
@@ -37,45 +38,16 @@ router.get('/gyms/:id', async (req, res) => {
 // PATCH /api/gyms/:id
 router.patch('/gyms/:id', async (req, res) => {
   const { name, timezone } = req.body as { name?: string; timezone?: string }
-  const gym = await prisma.gym.update({
-    where: { id: req.params.id },
-    data: { ...(name ? { name } : {}), ...(timezone ? { timezone } : {}) },
-  })
+  const gym = await updateGymNameAndTimezone(req.params.id, { name, timezone })
   res.json(gym)
 })
 
 // GET /api/gyms/:gymId/members
 router.get('/gyms/:gymId/members', async (req, res) => {
-  const gym = await prisma.gym.findUnique({ where: { id: req.params.gymId } })
+  const gym = await findGymById(req.params.gymId)
   if (!gym) return res.status(404).json({ error: 'Gym not found' })
 
-  const memberships = await prisma.userGym.findMany({
-    where: { gymId: req.params.gymId },
-    include: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          createdAt: true,
-          programs: {
-            where: { program: { gyms: { some: { gymId: req.params.gymId } } } },
-            include: { program: { select: { id: true, name: true } } },
-          },
-        },
-      },
-    },
-  })
-
-  const members = memberships.map((m) => ({
-    id: m.user.id,
-    email: m.user.email,
-    name: m.user.name,
-    role: m.role,
-    joinedAt: m.joinedAt,
-    programs: m.user.programs.map((up) => ({ id: up.program.id, name: up.program.name })),
-  }))
-
+  const members = await findMembersWithProgramSubscriptionsByGymId(req.params.gymId)
   res.json(members)
 })
 
@@ -87,42 +59,24 @@ router.post('/gyms/:gymId/members/invite', async (req, res) => {
   if (!email) return res.status(400).json({ error: 'email is required' })
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email address' })
 
-  const gym = await prisma.gym.findUnique({ where: { id: gymId } })
+  const gym = await findGymById(gymId)
   if (!gym) return res.status(404).json({ error: 'Gym not found' })
 
   const userRole = (role as 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER') ?? 'MEMBER'
-
-  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    let user = await tx.user.findUnique({ where: { email } })
-    if (!user) {
-      user = await tx.user.create({ data: { email } })
-    }
-    const membership = await tx.userGym.upsert({
-      where: { userId_gymId: { userId: user.id, gymId } },
-      update: { role: userRole },
-      create: { userId: user.id, gymId, role: userRole },
-    })
-    return { id: user.id, email: user.email, name: user.name, role: membership.role, joinedAt: membership.joinedAt }
-  })
-
+  const result = await inviteUserToGymByEmail(email, gymId, userRole)
   res.status(201).json(result)
 })
 
 // PATCH /api/gyms/:gymId/members/:userId
 router.patch('/gyms/:gymId/members/:userId', async (req, res) => {
   const { role } = req.body as { role: 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER' }
-  const membership = await prisma.userGym.update({
-    where: { userId_gymId: { userId: req.params.userId, gymId: req.params.gymId } },
-    data: { role },
-  })
+  const membership = await updateGymMemberRole(req.params.userId, req.params.gymId, role)
   res.json(membership)
 })
 
 // DELETE /api/gyms/:gymId/members/:userId
 router.delete('/gyms/:gymId/members/:userId', async (req, res) => {
-  await prisma.userGym.delete({
-    where: { userId_gymId: { userId: req.params.userId, gymId: req.params.gymId } },
-  })
+  await removeGymMember(req.params.userId, req.params.gymId)
   res.status(204).send()
 })
 
