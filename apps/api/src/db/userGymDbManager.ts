@@ -53,3 +53,16 @@ export async function updateGymMemberRole(userId: string, gymId: string, role: R
 export async function removeGymMember(userId: string, gymId: string) {
   return prisma.userGym.delete({ where: { userId_gymId: { userId, gymId } } })
 }
+
+export async function findGymMembershipsByUserId(userId: string) {
+  const memberships = await prisma.userGym.findMany({
+    where: { userId },
+    include: { gym: { select: { id: true, name: true, slug: true } } },
+  })
+  return memberships.map((m) => ({
+    id: m.gym.id,
+    name: m.gym.name,
+    slug: m.gym.slug,
+    role: m.role,
+  }))
+}

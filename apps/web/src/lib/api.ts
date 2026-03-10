@@ -43,6 +43,13 @@ async function req<T>(path: string, opts: RequestInit & { token?: string } = {})
 
 export type Role = 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER'
 
+export interface MyGym {
+  id: string
+  name: string
+  slug: string
+  role: Role
+}
+
 export interface Gym {
   id: string
   name: string
@@ -79,6 +86,10 @@ export interface GymProgram {
 }
 
 export const api = {
+  me: {
+    gyms: () => req<MyGym[]>('/api/me/gyms'),
+  },
+
   gyms: {
     create: (data: { name: string; timezone?: string }, token?: string) =>
       req<Gym>('/api/gyms', { method: 'POST', body: JSON.stringify(data), token }),
