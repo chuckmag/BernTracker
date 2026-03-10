@@ -1,18 +1,16 @@
 import { Router } from 'express'
-import { prisma } from '@berntracker/db'
+import { findGymById } from '../db/gymDbManager.js'
+import { findProgramsWithDetailsByGymId, createProgramAndLinkToGym } from '../db/gymProgramDbManager.js'
+import { findProgramById, subscribeUserToProgram, unsubscribeUserFromProgram } from '../db/userProgramDbManager.js'
 
 const router = Router()
 
 // GET /api/gyms/:gymId/programs
 router.get('/gyms/:gymId/programs', async (req, res) => {
-  const gym = await prisma.gym.findUnique({ where: { id: req.params.gymId } })
+  const gym = await findGymById(req.params.gymId)
   if (!gym) return res.status(404).json({ error: 'Gym not found' })
 
-  const gymPrograms = await prisma.gymProgram.findMany({
-    where: { gymId: req.params.gymId },
-    include: { program: true },
-  })
-
+  const gymPrograms = await findProgramsWithDetailsByGymId(req.params.gymId)
   res.json(gymPrograms)
 })
 
@@ -26,43 +24,27 @@ router.post('/gyms/:gymId/programs', async (req, res) => {
     endDate?: string
   }
 
-  const gym = await prisma.gym.findUnique({ where: { id: gymId } })
+  const gym = await findGymById(gymId)
   if (!gym) return res.status(404).json({ error: 'Gym not found' })
 
-  const program = await prisma.program.create({
-    data: {
-      name,
-      description,
-      startDate: new Date(startDate),
-      endDate: endDate ? new Date(endDate) : undefined,
-      gyms: { create: { gymId } },
-    },
-  })
-
-  res.status(201).json({ program })
+  const result = await createProgramAndLinkToGym(gymId, { name, description, startDate, endDate })
+  res.status(201).json(result)
 })
 
 // POST /api/programs/:id/subscribe
 router.post('/programs/:id/subscribe', async (req, res) => {
   const { userId } = req.body as { userId: string }
-  const program = await prisma.program.findUnique({ where: { id: req.params.id } })
+  const program = await findProgramById(req.params.id)
   if (!program) return res.status(404).json({ error: 'Program not found' })
 
-  const userProgram = await prisma.userProgram.upsert({
-    where: { userId_programId: { userId, programId: req.params.id } },
-    update: {},
-    create: { userId, programId: req.params.id },
-  })
-
+  const userProgram = await subscribeUserToProgram(userId, req.params.id)
   res.status(201).json(userProgram)
 })
 
 // DELETE /api/programs/:id/subscribe
 router.delete('/programs/:id/subscribe', async (req, res) => {
   const { userId } = req.body as { userId: string }
-  await prisma.userProgram.delete({
-    where: { userId_programId: { userId, programId: req.params.id } },
-  })
+  await unsubscribeUserFromProgram(userId, req.params.id)
   res.status(204).send()
 })
 

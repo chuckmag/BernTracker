@@ -83,6 +83,28 @@ When an engineer asks for help setting up the project, use the README Getting St
 - Data model source of truth: `packages/db/prisma/schema.prisma`
 - Shared result value types: `packages/types/src/result.ts`
 
+### DB manager pattern
+
+All Prisma queries must live in model-specific manager files under `apps/api/src/db/`, not inline in route handlers. One file per Prisma model (or logical model group):
+
+```
+apps/api/src/db/
+  gymDbManager.ts          # prisma.gym.*
+  userGymDbManager.ts      # prisma.userGym.* (memberships)
+  gymProgramDbManager.ts   # prisma.gymProgram.* + prisma.program.create
+  userProgramDbManager.ts  # prisma.userProgram.* (subscriptions)
+```
+
+**Naming rules:**
+- File: `<model>DbManager.ts` (camelCase, matches the Prisma model name)
+- Functions: verbose and descriptive — name what the query does, not just what it calls
+  - ✅ `findMembersWithProgramSubscriptionsByGymId(gymId)`
+  - ✅ `createGymAndAddOwnerMember(data, ownerId)`
+  - ❌ `getMembers(gymId)` — too vague
+  - ❌ `userGymFindMany(gymId)` — just restates the Prisma call
+
+Route handlers should read like high-level orchestration — guard clauses, call managers, return responses — with no raw `prisma.*` calls.
+
 ## Key enums
 
 ```prisma
