@@ -10,6 +10,7 @@ import {
   inviteUserToGymByEmail,
   updateGymMemberRole,
   removeGymMember,
+  findGymMembershipsByUserId,
 } from '../db/userGymDbManager.js'
 
 const router = Router()
@@ -20,6 +21,12 @@ function slugify(name: string): string {
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
 }
+
+// GET /api/me/gyms
+router.get('/me/gyms', requireAuth, async (req, res) => {
+  const gyms = await findGymMembershipsByUserId(req.user!.id)
+  res.json(gyms)
+})
 
 // POST /api/gyms
 router.post('/gyms', requireAuth, async (req, res) => {
