@@ -1,0 +1,13 @@
+{
+  "exec": "node --env-file=../../.env ../../node_modules/.bin/tsx src/index.ts",
+  "ext": "ts,json",
+  "watch": [
+    "src",
+    "../../packages/db/src",
+    "../../packages/types/src"
+  ],
+  "ignore": [
+    "dist",
+    "node_modules"
+  ]
+}

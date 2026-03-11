@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "node --env-file=../../.env ../../node_modules/.bin/tsx watch src/index.ts",
+    "dev": "../../node_modules/.bin/nodemon",
     "build": "tsc",
     "start": "node --env-file=../../.env dist/index.js"
   },
@@ -24,6 +24,7 @@
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.13.9",
+    "nodemon": "^3.1.14",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }
