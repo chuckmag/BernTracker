@@ -23,3 +23,15 @@ export const ResultValueSchema = z.discriminatedUnion('type', [
 export type AmrapResult = z.infer<typeof AmrapResultSchema>
 export type ForTimeResult = z.infer<typeof ForTimeResultSchema>
 export type ResultValue = z.infer<typeof ResultValueSchema>
+
+export const WorkoutLevelSchema = z.enum(['RX_PLUS', 'RX', 'SCALED', 'MODIFIED'])
+export const WorkoutGenderSchema = z.enum(['MALE', 'FEMALE', 'OPEN'])
+
+export const CreateResultSchema = z.object({
+  level: WorkoutLevelSchema,
+  workoutGender: WorkoutGenderSchema,
+  value: ResultValueSchema,
+  notes: z.string().optional(),
+})
+
+export type CreateResultInput = z.infer<typeof CreateResultSchema>
