@@ -54,6 +54,17 @@ export async function removeGymMember(userId: string, gymId: string) {
   return prisma.userGym.delete({ where: { userId_gymId: { userId, gymId } } })
 }
 
+export async function findGymMembershipByUserAndGym(userId: string, gymId: string) {
+  return prisma.userGym.findUnique({ where: { userId_gymId: { userId, gymId } } })
+}
+
+export async function findWriterMembershipByUserAndAnyGym(userId: string, gymIds: string[]) {
+  if (gymIds.length === 0) return null
+  return prisma.userGym.findFirst({
+    where: { userId, gymId: { in: gymIds }, role: { in: ['OWNER', 'PROGRAMMER', 'COACH'] } },
+  })
+}
+
 export async function isUserMemberOfAnyGym(userId: string, gymIds: string[]) {
   if (gymIds.length === 0) return false
   const count = await prisma.userGym.count({ where: { userId, gymId: { in: gymIds } } })

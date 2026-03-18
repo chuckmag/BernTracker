@@ -91,6 +91,14 @@ export async function publishWorkoutsByGymAndDateRange(gymId: string, from: Date
   })
 }
 
+// Lightweight query for auth middleware — returns only gym IDs, not full workout data
+export async function findWorkoutGymIdsById(id: string) {
+  return prisma.workout.findUnique({
+    where: { id },
+    select: { program: { select: { gyms: { select: { gymId: true } } } } },
+  })
+}
+
 export async function deleteWorkout(id: string) {
   return prisma.workout.delete({ where: { id } })
 }

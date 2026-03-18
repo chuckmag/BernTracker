@@ -1,7 +1,13 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
-import { requireAuth, requireRole } from '../middleware/auth.js'
-import { validateGymExists, requireGymMembership, requireWorkoutGymMembership } from '../middleware/gym.js'
+import { requireAuth } from '../middleware/auth.js'
+import {
+  validateGymExists,
+  requireGymMembership,
+  requireGymWriteAccess,
+  requireWorkoutGymMembership,
+  requireWorkoutGymWriteAccess,
+} from '../middleware/gym.js'
 import {
   createWorkoutForProgram,
   findWorkoutsByGymAndDateRange,
@@ -16,8 +22,32 @@ import { Role } from '@berntracker/db'
 
 const router = Router()
 
-const canWrite = requireRole('OWNER', 'PROGRAMMER', 'COACH')
 const gymGuards = [requireAuth, validateGymExists, requireGymMembership] as const
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
+// GET  /api/gyms/:gymId/workouts?from=&to=
+router.get('/gyms/:gymId/workouts', ...gymGuards, getWorkoutsByGymAndDateRange)
+
+// POST /api/gyms/:gymId/workouts
+router.post('/gyms/:gymId/workouts', requireAuth, validateGymExists, requireGymWriteAccess, createWorkoutInGym)
+
+// POST /api/gyms/:gymId/workouts/publish — batch publish by date range
+router.post('/gyms/:gymId/workouts/publish', requireAuth, validateGymExists, requireGymWriteAccess, batchPublishWorkoutsForGym)
+
+// GET  /api/workouts/:id
+router.get('/workouts/:id', requireAuth, requireWorkoutGymMembership, getWorkoutById)
+
+// PATCH /api/workouts/:id
+router.patch('/workouts/:id', requireAuth, requireWorkoutGymWriteAccess, patchWorkout)
+
+// POST /api/workouts/:id/publish
+router.post('/workouts/:id/publish', requireAuth, requireWorkoutGymWriteAccess, publishSingleWorkout)
+
+// DELETE /api/workouts/:id
+router.delete('/workouts/:id', requireAuth, requireWorkoutGymWriteAccess, deleteWorkoutById)
+
+export default router
 
 // ─── Handler functions ────────────────────────────────────────────────────────
 
@@ -114,28 +144,3 @@ async function deleteWorkoutById(req: Request, res: Response) {
   await deleteWorkout(id)
   res.status(204).send()
 }
-
-// ─── Routes ───────────────────────────────────────────────────────────────────
-
-// GET /api/gyms/:gymId/workouts?from=&to=
-router.get('/gyms/:gymId/workouts', ...gymGuards, getWorkoutsByGymAndDateRange)
-
-// POST /api/gyms/:gymId/workouts
-router.post('/gyms/:gymId/workouts', ...gymGuards, canWrite, createWorkoutInGym)
-
-// POST /api/gyms/:gymId/workouts/publish — batch publish by date range
-router.post('/gyms/:gymId/workouts/publish', ...gymGuards, canWrite, batchPublishWorkoutsForGym)
-
-// GET /api/workouts/:id
-router.get('/workouts/:id', requireAuth, requireWorkoutGymMembership, getWorkoutById)
-
-// PATCH /api/workouts/:id
-router.patch('/workouts/:id', requireAuth, requireWorkoutGymMembership, canWrite, patchWorkout)
-
-// POST /api/workouts/:id/publish
-router.post('/workouts/:id/publish', requireAuth, requireWorkoutGymMembership, canWrite, publishSingleWorkout)
-
-// DELETE /api/workouts/:id
-router.delete('/workouts/:id', requireAuth, requireWorkoutGymMembership, canWrite, deleteWorkoutById)
-
-export default router
