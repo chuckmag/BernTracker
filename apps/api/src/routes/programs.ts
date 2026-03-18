@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { ProgramRole } from '@berntracker/db'
 import { findGymById } from '../db/gymDbManager.js'
 import { findProgramsWithDetailsByGymId, createProgramAndLinkToGym } from '../db/gymProgramDbManager.js'
 import { findProgramById, subscribeUserToProgram, unsubscribeUserFromProgram } from '../db/userProgramDbManager.js'
@@ -33,11 +34,12 @@ router.post('/gyms/:gymId/programs', async (req, res) => {
 
 // POST /api/programs/:id/subscribe
 router.post('/programs/:id/subscribe', async (req, res) => {
-  const { userId } = req.body as { userId: string }
+  const { userId, role } = req.body as { userId: string; role?: 'MEMBER' | 'PROGRAMMER' }
   const program = await findProgramById(req.params.id)
   if (!program) return res.status(404).json({ error: 'Program not found' })
 
-  const userProgram = await subscribeUserToProgram(userId, req.params.id)
+  const programRole = role === 'PROGRAMMER' ? ProgramRole.PROGRAMMER : ProgramRole.MEMBER
+  const userProgram = await subscribeUserToProgram(userId, req.params.id, programRole)
   res.status(201).json(userProgram)
 })
 

@@ -5,11 +5,11 @@ import {
   validateGymExists,
   requireGymMembership,
   requireGymWriteAccess,
-  requireWorkoutGymMembership,
-  requireWorkoutGymWriteAccess,
+  requireWorkoutProgramMembership,
+  requireWorkoutProgramWriteAccess,
 } from '../middleware/gym.js'
 import {
-  createWorkoutForProgramDb,
+  createWorkoutForProgram as createWorkoutForProgramDb,
   findWorkoutsByGymAndDateRange,
   findWorkoutById,
   updateWorkout,
@@ -36,16 +36,16 @@ router.post('/gyms/:gymId/workouts', requireAuth, validateGymExists, requireGymW
 router.post('/gyms/:gymId/workouts/publish', requireAuth, validateGymExists, requireGymWriteAccess, batchPublishWorkoutsForGym)
 
 // GET  /api/workouts/:id
-router.get('/workouts/:id', requireAuth, requireWorkoutGymMembership, getWorkoutById)
+router.get('/workouts/:id', requireAuth, requireWorkoutProgramMembership, getWorkoutById)
 
 // PATCH /api/workouts/:id
-router.patch('/workouts/:id', requireAuth, requireWorkoutGymWriteAccess, patchWorkout)
+router.patch('/workouts/:id', requireAuth, requireWorkoutProgramWriteAccess, patchWorkout)
 
 // POST /api/workouts/:id/publish
-router.post('/workouts/:id/publish', requireAuth, requireWorkoutGymWriteAccess, publishSingleWorkout)
+router.post('/workouts/:id/publish', requireAuth, requireWorkoutProgramWriteAccess, publishSingleWorkout)
 
 // DELETE /api/workouts/:id
-router.delete('/workouts/:id', requireAuth, requireWorkoutGymWriteAccess, deleteWorkoutById)
+router.delete('/workouts/:id', requireAuth, requireWorkoutProgramWriteAccess, deleteWorkoutById)
 
 export default router
 

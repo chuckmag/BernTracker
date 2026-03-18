@@ -1,14 +1,25 @@
-import { prisma } from '@berntracker/db'
+import { prisma, ProgramRole } from '@berntracker/db'
 
 export async function findProgramById(id: string) {
   return prisma.program.findUnique({ where: { id } })
 }
 
-export async function subscribeUserToProgram(userId: string, programId: string) {
+export async function subscribeUserToProgram(
+  userId: string,
+  programId: string,
+  role: ProgramRole = ProgramRole.MEMBER,
+) {
   return prisma.userProgram.upsert({
     where: { userId_programId: { userId, programId } },
-    update: {},
-    create: { userId, programId },
+    update: { role },
+    create: { userId, programId, role },
+  })
+}
+
+export async function findUserProgramMembership(userId: string, programId: string) {
+  return prisma.userProgram.findUnique({
+    where: { userId_programId: { userId, programId } },
+    select: { role: true },
   })
 }
 

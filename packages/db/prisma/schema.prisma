@@ -56,6 +56,13 @@ enum WorkoutGender {
   OPEN
 }
 
+// A user's role within a specific program subscription.
+// MEMBER = read access; PROGRAMMER = write access (create/edit/delete workouts).
+enum ProgramRole {
+  MEMBER
+  PROGRAMMER
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -150,7 +157,8 @@ model GymProgram {
 model UserProgram {
   userId    String
   programId String
-  joinedAt  DateTime @default(now())
+  role      ProgramRole @default(MEMBER)
+  joinedAt  DateTime    @default(now())
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   program Program @relation(fields: [programId], references: [id], onDelete: Cascade)

@@ -23,9 +23,6 @@ interface WorkoutDateRangeFilters {
 
 const programSelect = { select: { id: true, name: true } } as const
 
-const programWithGymIdsSelect = {
-  select: { id: true, name: true, gyms: { select: { gymId: true } } },
-} as const
 
 export async function createWorkoutForProgram(data: CreateWorkoutData) {
   return prisma.workout.create({
@@ -58,9 +55,17 @@ export async function findWorkoutById(id: string) {
   return prisma.workout.findUnique({
     where: { id },
     include: {
-      program: programWithGymIdsSelect,
+      program: programSelect,
       _count: { select: { results: true } },
     },
+  })
+}
+
+// Lightweight query for auth middleware — returns only programId
+export async function findWorkoutProgramId(id: string) {
+  return prisma.workout.findUnique({
+    where: { id },
+    select: { programId: true },
   })
 }
 
@@ -91,13 +96,6 @@ export async function publishWorkoutsByGymAndDateRange(gymId: string, from: Date
   })
 }
 
-// Lightweight query for auth middleware — returns only gym IDs, not full workout data
-export async function findWorkoutGymIdsById(id: string) {
-  return prisma.workout.findUnique({
-    where: { id },
-    select: { program: { select: { gyms: { select: { gymId: true } } } } },
-  })
-}
 
 export async function deleteWorkout(id: string) {
   return prisma.workout.delete({ where: { id } })
