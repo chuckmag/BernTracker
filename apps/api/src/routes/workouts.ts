@@ -9,7 +9,7 @@ import {
   requireWorkoutGymWriteAccess,
 } from '../middleware/gym.js'
 import {
-  createWorkoutForProgram,
+  createWorkoutForProgramDb,
   findWorkoutsByGymAndDateRange,
   findWorkoutById,
   updateWorkout,
@@ -30,7 +30,7 @@ const gymGuards = [requireAuth, validateGymExists, requireGymMembership] as cons
 router.get('/gyms/:gymId/workouts', ...gymGuards, getWorkoutsByGymAndDateRange)
 
 // POST /api/gyms/:gymId/workouts
-router.post('/gyms/:gymId/workouts', requireAuth, validateGymExists, requireGymWriteAccess, createWorkoutInGym)
+router.post('/gyms/:gymId/workouts', requireAuth, validateGymExists, requireGymWriteAccess, createWorkoutForProgram)
 
 // POST /api/gyms/:gymId/workouts/publish — batch publish by date range
 router.post('/gyms/:gymId/workouts/publish', requireAuth, validateGymExists, requireGymWriteAccess, batchPublishWorkoutsForGym)
@@ -68,12 +68,12 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
   res.json(workouts)
 }
 
-async function createWorkoutInGym(req: Request, res: Response) {
+async function createWorkoutForProgram(req: Request, res: Response) {
   const parsed = CreateWorkoutSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
   const { programId, title, description, type, scheduledAt } = parsed.data
-  const workout = await createWorkoutForProgram({
+  const workout = await createWorkoutForProgramDb({
     programId,
     title,
     description,
