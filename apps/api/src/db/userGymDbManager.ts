@@ -54,6 +54,12 @@ export async function removeGymMember(userId: string, gymId: string) {
   return prisma.userGym.delete({ where: { userId_gymId: { userId, gymId } } })
 }
 
+export async function isUserMemberOfAnyGym(userId: string, gymIds: string[]) {
+  if (gymIds.length === 0) return false
+  const count = await prisma.userGym.count({ where: { userId, gymId: { in: gymIds } } })
+  return count > 0
+}
+
 export async function findGymMembershipsByUserId(userId: string) {
   const memberships = await prisma.userGym.findMany({
     where: { userId },
