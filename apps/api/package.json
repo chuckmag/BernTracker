@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "../../node_modules/.bin/nodemon",
     "build": "tsc",
-    "start": "node --env-file=../../.env dist/index.js"
+    "start": "node --env-file=../../.env dist/index.js",
+    "test": "npx dotenv-cli -e ../../.env -- npx tsx tests/results.ts"
   },
   "dependencies": {
     "@berntracker/db": "*",
