@@ -105,6 +105,19 @@ apps/api/src/db/
 
 Route handlers should read like high-level orchestration — guard clauses, call managers, return responses — with no raw `prisma.*` calls.
 
+### Route handler style
+
+Route handlers must be extracted into **named async functions** — do not pass inline lambdas directly to `router.get/post/patch/delete`. Named handlers make the router registration self-documenting.
+
+```typescript
+// ✅ Good — router reads like a table of contents
+async function getWorkoutsByGymAndDateRange(req: Request, res: Response) { ... }
+router.get('/gyms/:gymId/workouts', requireAuth, requireGymMembership, getWorkoutsByGymAndDateRange)
+
+// ❌ Avoid — logic buried in registration call
+router.get('/gyms/:gymId/workouts', requireAuth, async (req, res) => { ... })
+```
+
 ## Key enums
 
 ```prisma
@@ -132,6 +145,17 @@ git commit -m "chore(db): add migration for <description>"
 
 **Why this matters:** Prisma migration files are the source of truth for schema history. If a migration is applied to a dev database without committing the file, other developers and production deployments will see drift errors and may need to run `prisma migrate reset --force` (which destroys all data). Always commit migration files as part of the PR that introduced the schema change — never after.
 
+## Issue sizing and breakdown strategy
+
+When breaking a large feature issue into sub-issues for implementation:
+
+- **PR size target:** 250–500 lines of production code per PR. Unit tests may push a PR over this limit — that is acceptable.
+- **Break by domain:** Each sub-issue covers one domain (e.g., backend API, web UI, mobile UI). Do not mix backend and frontend changes in the same PR unless trivially small.
+- **One PR per sub-issue:** Each sub-issue should map to exactly one pull request.
+- **Declare dependencies explicitly:** Note which sub-issues must land first. Safe parallel starting points should be identified so multiple engineers (or AI slices) can work concurrently.
+- **Reuse before building:** Before proposing new utilities or abstractions, search for existing patterns (DB managers, middleware, Zod schemas, API client methods) that can be extended.
+- **Schema migrations travel with their PR:** Any sub-issue that modifies the Prisma schema must commit the generated migration file as part of that PR (see Schema migrations section above).
+
 ## Issue index
 
 See the comment on #1 for the full navigation hub.
@@ -148,3 +172,9 @@ See the comment on #1 for the full navigation hub.
 | #12 | Slice 3 — Gyms + users |
 | #13 | Slice 4 — Workout publishing |
 | #14 | Slice 5 — Member mobile |
+| #35 | #13-A — Workout CRUD & Publish API |
+| #36 | #13-B — Result & Leaderboard API |
+| #37 | #13-C — Trainer Web: Calendar Page |
+| #38 | #13-D — Trainer Web: Workout Drawer |
+| #39 | #13-E — Member Mobile: Navigation + Feed + WOD Detail |
+| #40 | #13-F — Member Mobile: Result Logging + History |
