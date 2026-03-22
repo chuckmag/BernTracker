@@ -42,6 +42,22 @@ async function req<T>(path: string, opts: RequestInit & { token?: string } = {})
 }
 
 export type Role = 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER'
+export type WorkoutType = 'STRENGTH' | 'FOR_TIME' | 'EMOM' | 'CARDIO' | 'AMRAP' | 'METCON' | 'WARMUP'
+export type WorkoutStatus = 'DRAFT' | 'PUBLISHED'
+
+export interface Workout {
+  id: string
+  title: string
+  description: string
+  type: WorkoutType
+  status: WorkoutStatus
+  scheduledAt: string
+  programId: string | null
+  program: { id: string; name: string } | null
+  _count: { results: number }
+  createdAt: string
+  updatedAt: string
+}
 
 export interface MyGym {
   id: string
@@ -132,6 +148,36 @@ export const api = {
           token,
         }),
     },
+  },
+
+  workouts: {
+    list: (gymId: string, from: string, to: string, token?: string) =>
+      req<Workout[]>(`/api/gyms/${gymId}/workouts?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { token }),
+
+    create: (
+      gymId: string,
+      data: { programId?: string; title: string; description: string; type: WorkoutType; scheduledAt: string },
+      token?: string,
+    ) =>
+      req<Workout>(`/api/gyms/${gymId}/workouts`, { method: 'POST', body: JSON.stringify(data), token }),
+
+    update: (
+      id: string,
+      data: { title?: string; description?: string; type?: WorkoutType; scheduledAt?: string },
+      token?: string,
+    ) =>
+      req<Workout>(`/api/workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
+
+    publish: (id: string, token?: string) =>
+      req<Workout>(`/api/workouts/${id}/publish`, { method: 'POST', token }),
+
+    delete: (id: string, token?: string) =>
+      req<void>(`/api/workouts/${id}`, { method: 'DELETE', token }),
+  },
+
+  results: {
+    leaderboard: (workoutId: string, token?: string) =>
+      req<unknown[]>(`/api/workouts/${workoutId}/results`, { token }),
   },
 
   programs: {
