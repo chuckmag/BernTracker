@@ -1,11 +1,29 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
+let _onUnauthorized: (() => void) | null = null
+let _accessToken: string | null = null
+
+export function setUnauthorizedHandler(handler: () => void) {
+  _onUnauthorized = handler
+}
+
+export function setAccessToken(token: string | null) {
+  _accessToken = token
+}
+
 let _refreshPromise: Promise<string | null> | null = null
 
 async function refreshAccessToken(): Promise<string | null> {
   if (_refreshPromise) return _refreshPromise
   _refreshPromise = fetch(`${BASE_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
-    .then((r) => (r.ok ? r.json().then((d) => d.accessToken as string) : null))
+    .then((r) => {
+      if (!r.ok) return null
+      return r.json().then((d) => {
+        const newToken = d.accessToken as string
+        _accessToken = newToken
+        return newToken
+      })
+    })
     .catch(() => null)
     .finally(() => { _refreshPromise = null })
   return _refreshPromise
@@ -18,7 +36,8 @@ export async function apiFetch(
   const { token, ...init } = options
   const headers = new Headers(init.headers)
   headers.set('Content-Type', 'application/json')
-  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const bearer = token ?? _accessToken
+  if (bearer) headers.set('Authorization', `Bearer ${bearer}`)
 
   const res = await fetch(`${BASE_URL}${path}`, { ...init, headers, credentials: 'include' })
 
@@ -35,6 +54,10 @@ export async function apiFetch(
 
 async function req<T>(path: string, opts: RequestInit & { token?: string } = {}): Promise<T> {
   const res = await apiFetch(path, opts)
+  if (res.status === 401) {
+    _onUnauthorized?.()
+    throw new Error('Session expired. Please log in again.')
+  }
   if (res.status === 204) return undefined as T
   const data = await res.json()
   if (!res.ok) throw new Error(data?.error ?? `Request failed: ${res.status}`)
