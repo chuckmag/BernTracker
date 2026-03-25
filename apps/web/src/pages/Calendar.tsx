@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, type Workout } from '../lib/api'
 import CalendarCell from '../components/CalendarCell'
+import WorkoutDrawer from '../components/WorkoutDrawer'
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -144,7 +145,13 @@ export default function Calendar() {
         )}
       </div>
 
-      {/* TODO: WorkoutDrawer (Issue D) — rendered here, controlled by selectedDate */}
+      <WorkoutDrawer
+        gymId={gymId}
+        dateKey={selectedDate}
+        workout={selectedDate ? workoutByDate[selectedDate] : undefined}
+        onClose={() => setSelectedDate(null)}
+        onSaved={() => { setSelectedDate(null); loadWorkouts() }}
+      />
     </div>
   )
 }
