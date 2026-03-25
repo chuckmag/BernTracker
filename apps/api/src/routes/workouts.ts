@@ -17,6 +17,9 @@ import {
   publishWorkoutsByGymAndDateRange,
   deleteWorkout,
 } from '../db/workoutDbManager.js'
+import {
+  findGymMembershipByUserAndGym
+} from '../db/userGymDbManager.js'
 import { CreateWorkoutSchema, UpdateWorkoutSchema } from '@berntracker/types'
 import { Role } from '@berntracker/db'
 
@@ -63,7 +66,10 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
     return res.status(400).json({ error: 'Invalid date format for from or to' })
   }
 
-  const publishedOnly = req.user!.role === Role.MEMBER
+
+  const membership = await findGymMembershipByUserAndGym(req.user!.id, gymId)
+  const publishedOnly = membership?.role === Role.MEMBER
+  console.log(membership?.role)
   const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly })
   res.json(workouts)
 }

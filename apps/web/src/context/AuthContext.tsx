@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { setUnauthorizedHandler, setAccessToken as setApiToken } from '../lib/api'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -27,6 +28,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const didFetch = useRef(false)
 
   useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setApiToken(null)
+      setAccessToken(null)
+      setUser(null)
+      window.location.replace('/login')
+    })
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (didFetch.current) return
     didFetch.current = true
 
@@ -35,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (r.ok) {
           const data = await r.json()
           setAccessToken(data.accessToken)
+          setApiToken(data.accessToken)
           const me = await fetch(`${BASE_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${data.accessToken}` },
             credentials: 'include',
@@ -48,12 +59,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   function login(token: string, u: AuthUser) {
     setAccessToken(token)
+    setApiToken(token)
     setUser(u)
   }
 
   async function logout() {
     await fetch(`${BASE_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {})
     setAccessToken(null)
+    setApiToken(null)
     setUser(null)
   }
 
