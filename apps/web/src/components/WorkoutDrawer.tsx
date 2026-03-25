@@ -87,6 +87,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, onClose, onSave
         await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt })
       }
       onSaved()
+      setSaving(false)
     } catch (e) {
       setError((e as Error).message)
       setSaving(false)
@@ -107,6 +108,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, onClose, onSave
         await api.workouts.publish(created.id)
       }
       onSaved()
+      setSaving(false)
     } catch (e) {
       setError((e as Error).message)
       setSaving(false)
