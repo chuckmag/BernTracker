@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react'
 import { api, type GymProgram, type Workout, type WorkoutType } from '../lib/api'
 
+const TYPE_ABBR: Record<string, string> = {
+  WARMUP: 'W',
+  STRENGTH: 'S',
+  AMRAP: 'A',
+  FOR_TIME: 'F',
+  EMOM: 'E',
+  CARDIO: 'C',
+  METCON: 'M',
+}
+
 const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
   { value: 'AMRAP', label: 'AMRAP' },
   { value: 'FOR_TIME', label: 'For Time' },
@@ -15,11 +25,14 @@ interface WorkoutDrawerProps {
   gymId: string
   dateKey: string | null
   workout?: Workout
+  workoutsOnDay: Workout[]
   onClose: () => void
   onSaved: () => void
+  onWorkoutSelect: (id: string) => void
+  onNewWorkout: () => void
 }
 
-export default function WorkoutDrawer({ gymId, dateKey, workout, onClose, onSaved }: WorkoutDrawerProps) {
+export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, onClose, onSaved, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
   const isOpen = dateKey !== null
   const isEdit = !!workout
 
@@ -180,6 +193,48 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, onClose, onSave
         {/* Form */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {error && <p className="text-red-400 text-sm">{error}</p>}
+
+          {/* Today's Workouts nav — shown when day has multiple workouts or adding to a day with existing workouts */}
+          {(workoutsOnDay.length > 1 || (!isEdit && workoutsOnDay.length >= 1)) && (
+            <div className="border border-gray-800 rounded-lg overflow-hidden">
+              <div className="px-3 py-2 bg-gray-800/30 text-[10px] text-gray-500 uppercase tracking-wider">
+                Today's Workouts
+              </div>
+              {workoutsOnDay.map((w) => {
+                const isCurrent = isEdit && w.id === workout?.id
+                return (
+                  <button
+                    key={w.id}
+                    disabled={isCurrent}
+                    onClick={() => onWorkoutSelect(w.id)}
+                    className={[
+                      'w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors',
+                      isCurrent
+                        ? 'bg-gray-800 text-white cursor-default'
+                        : 'text-gray-300 hover:bg-gray-800/60 hover:text-white',
+                    ].join(' ')}
+                  >
+                    <span className={w.status === 'PUBLISHED' ? 'text-green-400' : 'text-yellow-400'}>
+                      {w.status === 'PUBLISHED' ? '●' : '○'}
+                    </span>
+                    <span className="font-mono text-[10px] text-indigo-400 w-3 shrink-0">
+                      {TYPE_ABBR[w.type] ?? '?'}
+                    </span>
+                    <span className="truncate">{w.title}</span>
+                  </button>
+                )
+              })}
+              {isEdit && (
+                <button
+                  onClick={onNewWorkout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-indigo-400 hover:text-indigo-300 hover:bg-gray-800/40 transition-colors border-t border-gray-800"
+                >
+                  <span className="text-base leading-none">+</span>
+                  <span>Add another workout</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Program — required selector (create) or read-only label (edit) */}
           <div>

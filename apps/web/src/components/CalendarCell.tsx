@@ -1,59 +1,78 @@
 import type { Workout } from '../lib/api'
 
-const TYPE_LABELS: Record<string, string> = {
-  AMRAP: 'AMRAP',
-  FOR_TIME: 'For Time',
-  EMOM: 'EMOM',
-  STRENGTH: 'Strength',
-  CARDIO: 'Cardio',
-  METCON: 'MetCon',
-  WARMUP: 'Warmup',
+const TYPE_ABBR: Record<string, string> = {
+  WARMUP: 'W',
+  STRENGTH: 'S',
+  AMRAP: 'A',
+  FOR_TIME: 'F',
+  EMOM: 'E',
+  CARDIO: 'C',
+  METCON: 'M',
 }
+
+const MAX_VISIBLE = 3
 
 interface CalendarCellProps {
   date: Date
   isToday: boolean
-  workout?: Workout
+  workouts: Workout[]
   selected: boolean
-  onClick: () => void
+  onAddClick: () => void
+  onWorkoutClick: (id: string) => void
 }
 
-export default function CalendarCell({ date, isToday, workout, selected, onClick }: CalendarCellProps) {
+export default function CalendarCell({ date, isToday, workouts, selected, onAddClick, onWorkoutClick }: CalendarCellProps) {
+  const visible = workouts.slice(0, MAX_VISIBLE)
+  const overflow = workouts.length - MAX_VISIBLE
+
   return (
     <div
-      onClick={onClick}
+      onClick={onAddClick}
       className={[
         'bg-gray-950 h-24 p-1.5 cursor-pointer flex flex-col transition-colors',
         selected ? 'ring-2 ring-inset ring-indigo-500' : 'hover:bg-gray-900',
       ].join(' ')}
     >
-      <span
-        className={[
-          'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 shrink-0',
-          isToday ? 'bg-indigo-600 text-white' : 'text-gray-400',
-        ].join(' ')}
-      >
-        {date.getDate()}
-      </span>
+      {/* Date row */}
+      <div className="flex items-center justify-between mb-1 shrink-0">
+        <span
+          className={[
+            'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
+            isToday ? 'bg-indigo-600 text-white' : 'text-gray-400',
+          ].join(' ')}
+        >
+          {date.getDate()}
+        </span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAddClick() }}
+          className="text-gray-600 hover:text-gray-300 text-sm leading-none w-5 h-5 flex items-center justify-center rounded transition-colors"
+          aria-label="Add workout"
+        >
+          +
+        </button>
+      </div>
 
-      {workout && (
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <div className="bg-indigo-900/50 border border-indigo-700/40 rounded px-1.5 py-0.5">
-            <div className="text-xs text-indigo-300 font-medium truncate leading-tight">{workout.title}</div>
-            <div className="text-[10px] text-indigo-400/70 truncate leading-tight">
-              {TYPE_LABELS[workout.type] ?? workout.type}
-              {workout.status === 'DRAFT' && (
-                <span className="ml-1 text-yellow-500/80">· Draft</span>
-              )}
-            </div>
-          </div>
-          {workout._count.results > 0 && (
-            <div className="mt-0.5 text-[10px] text-gray-500">
-              {workout._count.results} result{workout._count.results !== 1 ? 's' : ''}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Workout pills */}
+      <div className="flex-1 min-h-0 flex flex-col gap-px overflow-hidden">
+        {visible.map((w) => (
+          <button
+            key={w.id}
+            onClick={(e) => { e.stopPropagation(); onWorkoutClick(w.id) }}
+            className="w-full flex items-center gap-1 px-1 py-0.5 rounded text-left hover:bg-gray-800/70 transition-colors"
+          >
+            <span className={['text-[10px] shrink-0', w.status === 'PUBLISHED' ? 'text-green-400' : 'text-yellow-400'].join(' ')}>
+              {w.status === 'PUBLISHED' ? '●' : '○'}
+            </span>
+            <span className="text-[10px] font-mono text-indigo-400 shrink-0 w-3">
+              {TYPE_ABBR[w.type] ?? '?'}
+            </span>
+            <span className="text-[10px] text-gray-200 truncate flex-1">{w.title}</span>
+          </button>
+        ))}
+        {overflow > 0 && (
+          <div className="text-[10px] text-gray-500 pl-1">+{overflow} more</div>
+        )}
+      </div>
     </div>
   )
 }
