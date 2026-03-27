@@ -105,6 +105,23 @@ apps/api/src/db/
 
 Route handlers should read like high-level orchestration — guard clauses, call managers, return responses — with no raw `prisma.*` calls.
 
+### API error logging conventions
+
+Use `console.log("")` (not `console.error`) to log diagnostic information. Log at every auth/authorization failure point and whenever catching an unexpected exception, so that issues are easy to trace in the server output.
+
+**Auth failures** — include the HTTP method, path, and relevant context:
+```typescript
+console.log(`[auth] requireAuth: missing or malformed Authorization header — ${req.method} ${req.path}`)
+console.log(`[auth] requireRole: access denied — ${req.method} ${req.path} — userId=${req.user?.id} role=${req.user?.role} required=${roles.join('|')}`)
+```
+
+**Unexpected exceptions in route handlers** — include the path and the error:
+```typescript
+console.log(`[error] ${req.method} ${req.path} — ${err instanceof Error ? err.message : err}`, err)
+```
+
+The global error-handling middleware in `apps/api/src/index.ts` automatically logs and returns 500 for any uncaught exception thrown from a route handler — route handlers should `throw` rather than swallow errors they cannot handle.
+
 ### Route handler style
 
 Route handlers must be extracted into **named async functions** — do not pass inline lambdas directly to `router.get/post/patch/delete`. Named handlers make the router registration self-documenting.
@@ -178,3 +195,6 @@ See the comment on #1 for the full navigation hub.
 | #38 | #13-D — Trainer Web: Workout Drawer |
 | #39 | #13-E — Member Mobile: Navigation + Feed + WOD Detail |
 | #40 | #13-F — Member Mobile: Result Logging + History |
+| #46 | #13-G — Trainer Web: Multiple Workouts on a Single Day |
+| #48 | #13-H — Member Web: Feed + WOD Detail |
+| #49 | #13-I — Member Web: Result Logging + History |
