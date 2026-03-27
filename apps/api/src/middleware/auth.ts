@@ -5,6 +5,7 @@ import { verifyAccessToken } from '../lib/jwt.js'
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const header = req.headers.authorization
   if (!header?.startsWith('Bearer ')) {
+    console.log(`[auth] requireAuth: missing or malformed Authorization header — ${req.method} ${req.path}`)
     res.status(401).json({ error: 'Missing or invalid Authorization header' })
     return
   }
@@ -13,7 +14,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     const { sub, role } = verifyAccessToken(token)
     req.user = { id: sub, role }
     next()
-  } catch {
+  } catch (err) {
+    console.log(`[auth] requireAuth: token verification failed — ${req.method} ${req.path}`, err instanceof Error ? err.message : err)
     res.status(401).json({ error: 'Invalid or expired token' })
   }
 }
@@ -21,7 +23,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 export function requireRole(...roles: Role[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user || !roles.includes(req.user.role)) {
-      console.log("User and Roles are not valid, user and expected role:", req.user, roles)
+      console.log(`[auth] requireRole: access denied — ${req.method} ${req.path} — userId=${req.user?.id ?? 'none'} role=${req.user?.role ?? 'none'} required=${roles.join('|')}`)
       res.status(403).json({ error: 'Forbidden' })
       return
     }
