@@ -21,6 +21,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 export function requireRole(...roles: Role[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user || !roles.includes(req.user.role)) {
+      console.log("User and Roles are not valid, user and expected role:", req.user, roles)
       res.status(403).json({ error: 'Forbidden' })
       return
     }
