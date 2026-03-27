@@ -1,15 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api, type GymProgram, type Workout, type WorkoutType } from '../lib/api'
-
-const TYPE_ABBR: Record<string, string> = {
-  WARMUP: 'W',
-  STRENGTH: 'S',
-  AMRAP: 'A',
-  FOR_TIME: 'F',
-  EMOM: 'E',
-  CARDIO: 'C',
-  METCON: 'M',
-}
+import { api, TYPE_ABBR, type GymProgram, type Workout, type WorkoutType } from '../lib/api'
 
 const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
   { value: 'AMRAP', label: 'AMRAP' },

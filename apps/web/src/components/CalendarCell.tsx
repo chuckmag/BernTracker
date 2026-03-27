@@ -1,14 +1,4 @@
-import type { Workout } from '../lib/api'
-
-const TYPE_ABBR: Record<string, string> = {
-  WARMUP: 'W',
-  STRENGTH: 'S',
-  AMRAP: 'A',
-  FOR_TIME: 'F',
-  EMOM: 'E',
-  CARDIO: 'C',
-  METCON: 'M',
-}
+import { TYPE_ABBR, type Workout } from '../lib/api'
 
 const MAX_VISIBLE = 3
 
