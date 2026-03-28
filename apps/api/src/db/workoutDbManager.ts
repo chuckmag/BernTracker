@@ -50,18 +50,47 @@ export async function findWorkoutsByGymAndDateRange(
   to: Date,
   filters: WorkoutDateRangeFilters = {},
 ) {
-  return prisma.workout.findMany({
+  const workouts = await prisma.workout.findMany({
     where: {
       scheduledAt: { gte: from, lte: to },
       program: { gyms: { some: { gymId } } },
       ...(filters.publishedOnly ? { status: WorkoutStatus.PUBLISHED } : {}),
     },
-    orderBy: [{ scheduledAt: 'asc' }, { dayOrder: 'asc' }],
+    // createdAt is a stable tiebreaker for equal dayOrder values (e.g. pre-migration rows defaulted to 0)
+    orderBy: [{ scheduledAt: 'asc' }, { dayOrder: 'asc' }, { createdAt: 'asc' }],
     include: {
       program: programSelect,
       _count: { select: { results: true } },
     },
   })
+
+  // Detect duplicate dayOrder values within a day and normalize to 0-based
+  // sequential integers in place. Persists corrections asynchronously so
+  // subsequent reads are already clean.
+  const byDay = new Map<string, typeof workouts>()
+  for (const w of workouts) {
+    const key = w.scheduledAt.toISOString().slice(0, 10)
+    const group = byDay.get(key) ?? []
+    group.push(w)
+    byDay.set(key, group)
+  }
+
+  const updates: Promise<unknown>[] = []
+  for (const group of byDay.values()) {
+    const orders = group.map((w) => w.dayOrder)
+    if (orders.length !== new Set(orders).size) {
+      group.forEach((w, idx) => {
+        if (w.dayOrder !== idx) {
+          w.dayOrder = idx
+          updates.push(prisma.workout.update({ where: { id: w.id }, data: { dayOrder: idx } }))
+        }
+      })
+    }
+  }
+
+  if (updates.length > 0) await Promise.all(updates)
+
+  return workouts
 }
 
 export async function findWorkoutById(id: string) {
