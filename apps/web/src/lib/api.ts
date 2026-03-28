@@ -85,6 +85,7 @@ export interface Workout {
   type: WorkoutType
   status: WorkoutStatus
   scheduledAt: string
+  dayOrder: number
   programId: string | null
   program: { id: string; name: string } | null
   _count: { results: number }
@@ -196,7 +197,7 @@ export const api = {
 
     update: (
       id: string,
-      data: { title?: string; description?: string; type?: WorkoutType; scheduledAt?: string },
+      data: { title?: string; description?: string; type?: WorkoutType; scheduledAt?: string; dayOrder?: number },
       token?: string,
     ) =>
       req<Workout>(`/api/workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),

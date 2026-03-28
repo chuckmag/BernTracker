@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, type Workout } from '../lib/api'
+import { api, type Role, type Workout } from '../lib/api'
 import CalendarCell from '../components/CalendarCell'
 import WorkoutDrawer from '../components/WorkoutDrawer'
 
@@ -22,6 +22,7 @@ export default function Calendar() {
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
+  const [userGymRole, setUserGymRole] = useState<Role | null>(null)
 
   const loadWorkouts = useCallback(async () => {
     if (!gymId) return
@@ -42,6 +43,14 @@ export default function Calendar() {
   useEffect(() => {
     loadWorkouts()
   }, [loadWorkouts])
+
+  useEffect(() => {
+    if (!gymId) return
+    api.me.gyms().then((gyms) => {
+      const myGym = gyms.find((g) => g.id === gymId)
+      if (myGym) setUserGymRole(myGym.role)
+    }).catch(() => {})
+  }, [gymId])
 
   const workoutsByDate: Record<string, Workout[]> = {}
   for (const w of workouts) {
@@ -160,8 +169,10 @@ export default function Calendar() {
         dateKey={selectedDate}
         workout={selectedWorkout}
         workoutsOnDay={workoutsOnDay}
+        userGymRole={userGymRole}
         onClose={() => { setSelectedDate(null); setSelectedWorkoutId(null) }}
         onSaved={() => { setSelectedDate(null); setSelectedWorkoutId(null); loadWorkouts() }}
+        onReordered={loadWorkouts}
         onWorkoutSelect={(id) => setSelectedWorkoutId(id)}
         onNewWorkout={() => setSelectedWorkoutId(null)}
       />

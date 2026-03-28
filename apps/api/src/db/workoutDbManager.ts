@@ -8,6 +8,7 @@ interface CreateWorkoutData {
   description: string
   type: WorkoutType
   scheduledAt: Date
+  dayOrder?: number
 }
 
 interface UpdateWorkoutData {
@@ -15,6 +16,7 @@ interface UpdateWorkoutData {
   description?: string
   type?: WorkoutType
   scheduledAt?: Date
+  dayOrder?: number
 }
 
 interface WorkoutDateRangeFilters {
@@ -23,6 +25,17 @@ interface WorkoutDateRangeFilters {
 
 const programSelect = { select: { id: true, name: true } } as const
 
+
+export async function countWorkoutsOnSameDay(gymId: string, scheduledAt: Date): Promise<number> {
+  const dayStart = new Date(Date.UTC(scheduledAt.getUTCFullYear(), scheduledAt.getUTCMonth(), scheduledAt.getUTCDate()))
+  const dayEnd = new Date(Date.UTC(scheduledAt.getUTCFullYear(), scheduledAt.getUTCMonth(), scheduledAt.getUTCDate() + 1) - 1)
+  return prisma.workout.count({
+    where: {
+      scheduledAt: { gte: dayStart, lte: dayEnd },
+      program: { gyms: { some: { gymId } } },
+    },
+  })
+}
 
 export async function createWorkoutForProgram(data: CreateWorkoutData) {
   return prisma.workout.create({
@@ -43,7 +56,7 @@ export async function findWorkoutsByGymAndDateRange(
       program: { gyms: { some: { gymId } } },
       ...(filters.publishedOnly ? { status: WorkoutStatus.PUBLISHED } : {}),
     },
-    orderBy: { scheduledAt: 'asc' },
+    orderBy: [{ scheduledAt: 'asc' }, { dayOrder: 'asc' }],
     include: {
       program: programSelect,
       _count: { select: { results: true } },
