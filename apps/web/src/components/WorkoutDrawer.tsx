@@ -75,6 +75,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   function validate() {
     if (!isEdit && !programId) { setError('Program is required'); return false }
     if (!title.trim()) { setError('Title is required'); return false }
+    if (!description.trim()) { setError('Description is required'); return false }
     return true
   }
 

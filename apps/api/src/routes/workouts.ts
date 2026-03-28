@@ -76,7 +76,12 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
 
 async function createWorkoutForProgram(req: Request, res: Response) {
   const parsed = CreateWorkoutSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    const field = issue?.path[0] ?? 'request'
+    const message = issue?.message ?? 'Invalid request'
+    return res.status(400).json({ error: `${field}: ${message}` })
+  }
 
   const { programId, title, description, type, scheduledAt } = parsed.data
   const workout = await createWorkoutForProgramDb({
@@ -117,7 +122,12 @@ async function patchWorkout(req: Request, res: Response) {
   if (!existing) return res.status(404).json({ error: 'Workout not found' })
 
   const parsed = UpdateWorkoutSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    const field = issue?.path[0] ?? 'request'
+    const message = issue?.message ?? 'Invalid request'
+    return res.status(400).json({ error: `${field}: ${message}` })
+  }
 
   const { title, description, type, scheduledAt } = parsed.data
   const workout = await updateWorkout(id, {

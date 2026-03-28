@@ -4,8 +4,8 @@ export const WorkoutTypeSchema = z.enum(['STRENGTH', 'FOR_TIME', 'EMOM', 'CARDIO
 
 export const CreateWorkoutSchema = z.object({
   programId: z.string().optional(),
-  title: z.string().min(1),
-  description: z.string().min(1),
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().min(1, 'Description is required'),
   type: WorkoutTypeSchema,
   scheduledAt: z.string().datetime(),
 })
