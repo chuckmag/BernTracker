@@ -220,11 +220,16 @@ test.describe('Multi-workout calendar UAT (#47)', () => {
   // ── T3: "Add another workout" switches to create mode ───────────────────
 
   test('T3: "Add another workout" clears form and switches to create mode', async ({ page }) => {
-    const w = await seedWorkout('T3 Edit Me', T3_DAY)
+    // The Today's Workouts panel (which contains "Add another workout") only renders
+    // in edit mode when workoutsOnDay.length > 1 — need 2 workouts to trigger the panel.
+    const [w1, w2] = await Promise.all([
+      seedWorkout('T3 Base', T3_DAY, 'WARMUP', { dayOrder: 0 }),
+      seedWorkout('T3 Edit Me', T3_DAY, 'AMRAP', { dayOrder: 1 }),
+    ])
 
     await loginAndGoToCalendar(page, TRAINER_EMAIL, TRAINER_PASSWORD)
 
-    // Open existing workout in edit mode via cell pill
+    // Open T3 Edit Me in edit mode — Today's Workouts panel is now visible (2 workouts)
     await cellForDay(page, T3_DAY).getByText('T3 Edit Me').click()
     await expect(page.locator('h2', { hasText: 'Edit Workout' })).toBeVisible()
 
@@ -234,7 +239,7 @@ test.describe('Multi-workout calendar UAT (#47)', () => {
     await expect(page.locator('h2', { hasText: 'New Workout' })).toBeVisible()
     await expect(page.locator('input[placeholder="e.g. Fran"]')).toHaveValue('')
 
-    await prisma.workout.delete({ where: { id: w.id } })
+    await prisma.workout.deleteMany({ where: { id: { in: [w1.id, w2.id] } } })
   })
 
   // ── T4: Save closes drawer and adds pill to cell ─────────────────────────
@@ -246,12 +251,17 @@ test.describe('Multi-workout calendar UAT (#47)', () => {
     await cellForDay(page, T4_DAY).locator('button[aria-label="Add workout"]').click()
     await expect(page.locator('h2', { hasText: 'New Workout' })).toBeVisible()
 
+    // Wait for the program dropdown to finish loading (disabled while fetching)
+    await expect(page.locator('select[disabled]')).not.toBeAttached({ timeout: 5000 })
+
     await page.fill('input[placeholder="e.g. Fran"]', 'T4 New Workout')
     await page.fill('textarea[placeholder*="Workout details"]', 'E2E create test')
     await page.getByRole('button', { name: 'Save as Draft' }).click()
 
-    // Drawer closes
-    await expect(page.locator('h2', { hasText: 'New Workout' })).not.toBeVisible({ timeout: 5000 })
+    // Drawer closes — the overlay is conditionally rendered with {isOpen && ...} so it
+    // leaves the DOM entirely when the drawer closes (unlike the drawer panel which uses
+    // translate-x-full and is never removed from the DOM)
+    await expect(page.locator('div.fixed.inset-0.bg-black\\/40.z-30')).not.toBeAttached({ timeout: 5000 })
 
     // Pill appears in the cell
     await expect(cellForDay(page, T4_DAY).getByText('T4 New Workout')).toBeVisible()
@@ -275,8 +285,8 @@ test.describe('Multi-workout calendar UAT (#47)', () => {
     await page.getByRole('button', { name: 'Delete workout' }).click()
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
-    // Drawer closes
-    await expect(page.locator('h2', { hasText: 'Edit Workout' })).not.toBeVisible({ timeout: 5000 })
+    // Drawer closes — check overlay leaves DOM (translate-x-full doesn't satisfy not.toBeVisible)
+    await expect(page.locator('div.fixed.inset-0.bg-black\\/40.z-30')).not.toBeAttached({ timeout: 5000 })
 
     // Pill is gone
     await expect(cellForDay(page, T5_DAY).getByText('T5 Delete Me')).not.toBeVisible()
