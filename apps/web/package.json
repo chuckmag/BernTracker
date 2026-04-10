@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npx dotenv-cli -e ../../.env -- npx playwright test"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -15,6 +16,10 @@
     "react-router-dom": "^7.3.0"
   },
   "devDependencies": {
+    "@berntracker/db": "*",
+    "@playwright/test": "^1.52.0",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^2.4.3",
     "@tailwindcss/vite": "^4.0.9",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
