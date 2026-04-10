@@ -17,8 +17,16 @@
  */
 
 import { test, expect, type Page } from '@playwright/test'
-import { prisma, ProgramRole } from '@berntracker/db'
+import { createRequire } from 'module'
 import bcrypt from 'bcryptjs'
+
+// @prisma/client is CJS and uses `module.exports = { ...require(...) }` — Node.js
+// cannot statically enumerate its named exports for ESM named imports.
+// createRequire grabs the full exports object at runtime, bypassing the issue.
+const _require = createRequire(import.meta.url)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const { PrismaClient, ProgramRole } = _require('@prisma/client') as any
+const prisma = new PrismaClient()
 
 // ─── Shared state (set in beforeAll) ─────────────────────────────────────────
 

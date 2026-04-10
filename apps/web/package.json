@@ -16,7 +16,6 @@
     "react-router-dom": "^7.3.0"
   },
   "devDependencies": {
-    "@berntracker/db": "*",
     "@playwright/test": "^1.52.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^2.4.3",
