@@ -175,6 +175,23 @@ turbo dev        # start API (3000), web (5173), and Expo bundler concurrently
 turbo build      # build all apps and packages
 ```
 
+### Running on a physical device (Expo Go)
+
+1. **Install Expo Go** on your iPhone or Android from the App Store / Play Store (free, one-time)
+2. **Same Wi-Fi** — your phone and Mac must be on the same network
+3. **Set your local IP** in `.env` — `localhost` is your Mac, not your phone:
+   ```bash
+   ipconfig getifaddr en0          # prints your Mac's local IP, e.g. 192.168.1.42
+   # then in .env:
+   EXPO_PUBLIC_API_URL="http://192.168.1.42:3000"
+   ```
+4. **Start the stack** — `turbo dev` starts everything including the Expo bundler. Watch the `mobile` output for the QR code, or run `cd apps/mobile && npx expo start` in a separate terminal if you only want mobile.
+5. **Scan the QR code** with your iPhone Camera app (or Expo Go directly on Android) → tap the banner → app loads
+
+Hot reload is on by default — saving any file in `apps/mobile/` updates the app instantly without a restart.
+
+> **Simulator alternative:** If you have Xcode installed, press `i` in the Expo terminal to open in the iOS Simulator — no phone needed and `localhost` works as-is.
+
 ### Schema migrations
 
 Any time you change `packages/db/prisma/schema.prisma`, run the migration command and **commit the generated file** before opening or merging a PR:
