@@ -1,6 +1,6 @@
 import { TYPE_ABBR, type Workout } from '../lib/api'
 
-const MAX_VISIBLE = 3
+const MAX_VISIBLE = 2
 
 interface CalendarCellProps {
   date: Date
@@ -59,10 +59,10 @@ export default function CalendarCell({ date, isToday, workouts, selected, onAddC
             <span className="text-[10px] text-gray-200 truncate flex-1">{w.title}</span>
           </button>
         ))}
-        {overflow > 0 && (
-          <div className="text-[10px] text-gray-500 pl-1">+{overflow} more</div>
-        )}
       </div>
+      {overflow > 0 && (
+        <div className="text-[10px] text-gray-500 pl-1 shrink-0">+{overflow} more</div>
+      )}
     </div>
   )
 }
