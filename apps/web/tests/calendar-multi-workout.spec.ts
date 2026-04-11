@@ -198,7 +198,7 @@ test.describe('Multi-workout calendar UAT (#47)', () => {
 
     await loginAndGoToCalendar(page, TRAINER_EMAIL, TRAINER_PASSWORD)
 
-    await expect(cellForDay(page, T1_DAY).getByText('+1 more')).toBeVisible()
+    await expect(cellForDay(page, T1_DAY).getByText('+2 more')).toBeVisible()
 
     await prisma.workout.deleteMany({ where: { id: { in: workouts.map((w) => w.id) } } })
   })

@@ -1,6 +1,6 @@
 import { TYPE_ABBR, type Workout } from '../lib/api'
 
-const MAX_VISIBLE = 3
+const MAX_VISIBLE = 2
 
 interface CalendarCellProps {
   date: Date
