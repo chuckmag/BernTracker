@@ -4,10 +4,11 @@ export const WorkoutTypeSchema = z.enum(['STRENGTH', 'FOR_TIME', 'EMOM', 'CARDIO
 
 export const CreateWorkoutSchema = z.object({
   programId: z.string().optional(),
-  title: z.string().min(1),
-  description: z.string().min(1),
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().min(1, 'Description is required'),
   type: WorkoutTypeSchema,
   scheduledAt: z.string().datetime(),
+  dayOrder: z.number().int().min(0).optional(),
 })
 
 export const UpdateWorkoutSchema = z
@@ -16,6 +17,7 @@ export const UpdateWorkoutSchema = z
     description: z.string().min(1).optional(),
     type: WorkoutTypeSchema.optional(),
     scheduledAt: z.string().datetime().optional(),
+    dayOrder: z.number().int().min(0).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: 'At least one field is required' })
 

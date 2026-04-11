@@ -10,6 +10,7 @@ import {
 } from '../middleware/gym.js'
 import {
   createWorkoutForProgram as createWorkoutForProgramDb,
+  countWorkoutsOnSameDay,
   findWorkoutsByGymAndDateRange,
   findWorkoutById,
   updateWorkout,
@@ -76,15 +77,24 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
 
 async function createWorkoutForProgram(req: Request, res: Response) {
   const parsed = CreateWorkoutSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    const field = issue?.path[0] ?? 'request'
+    const message = issue?.message ?? 'Invalid request'
+    return res.status(400).json({ error: `${field}: ${message}` })
+  }
 
-  const { programId, title, description, type, scheduledAt } = parsed.data
+  const { programId, title, description, type, scheduledAt, dayOrder } = parsed.data
+  const gymId = req.params.gymId as string
+  const scheduledAtDate = new Date(scheduledAt)
+  const resolvedDayOrder = dayOrder ?? await countWorkoutsOnSameDay(gymId, scheduledAtDate)
   const workout = await createWorkoutForProgramDb({
     programId,
     title,
     description,
     type,
-    scheduledAt: new Date(scheduledAt),
+    scheduledAt: scheduledAtDate,
+    dayOrder: resolvedDayOrder,
   })
   res.status(201).json(workout)
 }
@@ -117,14 +127,20 @@ async function patchWorkout(req: Request, res: Response) {
   if (!existing) return res.status(404).json({ error: 'Workout not found' })
 
   const parsed = UpdateWorkoutSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    const field = issue?.path[0] ?? 'request'
+    const message = issue?.message ?? 'Invalid request'
+    return res.status(400).json({ error: `${field}: ${message}` })
+  }
 
-  const { title, description, type, scheduledAt } = parsed.data
+  const { title, description, type, scheduledAt, dayOrder } = parsed.data
   const workout = await updateWorkout(id, {
     title,
     description,
     type,
     scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+    dayOrder,
   })
   res.json(workout)
 }

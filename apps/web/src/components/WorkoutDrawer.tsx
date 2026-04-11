@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api, type GymProgram, type Workout, type WorkoutType } from '../lib/api'
+import { api, TYPE_ABBR, type GymProgram, type Role, type Workout, type WorkoutType } from '../lib/api'
 
 const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
   { value: 'AMRAP', label: 'AMRAP' },
@@ -15,11 +15,16 @@ interface WorkoutDrawerProps {
   gymId: string
   dateKey: string | null
   workout?: Workout
+  workoutsOnDay: Workout[]
+  userGymRole?: Role | null
   onClose: () => void
   onSaved: () => void
+  onReordered?: () => void
+  onWorkoutSelect: (id: string) => void
+  onNewWorkout: () => void
 }
 
-export default function WorkoutDrawer({ gymId, dateKey, workout, onClose, onSaved }: WorkoutDrawerProps) {
+export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, userGymRole, onClose, onSaved, onReordered, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
   const isOpen = dateKey !== null
   const isEdit = !!workout
 
@@ -31,6 +36,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, onClose, onSave
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [reordering, setReordering] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPublishConfirm, setShowPublishConfirm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -72,6 +78,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, onClose, onSave
   function validate() {
     if (!isEdit && !programId) { setError('Program is required'); return false }
     if (!title.trim()) { setError('Title is required'); return false }
+    if (!description.trim()) { setError('Description is required'); return false }
     return true
   }
 
@@ -127,6 +134,29 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, onClose, onSave
     }
   }
 
+  async function handleReorder(direction: 'up' | 'down') {
+    if (!workout) return
+    const currentIndex = workoutsOnDay.findIndex((w) => w.id === workout.id)
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (targetIndex < 0 || targetIndex >= workoutsOnDay.length) return
+    const targetWorkout = workoutsOnDay[targetIndex]
+    setReordering(true)
+    setError(null)
+    try {
+      await Promise.all([
+        api.workouts.update(workout.id, { dayOrder: targetWorkout.dayOrder }),
+        api.workouts.update(targetWorkout.id, { dayOrder: workout.dayOrder }),
+      ])
+      onReordered?.()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setReordering(false)
+    }
+  }
+
+  const canReorder = isEdit && workoutsOnDay.length > 1 && (userGymRole === 'OWNER' || userGymRole === 'PROGRAMMER')
+
   const displayDate = dateKey
     ? new Date(dateKey + 'T12:00:00').toLocaleDateString('default', {
         weekday: 'long',
@@ -180,6 +210,70 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, onClose, onSave
         {/* Form */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {error && <p className="text-red-400 text-sm">{error}</p>}
+
+          {/* Today's Workouts nav — shown when day has multiple workouts or adding to a day with existing workouts */}
+          {(workoutsOnDay.length > 1 || (!isEdit && workoutsOnDay.length >= 1)) && (
+            <div className="border border-gray-800 rounded-lg overflow-hidden">
+              <div className="px-3 py-2 bg-gray-800/30 text-[10px] text-gray-500 uppercase tracking-wider">
+                Today's Workouts
+              </div>
+              {workoutsOnDay.map((w, idx) => {
+                const isCurrent = isEdit && w.id === workout?.id
+                const rowContent = (
+                  <>
+                    <span className={w.status === 'PUBLISHED' ? 'text-green-400' : 'text-yellow-400'}>
+                      {w.status === 'PUBLISHED' ? '●' : '○'}
+                    </span>
+                    <span className="font-mono text-[10px] text-indigo-400 w-3 shrink-0">
+                      {TYPE_ABBR[w.type] ?? '?'}
+                    </span>
+                    <span className="truncate flex-1">{w.title}</span>
+                    {isCurrent && canReorder && (
+                      <span className="flex items-center gap-0.5 shrink-0 ml-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleReorder('up') }}
+                          disabled={idx === 0 || reordering}
+                          className="text-gray-500 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed w-4 h-4 flex items-center justify-center rounded transition-colors"
+                          title="Move up"
+                        >↑</button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleReorder('down') }}
+                          disabled={idx === workoutsOnDay.length - 1 || reordering}
+                          className="text-gray-500 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed w-4 h-4 flex items-center justify-center rounded transition-colors"
+                          title="Move down"
+                        >↓</button>
+                      </span>
+                    )}
+                  </>
+                )
+                return isCurrent ? (
+                  <div
+                    key={w.id}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm bg-gray-800 text-white"
+                  >
+                    {rowContent}
+                  </div>
+                ) : (
+                  <button
+                    key={w.id}
+                    onClick={() => onWorkoutSelect(w.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-gray-300 hover:bg-gray-800/60 hover:text-white transition-colors"
+                  >
+                    {rowContent}
+                  </button>
+                )
+              })}
+              {isEdit && (
+                <button
+                  onClick={onNewWorkout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-indigo-400 hover:text-indigo-300 hover:bg-gray-800/40 transition-colors border-t border-gray-800"
+                >
+                  <span className="text-base leading-none">+</span>
+                  <span>Add another workout</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Program — required selector (create) or read-only label (edit) */}
           <div>
