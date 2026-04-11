@@ -1,10 +1,8 @@
 /**
  * FeedScreen tests
  *
- * T4: Feed groups workouts into TODAY / TOMORROW / future date headers.
- * T5: Multiple workouts on the same day appear as separate cards under one header.
- * T6: Tapping a workout card calls navigation.navigate('WodDetail', { workoutId }).
- * T9: Pull-to-refresh triggers a second api.gyms.workouts call.
+ * Covers feed data presentation: day-block grouping labels, multi-workout days,
+ * card tap navigation to WodDetail, and pull-to-refresh reloading.
  */
 
 import React from 'react'
@@ -60,7 +58,7 @@ describe('FeedScreen', () => {
     ;(useGym as jest.Mock).mockReturnValue({ activeGym: ACTIVE_GYM, isLoading: false, selectGym: jest.fn() })
   })
 
-  test('T4: workouts grouped into TODAY, TOMORROW, and future date headers', async () => {
+  test('workouts grouped into TODAY, TOMORROW, and future date headers', async () => {
     ;(api.gyms.workouts as jest.Mock).mockResolvedValue([
       workout('w1', 'Morning WOD', daysFromNow(0)),
       workout('w2', 'Tomorrow WOD', daysFromNow(1)),
@@ -75,7 +73,7 @@ describe('FeedScreen', () => {
     await findByText('Future WOD')
   })
 
-  test('T5: multiple workouts on the same day appear as separate cards under one header', async () => {
+  test('multiple workouts on the same day appear as separate cards under one header', async () => {
     const today = daysFromNow(0)
     ;(api.gyms.workouts as jest.Mock).mockResolvedValue([
       workout('w1', 'Morning WOD', today, 'WARMUP'),
@@ -94,7 +92,7 @@ describe('FeedScreen', () => {
     expect(todayHeaders).toHaveLength(1)
   })
 
-  test('T6: tapping a workout card calls navigate with the correct workoutId', async () => {
+  test('tapping a workout card calls navigate with the correct workoutId', async () => {
     const nav = makeNavigation()
     ;(api.gyms.workouts as jest.Mock).mockResolvedValue([
       workout('workout-abc', 'Tap Me WOD', daysFromNow(0)),
@@ -107,7 +105,7 @@ describe('FeedScreen', () => {
     expect(nav.navigate).toHaveBeenCalledWith('WodDetail', { workoutId: 'workout-abc' })
   })
 
-  test('T9: pull-to-refresh triggers a second api call', async () => {
+  test('pull-to-refresh triggers a second api call', async () => {
     ;(api.gyms.workouts as jest.Mock).mockResolvedValue([
       workout('w1', 'Daily WOD', daysFromNow(0)),
     ])

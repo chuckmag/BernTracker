@@ -1,9 +1,8 @@
 /**
  * AuthContext tests
  *
- * T1: App opens with no stored session → user is null (LoginScreen would be shown).
- * T3: App starts with valid stored tokens → session is restored and user is set
- *     (Feed would be shown — RootNavigator reads user from this context).
+ * Tests the two startup paths: cold start with no session, and warm start with
+ * stored tokens that restore the authenticated user without requiring login.
  */
 
 import React from 'react'
@@ -38,7 +37,7 @@ describe('AuthContext', () => {
     jest.clearAllMocks()
   })
 
-  test('T1: no stored tokens → user is null after initialisation', async () => {
+  test('no stored tokens → user is null after initialisation', async () => {
     ;(getStoredTokens as jest.Mock).mockResolvedValue({
       accessToken: null,
       refreshToken: null,
@@ -54,7 +53,7 @@ describe('AuthContext', () => {
     expect(el.props.children).toBe('not-logged-in')
   })
 
-  test('T3: valid stored tokens → session restored, user populated from api.auth.me', async () => {
+  test('valid stored tokens → session restored, user populated from api.auth.me', async () => {
     ;(getStoredTokens as jest.Mock).mockResolvedValue({
       accessToken: 'valid-access-token',
       refreshToken: 'valid-refresh-token',

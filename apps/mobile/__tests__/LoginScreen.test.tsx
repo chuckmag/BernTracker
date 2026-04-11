@@ -1,9 +1,9 @@
 /**
  * LoginScreen tests
  *
- * T2:  Valid credentials call login() — navigation is handled by RootNavigator
- *      reacting to the user state change, not by the screen itself.
- * T10: Bad credentials surface "Invalid email or password." error text.
+ * Covers the login form: successful submit, empty-field guard, and bad-credentials
+ * error handling. Navigation after login is handled by RootNavigator reacting to
+ * the auth context user state change, not by the screen itself.
  */
 
 import React from 'react'
@@ -29,7 +29,7 @@ describe('LoginScreen', () => {
     })
   })
 
-  test('T2: valid credentials call login() with the correct email and password', async () => {
+  test('valid credentials call login() with the correct email and password', async () => {
     mockLogin.mockResolvedValue(undefined)
 
     const { getByPlaceholderText, getByText } = render(<LoginScreen />)
@@ -43,7 +43,7 @@ describe('LoginScreen', () => {
     })
   })
 
-  test('T2b: submitting empty fields shows required-field error without calling login()', async () => {
+  test('submitting empty fields shows required-field error without calling login()', async () => {
     const { getByText } = render(<LoginScreen />)
 
     fireEvent.press(getByText('Sign In'))
@@ -54,7 +54,7 @@ describe('LoginScreen', () => {
     expect(mockLogin).not.toHaveBeenCalled()
   })
 
-  test('T10: failed login shows "Invalid email or password." error message', async () => {
+  test('failed login shows "Invalid email or password." error message', async () => {
     mockLogin.mockRejectedValue(new Error('Unauthorized'))
 
     const { getByPlaceholderText, getByText, findByText } = render(<LoginScreen />)

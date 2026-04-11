@@ -1,9 +1,8 @@
 /**
  * WodDetailScreen tests
  *
- * T6-display: Workout title and description rendered from the API response.
- * T7: Tapping a level filter chip re-fetches the leaderboard with that level filter.
- * T8: The current user's leaderboard row has the highlight background style applied.
+ * Covers WOD detail rendering, leaderboard level filter chips, and the current
+ * user's row highlight styling.
  */
 
 import React from 'react'
@@ -70,7 +69,7 @@ describe('WodDetailScreen', () => {
     ;(api.workouts.results as jest.Mock).mockResolvedValue([])
   })
 
-  test('T6-display: shows workout title and description from API', async () => {
+  test('shows workout title and description from API', async () => {
     const { findByText } = render(
       <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
     )
@@ -79,7 +78,7 @@ describe('WodDetailScreen', () => {
     await findByText('21-15-9 Thrusters and Pull-ups')
   })
 
-  test('T7: tapping the "RX" filter chip re-fetches leaderboard with level=RX', async () => {
+  test('tapping the "RX" filter chip re-fetches leaderboard with level=RX', async () => {
     const { findByText } = render(
       <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
     )
@@ -95,7 +94,7 @@ describe('WodDetailScreen', () => {
     })
   })
 
-  test('T7b: tapping "All" after a level filter clears the filter', async () => {
+  test('tapping "All" after a level filter clears the filter', async () => {
     const { findByText } = render(
       <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
     )
@@ -111,7 +110,7 @@ describe('WodDetailScreen', () => {
     await waitFor(() => expect(api.workouts.results).toHaveBeenCalledWith('workout-1', undefined))
   })
 
-  test('T8: current user\'s leaderboard row has highlight background color applied', async () => {
+  test("current user's leaderboard row has highlight background color applied", async () => {
     ;(api.workouts.results as jest.Mock).mockResolvedValue([
       makeEntry('e1', 'other-user', 'Alice'),
       makeEntry('e2', 'me', 'Me'),
