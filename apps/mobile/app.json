@@ -3,6 +3,7 @@
     "name": "BernTracker",
     "slug": "berntracker",
     "version": "1.0.0",
+    "scheme": "com.berntracker.app",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
