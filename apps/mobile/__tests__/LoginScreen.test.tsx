@@ -15,6 +15,10 @@ jest.mock('../src/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
 
+jest.mock('expo-auth-session', () => ({
+  makeRedirectUri: jest.fn(() => 'exp://127.0.0.1:8081'),
+}))
+
 jest.mock('expo-auth-session/providers/google', () => ({
   useAuthRequest: jest.fn(),
 }))

@@ -24,14 +24,18 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // In Expo Go, exp://192.168.x.x:8081 can't be registered with Google as a
-  // redirect URI (it changes per device/network). useProxy routes the callback
-  // through https://auth.expo.io/@<owner>/berntracker — a stable, registerable
-  // URL. Add that URL to the authorized redirect URIs in Google Cloud Console.
-  const redirectUri = makeRedirectUri({ useProxy: true })
+  // The redirect URI is environment-dependent:
+  //   Expo Go (dev):   exp://<your-local-ip>:8081  (shown in Metro output)
+  //   Production build: com.berntracker.app://
+  //
+  // For Expo Go: copy the URI logged below and add it once to the authorized
+  // redirect URIs for the web OAuth client in Google Cloud Console. If your
+  // local IP changes, update the entry.
+  const redirectUri = makeRedirectUri()
+  console.log('[Google OAuth] redirect URI:', redirectUri)
 
   // EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID — iOS OAuth client (native / Expo Go on iOS)
-  // EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID  — web client used by Expo Go auth proxy
+  // EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID  — web client, used as fallback in Expo Go
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
@@ -130,7 +134,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           style={[styles.googleButton, (!request || loading) && styles.buttonDisabled]}
-          onPress={() => promptAsync({ useProxy: true })}
+          onPress={() => promptAsync()}
           disabled={!request || loading}
         >
           <Text style={styles.googleButtonText}>Sign in with Google</Text>
