@@ -150,10 +150,17 @@ router.get('/me', requireAuth, async (req, res) => {
 })
 
 // GET /google — redirect to Google consent screen
-router.get('/google', (_req, res) => {
+// Optional query param: mobile_redirect=<scheme://...>
+// When present (mobile clients), the callback will redirect to that scheme
+// with tokens as query params instead of redirecting to the web frontend.
+router.get('/google', (req, res) => {
+  const mobileRedirect = req.query.mobile_redirect as string | undefined
   const url = googleClient().generateAuthUrl({
     access_type: 'offline',
     scope: ['openid', 'email', 'profile'],
+    // Encode mobile_redirect in state so it survives the OAuth round-trip.
+    // State is also used by Google for CSRF protection.
+    state: mobileRedirect ? JSON.stringify({ mobileRedirect }) : undefined,
   })
   res.redirect(url)
 })
@@ -164,6 +171,13 @@ router.get('/google/callback', async (req, res) => {
   if (!code) {
     res.status(400).json({ error: 'Missing code' })
     return
+  }
+
+  // Recover mobile_redirect from state if present
+  let mobileRedirect: string | undefined
+  const stateStr = req.query.state as string | undefined
+  if (stateStr) {
+    try { mobileRedirect = JSON.parse(stateStr).mobileRedirect } catch {}
   }
 
   let googleId: string, email: string, name: string
@@ -195,8 +209,18 @@ router.get('/google/callback', async (req, res) => {
   })
 
   res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-  // Redirect to frontend — silent refresh will pick up the cookie and issue accessToken
-  res.redirect(`${FRONTEND_URL}/dashboard`)
+
+  if (mobileRedirect) {
+    // Mobile flow: redirect to the app scheme with tokens as query params so
+    // WebBrowser.openAuthSessionAsync can intercept and return them to the app.
+    // Google only ever sees http://localhost:3000/api/auth/google/callback —
+    // the exp:// or app scheme redirect is entirely server→app, not Google→app.
+    const params = new URLSearchParams({ token: accessToken, refreshToken })
+    res.redirect(`${mobileRedirect}?${params}`)
+  } else {
+    // Web flow: silent refresh picks up the cookie and issues accessToken
+    res.redirect(`${FRONTEND_URL}/dashboard`)
+  }
 })
 
 // POST /google/mobile — verify Google ID token from Expo, issue JWT pair

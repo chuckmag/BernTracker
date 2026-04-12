@@ -158,12 +158,6 @@ export const api = {
         body: JSON.stringify({ email, password }),
       }),
 
-    loginWithGoogle: (idToken: string) =>
-      request<{ accessToken: string; refreshToken: string; user: AuthUser }>('/api/auth/google/mobile', {
-        method: 'POST',
-        body: JSON.stringify({ idToken }),
-      }),
-
     me: () =>
       request<AuthUser>('/api/auth/me'),
   },
