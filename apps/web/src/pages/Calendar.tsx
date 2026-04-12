@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, type Workout } from '../lib/api'
+import { api, type Role, type Workout } from '../lib/api'
 import CalendarCell from '../components/CalendarCell'
 import WorkoutDrawer from '../components/WorkoutDrawer'
 
@@ -21,6 +21,8 @@ export default function Calendar() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
+  const [userGymRole, setUserGymRole] = useState<Role | null>(null)
 
   const loadWorkouts = useCallback(async () => {
     if (!gymId) return
@@ -42,11 +44,25 @@ export default function Calendar() {
     loadWorkouts()
   }, [loadWorkouts])
 
-  const workoutByDate: Record<string, Workout> = {}
+  useEffect(() => {
+    if (!gymId) return
+    api.me.gyms().then((gyms) => {
+      const myGym = gyms.find((g) => g.id === gymId)
+      if (myGym) setUserGymRole(myGym.role)
+    }).catch(() => {})
+  }, [gymId])
+
+  const workoutsByDate: Record<string, Workout[]> = {}
   for (const w of workouts) {
     const key = toDateKey(new Date(w.scheduledAt))
-    if (!workoutByDate[key]) workoutByDate[key] = w
+    if (!workoutsByDate[key]) workoutsByDate[key] = []
+    workoutsByDate[key].push(w)
   }
+
+  const workoutsOnDay = selectedDate ? (workoutsByDate[selectedDate] ?? []) : []
+  const selectedWorkout = selectedWorkoutId
+    ? workoutsOnDay.find(w => w.id === selectedWorkoutId)
+    : undefined
 
   // Build padded grid of Date | null
   const firstDayOfMonth = new Date(year, month, 1)
@@ -66,12 +82,14 @@ export default function Calendar() {
     if (month === 0) { setYear(y => y - 1); setMonth(11) }
     else setMonth(m => m - 1)
     setSelectedDate(null)
+    setSelectedWorkoutId(null)
   }
 
   function nextMonth() {
     if (month === 11) { setYear(y => y + 1); setMonth(0) }
     else setMonth(m => m + 1)
     setSelectedDate(null)
+    setSelectedWorkoutId(null)
   }
 
   if (!gymId) {
@@ -136,9 +154,10 @@ export default function Calendar() {
                 key={key}
                 date={date}
                 isToday={key === todayKey}
-                workout={workoutByDate[key]}
+                workouts={workoutsByDate[key] ?? []}
                 selected={key === selectedDate}
-                onClick={() => setSelectedDate(key === selectedDate ? null : key)}
+                onAddClick={() => { setSelectedDate(key); setSelectedWorkoutId(null) }}
+                onWorkoutClick={(id) => { setSelectedDate(key); setSelectedWorkoutId(id) }}
               />
             )
           }),
@@ -148,9 +167,14 @@ export default function Calendar() {
       <WorkoutDrawer
         gymId={gymId}
         dateKey={selectedDate}
-        workout={selectedDate ? workoutByDate[selectedDate] : undefined}
-        onClose={() => setSelectedDate(null)}
-        onSaved={() => { setSelectedDate(null); loadWorkouts() }}
+        workout={selectedWorkout}
+        workoutsOnDay={workoutsOnDay}
+        userGymRole={userGymRole}
+        onClose={() => { setSelectedDate(null); setSelectedWorkoutId(null) }}
+        onSaved={() => { setSelectedDate(null); setSelectedWorkoutId(null); loadWorkouts() }}
+        onReordered={loadWorkouts}
+        onWorkoutSelect={(id) => setSelectedWorkoutId(id)}
+        onNewWorkout={() => setSelectedWorkoutId(null)}
       />
     </div>
   )

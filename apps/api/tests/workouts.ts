@@ -210,6 +210,78 @@ async function runTests() {
     check('GET /workouts/:id after delete → 404', 404, r2.status)
   }
 
+  // ── dayOrder ───────────────────────────────────────────────────────────────
+  console.log('\n=== dayOrder ===')
+
+  let dayOrderWorkout1Id = ''
+  let dayOrderWorkout2Id = ''
+  const DAY_ORDER_DATE = '2026-03-10T12:00:00.000Z'
+
+  {
+    // First workout on a day → auto-assigned dayOrder=0
+    const r = await api('POST', `/gyms/${gymId}/workouts`, programmerToken, {
+      programId,
+      title: 'Day Order First',
+      description: 'first piece',
+      type: 'WARMUP',
+      scheduledAt: DAY_ORDER_DATE,
+    })
+    check('POST first workout on day → 201', 201, r.status)
+    check('POST first workout on day → dayOrder=0', 0, r.body.dayOrder)
+    dayOrderWorkout1Id = r.body.id as string
+  }
+
+  {
+    // Second workout on same day → auto-assigned dayOrder=1
+    const r = await api('POST', `/gyms/${gymId}/workouts`, programmerToken, {
+      programId,
+      title: 'Day Order Second',
+      description: 'second piece',
+      type: 'AMRAP',
+      scheduledAt: DAY_ORDER_DATE,
+    })
+    check('POST second workout on same day → 201', 201, r.status)
+    check('POST second workout on same day → dayOrder=1', 1, r.body.dayOrder)
+    dayOrderWorkout2Id = r.body.id as string
+  }
+
+  {
+    // GET workouts for the day — must be ordered by dayOrder (WARMUP first, AMRAP second)
+    const r = await api('GET', `/gyms/${gymId}/workouts?from=2026-03-10&to=2026-03-10T23:59:59Z`, programmerToken)
+    check('GET workouts sorted by dayOrder → 200', 200, r.status)
+    const workouts = r.body as Array<Record<string, unknown>>
+    check('GET workouts sorted by dayOrder → 2 results', 2, workouts.length)
+    check('GET workouts sorted → first is dayOrder=0', 0, workouts[0]?.dayOrder)
+    check('GET workouts sorted → second is dayOrder=1', 1, workouts[1]?.dayOrder)
+    check('GET workouts sorted → first title matches', 'Day Order First', workouts[0]?.title)
+  }
+
+  {
+    // PATCH dayOrder
+    const r = await api('PATCH', `/workouts/${dayOrderWorkout1Id}`, programmerToken, { dayOrder: 5 })
+    check('PATCH /workouts/:id dayOrder → 200', 200, r.status)
+    check('PATCH /workouts/:id dayOrder → updated', 5, r.body.dayOrder)
+  }
+
+  {
+    // POST with explicit dayOrder
+    const r = await api('POST', `/gyms/${gymId}/workouts`, programmerToken, {
+      programId,
+      title: 'Day Order Explicit',
+      description: 'explicit order',
+      type: 'STRENGTH',
+      scheduledAt: DAY_ORDER_DATE,
+      dayOrder: 99,
+    })
+    check('POST with explicit dayOrder → 201', 201, r.status)
+    check('POST with explicit dayOrder → uses provided value', 99, r.body.dayOrder)
+    if (r.body.id) await prisma.workout.delete({ where: { id: r.body.id as string } })
+  }
+
+  // Clean up dayOrder test fixtures
+  if (dayOrderWorkout1Id) await prisma.workout.delete({ where: { id: dayOrderWorkout1Id } })
+  if (dayOrderWorkout2Id) await prisma.workout.delete({ where: { id: dayOrderWorkout2Id } })
+
   // ── Subscribe role ─────────────────────────────────────────────────────────
   console.log('\n=== Subscribe role ===')
 

@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { prisma } from '@berntracker/db'
@@ -26,6 +26,14 @@ app.use('/api', gymsRouter)
 app.use('/api', programsRouter)
 app.use('/api', workoutsRouter)
 app.use('/api', resultsRouter)
+
+// Global error handler — catches any unhandled exception thrown from route handlers or middleware
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  const message = err instanceof Error ? err.message : String(err)
+  console.log(`[error] ${req.method} ${req.path} — ${message}`, err)
+  res.status(500).json({ error: 'Internal server error' })
+})
 
 app.listen(port, () => {
   console.log(`API running on http://localhost:${port}`)

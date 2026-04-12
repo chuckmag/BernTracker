@@ -4,6 +4,13 @@ import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
 import { findWorkoutProgramId } from '../db/workoutDbManager.js'
 import { findUserProgramMembership } from '../db/userProgramDbManager.js'
 
+const writeAccessRoles = ['OWNER', 'PROGRAMMER', 'COACH'];
+
+function checkMembershipHasWriteAccessRoles(membership: any): boolean {
+  const hasWriteAccessRoles = membership && writeAccessRoles.includes(membership.role)
+  return hasWriteAccessRoles
+}
+
 export async function validateGymExists(req: Request, res: Response, next: NextFunction): Promise<void> {
   const gymId = req.params.gymId as string
   const gym = await findGymById(gymId)
@@ -39,7 +46,7 @@ export async function requireGymWriteAccess(req: Request, res: Response, next: N
     return
   }
   const membership = await findGymMembershipByUserAndGym(userId, gymId)
-  if (!membership || !['OWNER', 'PROGRAMMER', 'COACH'].includes(membership.role)) {
+  if (!checkMembershipHasWriteAccessRoles(membership)) {
     res.status(403).json({ error: 'Forbidden' })
     return
   }
@@ -89,7 +96,8 @@ export async function requireWorkoutProgramWriteAccess(req: Request, res: Respon
     return
   }
   const membership = await findUserProgramMembership(userId, workout.programId)
-  if (!membership || membership.role !== 'PROGRAMMER') {
+  if (!checkMembershipHasWriteAccessRoles(membership)) {
+    console.log("Membership does not have write access roles:", membership)
     res.status(403).json({ error: 'Forbidden' })
     return
   }

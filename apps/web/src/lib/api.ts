@@ -66,6 +66,16 @@ async function req<T>(path: string, opts: RequestInit & { token?: string } = {})
 
 export type Role = 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER'
 export type WorkoutType = 'STRENGTH' | 'FOR_TIME' | 'EMOM' | 'CARDIO' | 'AMRAP' | 'METCON' | 'WARMUP'
+
+export const TYPE_ABBR: Record<WorkoutType, string> = {
+  WARMUP: 'W',
+  STRENGTH: 'S',
+  AMRAP: 'A',
+  FOR_TIME: 'F',
+  EMOM: 'E',
+  CARDIO: 'C',
+  METCON: 'M',
+}
 export type WorkoutStatus = 'DRAFT' | 'PUBLISHED'
 
 export interface Workout {
@@ -75,6 +85,7 @@ export interface Workout {
   type: WorkoutType
   status: WorkoutStatus
   scheduledAt: string
+  dayOrder: number
   programId: string | null
   program: { id: string; name: string } | null
   _count: { results: number }
@@ -186,7 +197,7 @@ export const api = {
 
     update: (
       id: string,
-      data: { title?: string; description?: string; type?: WorkoutType; scheduledAt?: string },
+      data: { title?: string; description?: string; type?: WorkoutType; scheduledAt?: string; dayOrder?: number },
       token?: string,
     ) =>
       req<Workout>(`/api/workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
