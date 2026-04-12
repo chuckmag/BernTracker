@@ -200,7 +200,6 @@ router.get('/google/callback', async (req, res) => {
 })
 
 // POST /google/mobile — verify Google ID token from Expo, issue JWT pair
-// TODO: This is untested and should be seen as stubbed out for now.
 router.post('/google/mobile', async (req, res) => {
   const { idToken } = req.body as { idToken?: string }
   if (!idToken) {
@@ -233,8 +232,10 @@ router.post('/google/mobile', async (req, res) => {
     },
   })
 
+  // refreshToken returned in body (not just cookie) so mobile clients can
+  // persist it in SecureStore — mobile fetch doesn't use httpOnly cookies.
   res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-  res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
+  res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
 })
 
 async function findOrCreateGoogleUser(googleId: string, email: string, name: string) {
