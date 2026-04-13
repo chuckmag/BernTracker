@@ -15,23 +15,22 @@ jest.mock('../src/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
 
-jest.mock('expo-web-browser', () => ({
-  maybeCompleteAuthSession: jest.fn(),
-  openAuthSessionAsync: jest.fn(),
+jest.mock('expo-auth-session', () => ({
+  useAuthRequest: jest.fn(),
+  ResponseType: { IdToken: 'id_token' },
 }))
 
-jest.mock('expo-linking', () => ({
-  createURL: jest.fn(() => 'exp://127.0.0.1:8081/--/auth-callback'),
-  parse: jest.fn(),
+jest.mock('expo-web-browser', () => ({
+  maybeCompleteAuthSession: jest.fn(),
 }))
 
 import { useAuth } from '../src/context/AuthContext'
-import * as WebBrowser from 'expo-web-browser'
-import * as Linking from 'expo-linking'
+import { useAuthRequest } from 'expo-auth-session'
 
 describe('LoginScreen', () => {
   const mockLogin = jest.fn()
   const mockLoginWithGoogle = jest.fn()
+  const mockPromptAsync = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -42,8 +41,7 @@ describe('LoginScreen', () => {
       loginWithGoogle: mockLoginWithGoogle,
       logout: jest.fn(),
     })
-    ;(WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({ type: 'dismiss' })
-    ;(Linking.parse as jest.Mock).mockReturnValue({ queryParams: {} })
+    ;(useAuthRequest as jest.Mock).mockReturnValue([{}, null, mockPromptAsync])
   })
 
   test('valid credentials call login() with the correct email and password', async () => {
@@ -83,61 +81,54 @@ describe('LoginScreen', () => {
     await findByText('Invalid email or password.')
   })
 
-  test('pressing "Sign in with Google" opens the API OAuth URL in a browser', async () => {
-    const { getByText } = render(<LoginScreen />)
+  test('pressing "Sign in with Google" calls promptAsync', async () => {
+    mockPromptAsync.mockResolvedValue({ type: 'dismissed' })
 
+    const { getByText } = render(<LoginScreen />)
     fireEvent.press(getByText('Sign in with Google'))
 
     await waitFor(() => {
-      expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalledWith(
-        expect.stringContaining('/api/auth/google?mobile_redirect='),
-        'exp://127.0.0.1:8081/--/auth-callback',
-      )
+      expect(mockPromptAsync).toHaveBeenCalled()
     })
   })
 
-  test('successful Google callback calls loginWithGoogle with the access and refresh tokens', async () => {
-    ;(WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
-      type: 'success',
-      url: 'exp://127.0.0.1:8081/--/auth-callback?token=acc123&refreshToken=ref456',
-    })
-    ;(Linking.parse as jest.Mock).mockReturnValue({
-      queryParams: { token: 'acc123', refreshToken: 'ref456' },
-    })
+  test('successful Google response calls loginWithGoogle with the ID token', async () => {
     mockLoginWithGoogle.mockResolvedValue(undefined)
+    ;(useAuthRequest as jest.Mock).mockReturnValue([
+      {},
+      { type: 'success', params: { id_token: 'google-id-token-abc' } },
+      mockPromptAsync,
+    ])
 
-    const { getByText } = render(<LoginScreen />)
-    fireEvent.press(getByText('Sign in with Google'))
+    render(<LoginScreen />)
 
     await waitFor(() => {
-      expect(mockLoginWithGoogle).toHaveBeenCalledWith('acc123', 'ref456')
+      expect(mockLoginWithGoogle).toHaveBeenCalledWith('google-id-token-abc')
     })
   })
 
-  test('Google callback missing tokens shows error without calling loginWithGoogle', async () => {
-    ;(WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
-      type: 'success',
-      url: 'exp://127.0.0.1:8081/--/auth-callback',
-    })
-    ;(Linking.parse as jest.Mock).mockReturnValue({ queryParams: {} })
+  test('Google response with missing ID token shows error without calling loginWithGoogle', async () => {
+    ;(useAuthRequest as jest.Mock).mockReturnValue([
+      {},
+      { type: 'success', params: {} },
+      mockPromptAsync,
+    ])
 
-    const { getByText, findByText } = render(<LoginScreen />)
-    fireEvent.press(getByText('Sign in with Google'))
+    const { findByText } = render(<LoginScreen />)
 
-    await findByText('Google sign-in failed — no token received.')
+    await findByText('Google sign-in failed — no ID token received.')
     expect(mockLoginWithGoogle).not.toHaveBeenCalled()
   })
 
-  test('dismissed Google browser does not show an error', async () => {
-    ;(WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({ type: 'cancel' })
+  test('Google error response shows error message', async () => {
+    ;(useAuthRequest as jest.Mock).mockReturnValue([
+      {},
+      { type: 'error', error: new Error('access_denied') },
+      mockPromptAsync,
+    ])
 
-    const { getByText, queryByText } = render(<LoginScreen />)
-    fireEvent.press(getByText('Sign in with Google'))
+    const { findByText } = render(<LoginScreen />)
 
-    await waitFor(() => {
-      expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalled()
-    })
-    expect(queryByText(/Google sign-in failed/)).toBeNull()
-    expect(mockLoginWithGoogle).not.toHaveBeenCalled()
+    await findByText('Google sign-in failed. Please try again.')
   })
 })

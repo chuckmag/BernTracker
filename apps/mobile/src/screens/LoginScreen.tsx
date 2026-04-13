@@ -9,8 +9,9 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native'
+import { useRef } from 'react'
 import * as WebBrowser from 'expo-web-browser'
-import * as Google from 'expo-auth-session/providers/google'
+import { useAuthRequest, ResponseType } from 'expo-auth-session'
 import { useAuth } from '../context/AuthContext'
 
 // Required so the auth session can close the browser after redirect
@@ -21,6 +22,12 @@ WebBrowser.maybeCompleteAuthSession()
 // URIs for the web OAuth client in Google Cloud Console (one-time setup).
 const EXPO_PROXY_REDIRECT_URI = 'https://auth.expo.io/@chuckmag/berntracker'
 
+// Google OAuth 2.0 endpoints
+const GOOGLE_DISCOVERY = {
+  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenEndpoint: 'https://oauth2.googleapis.com/token',
+}
+
 export default function LoginScreen() {
   const { login, loginWithGoogle } = useAuth()
   const [email, setEmail] = useState('')
@@ -28,16 +35,27 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Use webClientId only — iOS clients have fixed redirect schemes and can't
-  // use the proxy URL. The web client accepts any registered redirect URI.
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    redirectUri: EXPO_PROXY_REDIRECT_URI,
-  })
+  // Use the base useAuthRequest (not the Google provider) so we can supply
+  // webClientId as clientId without the Google provider's iOS platform check
+  // enforcing iosClientId. ResponseType.IdToken returns the id_token directly
+  // (no client-secret code exchange needed). nonce is required by OIDC for
+  // implicit id_token responses.
+  const nonce = useRef(Math.random().toString(36).slice(2))
+  const [request, response, promptAsync] = useAuthRequest(
+    {
+      clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
+      redirectUri: EXPO_PROXY_REDIRECT_URI,
+      responseType: ResponseType.IdToken,
+      scopes: ['openid', 'email', 'profile'],
+      usePKCE: false,
+      extraParams: { nonce: nonce.current },
+    },
+    GOOGLE_DISCOVERY,
+  )
 
   useEffect(() => {
     if (response?.type === 'success') {
-      const idToken = response.authentication?.idToken
+      const idToken = response.params?.id_token
       if (idToken) {
         handleGoogleAuth(idToken)
       } else {
