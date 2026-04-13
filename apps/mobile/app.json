@@ -2,6 +2,7 @@
   "expo": {
     "name": "BernTracker",
     "slug": "berntracker",
+    "owner": "chuckmag",
     "version": "1.0.0",
     "scheme": "com.berntracker.app",
     "orientation": "portrait",

@@ -10,8 +10,9 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { useRef } from 'react'
+import * as Linking from 'expo-linking'
 import * as WebBrowser from 'expo-web-browser'
-import { useAuthRequest, ResponseType, makeRedirectUri } from 'expo-auth-session'
+import { useAuthRequest, ResponseType } from 'expo-auth-session'
 import { useAuth } from '../context/AuthContext'
 
 // Required so the auth session can close the browser after redirect
@@ -21,11 +22,19 @@ WebBrowser.maybeCompleteAuthSession()
 // Console accepts. Add https://auth.expo.io/@chuckmag/berntracker to the
 // authorized redirect URIs for the web OAuth client (one-time setup).
 //
-// useProxy: true encodes the local Expo Go URL into the OAuth state param so
-// the proxy knows where to redirect back after Google completes auth.
+// Hardcoded because makeRedirectUri({ useProxy: true }) requires expo-constants
+// to expose the owner + slug from app.json at runtime, which is unreliable in
+// Expo Go dev mode. The proxy URL is stable and known — hardcoding it is safe.
+//
+// useProxy: true in promptAsync() encodes the local Expo Go URL into the OAuth
+// state param so the proxy knows where to redirect back after Google completes auth.
+// returnUrl is passed explicitly because v5.5's internal makeRedirectUri() reads
+// Constants.manifest (deprecated in SDK 45+) and returns null in SDK 54, causing
+// the proxy to have no return address. Linking.createURL('/') reads the live
+// Expo Go dev server URL (exp://host:port/--/) directly instead.
 // This requires expo-auth-session ~5.5.x (useProxy was removed in v7).
 // expo doctor will warn about the version but the app works correctly.
-const EXPO_PROXY_REDIRECT_URI = makeRedirectUri({ useProxy: true })
+const EXPO_PROXY_REDIRECT_URI = 'https://auth.expo.io/@chuckmag/berntracker'
 
 // Google OAuth 2.0 endpoints
 const GOOGLE_DISCOVERY = {
@@ -148,7 +157,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           style={[styles.googleButton, (!request || loading) && styles.buttonDisabled]}
-          onPress={() => promptAsync({ useProxy: true })}
+          onPress={() => promptAsync({ useProxy: true, returnUrl: Linking.createURL('/') })}
           disabled={!request || loading}
         >
           <Text style={styles.googleButtonText}>Sign in with Google</Text>

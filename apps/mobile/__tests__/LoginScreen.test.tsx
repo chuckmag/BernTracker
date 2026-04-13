@@ -25,6 +25,10 @@ jest.mock('expo-web-browser', () => ({
   maybeCompleteAuthSession: jest.fn(),
 }))
 
+jest.mock('expo-linking', () => ({
+  createURL: jest.fn(() => 'exp://localhost:8081/--/'),
+}))
+
 import { useAuth } from '../src/context/AuthContext'
 import { useAuthRequest } from 'expo-auth-session'
 
