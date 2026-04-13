@@ -93,6 +93,22 @@ export interface Workout {
   updatedAt: string
 }
 
+export type WorkoutLevel = 'RX_PLUS' | 'RX' | 'SCALED' | 'MODIFIED'
+export type WorkoutGender = 'MALE' | 'FEMALE' | 'OPEN'
+
+export interface WorkoutResult {
+  id: string
+  userId: string
+  workoutId: string
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  value: Record<string, unknown>
+  notes: string | null
+  createdAt: string
+  user: { id: string; name: string | null }
+  workout: { type: WorkoutType }
+}
+
 export interface MyGym {
   id: string
   name: string
@@ -202,6 +218,9 @@ export const api = {
     ) =>
       req<Workout>(`/api/workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
 
+    get: (id: string, token?: string) =>
+      req<Workout>(`/api/workouts/${id}`, { token }),
+
     publish: (id: string, token?: string) =>
       req<Workout>(`/api/workouts/${id}/publish`, { method: 'POST', token }),
 
@@ -211,7 +230,7 @@ export const api = {
 
   results: {
     leaderboard: (workoutId: string, token?: string) =>
-      req<unknown[]>(`/api/workouts/${workoutId}/results`, { token }),
+      req<WorkoutResult[]>(`/api/workouts/${workoutId}/results`, { token }),
   },
 
   programs: {

@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard.tsx'
 import Calendar from './pages/Calendar.tsx'
 import Members from './pages/Members.tsx'
 import Settings from './pages/Settings.tsx'
+import Feed from './pages/Feed.tsx'
+import WodDetail from './pages/WodDetail.tsx'
 
 function AppLayout() {
   return (
@@ -18,7 +20,9 @@ function AppLayout() {
         <TopBar />
         <main className="flex-1 overflow-y-auto p-8">
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/feed" replace />} />
+            <Route path="/feed" element={<Feed />} />
+            <Route path="/workouts/:id" element={<WodDetail />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/members" element={<Members />} />

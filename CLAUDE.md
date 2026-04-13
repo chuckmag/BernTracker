@@ -146,6 +146,67 @@ enum Gender        { WOMAN, MAN, NON_BINARY, PREFER_NOT_TO_SAY }  // User.identi
 enum WorkoutGender { MALE, FEMALE, OPEN }                          // Result.workoutGender — required, leaderboard grouping
 ```
 
+## Testing
+
+### API integration tests
+
+Located in `apps/api/tests/`. Each file is a self-contained TypeScript script that:
+- Seeds all fixtures directly via Prisma (no HTTP for setup)
+- Signs JWT tokens in-process via `signTokenPair` from `../src/lib/jwt.js`
+- Drives assertions through the live API using `fetch()`
+- Cleans up all created data in a `finally` block
+
+**Run:**
+```bash
+npm run test --workspace=@berntracker/api
+# or from apps/api:
+cd apps/api && npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do npx tsx "$f" || exit 1; done'
+```
+
+**Requires:** API running on `localhost:3000`, DB accessible via `DATABASE_URL`.
+
+**Test files:**
+
+| File | Covers |
+|---|---|
+| `tests/workouts.ts` | Workout CRUD, publish, dayOrder, role-based access, program subscriptions |
+| `tests/results.ts` | Result logging, leaderboard sorting/filtering, paginated history |
+| `tests/feed.ts` | Feed (member sees PUBLISHED-only), WOD detail, WorkoutResult shape |
+
+**Adding a new test file:** Follow the pattern in any existing file. Add the new script to the `test` command in `apps/api/package.json`.
+
+---
+
+### Web E2E tests (Playwright)
+
+Located in `apps/web/tests/`. Each spec file uses Playwright and seeds DB fixtures directly via `PrismaClient` (imported via `createRequire` to bypass ESM/CJS issues).
+
+**Run:**
+```bash
+npm run test --workspace=@berntracker/web
+# or from apps/web:
+cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
+```
+
+**Requires:** `turbo dev` running (API on `:3000`, web on `:5173`).
+
+**Test files:**
+
+| File | Covers |
+|---|---|
+| `tests/calendar-multi-workout.spec.ts` | Multi-workout calendar: overflow pills, drawer create/edit/delete, reorder, role gates |
+| `tests/feed-wod-detail.spec.ts` | Feed page, WOD Detail page: sidebar role awareness, workout display, results table, level filter chips, "Your Result" badge |
+
+**Patterns to follow:**
+- Use `test.describe.configure({ mode: 'serial' })` — tests share seeded DB state.
+- Use `test.beforeAll` / `test.afterAll` with Prisma for setup/teardown.
+- Seed directly via Prisma (not via API) to keep setup fast and independent of API state.
+- Assign one isolated day or entity per test to avoid cross-test interference.
+- `gymId` must be set in `localStorage` before navigating to gym-scoped pages (pages read it on mount).
+- Import PrismaClient via `createRequire(import.meta.url)` — do not use ESM named imports from `@prisma/client`.
+
+---
+
 ## Pull requests
 
 When creating a PR, always link the relevant issue in the PR body using a GitHub closing keyword (e.g. `Closes #11`) or a plain reference (e.g. `Part of #11`) so that context is well linked. Use `Closes` when the PR fully resolves the issue; use `Part of` when it is one slice of a multi-PR issue.

@@ -6,7 +6,7 @@
     "dev": "../../node_modules/.bin/nodemon",
     "build": "tsc",
     "start": "node --env-file=../../.env dist/index.js",
-    "test": "npx dotenv-cli -e ../../.env -- sh -c 'npx tsx tests/workouts.ts && npx tsx tests/results.ts'"
+    "test": "npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do npx tsx \"$f\" || exit 1; done'"
   },
   "dependencies": {
     "@berntracker/db": "*",
