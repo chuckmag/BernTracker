@@ -66,6 +66,7 @@ async function req<T>(path: string, opts: RequestInit & { token?: string } = {})
 
 export type Role = 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER'
 export type WorkoutType = 'STRENGTH' | 'FOR_TIME' | 'EMOM' | 'CARDIO' | 'AMRAP' | 'METCON' | 'WARMUP'
+export type WorkoutCategory = 'GIRL_WOD' | 'HERO_WOD' | 'OPEN_WOD' | 'GAMES_WOD' | 'BENCHMARK'
 
 export const TYPE_ABBR: Record<WorkoutType, string> = {
   WARMUP: 'W',
@@ -78,6 +79,15 @@ export const TYPE_ABBR: Record<WorkoutType, string> = {
 }
 export type WorkoutStatus = 'DRAFT' | 'PUBLISHED'
 
+export interface NamedWorkout {
+  id: string
+  name: string
+  category: WorkoutCategory
+  aliases: string[]
+  isActive: boolean
+  templateWorkout: { id: string; type: WorkoutType; description: string; movements: string[] } | null
+}
+
 export interface Workout {
   id: string
   title: string
@@ -86,8 +96,11 @@ export interface Workout {
   status: WorkoutStatus
   scheduledAt: string
   dayOrder: number
+  movements: string[]
   programId: string | null
   program: { id: string; name: string } | null
+  namedWorkoutId: string | null
+  namedWorkout: { id: string; name: string; category: WorkoutCategory } | null
   _count: { results: number }
   createdAt: string
   updatedAt: string
@@ -206,14 +219,14 @@ export const api = {
 
     create: (
       gymId: string,
-      data: { programId?: string; title: string; description: string; type: WorkoutType; scheduledAt: string },
+      data: { programId?: string; title: string; description: string; type: WorkoutType; scheduledAt: string; movements?: string[]; namedWorkoutId?: string },
       token?: string,
     ) =>
       req<Workout>(`/api/gyms/${gymId}/workouts`, { method: 'POST', body: JSON.stringify(data), token }),
 
     update: (
       id: string,
-      data: { title?: string; description?: string; type?: WorkoutType; scheduledAt?: string; dayOrder?: number },
+      data: { title?: string; description?: string; type?: WorkoutType; scheduledAt?: string; dayOrder?: number; movements?: string[]; namedWorkoutId?: string | null },
       token?: string,
     ) =>
       req<Workout>(`/api/workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
@@ -226,6 +239,30 @@ export const api = {
 
     delete: (id: string, token?: string) =>
       req<void>(`/api/workouts/${id}`, { method: 'DELETE', token }),
+
+    applyTemplate: (id: string, token?: string) =>
+      req<Workout>(`/api/workouts/${id}/apply-template`, { method: 'POST', token }),
+  },
+
+  namedWorkouts: {
+    list: (token?: string) =>
+      req<NamedWorkout[]>('/api/named-workouts', { token }),
+
+    get: (id: string, token?: string) =>
+      req<NamedWorkout>(`/api/named-workouts/${id}`, { token }),
+
+    create: (
+      data: { name: string; category: WorkoutCategory; aliases?: string[]; template?: { type: WorkoutType; description: string; movements?: string[] } },
+      token?: string,
+    ) =>
+      req<NamedWorkout>('/api/named-workouts', { method: 'POST', body: JSON.stringify(data), token }),
+
+    update: (
+      id: string,
+      data: { name?: string; category?: WorkoutCategory; aliases?: string[]; isActive?: boolean; templateWorkoutId?: string | null },
+      token?: string,
+    ) =>
+      req<NamedWorkout>(`/api/named-workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
   },
 
   results: {

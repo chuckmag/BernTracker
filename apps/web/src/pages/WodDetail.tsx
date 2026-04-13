@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
-import { api, TYPE_ABBR, type Workout, type WorkoutResult, type WorkoutLevel } from '../lib/api.ts'
+import { api, TYPE_ABBR, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel } from '../lib/api.ts'
+
+const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
+  GIRL_WOD: 'Girl WOD',
+  HERO_WOD: 'Hero WOD',
+  OPEN_WOD: 'Open WOD',
+  GAMES_WOD: 'Games WOD',
+  BENCHMARK: 'Benchmark',
+}
 
 type LevelFilter = WorkoutLevel | 'ALL'
 
@@ -113,6 +121,14 @@ export default function WodDetail() {
             {TYPE_ABBR[workout.type]}
           </span>
           <h1 className="text-2xl font-bold">{workout.title}</h1>
+          {workout.namedWorkout && (
+            <span className="flex items-center gap-1.5 ml-1">
+              <span className="text-sm text-indigo-400">● {workout.namedWorkout.name}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-900/50 text-indigo-300 border border-indigo-700/40">
+                {CATEGORY_LABELS[workout.namedWorkout.category]}
+              </span>
+            </span>
+          )}
         </div>
         <p className="text-sm text-gray-500 ml-11">{scheduledDate}</p>
       </div>
@@ -121,6 +137,17 @@ export default function WodDetail() {
       {workout.description && (
         <div className="bg-gray-900 rounded-lg px-4 py-3">
           <p className="text-sm text-gray-300 whitespace-pre-wrap">{workout.description}</p>
+        </div>
+      )}
+
+      {/* Movements */}
+      {workout.movements.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {workout.movements.map((m, i) => (
+            <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300 border border-gray-700">
+              {m}
+            </span>
+          ))}
         </div>
       )}
 

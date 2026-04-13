@@ -9,6 +9,8 @@ interface CreateWorkoutData {
   type: WorkoutType
   scheduledAt: Date
   dayOrder?: number
+  movements?: string[]
+  namedWorkoutId?: string
 }
 
 interface UpdateWorkoutData {
@@ -17,6 +19,8 @@ interface UpdateWorkoutData {
   type?: WorkoutType
   scheduledAt?: Date
   dayOrder?: number
+  movements?: string[]
+  namedWorkoutId?: string | null
 }
 
 interface WorkoutDateRangeFilters {
@@ -24,6 +28,7 @@ interface WorkoutDateRangeFilters {
 }
 
 const programSelect = { select: { id: true, name: true } } as const
+const namedWorkoutSelect = { select: { id: true, name: true, category: true } } as const
 
 
 export async function countWorkoutsOnSameDay(gymId: string, scheduledAt: Date): Promise<number> {
@@ -40,7 +45,7 @@ export async function countWorkoutsOnSameDay(gymId: string, scheduledAt: Date): 
 export async function createWorkoutForProgram(data: CreateWorkoutData) {
   return prisma.workout.create({
     data,
-    include: { program: programSelect },
+    include: { program: programSelect, namedWorkout: namedWorkoutSelect },
   })
 }
 
@@ -60,6 +65,7 @@ export async function findWorkoutsByGymAndDateRange(
     orderBy: [{ scheduledAt: 'asc' }, { dayOrder: 'asc' }, { createdAt: 'asc' }],
     include: {
       program: programSelect,
+      namedWorkout: namedWorkoutSelect,
       _count: { select: { results: true } },
     },
   })
@@ -98,6 +104,7 @@ export async function findWorkoutById(id: string) {
     where: { id },
     include: {
       program: programSelect,
+      namedWorkout: namedWorkoutSelect,
       _count: { select: { results: true } },
     },
   })
@@ -115,7 +122,7 @@ export async function updateWorkout(id: string, data: UpdateWorkoutData) {
   return prisma.workout.update({
     where: { id },
     data,
-    include: { program: programSelect },
+    include: { program: programSelect, namedWorkout: namedWorkoutSelect },
   })
 }
 
@@ -123,7 +130,32 @@ export async function publishWorkoutById(id: string) {
   return prisma.workout.update({
     where: { id },
     data: { status: WorkoutStatus.PUBLISHED },
-    include: { program: programSelect },
+    include: { program: programSelect, namedWorkout: namedWorkoutSelect },
+  })
+}
+
+export async function applyTemplateToWorkout(workoutId: string) {
+  const workout = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    select: { namedWorkoutId: true },
+  })
+  if (!workout?.namedWorkoutId) {
+    throw Object.assign(new Error('Workout has no named workout set'), { statusCode: 400 })
+  }
+
+  const namedWorkout = await prisma.namedWorkout.findUnique({
+    where: { id: workout.namedWorkoutId },
+    include: { templateWorkout: { select: { type: true, description: true, movements: true } } },
+  })
+  if (!namedWorkout?.templateWorkout) {
+    throw Object.assign(new Error('Named workout has no template'), { statusCode: 400 })
+  }
+
+  const { type, description, movements } = namedWorkout.templateWorkout
+  return prisma.workout.update({
+    where: { id: workoutId },
+    data: { type, description, movements },
+    include: { program: programSelect, namedWorkout: namedWorkoutSelect },
   })
 }
 
