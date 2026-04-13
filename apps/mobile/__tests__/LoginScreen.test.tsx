@@ -17,6 +17,7 @@ jest.mock('../src/context/AuthContext', () => ({
 
 jest.mock('expo-auth-session', () => ({
   useAuthRequest: jest.fn(),
+  makeRedirectUri: jest.fn(() => 'https://auth.expo.io/@chuckmag/berntracker'),
   ResponseType: { IdToken: 'id_token' },
 }))
 

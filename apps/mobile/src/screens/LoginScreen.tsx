@@ -11,16 +11,21 @@ import {
 } from 'react-native'
 import { useRef } from 'react'
 import * as WebBrowser from 'expo-web-browser'
-import { useAuthRequest, ResponseType } from 'expo-auth-session'
+import { useAuthRequest, ResponseType, makeRedirectUri } from 'expo-auth-session'
 import { useAuth } from '../context/AuthContext'
 
 // Required so the auth session can close the browser after redirect
 WebBrowser.maybeCompleteAuthSession()
 
-// Expo auth proxy — stable HTTPS URL accepted by Google Cloud Console.
-// Add https://auth.expo.io/@chuckmag/berntracker to the authorized redirect
-// URIs for the web OAuth client in Google Cloud Console (one-time setup).
-const EXPO_PROXY_REDIRECT_URI = 'https://auth.expo.io/@chuckmag/berntracker'
+// The Expo auth proxy (auth.expo.io) is a stable HTTPS URL that Google Cloud
+// Console accepts. Add https://auth.expo.io/@chuckmag/berntracker to the
+// authorized redirect URIs for the web OAuth client (one-time setup).
+//
+// useProxy: true encodes the local Expo Go URL into the OAuth state param so
+// the proxy knows where to redirect back after Google completes auth.
+// This requires expo-auth-session ~5.5.x (useProxy was removed in v7).
+// expo doctor will warn about the version but the app works correctly.
+const EXPO_PROXY_REDIRECT_URI = makeRedirectUri({ useProxy: true })
 
 // Google OAuth 2.0 endpoints
 const GOOGLE_DISCOVERY = {
@@ -35,11 +40,9 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Use the base useAuthRequest (not the Google provider) so we can supply
-  // webClientId as clientId without the Google provider's iOS platform check
-  // enforcing iosClientId. ResponseType.IdToken returns the id_token directly
-  // (no client-secret code exchange needed). nonce is required by OIDC for
-  // implicit id_token responses.
+  // Base useAuthRequest (not Google provider) so no iosClientId platform check.
+  // ResponseType.IdToken returns id_token in response.params directly —
+  // no code exchange or client secret needed.
   const nonce = useRef(Math.random().toString(36).slice(2))
   const [request, response, promptAsync] = useAuthRequest(
     {
@@ -145,7 +148,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           style={[styles.googleButton, (!request || loading) && styles.buttonDisabled]}
-          onPress={() => promptAsync()}
+          onPress={() => promptAsync({ useProxy: true })}
           disabled={!request || loading}
         >
           <Text style={styles.googleButtonText}>Sign in with Google</Text>
