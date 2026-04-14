@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext.tsx'
 import RequireAuth from './components/RequireAuth.tsx'
@@ -13,12 +14,14 @@ import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
 
 function AppLayout() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
   return (
     <div className="flex h-screen bg-gray-950 text-white">
-      <Sidebar />
+      <Sidebar isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="flex-1 flex flex-col min-h-0">
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-8">
+        <TopBar onMenuClick={() => setMobileNavOpen(true)} />
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <Routes>
             <Route path="/" element={<Navigate to="/feed" replace />} />
             <Route path="/feed" element={<Feed />} />

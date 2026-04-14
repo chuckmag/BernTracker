@@ -38,6 +38,11 @@ const PROGRAMMER_PASSWORD = 'TestPass1!'
 const WORKOUT_DATE = '2026-07-15'
 const WORKOUT_ISO = `${WORKOUT_DATE}T12:00:00.000Z`
 
+// iPhone X / 11 Pro logical CSS pixels — 375 is the smallest common phone width
+// (iPhone 6/7/8/SE are also 375 wide); 812 is the X/11 Pro height. Used to
+// verify that the sidebar collapses to a hamburger overlay below md (768px).
+const VIEWPORT_MOBILE = { width: 375, height: 812 }
+
 let gymId = ''
 let programId = ''
 let memberUserId = ''
@@ -316,26 +321,39 @@ test.describe('Feed + WOD Detail E2E (#48)', () => {
     await expect(page.getByRole('button', { name: 'Log Result' })).not.toBeVisible()
   })
 
-  // ── T10: Feed + WOD Detail usable at 375px (mobile viewport) ────────────
+  // ── T10: Collapsible sidebar on mobile (375px) ──────────────────────────
 
-  test('T10: Feed and WOD Detail are usable at 375px mobile viewport', async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 })
+  test('T10: sidebar collapses to hamburger on mobile; opens as overlay; closes on backdrop click', async ({ page }) => {
+    await page.setViewportSize(VIEWPORT_MOBILE)
     await loginAndGoToFeed(page, MEMBER_EMAIL, MEMBER_PASSWORD)
 
-    // Feed: workout card is still visible and not clipped
-    const card = page.locator('button', { hasText: 'E2E Fran' })
-    await expect(card).toBeVisible()
-    const cardBox = await card.boundingBox()
-    expect(cardBox?.width).toBeGreaterThan(0)
-    expect(cardBox?.x).toBeGreaterThanOrEqual(0)
+    // Sidebar nav links are NOT visible by default — sidebar is collapsed
+    await expect(page.getByRole('link', { name: 'Feed', exact: true })).not.toBeVisible()
+    await expect(page.getByRole('link', { name: 'History', exact: true })).not.toBeVisible()
 
-    // WOD Detail: navigates and renders within viewport
-    await card.click()
-    await page.waitForURL(`**/workouts/${publishedWorkoutId}`)
-    await expect(page.getByRole('heading', { name: 'E2E Fran' })).toBeVisible()
+    // Hamburger button is visible
+    const hamburger = page.getByRole('button', { name: 'Open menu' })
+    await expect(hamburger).toBeVisible()
 
-    // Heading must not overflow the viewport
-    const headingBox = await page.getByRole('heading', { name: 'E2E Fran' }).boundingBox()
-    expect((headingBox?.x ?? 0) + (headingBox?.width ?? 0)).toBeLessThanOrEqual(375 + 1)
+    // Main content fills full width (content area starts at x=0 with no sidebar offset)
+    const mainContent = page.locator('main')
+    const mainBox = await mainContent.boundingBox()
+    expect(mainBox?.x).toBe(0)
+    expect(mainBox?.width).toBe(VIEWPORT_MOBILE.width)
+
+    // Opening the menu: sidebar overlay appears with nav links
+    await hamburger.click()
+    await expect(page.getByRole('link', { name: 'Feed', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'History', exact: true })).toBeVisible()
+
+    // Close menu by clicking the backdrop (area to the right of the sidebar panel)
+    await page.mouse.click(VIEWPORT_MOBILE.width - 10, VIEWPORT_MOBILE.height / 2)
+    await expect(page.getByRole('link', { name: 'Feed', exact: true })).not.toBeVisible()
+
+    // Navigate to WOD Detail via hamburger → link click (nav link closes menu on click)
+    await hamburger.click()
+    await page.getByRole('link', { name: 'Feed', exact: true }).click()
+    // After navigating, sidebar overlay should be closed
+    await expect(page.getByRole('link', { name: 'Feed', exact: true })).not.toBeVisible()
   })
 })

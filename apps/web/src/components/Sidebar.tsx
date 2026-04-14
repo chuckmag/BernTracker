@@ -14,7 +14,12 @@ const staffLinks = [
   { to: '/settings', label: 'Settings' },
 ]
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean
+  onClose: () => void
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [gymRole, setGymRole] = useState<Role | null>(null)
@@ -35,10 +40,17 @@ export default function Sidebar() {
 
   const isStaff = gymRole && gymRole !== 'MEMBER'
 
-  return (
-    <aside className="w-64 shrink-0 bg-gray-900 flex flex-col">
-      <div className="px-6 py-5 border-b border-gray-800">
+  const navContent = (
+    <>
+      <div className="px-6 py-5 border-b border-gray-800 flex items-center justify-between">
         <span className="text-lg font-bold tracking-tight">BernTracker</span>
+        <button
+          onClick={onClose}
+          className="md:hidden text-gray-500 hover:text-white text-xl leading-none"
+          aria-label="Close menu"
+        >
+          ×
+        </button>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
@@ -46,6 +58,7 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
+            onClick={onClose}
             className={({ isActive }) =>
               [
                 'flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors',
@@ -68,6 +81,7 @@ export default function Sidebar() {
               <NavLink
                 key={to}
                 to={to}
+                onClick={onClose}
                 className={({ isActive }) =>
                   [
                     'flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors',
@@ -93,6 +107,32 @@ export default function Sidebar() {
           Sign out
         </button>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop: static sidebar, always visible */}
+      <aside className="hidden md:flex w-64 shrink-0 bg-gray-900 flex-col">
+        {navContent}
+      </aside>
+
+      {/* Mobile: overlay drawer, controlled by isOpen */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          <aside
+            className="relative w-72 h-full bg-gray-900 flex flex-col shadow-2xl"
+            aria-label="Navigation menu"
+          >
+            {navContent}
+          </aside>
+        </div>
+      )}
+    </>
   )
 }
