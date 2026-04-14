@@ -350,6 +350,10 @@ test.describe('Feed + WOD Detail E2E (#48)', () => {
     const hamburger = page.getByRole('button', { name: 'Open menu' })
     await expect(hamburger).toBeVisible()
 
+    // No horizontal scroll — page width must equal viewport width
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth)
+    expect(scrollWidth).toBeLessThanOrEqual(VIEWPORT_MOBILE.width)
+
     // Main content fills full width (content area starts at x=0 with no sidebar offset)
     const mainContent = page.locator('main')
     const mainBox = await mainContent.boundingBox()
@@ -385,7 +389,11 @@ test.describe('Feed + WOD Detail E2E (#48)', () => {
     // The full title text must be present in the DOM (not truncated by ellipsis)
     await expect(card).toContainText('Testing a really long workout title THIS IS THE BEST NAME EVER FOR A WORKOUT')
 
-    // Card must not overflow the viewport — right edge ≤ viewport width
+    // No horizontal scroll — scrollWidth === viewport width means no overflow
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth)
+    expect(scrollWidth).toBeLessThanOrEqual(VIEWPORT_MOBILE.width)
+
+    // Card right edge must not exceed viewport
     const cardBox = await card.boundingBox()
     expect((cardBox?.x ?? 0) + (cardBox?.width ?? 0)).toBeLessThanOrEqual(VIEWPORT_MOBILE.width)
 

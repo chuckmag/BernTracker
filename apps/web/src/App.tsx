@@ -17,11 +17,11 @@ function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-gray-950 text-white">
+    <div className="flex h-screen w-full overflow-x-hidden bg-gray-950 text-white">
       <Sidebar isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 min-w-0 flex flex-col min-h-0">
         <TopBar onMenuClick={() => setMobileNavOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">
           <Routes>
             <Route path="/" element={<Navigate to="/feed" replace />} />
             <Route path="/feed" element={<Feed />} />
