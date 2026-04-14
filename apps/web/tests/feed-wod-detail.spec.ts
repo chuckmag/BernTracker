@@ -315,4 +315,27 @@ test.describe('Feed + WOD Detail E2E (#48)', () => {
     // Log Result button is NOT visible when user already has a result
     await expect(page.getByRole('button', { name: 'Log Result' })).not.toBeVisible()
   })
+
+  // ── T10: Feed + WOD Detail usable at 375px (mobile viewport) ────────────
+
+  test('T10: Feed and WOD Detail are usable at 375px mobile viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await loginAndGoToFeed(page, MEMBER_EMAIL, MEMBER_PASSWORD)
+
+    // Feed: workout card is still visible and not clipped
+    const card = page.locator('button', { hasText: 'E2E Fran' })
+    await expect(card).toBeVisible()
+    const cardBox = await card.boundingBox()
+    expect(cardBox?.width).toBeGreaterThan(0)
+    expect(cardBox?.x).toBeGreaterThanOrEqual(0)
+
+    // WOD Detail: navigates and renders within viewport
+    await card.click()
+    await page.waitForURL(`**/workouts/${publishedWorkoutId}`)
+    await expect(page.getByRole('heading', { name: 'E2E Fran' })).toBeVisible()
+
+    // Heading must not overflow the viewport
+    const headingBox = await page.getByRole('heading', { name: 'E2E Fran' }).boundingBox()
+    expect((headingBox?.x ?? 0) + (headingBox?.width ?? 0)).toBeLessThanOrEqual(375 + 1)
+  })
 })
