@@ -48,6 +48,7 @@ let programId = ''
 let memberUserId = ''
 let programmerUserId = ''
 let publishedWorkoutId = ''
+let longTitleWorkoutId = ''
 
 // ─── DB helpers ───────────────────────────────────────────────────────────────
 
@@ -149,10 +150,24 @@ test.describe('Feed + WOD Detail E2E (#48)', () => {
         dayOrder: 1,
       },
     })
+
+    // Long-title workout — used by T11 to assert wrapping behaviour
+    const longTitle = await prisma.workout.create({
+      data: {
+        title: 'Testing a really long workout title THIS IS THE BEST NAME EVER FOR A WORKOUT',
+        description: 'Long title test',
+        type: 'AMRAP',
+        status: 'PUBLISHED',
+        scheduledAt: new Date(WORKOUT_ISO),
+        programId,
+        dayOrder: 2,
+      },
+    })
+    longTitleWorkoutId = longTitle.id
   })
 
   test.afterAll(async () => {
-    await prisma.result.deleteMany({ where: { workoutId: publishedWorkoutId } })
+    await prisma.result.deleteMany({ where: { workoutId: { in: [publishedWorkoutId, longTitleWorkoutId] } } })
     await prisma.workout.deleteMany({ where: { programId } })
     await prisma.program.delete({ where: { id: programId } }).catch(() => {})
     await prisma.user.deleteMany({ where: { id: { in: [memberUserId, programmerUserId] } } })
@@ -355,5 +370,27 @@ test.describe('Feed + WOD Detail E2E (#48)', () => {
     await page.getByRole('link', { name: 'Feed', exact: true }).click()
     // After navigating, sidebar overlay should be closed
     await expect(page.getByRole('link', { name: 'Feed', exact: true })).not.toBeVisible()
+  })
+
+  // ── T11: Long workout titles wrap without overflowing the card ───────────
+
+  test('T11: long workout titles wrap within the card and do not overflow the viewport', async ({ page }) => {
+    // Test on mobile viewport where overflow is most likely
+    await page.setViewportSize(VIEWPORT_MOBILE)
+    await loginAndGoToFeed(page, MEMBER_EMAIL, MEMBER_PASSWORD)
+
+    const card = page.locator('button', { hasText: 'Testing a really long workout title' })
+    await expect(card).toBeVisible()
+
+    // The full title text must be present in the DOM (not truncated by ellipsis)
+    await expect(card).toContainText('Testing a really long workout title THIS IS THE BEST NAME EVER FOR A WORKOUT')
+
+    // Card must not overflow the viewport — right edge ≤ viewport width
+    const cardBox = await card.boundingBox()
+    expect((cardBox?.x ?? 0) + (cardBox?.width ?? 0)).toBeLessThanOrEqual(VIEWPORT_MOBILE.width)
+
+    // Card must be taller than a single-line card (title has wrapped)
+    // Single-line cards are ~44px tall (py-3 top+bottom = 24px + ~20px text line)
+    expect(cardBox?.height).toBeGreaterThan(48)
   })
 })

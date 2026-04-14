@@ -106,15 +106,15 @@ export default function Feed() {
                 <button
                   key={workout.id}
                   onClick={() => navigate(`/workouts/${workout.id}`)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left group"
+                  className="w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left group"
                 >
-                  <span className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-xs font-bold bg-gray-800 text-gray-300 group-hover:bg-gray-700">
+                  <span className="shrink-0 mt-0.5 w-6 h-6 flex items-center justify-center rounded text-xs font-bold bg-gray-800 text-gray-300 group-hover:bg-gray-700">
                     {TYPE_ABBR[workout.type]}
                   </span>
-                  <span className="flex-1 text-sm font-medium text-white truncate">
+                  <span className="flex-1 min-w-0 text-sm font-medium text-white break-words">
                     {workout.title}
                   </span>
-                  <span className="text-gray-600 group-hover:text-gray-400 transition-colors">›</span>
+                  <span className="shrink-0 mt-0.5 text-gray-600 group-hover:text-gray-400 transition-colors">›</span>
                 </button>
               ))}
             </div>
