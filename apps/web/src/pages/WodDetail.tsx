@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
-import { api, TYPE_ABBR, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel } from '../lib/api.ts'
+import { api, TYPE_ABBR, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
 
 const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
@@ -13,6 +13,7 @@ const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
 }
 
 type LevelFilter = WorkoutLevel | 'ALL'
+type GenderFilter = WorkoutGender | 'ALL'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   RX_PLUS: 'RX+',
@@ -22,6 +23,12 @@ const LEVEL_LABELS: Record<WorkoutLevel, string> = {
 }
 
 const LEVEL_FILTERS: LevelFilter[] = ['ALL', 'RX_PLUS', 'RX', 'SCALED', 'MODIFIED']
+
+const GENDER_FILTERS: { value: GenderFilter; label: string }[] = [
+  { value: 'ALL',    label: 'Open' },
+  { value: 'MALE',   label: 'Men' },
+  { value: 'FEMALE', label: 'Women' },
+]
 
 function formatSeconds(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -50,11 +57,14 @@ function formatResultValue(result: WorkoutResult): string {
 export default function WodDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
+  const fromHistory = (location.state as { from?: string } | null)?.from === 'history'
 
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [results, setResults] = useState<WorkoutResult[]>([])
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('ALL')
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showLogDrawer, setShowLogDrawer] = useState(false)
@@ -103,18 +113,19 @@ export default function WodDetail() {
 
   const myResult = results.find((r) => r.userId === user?.id)
 
-  const filteredResults =
-    levelFilter === 'ALL' ? results : results.filter((r) => r.level === levelFilter)
+  const filteredResults = results
+    .filter((r) => levelFilter === 'ALL' || r.level === levelFilter)
+    .filter((r) => genderFilter === 'ALL' || r.workoutGender === genderFilter)
 
   return (
     <>
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Back nav */}
       <button
-        onClick={() => navigate('/feed')}
+        onClick={() => navigate(fromHistory ? '/history' : '/feed')}
         className="text-sm text-gray-400 hover:text-white transition-colors"
       >
-        ← Back to Feed
+        {fromHistory ? '← Back to History' : '← Back to Feed'}
       </button>
 
       {/* Header */}
@@ -178,7 +189,7 @@ export default function WodDetail() {
         </div>
 
         {/* Level filter chips */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-2">
           {LEVEL_FILTERS.map((lvl) => (
             <button
               key={lvl}
@@ -191,6 +202,24 @@ export default function WodDetail() {
               ].join(' ')}
             >
               {lvl === 'ALL' ? 'All' : LEVEL_LABELS[lvl as WorkoutLevel]}
+            </button>
+          ))}
+        </div>
+
+        {/* Gender filter chips */}
+        <div className="flex gap-2 mb-4">
+          {GENDER_FILTERS.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setGenderFilter(value)}
+              className={[
+                'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                genderFilter === value
+                  ? 'bg-gray-200 text-gray-900'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white',
+              ].join(' ')}
+            >
+              {label}
             </button>
           ))}
         </div>

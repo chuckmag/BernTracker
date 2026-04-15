@@ -90,7 +90,7 @@ export default function History() {
             {rows.map((r) => (
               <button
                 key={r.id}
-                onClick={() => navigate(`/workouts/${r.workout.id}`)}
+                onClick={() => navigate(`/workouts/${r.workout.id}`, { state: { from: 'history' } })}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left"
               >
                 <span className="text-xs text-gray-500 w-14 shrink-0">{shortDate(r.workout.scheduledAt)}</span>

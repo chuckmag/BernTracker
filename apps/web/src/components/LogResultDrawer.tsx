@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuth, type IdentifiedGender } from '../context/AuthContext.tsx'
 import { apiFetch, TYPE_ABBR, type Workout, type WorkoutGender, type WorkoutLevel } from '../lib/api.ts'
 
 interface LogResultDrawerProps {
@@ -14,17 +15,19 @@ const LEVELS: { value: WorkoutLevel; label: string }[] = [
   { value: 'MODIFIED', label: 'Modified' },
 ]
 
-const GENDERS: { value: WorkoutGender; label: string }[] = [
-  { value: 'MALE',   label: 'Male' },
-  { value: 'FEMALE', label: 'Female' },
-  { value: 'OPEN',   label: 'Open' },
-]
-
 const SUPPORTED_TYPES = new Set(['AMRAP', 'FOR_TIME'])
 
+function deriveWorkoutGender(g: IdentifiedGender): WorkoutGender {
+  if (g === 'MAN') return 'MALE'
+  if (g === 'WOMAN') return 'FEMALE'
+  return 'OPEN'
+}
+
 export default function LogResultDrawer({ workout, onClose, onLogged }: LogResultDrawerProps) {
+  const { user } = useAuth()
+  const workoutGender = deriveWorkoutGender(user?.identifiedGender ?? null)
+
   const [level, setLevel] = useState<WorkoutLevel>('RX')
-  const [workoutGender, setWorkoutGender] = useState<WorkoutGender>('OPEN')
 
   // AMRAP fields
   const [rounds, setRounds] = useState('')
@@ -138,28 +141,6 @@ export default function LogResultDrawer({ workout, onClose, onLogged }: LogResul
                   className={[
                     'px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                     level === v
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white',
-                  ].join(' ')}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Gender */}
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Leaderboard</p>
-            <div className="flex gap-1.5">
-              {GENDERS.map(({ value: v, label }) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setWorkoutGender(v)}
-                  className={[
-                    'px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-                    workoutGender === v
                       ? 'bg-indigo-600 text-white'
                       : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white',
                   ].join(' ')}
