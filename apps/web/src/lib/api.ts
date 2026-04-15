@@ -122,6 +122,18 @@ export interface WorkoutResult {
   workout: { type: WorkoutType }
 }
 
+export interface HistoryResult extends Omit<WorkoutResult, 'workout'> {
+  workout: { id: string; title: string; type: WorkoutType; scheduledAt: string }
+}
+
+export interface ResultHistoryPage {
+  results: HistoryResult[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
 export interface MyGym {
   id: string
   name: string
@@ -268,6 +280,16 @@ export const api = {
   results: {
     leaderboard: (workoutId: string, token?: string) =>
       req<WorkoutResult[]>(`/api/workouts/${workoutId}/results`, { token }),
+
+    create: (
+      workoutId: string,
+      data: { level: WorkoutLevel; workoutGender: WorkoutGender; value: Record<string, unknown>; notes?: string },
+      token?: string,
+    ) =>
+      apiFetch(`/api/workouts/${workoutId}/results`, { method: 'POST', body: JSON.stringify(data), token }),
+
+    history: (page = 1, token?: string) =>
+      req<ResultHistoryPage>(`/api/me/results?page=${page}`, { token }),
   },
 
   programs: {

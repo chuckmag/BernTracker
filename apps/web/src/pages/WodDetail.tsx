@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { api, TYPE_ABBR, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel } from '../lib/api.ts'
+import LogResultDrawer from '../components/LogResultDrawer.tsx'
 
 const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
   GIRL_WOD: 'Girl WOD',
@@ -56,6 +57,7 @@ export default function WodDetail() {
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showLogDrawer, setShowLogDrawer] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -105,6 +107,7 @@ export default function WodDetail() {
     levelFilter === 'ALL' ? results : results.filter((r) => r.level === levelFilter)
 
   return (
+    <>
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Back nav */}
       <button
@@ -160,9 +163,8 @@ export default function WodDetail() {
         </div>
       ) : (
         <button
-          disabled
-          className="w-full py-2.5 rounded-lg bg-indigo-700 text-white text-sm font-medium opacity-50 cursor-not-allowed"
-          title="Result logging coming soon"
+          onClick={() => setShowLogDrawer(true)}
+          className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
         >
           Log Result
         </button>
@@ -233,5 +235,17 @@ export default function WodDetail() {
         )}
       </div>
     </div>
+
+    {showLogDrawer && workout && (
+      <LogResultDrawer
+        workout={workout}
+        onClose={() => setShowLogDrawer(false)}
+        onLogged={() => {
+          setShowLogDrawer(false)
+          api.results.leaderboard(id!).then(setResults).catch(() => {})
+        }}
+      />
+    )}
+    </>
   )
 }
