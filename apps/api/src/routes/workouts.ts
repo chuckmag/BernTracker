@@ -17,6 +17,7 @@ import {
   publishWorkoutById,
   publishWorkoutsByGymAndDateRange,
   deleteWorkout,
+  applyTemplateToWorkout,
 } from '../db/workoutDbManager.js'
 import {
   findGymMembershipByUserAndGym
@@ -47,6 +48,9 @@ router.patch('/workouts/:id', requireAuth, requireWorkoutProgramWriteAccess, pat
 
 // POST /api/workouts/:id/publish
 router.post('/workouts/:id/publish', requireAuth, requireWorkoutProgramWriteAccess, publishSingleWorkout)
+
+// POST /api/workouts/:id/apply-template
+router.post('/workouts/:id/apply-template', requireAuth, requireWorkoutProgramWriteAccess, applyTemplate)
 
 // DELETE /api/workouts/:id
 router.delete('/workouts/:id', requireAuth, requireWorkoutProgramWriteAccess, deleteWorkoutById)
@@ -134,13 +138,15 @@ async function patchWorkout(req: Request, res: Response) {
     return res.status(400).json({ error: `${field}: ${message}` })
   }
 
-  const { title, description, type, scheduledAt, dayOrder } = parsed.data
+  const { title, description, type, scheduledAt, dayOrder, movements, namedWorkoutId } = parsed.data
   const workout = await updateWorkout(id, {
     title,
     description,
     type,
     scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
     dayOrder,
+    movements,
+    namedWorkoutId,
   })
   res.json(workout)
 }
@@ -165,4 +171,13 @@ async function deleteWorkoutById(req: Request, res: Response) {
 
   await deleteWorkout(id)
   res.status(204).send()
+}
+
+async function applyTemplate(req: Request, res: Response) {
+  const id = req.params.id as string
+  const existing = await findWorkoutById(id)
+  if (!existing) return res.status(404).json({ error: 'Workout not found' })
+
+  const workout = await applyTemplateToWorkout(id)
+  res.json(workout)
 }

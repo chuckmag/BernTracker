@@ -111,8 +111,13 @@ export default function Feed() {
                   <span className="shrink-0 mt-0.5 w-6 h-6 flex items-center justify-center rounded text-xs font-bold bg-gray-800 text-gray-300 group-hover:bg-gray-700">
                     {TYPE_ABBR[workout.type]}
                   </span>
-                  <span className="flex-1 min-w-0 text-sm font-medium text-white break-words">
-                    {workout.title}
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-medium text-white break-words">
+                      {workout.title}
+                    </span>
+                    {workout.namedWorkout && (
+                      <span className="text-xs text-indigo-400">● {workout.namedWorkout.name}</span>
+                    )}
                   </span>
                   <span className="shrink-0 mt-0.5 text-gray-600 group-hover:text-gray-400 transition-colors">›</span>
                 </button>

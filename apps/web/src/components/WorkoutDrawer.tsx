@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api, TYPE_ABBR, type GymProgram, type Role, type Workout, type WorkoutType } from '../lib/api'
+import { api, TYPE_ABBR, type GymProgram, type NamedWorkout, type Role, type Workout, type WorkoutType } from '../lib/api'
 
 const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
   { value: 'AMRAP', label: 'AMRAP' },
@@ -34,6 +34,10 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const [title, setTitle] = useState('')
   const [type, setType] = useState<WorkoutType>('AMRAP')
   const [description, setDescription] = useState('')
+  const [namedWorkouts, setNamedWorkouts] = useState<NamedWorkout[]>([])
+  const [namedWorkoutId, setNamedWorkoutId] = useState<string | null>(null)
+  const [movements, setMovements] = useState<string[]>([])
+  const [movementsInput, setMovementsInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [reordering, setReordering] = useState(false)
@@ -41,9 +45,13 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const [showPublishConfirm, setShowPublishConfirm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // Fetch programs when drawer opens (only needed for create mode, but load always so it's ready)
+  // Fetch programs and named workouts when drawer opens
   useEffect(() => {
-    if (!isOpen || isEdit) return
+    if (!isOpen) return
+    api.namedWorkouts.list()
+      .then(setNamedWorkouts)
+      .catch(() => {}) // non-fatal
+    if (isEdit) return
     setProgramsLoading(true)
     api.gyms.programs.list(gymId)
       .then((list) => {
@@ -60,6 +68,9 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       setType(workout?.type ?? 'AMRAP')
       setDescription(workout?.description ?? '')
       setProgramId(workout?.programId ?? '')
+      setNamedWorkoutId(workout?.namedWorkoutId ?? null)
+      setMovements(workout?.movements ?? [])
+      setMovementsInput('')
       setError(null)
       setShowPublishConfirm(false)
       setShowDeleteConfirm(false)
@@ -75,6 +86,23 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen, onClose])
 
+  function handleApplyTemplate() {
+    const nw = namedWorkouts.find((n) => n.id === namedWorkoutId)
+    if (!nw?.templateWorkout) return
+    setTitle(nw.name)
+    setType(nw.templateWorkout.type)
+    setDescription(nw.templateWorkout.description)
+    setMovements(nw.templateWorkout.movements)
+  }
+
+  function handleMovementsKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if ((e.key === ',' || e.key === 'Enter') && movementsInput.trim()) {
+      e.preventDefault()
+      setMovements((prev) => [...prev, movementsInput.trim()])
+      setMovementsInput('')
+    }
+  }
+
   function validate() {
     if (!isEdit && !programId) { setError('Program is required'); return false }
     if (!title.trim()) { setError('Title is required'); return false }
@@ -88,10 +116,10 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setError(null)
     try {
       if (isEdit) {
-        await api.workouts.update(workout.id, { title: title.trim(), description, type })
+        await api.workouts.update(workout.id, { title: title.trim(), description, type, movements, namedWorkoutId })
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-        await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt })
+        await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined })
       }
       onSaved()
       setSaving(false)
@@ -107,11 +135,11 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setError(null)
     try {
       if (isEdit) {
-        await api.workouts.update(workout.id, { title: title.trim(), description, type })
+        await api.workouts.update(workout.id, { title: title.trim(), description, type, movements, namedWorkoutId })
         await api.workouts.publish(workout.id)
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-        const created = await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt })
+        const created = await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined })
         await api.workouts.publish(created.id)
       }
       onSaved()
@@ -334,6 +362,62 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
               placeholder="Workout details, movements, reps..."
               rows={6}
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Named Workout <span className="text-gray-600">(optional)</span></label>
+            <div className="flex gap-2">
+              <select
+                value={namedWorkoutId ?? ''}
+                onChange={(e) => setNamedWorkoutId(e.target.value || null)}
+                className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+              >
+                <option value="">None</option>
+                {namedWorkouts.map((nw) => (
+                  <option key={nw.id} value={nw.id}>{nw.name}</option>
+                ))}
+              </select>
+              {namedWorkoutId && namedWorkouts.find((n) => n.id === namedWorkoutId)?.templateWorkout && (
+                <button
+                  type="button"
+                  onClick={handleApplyTemplate}
+                  className="shrink-0 px-3 py-2 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded transition-colors"
+                  title="Copy type, description, and movements from template"
+                >
+                  Apply Template
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Movements</label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {movements.map((m, i) => (
+                <span
+                  key={i}
+                  className="flex items-center gap-1 bg-gray-700 text-gray-200 text-xs px-2 py-1 rounded-full"
+                >
+                  {m}
+                  <button
+                    type="button"
+                    onClick={() => setMovements((prev) => prev.filter((_, idx) => idx !== i))}
+                    className="text-gray-400 hover:text-white leading-none"
+                    aria-label={`Remove ${m}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={movementsInput}
+              onChange={(e) => setMovementsInput(e.target.value)}
+              onKeyDown={handleMovementsKeyDown}
+              placeholder="e.g. thrusters, pull-ups — press comma or Enter to add"
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500"
             />
           </div>
         </div>

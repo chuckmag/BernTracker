@@ -63,6 +63,14 @@ enum ProgramRole {
   PROGRAMMER
 }
 
+enum WorkoutCategory {
+  GIRL_WOD    // e.g. Fran, Cindy, Grace
+  HERO_WOD    // e.g. Murph, Badger, DT
+  OPEN_WOD    // e.g. 22.1, 23.3
+  GAMES_WOD   // individual/team events from the Games
+  BENCHMARK   // other common benchmarks (Fight Gone Bad, etc.)
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -166,6 +174,20 @@ model UserProgram {
   @@id([userId, programId])
 }
 
+model NamedWorkout {
+  id                String          @id @default(cuid())
+  name              String          @unique
+  category          WorkoutCategory
+  aliases           String[]
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  templateWorkoutId String?         @unique
+  templateWorkout   Workout?        @relation("NamedWorkoutTemplate", fields: [templateWorkoutId], references: [id])
+  workouts          Workout[]       @relation("NamedWorkoutInstances")
+}
+
 model Workout {
   id          String        @id @default(cuid())
   programId   String?
@@ -175,12 +197,16 @@ model Workout {
   status      WorkoutStatus @default(DRAFT)
   scheduledAt DateTime
   dayOrder    Int           @default(0)
+  movements   String[]      @default([])
+  namedWorkoutId String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   // nullable: members can log personal workouts outside any program
-  program Program?  @relation(fields: [programId], references: [id], onDelete: SetNull)
-  results Result[]
+  program      Program?      @relation(fields: [programId], references: [id], onDelete: SetNull)
+  results      Result[]
+  namedWorkout NamedWorkout? @relation("NamedWorkoutInstances", fields: [namedWorkoutId], references: [id])
+  templateFor  NamedWorkout? @relation("NamedWorkoutTemplate")  // required by Prisma parser — not used in queries
 }
 
 model Result {
