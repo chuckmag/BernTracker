@@ -18,8 +18,7 @@ const LEVELS: { value: WorkoutLevel; label: string }[] = [
 const SUPPORTED_TYPES = new Set(['AMRAP', 'FOR_TIME'])
 
 function deriveWorkoutGender(g: IdentifiedGender): WorkoutGender {
-  if (g === 'MAN') return 'MALE'
-  if (g === 'WOMAN') return 'FEMALE'
+  if (g === 'MALE' || g === 'FEMALE') return g
   return 'OPEN'
 }
 

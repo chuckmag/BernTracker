@@ -26,8 +26,8 @@ const LEVEL_FILTERS: LevelFilter[] = ['ALL', 'RX_PLUS', 'RX', 'SCALED', 'MODIFIE
 
 const GENDER_FILTERS: { value: GenderFilter; label: string }[] = [
   { value: 'ALL',    label: 'Open' },
-  { value: 'MALE',   label: 'Men' },
-  { value: 'FEMALE', label: 'Women' },
+  { value: 'MALE',   label: 'Male' },
+  { value: 'FEMALE', label: 'Female' },
 ]
 
 function formatSeconds(seconds: number): string {
