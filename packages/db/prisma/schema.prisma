@@ -43,6 +43,8 @@ enum WorkoutStatus {
 enum Gender {
   FEMALE
   MALE
+  NON_BINARY
+  PREFER_NOT_TO_SAY
 }
 
 // Competitive category used for leaderboard grouping and scaling standards

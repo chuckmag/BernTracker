@@ -3,7 +3,7 @@ import { setUnauthorizedHandler, setAccessToken as setApiToken } from '../lib/ap
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
-export type IdentifiedGender = 'FEMALE' | 'MALE' | null
+export type IdentifiedGender = 'FEMALE' | 'MALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY' | null
 
 interface AuthUser {
   id: string
