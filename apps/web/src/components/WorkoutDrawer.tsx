@@ -89,6 +89,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   function handleApplyTemplate() {
     const nw = namedWorkouts.find((n) => n.id === namedWorkoutId)
     if (!nw?.templateWorkout) return
+    setTitle(nw.name)
     setType(nw.templateWorkout.type)
     setDescription(nw.templateWorkout.description)
     setMovements(nw.templateWorkout.movements)
