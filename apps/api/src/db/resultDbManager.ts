@@ -80,6 +80,40 @@ export async function findLeaderboardByWorkout(workoutId: string, filters: Leade
   return sortLeaderboard(rows, workoutType)
 }
 
+export async function updateResultByOwner(
+  resultId: string,
+  userId: string,
+  data: { level?: WorkoutLevel; value?: Prisma.InputJsonValue; notes?: string | null },
+) {
+  const existing = await prisma.result.findUnique({ where: { id: resultId } })
+  if (!existing) {
+    const notFound = new Error('Result not found')
+    ;(notFound as Error & { statusCode: number }).statusCode = 404
+    throw notFound
+  }
+  if (existing.userId !== userId) {
+    const forbidden = new Error('You do not own this result')
+    ;(forbidden as Error & { statusCode: number }).statusCode = 403
+    throw forbidden
+  }
+  return prisma.result.update({ where: { id: resultId }, data })
+}
+
+export async function deleteResultByOwner(resultId: string, userId: string) {
+  const existing = await prisma.result.findUnique({ where: { id: resultId } })
+  if (!existing) {
+    const notFound = new Error('Result not found')
+    ;(notFound as Error & { statusCode: number }).statusCode = 404
+    throw notFound
+  }
+  if (existing.userId !== userId) {
+    const forbidden = new Error('You do not own this result')
+    ;(forbidden as Error & { statusCode: number }).statusCode = 403
+    throw forbidden
+  }
+  await prisma.result.delete({ where: { id: resultId } })
+}
+
 export async function findResultHistoryByUser(userId: string, pagination: Pagination) {
   const { page, limit } = pagination
   const skip = (page - 1) * limit

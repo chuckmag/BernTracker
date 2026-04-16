@@ -288,6 +288,16 @@ export const api = {
     ) =>
       apiFetch(`/api/workouts/${workoutId}/results`, { method: 'POST', body: JSON.stringify(data), token }),
 
+    update: (
+      resultId: string,
+      data: { level?: WorkoutLevel; value?: Record<string, unknown>; notes?: string | null },
+      token?: string,
+    ) =>
+      req<WorkoutResult>(`/api/results/${resultId}`, { method: 'PATCH', body: JSON.stringify(data), token }),
+
+    delete: (resultId: string, token?: string) =>
+      req<void>(`/api/results/${resultId}`, { method: 'DELETE', token }),
+
     history: (page = 1, token?: string) =>
       req<ResultHistoryPage>(`/api/me/results?page=${page}`, { token }),
   },

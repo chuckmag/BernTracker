@@ -171,7 +171,13 @@ export default function WodDetail() {
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your Result</span>
             <span className="text-sm font-medium text-white">{formatResultValue(myResult)}</span>
-            <span className="text-xs text-gray-500 ml-auto">{LEVEL_LABELS[myResult.level]}</span>
+            <span className="text-xs text-gray-500">{LEVEL_LABELS[myResult.level]}</span>
+            <button
+              onClick={() => setShowLogDrawer(true)}
+              className="ml-auto text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+            >
+              Edit
+            </button>
           </div>
           {myResult.notes && (
             <p className="mt-1.5 text-xs text-gray-500 italic line-clamp-2">{myResult.notes}</p>
@@ -282,8 +288,13 @@ export default function WodDetail() {
     {showLogDrawer && workout && (
       <LogResultDrawer
         workout={workout}
+        existingResult={myResult ?? undefined}
         onClose={() => setShowLogDrawer(false)}
-        onLogged={() => {
+        onSaved={() => {
+          setShowLogDrawer(false)
+          api.results.leaderboard(id!).then(setResults).catch(() => {})
+        }}
+        onDeleted={() => {
           setShowLogDrawer(false)
           api.results.leaderboard(id!).then(setResults).catch(() => {})
         }}
