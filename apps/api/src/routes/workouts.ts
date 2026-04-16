@@ -74,7 +74,6 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
 
   const membership = await findGymMembershipByUserAndGym(req.user!.id, gymId)
   const publishedOnly = membership?.role === Role.MEMBER
-  console.log(membership?.role)
   const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly })
   res.json(workouts)
 }

@@ -3,6 +3,9 @@ import { findGymById } from '../db/gymDbManager.js'
 import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
 import { findWorkoutProgramId } from '../db/workoutDbManager.js'
 import { findUserProgramMembership } from '../db/userProgramDbManager.js'
+import { createLogger, Log } from '../lib/logger.js'
+
+const log = createLogger('gym')
 
 const writeAccessRoles = ['OWNER', 'PROGRAMMER', 'COACH'];
 
@@ -97,7 +100,7 @@ export async function requireWorkoutProgramWriteAccess(req: Request, res: Respon
   }
   const membership = await findUserProgramMembership(userId, workout.programId)
   if (!checkMembershipHasWriteAccessRoles(membership)) {
-    console.log("Membership does not have write access roles:", membership)
+    log(Log.WARNING, req, `requireWorkoutProgramWriteAccess: insufficient role — ${req.method} ${req.path} — userId=${req.user?.id ?? 'none'} role=${membership?.role ?? 'none'}`, membership)
     res.status(403).json({ error: 'Forbidden' })
     return
   }
