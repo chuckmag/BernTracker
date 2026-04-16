@@ -174,7 +174,7 @@ export default function WodDetail() {
             <span className="text-xs text-gray-500 ml-auto">{LEVEL_LABELS[myResult.level]}</span>
           </div>
           {myResult.notes && (
-            <p className="mt-1.5 text-xs text-gray-500 italic">{myResult.notes}</p>
+            <p className="mt-1.5 text-xs text-gray-500 italic line-clamp-2">{myResult.notes}</p>
           )}
         </div>
       ) : (
@@ -264,8 +264,8 @@ export default function WodDetail() {
                       {result.notes && (
                         <tr className="border-b border-gray-900">
                           <td />
-                          <td colSpan={3} className="pb-2.5 text-xs text-gray-500 italic">
-                            {result.notes}
+                          <td colSpan={3} className="pb-2.5 max-w-0">
+                            <p className="truncate text-xs text-gray-500 italic">{result.notes}</p>
                           </td>
                         </tr>
                       )}
