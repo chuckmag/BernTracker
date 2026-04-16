@@ -8,7 +8,8 @@ import programsRouter from './routes/programs'
 import workoutsRouter from './routes/workouts'
 import resultsRouter from './routes/results'
 import namedWorkoutsRouter from './routes/namedWorkouts'
-import { createLogger, Log } from './lib/logger.js'
+import { createLogger } from './lib/logger.js'
+import { requestLogger } from './middleware/requestLogger.js'
 
 const app = express()
 const port = process.env.PORT ?? 3000
@@ -16,6 +17,7 @@ const port = process.env.PORT ?? 3000
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }))
 app.use(express.json())
 app.use(cookieParser())
+app.use(requestLogger)
 
 app.use('/api/auth', authRouter)
 
@@ -36,7 +38,7 @@ const logError = createLogger('error')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const message = err instanceof Error ? err.message : String(err)
-  logError(Log.ERROR, req, `${req.method} ${req.path} — ${message}`, err)
+  logError.error(req, `${req.method} ${req.path} — ${message}`, err)
   res.status(500).json({ error: 'Internal server error' })
 })
 

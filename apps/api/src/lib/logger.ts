@@ -1,34 +1,49 @@
 import type { Request } from 'express'
 
-export const Log = {
-  ERROR: 'ERROR',
-  WARNING: 'WARNING',
-  INFO: 'INFO',
-  DEBUG: 'DEBUG',
-} as const
+type LogLevel = 'ERROR' | 'WARNING' | 'INFO' | 'DEBUG'
 
-export type LogLevel = (typeof Log)[keyof typeof Log]
+function emit(level: LogLevel, tag: string, reqOrMessage: Request | string, args: unknown[]): void {
+  if (typeof reqOrMessage === 'string') {
+    console.log(`${level} [${tag}] ${reqOrMessage}`, ...args)
+  } else {
+    const id = reqOrMessage.requestId
+    const prefix = id ? `${level} [${tag}](${id})` : `${level} [${tag}]`
+    const [message, ...extra] = args as [string, ...unknown[]]
+    console.log(`${prefix} ${message}`, ...extra)
+  }
+}
+
+export interface Logger {
+  error(req: Request, message: string, ...extra: unknown[]): void
+  error(message: string, ...extra: unknown[]): void
+  warning(req: Request, message: string, ...extra: unknown[]): void
+  warning(message: string, ...extra: unknown[]): void
+  info(req: Request, message: string, ...extra: unknown[]): void
+  info(message: string, ...extra: unknown[]): void
+  debug(req: Request, message: string, ...extra: unknown[]): void
+  debug(message: string, ...extra: unknown[]): void
+}
 
 /**
- * Returns a log function tagged with the given label.
+ * Returns a logger tagged with the given label. Each method maps to a log level:
  *
- * With a request:    log(level, req, message)  → LEVEL [tag](requestId) message
- * Without a request: log(level, message)        → LEVEL [tag] message
- *
- * Any additional arguments are forwarded to console.log (e.g. error objects).
+ *   log.info(req, message)   → INFO [tag](requestId) message
+ *   log.warning(message)     → WARNING [tag] message
+ *   log.error(req, msg, err) → ERROR [tag](requestId) msg  { err }
  */
-export function createLogger(tag: string) {
-  function log(level: LogLevel, req: Request, message: string, ...extra: unknown[]): void
-  function log(level: LogLevel, message: string, ...extra: unknown[]): void
-  function log(level: LogLevel, reqOrMessage: Request | string, ...args: unknown[]): void {
-    if (typeof reqOrMessage === 'string') {
-      console.log(`${level} [${tag}] ${reqOrMessage}`, ...args)
-    } else {
-      const id = reqOrMessage.requestId
-      const prefix = id ? `${level} [${tag}](${id})` : `${level} [${tag}]`
-      const [message, ...extra] = args as [string, ...unknown[]]
-      console.log(`${prefix} ${message}`, ...extra)
-    }
+export function createLogger(tag: string): Logger {
+  return {
+    error(reqOrMessage: Request | string, ...args: unknown[]) {
+      emit('ERROR', tag, reqOrMessage as Request, args)
+    },
+    warning(reqOrMessage: Request | string, ...args: unknown[]) {
+      emit('WARNING', tag, reqOrMessage as Request, args)
+    },
+    info(reqOrMessage: Request | string, ...args: unknown[]) {
+      emit('INFO', tag, reqOrMessage as Request, args)
+    },
+    debug(reqOrMessage: Request | string, ...args: unknown[]) {
+      emit('DEBUG', tag, reqOrMessage as Request, args)
+    },
   }
-  return log
 }
