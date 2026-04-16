@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { api, TYPE_ABBR, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
@@ -167,10 +167,15 @@ export default function WodDetail() {
 
       {/* Log Result CTA */}
       {myResult ? (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-900 border border-gray-700">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your Result</span>
-          <span className="text-sm font-medium text-white">{formatResultValue(myResult)}</span>
-          <span className="text-xs text-gray-500 ml-auto">{LEVEL_LABELS[myResult.level]}</span>
+        <div className="px-4 py-3 rounded-lg bg-gray-900 border border-gray-700">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your Result</span>
+            <span className="text-sm font-medium text-white">{formatResultValue(myResult)}</span>
+            <span className="text-xs text-gray-500 ml-auto">{LEVEL_LABELS[myResult.level]}</span>
+          </div>
+          {myResult.notes && (
+            <p className="mt-1.5 text-xs text-gray-500 italic">{myResult.notes}</p>
+          )}
         </div>
       ) : (
         <button
@@ -241,21 +246,30 @@ export default function WodDetail() {
                 {filteredResults.map((result, index) => {
                   const isMe = result.userId === user?.id
                   return (
-                    <tr
-                      key={result.id}
-                      className={[
-                        'border-b border-gray-900',
-                        isMe ? 'text-indigo-300' : 'text-gray-300',
-                      ].join(' ')}
-                    >
-                      <td className="py-2.5 pr-4 text-gray-500">{index + 1}</td>
-                      <td className="py-2.5 pr-4 font-medium">
-                        {result.user.name ?? 'Unknown'}
-                        {isMe && <span className="ml-1.5 text-xs text-indigo-400">(you)</span>}
-                      </td>
-                      <td className="py-2.5 pr-4 text-gray-400">{LEVEL_LABELS[result.level]}</td>
-                      <td className="py-2.5 font-mono">{formatResultValue(result)}</td>
-                    </tr>
+                    <Fragment key={result.id}>
+                      <tr
+                        className={[
+                          result.notes ? '' : 'border-b border-gray-900',
+                          isMe ? 'text-indigo-300' : 'text-gray-300',
+                        ].join(' ')}
+                      >
+                        <td className="py-2.5 pr-4 text-gray-500">{index + 1}</td>
+                        <td className="py-2.5 pr-4 font-medium">
+                          {result.user.name ?? 'Unknown'}
+                          {isMe && <span className="ml-1.5 text-xs text-indigo-400">(you)</span>}
+                        </td>
+                        <td className="py-2.5 pr-4 text-gray-400">{LEVEL_LABELS[result.level]}</td>
+                        <td className="py-2.5 font-mono">{formatResultValue(result)}</td>
+                      </tr>
+                      {result.notes && (
+                        <tr className="border-b border-gray-900">
+                          <td />
+                          <td colSpan={3} className="pb-2.5 text-xs text-gray-500 italic">
+                            {result.notes}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   )
                 })}
               </tbody>
