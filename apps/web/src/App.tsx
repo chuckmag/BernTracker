@@ -12,6 +12,7 @@ import Members from './pages/Members.tsx'
 import Settings from './pages/Settings.tsx'
 import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
+import History from './pages/History.tsx'
 
 function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -26,6 +27,7 @@ function AppLayout() {
             <Route path="/" element={<Navigate to="/feed" replace />} />
             <Route path="/feed" element={<Feed />} />
             <Route path="/workouts/:id" element={<WodDetail />} />
+            <Route path="/history" element={<History />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/members" element={<Members />} />

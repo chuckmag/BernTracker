@@ -41,8 +41,8 @@ enum WorkoutStatus {
 // Self-identified gender — stored on the user profile for demographics
 // and communication preferences. Nullable: users are never required to share.
 enum Gender {
-  WOMAN
-  MAN
+  FEMALE
+  MALE
   NON_BINARY
   PREFER_NOT_TO_SAY
 }

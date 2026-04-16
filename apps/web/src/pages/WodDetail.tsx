@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useState, useEffect, Fragment } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
-import { api, TYPE_ABBR, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel } from '../lib/api.ts'
+import { api, TYPE_ABBR, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
+import LogResultDrawer from '../components/LogResultDrawer.tsx'
 
 const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
   GIRL_WOD: 'Girl WOD',
@@ -12,6 +13,7 @@ const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
 }
 
 type LevelFilter = WorkoutLevel | 'ALL'
+type GenderFilter = WorkoutGender | 'ALL'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   RX_PLUS: 'RX+',
@@ -21,6 +23,12 @@ const LEVEL_LABELS: Record<WorkoutLevel, string> = {
 }
 
 const LEVEL_FILTERS: LevelFilter[] = ['ALL', 'RX_PLUS', 'RX', 'SCALED', 'MODIFIED']
+
+const GENDER_FILTERS: { value: GenderFilter; label: string }[] = [
+  { value: 'ALL',    label: 'Open' },
+  { value: 'MALE',   label: 'Male' },
+  { value: 'FEMALE', label: 'Female' },
+]
 
 function formatSeconds(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -49,13 +57,17 @@ function formatResultValue(result: WorkoutResult): string {
 export default function WodDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
+  const fromHistory = (location.state as { from?: string } | null)?.from === 'history'
 
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [results, setResults] = useState<WorkoutResult[]>([])
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('ALL')
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showLogDrawer, setShowLogDrawer] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -101,17 +113,19 @@ export default function WodDetail() {
 
   const myResult = results.find((r) => r.userId === user?.id)
 
-  const filteredResults =
-    levelFilter === 'ALL' ? results : results.filter((r) => r.level === levelFilter)
+  const filteredResults = results
+    .filter((r) => levelFilter === 'ALL' || r.level === levelFilter)
+    .filter((r) => genderFilter === 'ALL' || r.workoutGender === genderFilter)
 
   return (
+    <>
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Back nav */}
       <button
-        onClick={() => navigate('/feed')}
+        onClick={() => navigate(fromHistory ? '/history' : '/feed')}
         className="text-sm text-gray-400 hover:text-white transition-colors"
       >
-        ← Back to Feed
+        {fromHistory ? '← Back to History' : '← Back to Feed'}
       </button>
 
       {/* Header */}
@@ -153,16 +167,26 @@ export default function WodDetail() {
 
       {/* Log Result CTA */}
       {myResult ? (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-900 border border-gray-700">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your Result</span>
-          <span className="text-sm font-medium text-white">{formatResultValue(myResult)}</span>
-          <span className="text-xs text-gray-500 ml-auto">{LEVEL_LABELS[myResult.level]}</span>
+        <div className="px-4 py-3 rounded-lg bg-gray-900 border border-gray-700">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your Result</span>
+            <span className="text-sm font-medium text-white">{formatResultValue(myResult)}</span>
+            <span className="text-xs text-gray-500">{LEVEL_LABELS[myResult.level]}</span>
+            <button
+              onClick={() => setShowLogDrawer(true)}
+              className="ml-auto text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+            >
+              Edit
+            </button>
+          </div>
+          {myResult.notes && (
+            <p className="mt-1.5 text-xs text-gray-500 italic line-clamp-2">{myResult.notes}</p>
+          )}
         </div>
       ) : (
         <button
-          disabled
-          className="w-full py-2.5 rounded-lg bg-indigo-700 text-white text-sm font-medium opacity-50 cursor-not-allowed"
-          title="Result logging coming soon"
+          onClick={() => setShowLogDrawer(true)}
+          className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
         >
           Log Result
         </button>
@@ -176,7 +200,7 @@ export default function WodDetail() {
         </div>
 
         {/* Level filter chips */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-2">
           {LEVEL_FILTERS.map((lvl) => (
             <button
               key={lvl}
@@ -189,6 +213,24 @@ export default function WodDetail() {
               ].join(' ')}
             >
               {lvl === 'ALL' ? 'All' : LEVEL_LABELS[lvl as WorkoutLevel]}
+            </button>
+          ))}
+        </div>
+
+        {/* Gender filter chips */}
+        <div className="flex gap-2 mb-4">
+          {GENDER_FILTERS.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setGenderFilter(value)}
+              className={[
+                'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                genderFilter === value
+                  ? 'bg-gray-200 text-gray-900'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white',
+              ].join(' ')}
+            >
+              {label}
             </button>
           ))}
         </div>
@@ -210,21 +252,30 @@ export default function WodDetail() {
                 {filteredResults.map((result, index) => {
                   const isMe = result.userId === user?.id
                   return (
-                    <tr
-                      key={result.id}
-                      className={[
-                        'border-b border-gray-900',
-                        isMe ? 'text-indigo-300' : 'text-gray-300',
-                      ].join(' ')}
-                    >
-                      <td className="py-2.5 pr-4 text-gray-500">{index + 1}</td>
-                      <td className="py-2.5 pr-4 font-medium">
-                        {result.user.name ?? 'Unknown'}
-                        {isMe && <span className="ml-1.5 text-xs text-indigo-400">(you)</span>}
-                      </td>
-                      <td className="py-2.5 pr-4 text-gray-400">{LEVEL_LABELS[result.level]}</td>
-                      <td className="py-2.5 font-mono">{formatResultValue(result)}</td>
-                    </tr>
+                    <Fragment key={result.id}>
+                      <tr
+                        className={[
+                          result.notes ? '' : 'border-b border-gray-900',
+                          isMe ? 'text-indigo-300' : 'text-gray-300',
+                        ].join(' ')}
+                      >
+                        <td className="py-2.5 pr-4 text-gray-500">{index + 1}</td>
+                        <td className="py-2.5 pr-4 font-medium">
+                          {result.user.name ?? 'Unknown'}
+                          {isMe && <span className="ml-1.5 text-xs text-indigo-400">(you)</span>}
+                        </td>
+                        <td className="py-2.5 pr-4 text-gray-400">{LEVEL_LABELS[result.level]}</td>
+                        <td className="py-2.5 font-mono">{formatResultValue(result)}</td>
+                      </tr>
+                      {result.notes && (
+                        <tr className="border-b border-gray-900">
+                          <td />
+                          <td colSpan={3} className="pb-2.5 max-w-0">
+                            <p className="truncate text-xs text-gray-500 italic">{result.notes}</p>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   )
                 })}
               </tbody>
@@ -233,5 +284,22 @@ export default function WodDetail() {
         )}
       </div>
     </div>
+
+    {showLogDrawer && workout && (
+      <LogResultDrawer
+        workout={workout}
+        existingResult={myResult ?? undefined}
+        onClose={() => setShowLogDrawer(false)}
+        onSaved={() => {
+          setShowLogDrawer(false)
+          api.results.leaderboard(id!).then(setResults).catch(() => {})
+        }}
+        onDeleted={() => {
+          setShowLogDrawer(false)
+          api.results.leaderboard(id!).then(setResults).catch(() => {})
+        }}
+      />
+    )}
+    </>
   )
 }

@@ -88,7 +88,7 @@ router.post('/login', async (req, res) => {
   })
 
   res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-  res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
+  res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role, identifiedGender: user.identifiedGender } })
 })
 
 // POST /refresh
@@ -140,7 +140,7 @@ router.post('/logout', async (req, res) => {
 router.get('/me', requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
-    select: { id: true, email: true, name: true, role: true },
+    select: { id: true, email: true, name: true, role: true, identifiedGender: true },
   })
   if (!user) {
     res.status(404).json({ error: 'User not found' })
@@ -234,14 +234,14 @@ router.post('/google/mobile', async (req, res) => {
   })
 
   res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-  res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
+  res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role, identifiedGender: user.identifiedGender } })
 })
 
 async function findOrCreateGoogleUser(googleId: string, email: string, name: string) {
   // Check for existing OAuth account
   const existing = await prisma.oAuthAccount.findUnique({
     where: { provider_providerId: { provider: 'google', providerId: googleId } },
-    include: { user: { select: { id: true, email: true, name: true, role: true } } },
+    include: { user: { select: { id: true, email: true, name: true, role: true, identifiedGender: true } } },
   })
   if (existing) return existing.user
 
@@ -251,7 +251,7 @@ async function findOrCreateGoogleUser(googleId: string, email: string, name: str
     await prisma.oAuthAccount.create({
       data: { userId: existingUser.id, provider: 'google', providerId: googleId },
     })
-    return { id: existingUser.id, email: existingUser.email, name: existingUser.name, role: existingUser.role }
+    return { id: existingUser.id, email: existingUser.email, name: existingUser.name, role: existingUser.role, identifiedGender: existingUser.identifiedGender }
   }
 
   // Create new user + OAuthAccount
@@ -261,7 +261,7 @@ async function findOrCreateGoogleUser(googleId: string, email: string, name: str
       name,
       oauthAccounts: { create: { provider: 'google', providerId: googleId } },
     },
-    select: { id: true, email: true, name: true, role: true },
+    select: { id: true, email: true, name: true, role: true, identifiedGender: true },
   })
   return user
 }
