@@ -1,4 +1,11 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
+const REQUEST_TIMEOUT_MS = 10_000
+
+function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(id))
+}
 
 let _onUnauthorized: (() => void) | null = null
 let _accessToken: string | null = null
@@ -15,7 +22,7 @@ let _refreshPromise: Promise<string | null> | null = null
 
 async function refreshAccessToken(): Promise<string | null> {
   if (_refreshPromise) return _refreshPromise
-  _refreshPromise = fetch(`${BASE_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
+  _refreshPromise = fetchWithTimeout(`${BASE_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
     .then((r) => {
       if (!r.ok) return null
       return r.json().then((d) => {
@@ -39,13 +46,13 @@ export async function apiFetch(
   const bearer = token ?? _accessToken
   if (bearer) headers.set('Authorization', `Bearer ${bearer}`)
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers, credentials: 'include' })
+  const res = await fetchWithTimeout(`${BASE_URL}${path}`, { ...init, headers, credentials: 'include' })
 
   if (res.status === 401) {
     const newToken = await refreshAccessToken()
     if (newToken) {
       headers.set('Authorization', `Bearer ${newToken}`)
-      return fetch(`${BASE_URL}${path}`, { ...init, headers, credentials: 'include' })
+      return fetchWithTimeout(`${BASE_URL}${path}`, { ...init, headers, credentials: 'include' })
     }
   }
 
