@@ -24,7 +24,7 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
 
-  const loadWorkouts = useCallback(async () => {
+  const loadWorkouts = useCallback(async (signal?: { cancelled: boolean }) => {
     if (!gymId) return
     setLoading(true)
     setError(null)
@@ -32,16 +32,18 @@ export default function Calendar() {
       const from = new Date(year, month, 1).toISOString()
       const to = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString()
       const data = await api.workouts.list(gymId, from, to)
-      setWorkouts(data)
+      if (!signal?.cancelled) setWorkouts(data)
     } catch (e) {
-      setError((e as Error).message)
+      if (!signal?.cancelled) setError((e as Error).message)
     } finally {
-      setLoading(false)
+      if (!signal?.cancelled) setLoading(false)
     }
   }, [gymId, year, month])
 
   useEffect(() => {
-    loadWorkouts()
+    const signal = { cancelled: false }
+    loadWorkouts(signal)
+    return () => { signal.cancelled = true }
   }, [loadWorkouts])
 
   const workoutsByDate: Record<string, Workout[]> = {}

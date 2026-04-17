@@ -46,15 +46,14 @@ export default function History() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
     setError(null)
     api.results.history(page)
-      .then((data) => {
-        setResults(data.results)
-        setPages(data.pages)
-      })
-      .catch((e) => setError((e as Error).message))
-      .finally(() => setLoading(false))
+      .then((data) => { if (!cancelled) { setResults(data.results); setPages(data.pages) } })
+      .catch((e) => { if (!cancelled) setError((e as Error).message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [page])
 
   // Group results by month

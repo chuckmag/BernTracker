@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { api, type MyGym, type Role } from '../lib/api'
 
 interface GymContextValue {
@@ -15,8 +15,11 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
   const [gyms, setGyms] = useState<MyGym[]>([])
   const [gymId, setGymIdState] = useState<string | null>(() => localStorage.getItem('gymId'))
   const [loading, setLoading] = useState(true)
+  const didFetch = useRef(false)
 
   useEffect(() => {
+    if (didFetch.current) return
+    didFetch.current = true
     api.me.gyms()
       .then((fetched) => {
         setGyms(fetched)

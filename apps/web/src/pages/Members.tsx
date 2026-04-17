@@ -25,21 +25,22 @@ export default function Members() {
 
   useEffect(() => {
     if (!gymId) return
-    loadData()
+    const signal = { cancelled: false }
+    loadData(signal)
+    return () => { signal.cancelled = true }
   }, [gymId])
 
-  async function loadData() {
+  async function loadData(signal?: { cancelled: boolean }) {
     if (!gymId) return
     setLoading(true)
     setError(null)
     try {
       const [m, p] = await Promise.all([api.gyms.members.list(gymId), api.gyms.programs.list(gymId)])
-      setMembers(m)
-      setPrograms(p)
+      if (!signal?.cancelled) { setMembers(m); setPrograms(p) }
     } catch (e) {
-      setError((e as Error).message)
+      if (!signal?.cancelled) setError((e as Error).message)
     } finally {
-      setLoading(false)
+      if (!signal?.cancelled) setLoading(false)
     }
   }
 

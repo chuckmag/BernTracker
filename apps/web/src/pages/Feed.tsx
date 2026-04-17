@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, TYPE_ABBR, type Workout } from '../lib/api.ts'
 import { useGym } from '../context/GymContext.tsx'
@@ -31,29 +31,23 @@ export default function Feed() {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
-  const loadWorkouts = useCallback(async () => {
+  useEffect(() => {
     if (!gymId) return
+    let cancelled = false
     setLoading(true)
     setError(null)
-    try {
-      const today = new Date()
-      const from = new Date(today)
-      from.setDate(today.getDate() - 30)
-      const to = new Date(today)
-      to.setDate(today.getDate() + 14)
-      to.setHours(23, 59, 59, 999)
-      const data = await api.workouts.list(gymId, from.toISOString(), to.toISOString())
-      setWorkouts(data.filter((w) => w.status === 'PUBLISHED'))
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
+    const today = new Date()
+    const from = new Date(today)
+    from.setDate(today.getDate() - 30)
+    const to = new Date(today)
+    to.setDate(today.getDate() + 14)
+    to.setHours(23, 59, 59, 999)
+    api.workouts.list(gymId, from.toISOString(), to.toISOString())
+      .then((data) => { if (!cancelled) setWorkouts(data.filter((w) => w.status === 'PUBLISHED')) })
+      .catch((e) => { if (!cancelled) setError((e as Error).message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [gymId])
-
-  useEffect(() => {
-    loadWorkouts()
-  }, [loadWorkouts])
 
   if (!gymId) {
     return (
