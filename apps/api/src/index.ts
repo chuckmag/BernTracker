@@ -11,6 +11,22 @@ import namedWorkoutsRouter from './routes/namedWorkouts'
 import { createLogger } from './lib/logger.js'
 import { requestLogger } from './middleware/requestLogger.js'
 
+// ── Process-level error handlers ─────────────────────────────────────────────
+// Catch any exception or promise rejection that escapes Express (e.g. an async
+// route handler that throws without try/catch in Express 4). These prevent the
+// process from crashing on intermittent errors like DB connection failures.
+const logProcess = createLogger('process')
+
+process.on('uncaughtException', (err) => {
+  logProcess.error(`uncaughtException: ${err.message}`, err)
+})
+
+process.on('unhandledRejection', (reason) => {
+  const message = reason instanceof Error ? reason.message : String(reason)
+  logProcess.error(`unhandledRejection: ${message}`, reason)
+})
+// ─────────────────────────────────────────────────────────────────────────────
+
 const app = express()
 const port = process.env.PORT ?? 3000
 
