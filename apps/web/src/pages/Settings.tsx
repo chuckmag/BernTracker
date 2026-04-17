@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, type Gym, type GymProgram } from '../lib/api'
+import { useGym } from '../context/GymContext.tsx'
 
 const TIMEZONES = [
   'UTC',
@@ -15,7 +16,7 @@ const TIMEZONES = [
 ]
 
 export default function Settings() {
-  const [gymId, setGymId] = useState<string | null>(() => localStorage.getItem('gymId'))
+  const { gymId, setGymId } = useGym()
   const [gym, setGym] = useState<Gym | null>(null)
   const [programs, setPrograms] = useState<GymProgram[]>([])
   const [loading, setLoading] = useState(false)
@@ -66,7 +67,6 @@ export default function Settings() {
     setError(null)
     try {
       const g = await api.gyms.create({ name: createName, timezone: createTz })
-      localStorage.setItem('gymId', g.id)
       setGymId(g.id)
     } catch (e) {
       setError((e as Error).message)

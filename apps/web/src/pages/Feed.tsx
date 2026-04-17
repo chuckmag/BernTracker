@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, TYPE_ABBR, type Workout } from '../lib/api.ts'
+import { useGym } from '../context/GymContext.tsx'
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -24,7 +25,7 @@ function formatDayLabel(dateKey: string, todayKey: string): string {
 }
 
 export default function Feed() {
-  const [gymId] = useState<string | null>(() => localStorage.getItem('gymId'))
+  const { gymId } = useGym()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

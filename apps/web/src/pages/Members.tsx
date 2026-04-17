@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, type Member, type GymProgram, type Role } from '../lib/api'
+import { useGym } from '../context/GymContext.tsx'
 
 const ROLES: Role[] = ['MEMBER', 'COACH', 'PROGRAMMER', 'OWNER']
 const ROLE_LABELS: Record<Role, string> = {
@@ -10,7 +11,7 @@ const ROLE_LABELS: Record<Role, string> = {
 }
 
 export default function Members() {
-  const [gymId] = useState<string | null>(() => localStorage.getItem('gymId'))
+  const { gymId } = useGym()
   const [members, setMembers] = useState<Member[]>([])
   const [programs, setPrograms] = useState<GymProgram[]>([])
   const [loading, setLoading] = useState(false)

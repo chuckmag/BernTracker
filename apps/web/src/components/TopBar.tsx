@@ -1,22 +1,15 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, type MyGym } from '../lib/api'
+import { useGym } from '../context/GymContext.tsx'
 
 interface TopBarProps {
   onMenuClick: () => void
 }
 
 export default function TopBar({ onMenuClick }: TopBarProps) {
-  const [gyms, setGyms] = useState<MyGym[]>([])
-  const currentGymId = localStorage.getItem('gymId') ?? ''
-
-  useEffect(() => {
-    api.me.gyms().then(setGyms).catch(() => {})
-  }, [])
+  const { gyms, gymId, setGymId } = useGym()
 
   function handleGymChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    localStorage.setItem('gymId', e.target.value)
-    window.location.reload()
+    setGymId(e.target.value)
   }
 
   return (
@@ -42,7 +35,7 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
           <span className="text-sm text-gray-300">{gyms[0].name}</span>
         ) : (
           <select
-            value={currentGymId}
+            value={gymId ?? ''}
             onChange={handleGymChange}
             className="text-sm bg-gray-800 text-gray-200 border border-gray-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
           >

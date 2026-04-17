@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, type Role, type Workout } from '../lib/api'
+import { api, type Workout } from '../lib/api'
+import { useGym } from '../context/GymContext.tsx'
 import CalendarCell from '../components/CalendarCell'
 import WorkoutDrawer from '../components/WorkoutDrawer'
 
@@ -13,7 +14,7 @@ function toDateKey(date: Date): string {
 const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function Calendar() {
-  const [gymId] = useState<string | null>(() => localStorage.getItem('gymId'))
+  const { gymId, gymRole: userGymRole } = useGym()
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -22,7 +23,6 @@ export default function Calendar() {
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
-  const [userGymRole, setUserGymRole] = useState<Role | null>(null)
 
   const loadWorkouts = useCallback(async () => {
     if (!gymId) return
@@ -43,14 +43,6 @@ export default function Calendar() {
   useEffect(() => {
     loadWorkouts()
   }, [loadWorkouts])
-
-  useEffect(() => {
-    if (!gymId) return
-    api.me.gyms().then((gyms) => {
-      const myGym = gyms.find((g) => g.id === gymId)
-      if (myGym) setUserGymRole(myGym.role)
-    }).catch(() => {})
-  }, [gymId])
 
   const workoutsByDate: Record<string, Workout[]> = {}
   for (const w of workouts) {
