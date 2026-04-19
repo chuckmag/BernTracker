@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
-import { api, type Role } from '../lib/api.ts'
+import { useGym } from '../context/GymContext.tsx'
 
 const memberLinks = [
   { to: '/feed',    label: 'Feed'    },
@@ -21,17 +20,8 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth()
+  const { gymRole } = useGym()
   const navigate = useNavigate()
-  const [gymRole, setGymRole] = useState<Role | null>(null)
-
-  useEffect(() => {
-    const gymId = localStorage.getItem('gymId')
-    if (!gymId) return
-    api.me.gyms().then((gyms) => {
-      const myGym = gyms.find((g) => g.id === gymId)
-      if (myGym) setGymRole(myGym.role)
-    }).catch(() => {})
-  }, [])
 
   async function handleSignOut() {
     await logout()

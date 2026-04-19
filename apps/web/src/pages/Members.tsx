@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, type Member, type GymProgram, type Role } from '../lib/api'
+import { useGym } from '../context/GymContext.tsx'
 
 const ROLES: Role[] = ['MEMBER', 'COACH', 'PROGRAMMER', 'OWNER']
 const ROLE_LABELS: Record<Role, string> = {
@@ -10,7 +11,7 @@ const ROLE_LABELS: Record<Role, string> = {
 }
 
 export default function Members() {
-  const [gymId] = useState<string | null>(() => localStorage.getItem('gymId'))
+  const { gymId } = useGym()
   const [members, setMembers] = useState<Member[]>([])
   const [programs, setPrograms] = useState<GymProgram[]>([])
   const [loading, setLoading] = useState(false)
@@ -24,21 +25,22 @@ export default function Members() {
 
   useEffect(() => {
     if (!gymId) return
-    loadData()
+    const signal = { cancelled: false }
+    loadData(signal)
+    return () => { signal.cancelled = true }
   }, [gymId])
 
-  async function loadData() {
+  async function loadData(signal?: { cancelled: boolean }) {
     if (!gymId) return
     setLoading(true)
     setError(null)
     try {
       const [m, p] = await Promise.all([api.gyms.members.list(gymId), api.gyms.programs.list(gymId)])
-      setMembers(m)
-      setPrograms(p)
+      if (!signal?.cancelled) { setMembers(m); setPrograms(p) }
     } catch (e) {
-      setError((e as Error).message)
+      if (!signal?.cancelled) setError((e as Error).message)
     } finally {
-      setLoading(false)
+      if (!signal?.cancelled) setLoading(false)
     }
   }
 

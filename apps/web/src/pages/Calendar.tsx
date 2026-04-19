@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, type Role, type Workout } from '../lib/api'
+import { api, type Workout } from '../lib/api'
+import { useGym } from '../context/GymContext.tsx'
 import CalendarCell from '../components/CalendarCell'
 import WorkoutDrawer from '../components/WorkoutDrawer'
 
@@ -13,7 +14,7 @@ function toDateKey(date: Date): string {
 const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function Calendar() {
-  const [gymId] = useState<string | null>(() => localStorage.getItem('gymId'))
+  const { gymId, gymRole: userGymRole } = useGym()
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -22,9 +23,8 @@ export default function Calendar() {
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
-  const [userGymRole, setUserGymRole] = useState<Role | null>(null)
 
-  const loadWorkouts = useCallback(async () => {
+  const loadWorkouts = useCallback(async (signal?: { cancelled: boolean }) => {
     if (!gymId) return
     setLoading(true)
     setError(null)
@@ -32,25 +32,19 @@ export default function Calendar() {
       const from = new Date(year, month, 1).toISOString()
       const to = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString()
       const data = await api.workouts.list(gymId, from, to)
-      setWorkouts(data)
+      if (!signal?.cancelled) setWorkouts(data)
     } catch (e) {
-      setError((e as Error).message)
+      if (!signal?.cancelled) setError((e as Error).message)
     } finally {
-      setLoading(false)
+      if (!signal?.cancelled) setLoading(false)
     }
   }, [gymId, year, month])
 
   useEffect(() => {
-    loadWorkouts()
+    const signal = { cancelled: false }
+    loadWorkouts(signal)
+    return () => { signal.cancelled = true }
   }, [loadWorkouts])
-
-  useEffect(() => {
-    if (!gymId) return
-    api.me.gyms().then((gyms) => {
-      const myGym = gyms.find((g) => g.id === gymId)
-      if (myGym) setUserGymRole(myGym.role)
-    }).catch(() => {})
-  }, [gymId])
 
   const workoutsByDate: Record<string, Workout[]> = {}
   for (const w of workouts) {

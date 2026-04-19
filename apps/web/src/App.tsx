@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext.tsx'
+import { GymProvider } from './context/GymContext.tsx'
 import RequireAuth from './components/RequireAuth.tsx'
 import Sidebar from './components/Sidebar.tsx'
 import TopBar from './components/TopBar.tsx'
@@ -49,7 +50,9 @@ export default function App() {
           path="/*"
           element={
             <RequireAuth>
-              <AppLayout />
+              <GymProvider>
+                <AppLayout />
+              </GymProvider>
             </RequireAuth>
           }
         />

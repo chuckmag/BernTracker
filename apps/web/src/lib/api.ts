@@ -3,6 +3,8 @@ const REQUEST_TIMEOUT_MS = 10_000
 
 function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
   const controller = new AbortController()
+  // Chain an external abort signal (e.g. from useEffect cleanup) with the timeout
+  init.signal?.addEventListener('abort', () => controller.abort())
   const id = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(id))
 }
