@@ -2,7 +2,17 @@ import { prisma } from '@berntracker/db'
 import type { WorkoutCategory, WorkoutType } from '@berntracker/db'
 
 const templateWorkoutSelect = {
-  select: { id: true, type: true, description: true, movements: true },
+  select: {
+    id: true,
+    type: true,
+    description: true,
+    workoutMovements: {
+      select: {
+        movementId: true,
+        movement: { select: { id: true, name: true, parentId: true } },
+      },
+    },
+  },
 } as const
 
 export async function findAllActiveNamedWorkouts() {
@@ -24,7 +34,7 @@ export async function createNamedWorkoutWithOptionalTemplate(data: {
   name: string
   category: WorkoutCategory
   aliases?: string[]
-  template?: { type: WorkoutType; description: string; movements?: string[] }
+  template?: { type: WorkoutType; description: string; movementIds?: string[] }
 }) {
   let templateWorkoutId: string | undefined
 
@@ -37,8 +47,10 @@ export async function createNamedWorkoutWithOptionalTemplate(data: {
         title: data.name,
         description: data.template.description,
         type: data.template.type,
-        movements: data.template.movements ?? [],
         scheduledAt: new Date('2000-01-01T00:00:00Z'),
+        ...(data.template.movementIds?.length
+          ? { workoutMovements: { create: data.template.movementIds.map((id) => ({ movementId: id })) } }
+          : {}),
       },
     })
     templateWorkoutId = tw.id

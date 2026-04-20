@@ -57,6 +57,8 @@ let workoutId = ''
 let namedWorkoutId = ''
 let programmerToken = ''
 let memberToken = ''
+let thrusterId = ''
+let pullUpId = ''
 
 async function setup() {
   const gym = await prisma.gym.create({
@@ -91,6 +93,20 @@ async function setup() {
   })
   programId = program.id
 
+  // Seed two movements used across movement-related tests
+  const thruster = await prisma.movement.upsert({
+    where: { name: `NW-Thruster-${TS}` },
+    update: {},
+    create: { name: `NW-Thruster-${TS}`, status: 'ACTIVE' },
+  })
+  const pullUp = await prisma.movement.upsert({
+    where: { name: `NW-PullUp-${TS}` },
+    update: {},
+    create: { name: `NW-PullUp-${TS}`, status: 'ACTIVE' },
+  })
+  thrusterId = thruster.id
+  pullUpId = pullUp.id
+
   const workout = await prisma.workout.create({
     data: {
       title: 'NW Workout',
@@ -98,7 +114,6 @@ async function setup() {
       type: 'AMRAP',
       scheduledAt: new Date('2030-06-01T12:00:00Z'),
       programId,
-      movements: [],
     },
   })
   workoutId = workout.id
@@ -121,6 +136,8 @@ async function teardown() {
   }
   // Clean up any other named workouts created during tests
   await prisma.namedWorkout.deleteMany({ where: { name: { contains: `NW-${TS}` } } })
+  // Clean up seeded movements
+  await prisma.movement.deleteMany({ where: { name: { contains: `-${TS}` } } })
   await prisma.program.delete({ where: { id: programId } }).catch(() => {})
   await prisma.gym.delete({ where: { id: gymId } }).catch(() => {})
 }
@@ -152,7 +169,7 @@ async function testCreateNamedWorkoutWithTemplate() {
     template: {
       type: 'FOR_TIME',
       description: '21-15-9\nThrusters 95/65\nPull-ups',
-      movements: ['thrusters', 'pull-ups'],
+      movementIds: [thrusterId, pullUpId],
     },
   })
   check('status 201', 201, r.status)
@@ -161,7 +178,9 @@ async function testCreateNamedWorkoutWithTemplate() {
   const tmpl = (r.body as Record<string, unknown>).templateWorkout as Record<string, unknown> | null
   check('templateWorkout exists', true, tmpl !== null)
   check('template type', 'FOR_TIME', tmpl?.type)
-  check('template movements', 'thrusters,pull-ups', (tmpl?.movements as string[])?.join(','))
+  const wms = tmpl?.workoutMovements as { movement: { id: string } }[] | undefined
+  const returnedIds = wms?.map((wm) => wm.movement.id).sort().join(',') ?? ''
+  check('template movementIds', [thrusterId, pullUpId].sort().join(','), returnedIds)
   namedWorkoutId = (r.body as Record<string, unknown>).id as string
 }
 
@@ -196,13 +215,15 @@ async function testPatchNamedWorkout() {
 }
 
 async function testPatchWorkoutWithMovementsAndNamedWorkout() {
-  console.log('\n[PATCH /workouts/:id] — movements + namedWorkoutId')
+  console.log('\n[PATCH /workouts/:id] — movementIds + namedWorkoutId')
   const r = await api('PATCH', `/workouts/${workoutId}`, programmerToken, {
-    movements: ['thrusters', 'pull-ups'],
+    movementIds: [thrusterId, pullUpId],
     namedWorkoutId,
   })
   check('status 200', 200, r.status)
-  check('movements set', 'thrusters,pull-ups', ((r.body as Record<string, unknown>).movements as string[])?.join(','))
+  const wms = (r.body as Record<string, unknown>).workoutMovements as { movement: { id: string; name: string } }[] | undefined
+  const returnedIds = wms?.map((wm) => wm.movement.id).sort().join(',') ?? ''
+  check('workoutMovements set', [thrusterId, pullUpId].sort().join(','), returnedIds)
   check('namedWorkoutId set', namedWorkoutId, (r.body as Record<string, unknown>).namedWorkoutId)
   const nw = (r.body as Record<string, unknown>).namedWorkout as Record<string, unknown> | null
   check('namedWorkout included', true, nw !== null)
@@ -210,10 +231,12 @@ async function testPatchWorkoutWithMovementsAndNamedWorkout() {
 }
 
 async function testGetWorkoutIncludesNewFields() {
-  console.log('\n[GET /workouts/:id] — includes movements + namedWorkout')
+  console.log('\n[GET /workouts/:id] — includes workoutMovements + namedWorkout')
   const r = await api('GET', `/workouts/${workoutId}`, programmerToken)
   check('status 200', 200, r.status)
-  check('movements present', 'thrusters,pull-ups', ((r.body as Record<string, unknown>).movements as string[])?.join(','))
+  const wms = (r.body as Record<string, unknown>).workoutMovements as { movement: { id: string } }[] | undefined
+  const returnedIds = wms?.map((wm) => wm.movement.id).sort().join(',') ?? ''
+  check('workoutMovements present', [thrusterId, pullUpId].sort().join(','), returnedIds)
   const nw = (r.body as Record<string, unknown>).namedWorkout as Record<string, unknown> | null
   check('namedWorkout present', true, nw !== null)
   check('namedWorkout category', 'GIRL_WOD', nw?.category)
@@ -225,7 +248,9 @@ async function testApplyTemplate() {
   check('status 200', 200, r.status)
   check('type copied from template', 'FOR_TIME', (r.body as Record<string, unknown>).type)
   check('description copied from template', '21-15-9\nThrusters 95/65\nPull-ups', (r.body as Record<string, unknown>).description)
-  check('movements copied from template', 'thrusters,pull-ups', ((r.body as Record<string, unknown>).movements as string[])?.join(','))
+  const wms = (r.body as Record<string, unknown>).workoutMovements as { movement: { id: string } }[] | undefined
+  const returnedIds = wms?.map((wm) => wm.movement.id).sort().join(',') ?? ''
+  check('movements copied from template', [thrusterId, pullUpId].sort().join(','), returnedIds)
 }
 
 async function testApplyTemplateNoNamedWorkout() {
