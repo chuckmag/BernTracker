@@ -11,7 +11,7 @@ export const CreateWorkoutSchema = z.object({
   type: WorkoutTypeSchema,
   scheduledAt: z.string().datetime(),
   dayOrder: z.number().int().min(0).optional(),
-  movements: z.array(z.string().min(1)).optional(),
+  movementIds: z.array(z.string()).optional(),
   namedWorkoutId: z.string().optional(),
 })
 
@@ -22,7 +22,7 @@ export const UpdateWorkoutSchema = z
     type: WorkoutTypeSchema.optional(),
     scheduledAt: z.string().datetime().optional(),
     dayOrder: z.number().int().min(0).optional(),
-    movements: z.array(z.string().min(1)).optional(),
+    movementIds: z.array(z.string()).optional(),
     namedWorkoutId: z.string().nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: 'At least one field is required' })
@@ -34,7 +34,7 @@ export const CreateNamedWorkoutSchema = z.object({
   template: z.object({
     type: WorkoutTypeSchema,
     description: z.string().min(1),
-    movements: z.array(z.string().min(1)).optional(),
+    movementIds: z.array(z.string()).optional(),
   }).optional(),
 })
 

@@ -38,6 +38,12 @@ enum WorkoutStatus {
   PUBLISHED
 }
 
+enum MovementStatus {
+  ACTIVE
+  PENDING
+  REJECTED
+}
+
 // Self-identified gender — stored on the user profile for demographics
 // and communication preferences. Nullable: users are never required to share.
 enum Gender {
@@ -197,16 +203,16 @@ model Workout {
   status      WorkoutStatus @default(DRAFT)
   scheduledAt DateTime
   dayOrder    Int           @default(0)
-  movements   String[]      @default([])
   namedWorkoutId String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   // nullable: members can log personal workouts outside any program
-  program      Program?      @relation(fields: [programId], references: [id], onDelete: SetNull)
-  results      Result[]
-  namedWorkout NamedWorkout? @relation("NamedWorkoutInstances", fields: [namedWorkoutId], references: [id])
-  templateFor  NamedWorkout? @relation("NamedWorkoutTemplate")  // required by Prisma parser — not used in queries
+  program          Program?      @relation(fields: [programId], references: [id], onDelete: SetNull)
+  results          Result[]
+  namedWorkout     NamedWorkout? @relation("NamedWorkoutInstances", fields: [namedWorkoutId], references: [id])
+  templateFor      NamedWorkout? @relation("NamedWorkoutTemplate")  // required by Prisma parser — not used in queries
+  workoutMovements WorkoutMovement[]
 }
 
 model Result {
@@ -223,4 +229,28 @@ model Result {
   workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
 
   @@unique([userId, workoutId])
+}
+
+model Movement {
+  id         String         @id @default(cuid())
+  name       String         @unique
+  status     MovementStatus @default(ACTIVE)
+  parentId   String?
+  parent     Movement?      @relation("MovementVariations", fields: [parentId], references: [id])
+  variations Movement[]     @relation("MovementVariations")
+  workouts   WorkoutMovement[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([parentId])
+}
+
+model WorkoutMovement {
+  workoutId  String
+  movementId String
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  movement   Movement @relation(fields: [movementId], references: [id], onDelete: Restrict)
+
+  @@id([workoutId, movementId])
+  @@index([movementId])
 }
