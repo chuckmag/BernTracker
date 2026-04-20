@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api, TYPE_ABBR, type GymProgram, type NamedWorkout, type Role, type Workout, type WorkoutType } from '../lib/api'
+import { api, TYPE_ABBR, type GymProgram, type Movement, type NamedWorkout, type Role, type Workout, type WorkoutType } from '../lib/api'
 
 const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
   { value: 'AMRAP', label: 'AMRAP' },
@@ -36,8 +36,14 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const [description, setDescription] = useState('')
   const [namedWorkouts, setNamedWorkouts] = useState<NamedWorkout[]>([])
   const [namedWorkoutId, setNamedWorkoutId] = useState<string | null>(null)
-  const [movements, setMovements] = useState<string[]>([])
-  const [movementsInput, setMovementsInput] = useState('')
+  const [allMovements, setAllMovements] = useState<Movement[]>([])
+  const [selectedMovements, setSelectedMovements] = useState<Movement[]>([])
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  const [movementSearch, setMovementSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [detectLoading, setDetectLoading] = useState(false)
+  const [suggestLoading, setSuggestLoading] = useState(false)
+  const [suggestError, setSuggestError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [reordering, setReordering] = useState(false)
@@ -50,6 +56,9 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     if (!isOpen) return
     api.namedWorkouts.list()
       .then(setNamedWorkouts)
+      .catch(() => {}) // non-fatal
+    api.movements.list()
+      .then(setAllMovements)
       .catch(() => {}) // non-fatal
     if (isEdit) return
     setProgramsLoading(true)
@@ -69,8 +78,11 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       setDescription(workout?.description ?? '')
       setProgramId(workout?.programId ?? '')
       setNamedWorkoutId(workout?.namedWorkoutId ?? null)
-      setMovements(workout?.movements ?? [])
-      setMovementsInput('')
+      setSelectedMovements(workout?.workoutMovements?.map((wm) => wm.movement) ?? [])
+      setDismissedIds(new Set())
+      setMovementSearch('')
+      setSearchOpen(false)
+      setSuggestError(null)
       setError(null)
       setShowPublishConfirm(false)
       setShowDeleteConfirm(false)
@@ -86,21 +98,35 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen, onClose])
 
+  // Auto-detect movements from description (debounced 800ms)
+  useEffect(() => {
+    if (!isOpen || !description.trim() || allMovements.length === 0) return
+    const timer = setTimeout(() => {
+      setDetectLoading(true)
+      api.movements.detect(description)
+        .then((detected) => {
+          setSelectedMovements((prev) => {
+            const currentIds = new Set(prev.map((m) => m.id))
+            const toAdd = detected.filter((m) => !currentIds.has(m.id) && !dismissedIds.has(m.id))
+            return toAdd.length > 0 ? [...prev, ...toAdd] : prev
+          })
+        })
+        .catch(() => {})
+        .finally(() => setDetectLoading(false))
+    }, 800)
+    return () => clearTimeout(timer)
+  // dismissedIds intentionally omitted — closure captures current value without triggering re-runs on dismiss
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [description, isOpen, allMovements.length])
+
   function handleApplyTemplate() {
     const nw = namedWorkouts.find((n) => n.id === namedWorkoutId)
     if (!nw?.templateWorkout) return
     setTitle(nw.name)
     setType(nw.templateWorkout.type)
     setDescription(nw.templateWorkout.description)
-    setMovements(nw.templateWorkout.movements)
-  }
-
-  function handleMovementsKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if ((e.key === ',' || e.key === 'Enter') && movementsInput.trim()) {
-      e.preventDefault()
-      setMovements((prev) => [...prev, movementsInput.trim()])
-      setMovementsInput('')
-    }
+    setSelectedMovements(nw.templateWorkout.workoutMovements?.map((wm) => wm.movement) ?? [])
+    setDismissedIds(new Set())
   }
 
   function validate() {
@@ -115,11 +141,12 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setSaving(true)
     setError(null)
     try {
+      const movementIds = selectedMovements.map((m) => m.id)
       if (isEdit) {
-        await api.workouts.update(workout.id, { title: title.trim(), description, type, movements, namedWorkoutId })
+        await api.workouts.update(workout.id, { title: title.trim(), description, type, movementIds, namedWorkoutId })
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-        await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined })
+        await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movementIds, namedWorkoutId: namedWorkoutId ?? undefined })
       }
       onSaved()
       setSaving(false)
@@ -134,12 +161,13 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setSaving(true)
     setError(null)
     try {
+      const movementIds = selectedMovements.map((m) => m.id)
       if (isEdit) {
-        await api.workouts.update(workout.id, { title: title.trim(), description, type, movements, namedWorkoutId })
+        await api.workouts.update(workout.id, { title: title.trim(), description, type, movementIds, namedWorkoutId })
         await api.workouts.publish(workout.id)
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-        const created = await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined })
+        const created = await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movementIds, namedWorkoutId: namedWorkoutId ?? undefined })
         await api.workouts.publish(created.id)
       }
       onSaved()
@@ -391,35 +419,116 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Movements</label>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {movements.map((m, i) => (
-                <span
-                  key={i}
-                  className="flex items-center gap-1 bg-gray-700 text-gray-200 text-xs px-2 py-1 rounded-full"
-                >
-                  {m}
-                  <button
-                    type="button"
-                    onClick={() => setMovements((prev) => prev.filter((_, idx) => idx !== i))}
-                    className="text-gray-400 hover:text-white leading-none"
-                    aria-label={`Remove ${m}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <input
-              type="text"
-              value={movementsInput}
-              onChange={(e) => setMovementsInput(e.target.value)}
-              onKeyDown={handleMovementsKeyDown}
-              placeholder="e.g. thrusters, pull-ups — press comma or Enter to add"
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500"
-            />
-          </div>
+          {(() => {
+            const selectedIds = new Set(selectedMovements.map((m) => m.id))
+            const searchResults = movementSearch.trim()
+              ? allMovements
+                  .filter((m) => m.name.toLowerCase().includes(movementSearch.toLowerCase()) && !selectedIds.has(m.id))
+                  .slice(0, 6)
+              : []
+            const hasExactMatch = allMovements.some(
+              (m) => m.name.toLowerCase() === movementSearch.trim().toLowerCase()
+            )
+            return (
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">
+                  Movements
+                  {detectLoading && <span className="ml-2 text-gray-600 text-[10px]">detecting…</span>}
+                </label>
+
+                {selectedMovements.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {selectedMovements.map((m) => (
+                      <span
+                        key={m.id}
+                        className="flex items-center gap-1 bg-gray-700 text-gray-200 text-xs px-2 py-1 rounded-full"
+                      >
+                        {m.name}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedMovements((prev) => prev.filter((x) => x.id !== m.id))
+                            setDismissedIds((prev) => new Set([...prev, m.id]))
+                          }}
+                          className="text-gray-400 hover:text-white leading-none"
+                          aria-label={`Remove ${m.name}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={movementSearch}
+                    onChange={(e) => { setMovementSearch(e.target.value); setSearchOpen(true); setSuggestError(null) }}
+                    onFocus={() => setSearchOpen(true)}
+                    onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                    placeholder="Search movements to add…"
+                    className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+                  />
+
+                  {searchOpen && movementSearch.trim() && (
+                    <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-700 rounded shadow-lg overflow-hidden">
+                      {searchResults.map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onMouseDown={() => {
+                            setSelectedMovements((prev) => [...prev, m])
+                            setMovementSearch('')
+                            setSearchOpen(false)
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+                        >
+                          {m.name}
+                          {m.parentId && (
+                            <span className="ml-1 text-gray-500 text-xs">
+                              ({allMovements.find((x) => x.id === m.parentId)?.name ?? 'variation'})
+                            </span>
+                          )}
+                        </button>
+                      ))}
+
+                      {!hasExactMatch && (
+                        <button
+                          type="button"
+                          disabled={suggestLoading}
+                          onMouseDown={async () => {
+                            const name = movementSearch.trim()
+                            setSuggestLoading(true)
+                            setSuggestError(null)
+                            try {
+                              const suggested = await api.movements.suggest({ name })
+                              setSelectedMovements((prev) => [...prev, suggested])
+                              setMovementSearch('')
+                              setSearchOpen(false)
+                            } catch (e) {
+                              setSuggestError((e as Error).message)
+                            } finally {
+                              setSuggestLoading(false)
+                            }
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-indigo-400 hover:bg-gray-700 transition-colors border-t border-gray-700 disabled:opacity-50"
+                        >
+                          {suggestLoading ? 'Suggesting…' : `Suggest "${movementSearch.trim()}" as new movement`}
+                        </button>
+                      )}
+
+                      {searchResults.length === 0 && hasExactMatch && (
+                        <div className="px-3 py-2 text-sm text-gray-500">Already added</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {suggestError && <p className="text-red-400 text-xs mt-1">{suggestError}</p>}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Footer */}

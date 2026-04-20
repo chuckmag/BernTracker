@@ -74,6 +74,12 @@ async function req<T>(path: string, opts: RequestInit & { token?: string } = {})
 }
 
 export type Role = 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER'
+
+export interface Movement {
+  id: string
+  name: string
+  parentId: string | null
+}
 export type WorkoutType = 'STRENGTH' | 'FOR_TIME' | 'EMOM' | 'CARDIO' | 'AMRAP' | 'METCON' | 'WARMUP'
 export type WorkoutCategory = 'GIRL_WOD' | 'HERO_WOD' | 'OPEN_WOD' | 'GAMES_WOD' | 'BENCHMARK'
 
@@ -94,7 +100,7 @@ export interface NamedWorkout {
   category: WorkoutCategory
   aliases: string[]
   isActive: boolean
-  templateWorkout: { id: string; type: WorkoutType; description: string; movements: string[] } | null
+  templateWorkout: { id: string; type: WorkoutType; description: string; workoutMovements: { movement: Movement }[] } | null
 }
 
 export interface Workout {
@@ -105,7 +111,7 @@ export interface Workout {
   status: WorkoutStatus
   scheduledAt: string
   dayOrder: number
-  movements: string[]
+  workoutMovements: { movement: Movement }[]
   programId: string | null
   program: { id: string; name: string } | null
   namedWorkoutId: string | null
@@ -240,14 +246,14 @@ export const api = {
 
     create: (
       gymId: string,
-      data: { programId?: string; title: string; description: string; type: WorkoutType; scheduledAt: string; movements?: string[]; namedWorkoutId?: string },
+      data: { programId?: string; title: string; description: string; type: WorkoutType; scheduledAt: string; movementIds?: string[]; namedWorkoutId?: string },
       token?: string,
     ) =>
       req<Workout>(`/api/gyms/${gymId}/workouts`, { method: 'POST', body: JSON.stringify(data), token }),
 
     update: (
       id: string,
-      data: { title?: string; description?: string; type?: WorkoutType; scheduledAt?: string; dayOrder?: number; movements?: string[]; namedWorkoutId?: string | null },
+      data: { title?: string; description?: string; type?: WorkoutType; scheduledAt?: string; dayOrder?: number; movementIds?: string[]; namedWorkoutId?: string | null },
       token?: string,
     ) =>
       req<Workout>(`/api/workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
@@ -309,6 +315,25 @@ export const api = {
 
     history: (page = 1, token?: string) =>
       req<ResultHistoryPage>(`/api/me/results?page=${page}`, { token }),
+  },
+
+  movements: {
+    list: (token?: string) =>
+      req<Movement[]>('/api/movements', { token }),
+
+    detect: (description: string, token?: string) =>
+      req<Movement[]>('/api/movements/detect', {
+        method: 'POST',
+        body: JSON.stringify({ description }),
+        token,
+      }),
+
+    suggest: (data: { name: string; parentId?: string }, token?: string) =>
+      req<Movement>('/api/movements/suggest', {
+        method: 'POST',
+        body: JSON.stringify(data),
+        token,
+      }),
   },
 
   programs: {
