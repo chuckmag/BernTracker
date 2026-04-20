@@ -19,6 +19,7 @@ import {
   deleteWorkout,
   applyTemplateToWorkout,
 } from '../db/workoutDbManager.js'
+import { expandMovementIdsWithVariations } from '../db/movementDbManager.js'
 import {
   findGymMembershipByUserAndGym
 } from '../db/userGymDbManager.js'
@@ -74,7 +75,14 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
 
   const membership = await findGymMembershipByUserAndGym(req.user!.id, gymId)
   const publishedOnly = membership?.role === Role.MEMBER
-  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly })
+
+  const rawMovementIds = req.query.movementIds
+  const movementIdList = rawMovementIds ? String(rawMovementIds).split(',').filter(Boolean) : []
+  const movementIds = movementIdList.length
+    ? await expandMovementIdsWithVariations(movementIdList)
+    : undefined
+
+  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly, movementIds })
   res.json(workouts)
 }
 

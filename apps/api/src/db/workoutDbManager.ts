@@ -25,6 +25,7 @@ interface UpdateWorkoutData {
 
 interface WorkoutDateRangeFilters {
   publishedOnly?: boolean
+  movementIds?: string[]
 }
 
 const programSelect = { select: { id: true, name: true } } as const
@@ -71,6 +72,9 @@ export async function findWorkoutsByGymAndDateRange(
       scheduledAt: { gte: from, lte: to },
       program: { gyms: { some: { gymId } } },
       ...(filters.publishedOnly ? { status: WorkoutStatus.PUBLISHED } : {}),
+      ...(filters.movementIds?.length
+        ? { workoutMovements: { some: { movementId: { in: filters.movementIds } } } }
+        : {}),
     },
     // createdAt is a stable tiebreaker for equal dayOrder values (e.g. pre-migration rows defaulted to 0)
     orderBy: [{ scheduledAt: 'asc' }, { dayOrder: 'asc' }, { createdAt: 'asc' }],

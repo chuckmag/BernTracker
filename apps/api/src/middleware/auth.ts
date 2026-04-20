@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import type { Role } from '@berntracker/db'
+import { prisma } from '@berntracker/db'
 import { verifyAccessToken } from '../lib/jwt.js'
 import { createLogger } from '../lib/logger.js'
 
@@ -32,4 +33,20 @@ export function requireRole(...roles: Role[]) {
     }
     next()
   }
+}
+
+export async function requireMovementReviewer(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const reviewerEmail = process.env.MOVEMENT_REVIEWER_EMAIL
+  if (!reviewerEmail) {
+    log.warning(req, `requireMovementReviewer: MOVEMENT_REVIEWER_EMAIL not set — ${req.method} ${req.path}`)
+    res.status(403).json({ error: 'Forbidden' })
+    return
+  }
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { email: true } })
+  if (user?.email !== reviewerEmail) {
+    log.warning(req, `requireMovementReviewer: access denied — ${req.method} ${req.path} — userId=${req.user?.id}`)
+    res.status(403).json({ error: 'Forbidden' })
+    return
+  }
+  next()
 }
