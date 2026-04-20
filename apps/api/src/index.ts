@@ -8,6 +8,7 @@ import programsRouter from './routes/programs'
 import workoutsRouter from './routes/workouts'
 import resultsRouter from './routes/results'
 import namedWorkoutsRouter from './routes/namedWorkouts'
+import movementsRouter from './routes/movements'
 import { createLogger } from './lib/logger.js'
 import { requestLogger } from './middleware/requestLogger.js'
 
@@ -47,6 +48,7 @@ app.use('/api', programsRouter)
 app.use('/api', workoutsRouter)
 app.use('/api', resultsRouter)
 app.use('/api', namedWorkoutsRouter)
+app.use('/api', movementsRouter)
 
 const logError = createLogger('error')
 

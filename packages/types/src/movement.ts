@@ -11,5 +11,16 @@ export const MovementSchema = z.object({
   variations: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
 })
 
+export const SuggestMovementSchema = z.object({
+  name: z.string().min(1),
+  parentId: z.string().optional(),
+})
+
+export const ReviewMovementSchema = z.object({
+  status: z.enum(['ACTIVE', 'REJECTED']),
+})
+
 export type MovementStatus = z.infer<typeof MovementStatusSchema>
 export type Movement = z.infer<typeof MovementSchema>
+export type SuggestMovementInput = z.infer<typeof SuggestMovementSchema>
+export type ReviewMovementInput = z.infer<typeof ReviewMovementSchema>
