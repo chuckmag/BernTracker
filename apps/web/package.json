@@ -8,8 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "tsc --noEmit",
     "preview": "vite preview",
-    "test": "npx dotenv-cli -e ../../.env -- npx playwright test",
-    "test:unit": "vitest run"
+    "test": "vitest run && npx dotenv-cli -e ../../.env -- npx playwright test",
+    "test:unit": "vitest run",
+    "test:e2e": "npx dotenv-cli -e ../../.env -- npx playwright test"
   },
   "dependencies": {
     "react": "^19.0.0",
