@@ -95,7 +95,11 @@ export async function detectMovementsInText(description: string) {
   const matchedIds = new Set<string>()
   for (const gram of ngrams) {
     for (const result of fuse.search(gram)) {
-      matchedIds.add(result.item.id)
+      // Require the n-gram to cover ≥60% of the movement name length.
+      // Prevents short n-grams ("pull") from matching long names ("Burpee Pull-up", "Sumo Deadlift High Pull").
+      if (gram.length / result.item.name.length >= 0.6) {
+        matchedIds.add(result.item.id)
+      }
     }
   }
 
