@@ -155,11 +155,11 @@ export default function WodDetail() {
       )}
 
       {/* Movements */}
-      {workout.movements.length > 0 && (
+      {(workout.workoutMovements?.length ?? 0) > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {workout.movements.map((m, i) => (
-            <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300 border border-gray-700">
-              {m}
+          {workout.workoutMovements?.map((wm) => (
+            <span key={wm.movement.id} className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300 border border-gray-700">
+              {wm.movement.name}
             </span>
           ))}
         </div>

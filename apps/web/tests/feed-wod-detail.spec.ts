@@ -11,6 +11,7 @@
  *   T7: WOD Detail results table shows logged results
  *   T8: Level filter chips correctly filter results
  *   T9: "Your Result" badge appears when the current user has a result
+ *   T12: WOD Detail renders movement chips and does not crash when workoutMovements is present
  *
  * Requires: turbo dev running (API on :3000, web on :5173)
  * Run: npm run test --workspace=@berntracker/web
@@ -49,6 +50,8 @@ let memberUserId = ''
 let programmerUserId = ''
 let publishedWorkoutId = ''
 let longTitleWorkoutId = ''
+let movementWorkoutId = ''
+let movementId = ''
 
 // ─── DB helpers ───────────────────────────────────────────────────────────────
 
@@ -164,10 +167,33 @@ test.describe('Feed + WOD Detail E2E (#48)', () => {
       },
     })
     longTitleWorkoutId = longTitle.id
+
+    // Workout with a tagged movement — used by T12 to verify movements section renders
+    const movement = await prisma.movement.upsert({
+      where: { name: 'Thruster' },
+      update: {},
+      create: { name: 'Thruster', status: 'ACTIVE' },
+    })
+    movementId = movement.id
+
+    const movementWorkout = await prisma.workout.create({
+      data: {
+        title: 'E2E Movement Chips',
+        description: '5x5 Thruster',
+        type: 'STRENGTH',
+        status: 'PUBLISHED',
+        scheduledAt: new Date(WORKOUT_ISO),
+        programId,
+        dayOrder: 3,
+        workoutMovements: { create: { movementId } },
+      },
+    })
+    movementWorkoutId = movementWorkout.id
   })
 
   test.afterAll(async () => {
-    await prisma.result.deleteMany({ where: { workoutId: { in: [publishedWorkoutId, longTitleWorkoutId] } } })
+    await prisma.workoutMovement.deleteMany({ where: { workoutId: movementWorkoutId } })
+    await prisma.result.deleteMany({ where: { workoutId: { in: [publishedWorkoutId, longTitleWorkoutId, movementWorkoutId] } } })
     await prisma.workout.deleteMany({ where: { programId } })
     await prisma.program.delete({ where: { id: programId } }).catch(() => {})
     await prisma.user.deleteMany({ where: { id: { in: [memberUserId, programmerUserId] } } })
@@ -400,5 +426,22 @@ test.describe('Feed + WOD Detail E2E (#48)', () => {
     // Card must be taller than a single-line card (title has wrapped)
     // Single-line cards are ~44px tall (py-3 top+bottom = 24px + ~20px text line)
     expect(cardBox?.height).toBeGreaterThan(48)
+  })
+
+  // ── T12: WOD Detail renders movement chips without crashing ──────────────
+
+  test('T12: WOD Detail renders movement chips and does not crash when workoutMovements is present', async ({ page }) => {
+    await loginAndGoToFeed(page, MEMBER_EMAIL, MEMBER_PASSWORD)
+    await page.goto(`/workouts/${movementWorkoutId}`)
+    await page.waitForSelector(`h1:has-text("E2E Movement Chips")`)
+
+    // Page must load without JS errors — Playwright fails on uncaught exceptions by default
+    await expect(page.getByRole('heading', { name: 'E2E Movement Chips' })).toBeVisible()
+
+    // Movement chip for "Thruster" must be rendered
+    await expect(page.getByText('Thruster', { exact: true })).toBeVisible()
+
+    // Log Result button present (no result logged yet)
+    await expect(page.getByRole('button', { name: 'Log Result' })).toBeVisible()
   })
 })
