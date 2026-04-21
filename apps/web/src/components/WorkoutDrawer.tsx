@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { api, TYPE_ABBR, type GymProgram, type Movement, type NamedWorkout, type Role, type Workout, type WorkoutType } from '../lib/api'
 
 const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
@@ -44,6 +44,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const [detectLoading, setDetectLoading] = useState(false)
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [suggestError, setSuggestError] = useState<string | null>(null)
+  const skipNextDetectRef = useRef(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [reordering, setReordering] = useState(false)
@@ -102,6 +103,10 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   useEffect(() => {
     if (!isOpen || !description.trim() || allMovements.length === 0) return
     const timer = setTimeout(() => {
+      if (skipNextDetectRef.current) {
+        skipNextDetectRef.current = false
+        return
+      }
       setDetectLoading(true)
       api.movements.detect(description)
         .then((detected) => {
@@ -122,6 +127,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   function handleApplyTemplate() {
     const nw = namedWorkouts.find((n) => n.id === namedWorkoutId)
     if (!nw?.templateWorkout) return
+    skipNextDetectRef.current = true
     setTitle(nw.name)
     setType(nw.templateWorkout.type)
     setDescription(nw.templateWorkout.description)
@@ -450,7 +456,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                             setSelectedMovements((prev) => prev.filter((x) => x.id !== m.id))
                             setDismissedIds((prev) => new Set([...prev, m.id]))
                           }}
-                          className="text-gray-400 hover:text-white leading-none"
+                          className="flex items-center justify-center w-4 h-4 -mr-0.5 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors"
                           aria-label={`Remove ${m.name}`}
                         >
                           ×

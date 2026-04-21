@@ -81,12 +81,13 @@ export async function detectMovementsInText(description: string) {
     select: { id: true, name: true, parentId: true },
   })
 
-  const fuse = new Fuse(movements, { keys: ['name'], threshold: 0.35, includeScore: true })
+  const fuse = new Fuse(movements, { keys: ['name'], threshold: 0.2, includeScore: true })
 
   const words = description.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
   const ngrams = new Set<string>()
   for (let i = 0; i < words.length; i++) {
-    ngrams.add(words[i])
+    // Skip very short tokens (numbers, abbreviations) — they fuzzy-match too broadly
+    if (words[i].length >= 4) ngrams.add(words[i])
     if (words[i + 1]) ngrams.add(`${words[i]} ${words[i + 1]}`)
     if (words[i + 1] && words[i + 2]) ngrams.add(`${words[i]} ${words[i + 1]} ${words[i + 2]}`)
   }
