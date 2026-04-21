@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, TYPE_ABBR, type HistoryResult, type Movement, type WorkoutLevel, type WorkoutType } from '../lib/api.ts'
+import MovementFilterInput from '../components/MovementFilterInput.tsx'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   RX_PLUS: 'RX+',
@@ -62,16 +63,6 @@ export default function History() {
     return () => { cancelled = true }
   }, [page, filterMovementIds])
 
-  function toggleMovement(id: string) {
-    setPage(1)
-    setFilterMovementIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  }
-
-  function clearFilters() {
-    setPage(1)
-    setFilterMovementIds([])
-  }
-
   // Group results by month
   const groups: { month: string; rows: HistoryResult[] }[] = []
   for (const r of results) {
@@ -88,36 +79,14 @@ export default function History() {
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">History</h1>
 
-      {/* Movement filter chips */}
+      {/* Movement filter */}
       {allMovements.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {allMovements.map((m) => {
-            const active = filterMovementIds.includes(m.id)
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => toggleMovement(m.id)}
-                className={[
-                  'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                  active
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white',
-                ].join(' ')}
-              >
-                {m.name}
-              </button>
-            )
-          })}
-          {filterMovementIds.length > 0 && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="px-3 py-1 rounded-full text-xs font-medium bg-gray-900 text-gray-500 hover:text-gray-300 border border-gray-700 transition-colors"
-            >
-              Clear filters
-            </button>
-          )}
+        <div className="px-3 py-2 bg-gray-900 rounded-lg border border-gray-800">
+          <MovementFilterInput
+            allMovements={allMovements}
+            selectedIds={filterMovementIds}
+            onChange={(ids) => { setPage(1); setFilterMovementIds(ids) }}
+          />
         </div>
       )}
 

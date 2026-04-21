@@ -3,6 +3,7 @@ import { api, type Workout, type Movement } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import CalendarCell from '../components/CalendarCell'
 import WorkoutDrawer from '../components/WorkoutDrawer'
+import MovementFilterInput from '../components/MovementFilterInput'
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -125,40 +126,14 @@ export default function Calendar() {
         </div>
       </div>
 
-      {/* Movement filter chips */}
+      {/* Movement filter */}
       {allMovements.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {allMovements.map((m) => {
-            const active = filterMovementIds.includes(m.id)
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() =>
-                  setFilterMovementIds((prev) =>
-                    active ? prev.filter((id) => id !== m.id) : [...prev, m.id],
-                  )
-                }
-                className={[
-                  'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                  active
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white',
-                ].join(' ')}
-              >
-                {m.name}
-              </button>
-            )
-          })}
-          {filterMovementIds.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setFilterMovementIds([])}
-              className="px-3 py-1 rounded-full text-xs font-medium bg-gray-900 text-gray-500 hover:text-gray-300 border border-gray-700 transition-colors"
-            >
-              Clear filters
-            </button>
-          )}
+        <div className="mb-4 px-3 py-2 bg-gray-900 rounded-lg border border-gray-800">
+          <MovementFilterInput
+            allMovements={allMovements}
+            selectedIds={filterMovementIds}
+            onChange={setFilterMovementIds}
+          />
         </div>
       )}
 
