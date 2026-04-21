@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { ErrorBoundary } from 'react-error-boundary'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { GymProvider } from './context/GymContext.tsx'
 import RequireAuth from './components/RequireAuth.tsx'
@@ -15,6 +16,30 @@ import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
 import History from './pages/History.tsx'
 
+export function PageErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
+  const navigate = useNavigate()
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
+      <p className="text-gray-400 text-sm">Something went wrong on this page.</p>
+      <p className="text-gray-600 text-xs font-mono">{error.message}</p>
+      <div className="flex gap-3">
+        <button
+          onClick={resetErrorBoundary}
+          className="px-4 py-2 text-sm rounded bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+        >
+          Try again
+        </button>
+        <button
+          onClick={() => { resetErrorBoundary(); navigate('/feed') }}
+          className="px-4 py-2 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
+        >
+          Back to Feed
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
@@ -24,16 +49,18 @@ function AppLayout() {
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
         <TopBar onMenuClick={() => setMobileNavOpen(true)} />
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">
-          <Routes>
-            <Route path="/" element={<Navigate to="/feed" replace />} />
-            <Route path="/feed" element={<Feed />} />
-            <Route path="/workouts/:id" element={<WodDetail />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/members" element={<Members />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
+          <ErrorBoundary FallbackComponent={PageErrorFallback} resetKeys={[window.location.pathname]}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/feed" replace />} />
+              <Route path="/feed" element={<Feed />} />
+              <Route path="/workouts/:id" element={<WodDetail />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/members" element={<Members />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </ErrorBoundary>
         </main>
       </div>
     </div>
