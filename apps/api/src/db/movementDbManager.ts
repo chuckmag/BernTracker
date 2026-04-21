@@ -81,7 +81,7 @@ export async function detectMovementsInText(description: string) {
     select: { id: true, name: true, parentId: true },
   })
 
-  const fuse = new Fuse(movements, { keys: ['name'], threshold: 0.2, includeScore: true })
+  const fuse = new Fuse(movements, { keys: ['name'], threshold: 0.3, includeScore: true })
 
   const words = description.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
   const ngrams = new Set<string>()
