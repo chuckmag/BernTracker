@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { ErrorBoundary } from 'react-error-boundary'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { GymProvider } from './context/GymContext.tsx'
+import { MovementsProvider } from './context/MovementsContext.tsx'
 import RequireAuth from './components/RequireAuth.tsx'
 import Sidebar from './components/Sidebar.tsx'
 import TopBar from './components/TopBar.tsx'
@@ -78,7 +79,9 @@ export default function App() {
           element={
             <RequireAuth>
               <GymProvider>
-                <AppLayout />
+                <MovementsProvider>
+                  <AppLayout />
+                </MovementsProvider>
               </GymProvider>
             </RequireAuth>
           }

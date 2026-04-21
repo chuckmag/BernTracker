@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, type Workout, type Movement } from '../lib/api'
+import { api, type Workout } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
+import { useMovements } from '../context/MovementsContext.tsx'
 import CalendarCell from '../components/CalendarCell'
 import WorkoutDrawer from '../components/WorkoutDrawer'
 import MovementFilterInput from '../components/MovementFilterInput'
@@ -16,6 +17,7 @@ const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function Calendar() {
   const { gymId, gymRole: userGymRole } = useGym()
+  const allMovements = useMovements()
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -24,12 +26,7 @@ export default function Calendar() {
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
-  const [allMovements, setAllMovements] = useState<Movement[]>([])
   const [filterMovementIds, setFilterMovementIds] = useState<string[]>([])
-
-  useEffect(() => {
-    api.movements.list().then(setAllMovements).catch(() => {})
-  }, [])
 
   const loadWorkouts = useCallback(async (signal?: { cancelled: boolean }) => {
     if (!gymId) return

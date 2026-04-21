@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, TYPE_ABBR, type HistoryResult, type Movement, type WorkoutLevel, type WorkoutType } from '../lib/api.ts'
+import { api, TYPE_ABBR, type HistoryResult, type WorkoutLevel, type WorkoutType } from '../lib/api.ts'
+import { useMovements } from '../context/MovementsContext.tsx'
 import MovementFilterInput from '../components/MovementFilterInput.tsx'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
@@ -40,17 +41,13 @@ function shortDate(dateStr: string): string {
 
 export default function History() {
   const navigate = useNavigate()
+  const allMovements = useMovements()
   const [results, setResults] = useState<HistoryResult[]>([])
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [allMovements, setAllMovements] = useState<Movement[]>([])
   const [filterMovementIds, setFilterMovementIds] = useState<string[]>([])
-
-  useEffect(() => {
-    api.movements.list().then(setAllMovements).catch(() => {})
-  }, [])
 
   useEffect(() => {
     let cancelled = false

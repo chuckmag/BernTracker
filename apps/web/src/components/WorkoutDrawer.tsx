@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { api, TYPE_ABBR, type GymProgram, type Movement, type NamedWorkout, type Role, type Workout, type WorkoutType } from '../lib/api'
+import { api, TYPE_ABBR, type GymProgram, type NamedWorkout, type Role, type Workout, type WorkoutType } from '../lib/api'
+import { useMovements } from '../context/MovementsContext.tsx'
 
 const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
   { value: 'AMRAP', label: 'AMRAP' },
@@ -28,6 +29,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const isOpen = dateKey !== null
   const isEdit = !!workout
 
+  const allMovements = useMovements()
   const [programs, setPrograms] = useState<GymProgram[]>([])
   const [programsLoading, setProgramsLoading] = useState(false)
   const [programId, setProgramId] = useState('')
@@ -36,7 +38,6 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const [description, setDescription] = useState('')
   const [namedWorkouts, setNamedWorkouts] = useState<NamedWorkout[]>([])
   const [namedWorkoutId, setNamedWorkoutId] = useState<string | null>(null)
-  const [allMovements, setAllMovements] = useState<Movement[]>([])
   const [selectedMovements, setSelectedMovements] = useState<Movement[]>([])
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [movementSearch, setMovementSearch] = useState('')
@@ -56,9 +57,6 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     if (!isOpen) return
     api.namedWorkouts.list()
       .then(setNamedWorkouts)
-      .catch(() => {}) // non-fatal
-    api.movements.list()
-      .then(setAllMovements)
       .catch(() => {}) // non-fatal
     if (isEdit) return
     setProgramsLoading(true)
