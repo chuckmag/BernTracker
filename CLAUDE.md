@@ -177,13 +177,48 @@ cd apps/api && npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do np
 
 ---
 
+### Web unit tests (Vitest + React Testing Library)
+
+Located in `apps/web/src/**/*.test.tsx`. Each test file lives next to the component it covers.
+
+**Run:**
+```bash
+npm run test:unit --workspace=@berntracker/web
+# or from apps/web:
+cd apps/web && npx vitest run
+```
+
+**Requires:** nothing running — fully in-process, no server or DB needed.
+
+**Setup:** Vitest is configured in `vite.config.ts` (`test.environment: 'jsdom'`). The global setup file `src/test/setup.ts` imports `@testing-library/jest-dom` matchers. Vitest globals (`describe`, `it`, `expect`, `vi`) are enabled so no imports are needed in test files.
+
+**When to write unit tests vs E2E:**
+- Unit tests cover **component rendering and logic**: does the page render without crashing? Are the right elements shown given a mocked API response? Use `vi.mock('../lib/api')` to control API responses.
+- E2E tests (Playwright) cover **user flows end-to-end**: navigation, real API calls, DB state. Use E2E when the correctness depends on the full stack.
+- **Every page must have at least one render test** that asserts it mounts without throwing. This catches crashes from type mismatches, missing fields, or bad assumptions about API shape — bugs that would otherwise only surface in the browser.
+
+**Test files:**
+
+| File | Covers |
+|---|---|
+| `src/pages/WodDetail.test.tsx` | WodDetail renders with empty movements, with movement chips, and with undefined workoutMovements |
+
+**Patterns to follow:**
+- Wrap the component in `<MemoryRouter>` with `<Routes>` matching the real URL pattern so `useParams` works.
+- Mock `../lib/api` fully — every `api.*` call used by the component must be mocked or the test will hang.
+- Mock `../context/AuthContext` to return a minimal `{ user: { id, name } }`.
+- Use `screen.findBy*` (async) for elements that appear after a resolved promise.
+
+---
+
 ### Web E2E tests (Playwright)
 
 Located in `apps/web/tests/`. Each spec file uses Playwright and seeds DB fixtures directly via `PrismaClient` (imported via `createRequire` to bypass ESM/CJS issues).
 
 **Run:**
 ```bash
-npm run test --workspace=@berntracker/web
+npm run test --workspace=@berntracker/web   # runs unit tests first, then E2E
+npm run test:e2e --workspace=@berntracker/web  # E2E only
 # or from apps/web:
 cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
 ```
@@ -195,7 +230,7 @@ cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
 | File | Covers |
 |---|---|
 | `tests/calendar-multi-workout.spec.ts` | Multi-workout calendar: overflow pills, drawer create/edit/delete, reorder, role gates |
-| `tests/feed-wod-detail.spec.ts` | Feed page, WOD Detail page: sidebar role awareness, workout display, results table, level filter chips, "Your Result" badge |
+| `tests/feed-wod-detail.spec.ts` | Feed page, WOD Detail page: sidebar role awareness, workout display, results table, level filter chips, "Your Result" badge, movement chips |
 
 **Patterns to follow:**
 - Use `test.describe.configure({ mode: 'serial' })` — tests share seeded DB state.
@@ -219,6 +254,9 @@ Every PR must include a **Tests** section that describes what was tested and how
 
 ```markdown
 ## Tests
+
+**Unit** (`apps/web/src/pages/<Page>.test.tsx`):
+- <what each test asserts — e.g. "renders without crashing", "shows movement chips">
 
 **API integration** (`apps/api/tests/<file>.ts`):
 - <what each case asserts — one bullet per meaningful assertion group>

@@ -35,3 +35,7 @@ apps/mobile/node_modules/
 
 # Claude Code
 .claude/worktrees/
+
+# Business plan / strategy docs — local only, not shared with the repo.
+# Remove this line if you decide to commit them later.
+business/
