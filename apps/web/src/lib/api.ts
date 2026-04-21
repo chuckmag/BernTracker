@@ -241,8 +241,11 @@ export const api = {
   },
 
   workouts: {
-    list: (gymId: string, from: string, to: string, token?: string) =>
-      req<Workout[]>(`/api/gyms/${gymId}/workouts?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { token }),
+    list: (gymId: string, from: string, to: string, movementIds?: string[], token?: string) => {
+      const base = `/api/gyms/${gymId}/workouts?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+      const qs = movementIds?.length ? `&${movementIds.map((id) => `movementIds=${encodeURIComponent(id)}`).join('&')}` : ''
+      return req<Workout[]>(`${base}${qs}`, { token })
+    },
 
     create: (
       gymId: string,
@@ -313,8 +316,10 @@ export const api = {
     delete: (resultId: string, token?: string) =>
       req<void>(`/api/results/${resultId}`, { method: 'DELETE', token }),
 
-    history: (page = 1, token?: string) =>
-      req<ResultHistoryPage>(`/api/me/results?page=${page}`, { token }),
+    history: (page = 1, movementIds?: string[], token?: string) => {
+      const qs = movementIds?.length ? `&${movementIds.map((id) => `movementIds=${encodeURIComponent(id)}`).join('&')}` : ''
+      return req<ResultHistoryPage>(`/api/me/results?page=${page}${qs}`, { token })
+    },
   },
 
   movements: {

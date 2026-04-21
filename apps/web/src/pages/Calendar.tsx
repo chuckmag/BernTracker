@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, type Workout } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
+import { useMovements } from '../context/MovementsContext.tsx'
 import CalendarCell from '../components/CalendarCell'
 import WorkoutDrawer from '../components/WorkoutDrawer'
+import MovementFilterInput from '../components/MovementFilterInput'
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -15,6 +17,7 @@ const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function Calendar() {
   const { gymId, gymRole: userGymRole } = useGym()
+  const allMovements = useMovements()
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -23,6 +26,7 @@ export default function Calendar() {
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
+  const [filterMovementIds, setFilterMovementIds] = useState<string[]>([])
 
   const loadWorkouts = useCallback(async (signal?: { cancelled: boolean }) => {
     if (!gymId) return
@@ -31,14 +35,14 @@ export default function Calendar() {
     try {
       const from = new Date(year, month, 1).toISOString()
       const to = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString()
-      const data = await api.workouts.list(gymId, from, to)
+      const data = await api.workouts.list(gymId, from, to, filterMovementIds.length ? filterMovementIds : undefined)
       if (!signal?.cancelled) setWorkouts(data)
     } catch (e) {
       if (!signal?.cancelled) setError((e as Error).message)
     } finally {
       if (!signal?.cancelled) setLoading(false)
     }
-  }, [gymId, year, month])
+  }, [gymId, year, month, filterMovementIds])
 
   useEffect(() => {
     const signal = { cancelled: false }
@@ -118,6 +122,17 @@ export default function Calendar() {
           </button>
         </div>
       </div>
+
+      {/* Movement filter */}
+      {allMovements.length > 0 && (
+        <div className="mb-4 px-3 py-2 bg-gray-900 rounded-lg border border-gray-800">
+          <MovementFilterInput
+            allMovements={allMovements}
+            selectedIds={filterMovementIds}
+            onChange={setFilterMovementIds}
+          />
+        </div>
+      )}
 
       {error && <p className="text-red-400 mb-4">{error}</p>}
 

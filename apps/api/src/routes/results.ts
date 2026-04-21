@@ -2,6 +2,7 @@ import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { createResult, findLeaderboardByWorkout, findResultHistoryByUser, updateResultByOwner, deleteResultByOwner } from '../db/resultDbManager.js'
+import { expandMovementIdsWithVariations } from '../db/movementDbManager.js'
 import { CreateResultSchema, UpdateResultSchema } from '@berntracker/types'
 import type { WorkoutLevel, WorkoutGender } from '@berntracker/db'
 
@@ -97,7 +98,14 @@ async function deleteResult(req: Request, res: Response) {
 async function getUserResultHistory(req: Request, res: Response) {
   const page = Math.max(1, parseInt(req.query.page as string) || 1)
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
+  const rawIds = req.query.movementIds
+  const rawMovementIds = Array.isArray(rawIds)
+    ? (rawIds as string[])
+    : typeof rawIds === 'string' && rawIds
+      ? rawIds.split(',')
+      : []
+  const movementIds = rawMovementIds.length ? await expandMovementIdsWithVariations(rawMovementIds) : []
 
-  const history = await findResultHistoryByUser(req.user!.id, { page, limit })
+  const history = await findResultHistoryByUser(req.user!.id, { page, limit, movementIds: movementIds.length ? movementIds : undefined })
   res.json(history)
 }
