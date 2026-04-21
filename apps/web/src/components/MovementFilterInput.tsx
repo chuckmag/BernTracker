@@ -66,6 +66,12 @@ export default function MovementFilterInput({
           onChange={(e) => { setSearch(e.target.value); setOpen(true) }}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onKeyDown={(e) => {
+            if (e.key === 'Tab' && searchResults.length === 1) {
+              e.preventDefault()
+              select(searchResults[0])
+            }
+          }}
           placeholder={selectedIds.length === 0 ? placeholder : 'Add movement…'}
           className="bg-transparent text-sm text-white placeholder-gray-600 outline-none w-36 focus:w-48 transition-all"
         />
