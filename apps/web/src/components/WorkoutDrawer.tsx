@@ -467,6 +467,14 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                     onChange={(e) => { setMovementSearch(e.target.value); setSearchOpen(true); setSuggestError(null) }}
                     onFocus={() => setSearchOpen(true)}
                     onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab' && searchResults.length === 1) {
+                        e.preventDefault()
+                        setSelectedMovements((prev) => [...prev, searchResults[0]])
+                        setMovementSearch('')
+                        setSearchOpen(false)
+                      }
+                    }}
                     placeholder="Search movements to add…"
                     className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500"
                   />
