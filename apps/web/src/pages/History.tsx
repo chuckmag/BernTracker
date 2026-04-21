@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, TYPE_ABBR, type HistoryResult, type WorkoutLevel, type WorkoutType } from '../lib/api.ts'
+import { api, TYPE_ABBR, type HistoryResult, type Movement, type WorkoutLevel, type WorkoutType } from '../lib/api.ts'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   RX_PLUS: 'RX+',
@@ -44,17 +44,33 @@ export default function History() {
   const [pages, setPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [allMovements, setAllMovements] = useState<Movement[]>([])
+  const [filterMovementIds, setFilterMovementIds] = useState<string[]>([])
+
+  useEffect(() => {
+    api.movements.list().then(setAllMovements).catch(() => {})
+  }, [])
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
-    api.results.history(page)
+    api.results.history(page, filterMovementIds.length ? filterMovementIds : undefined)
       .then((data) => { if (!cancelled) { setResults(data.results); setPages(data.pages) } })
       .catch((e) => { if (!cancelled) setError((e as Error).message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [page])
+  }, [page, filterMovementIds])
+
+  function toggleMovement(id: string) {
+    setPage(1)
+    setFilterMovementIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  function clearFilters() {
+    setPage(1)
+    setFilterMovementIds([])
+  }
 
   // Group results by month
   const groups: { month: string; rows: HistoryResult[] }[] = []
@@ -71,6 +87,39 @@ export default function History() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">History</h1>
+
+      {/* Movement filter chips */}
+      {allMovements.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {allMovements.map((m) => {
+            const active = filterMovementIds.includes(m.id)
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => toggleMovement(m.id)}
+                className={[
+                  'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+                  active
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white',
+                ].join(' ')}
+              >
+                {m.name}
+              </button>
+            )
+          })}
+          {filterMovementIds.length > 0 && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="px-3 py-1 rounded-full text-xs font-medium bg-gray-900 text-gray-500 hover:text-gray-300 border border-gray-700 transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {loading && <p className="text-gray-400">Loading…</p>}
       {error && <p className="text-red-400">{error}</p>}
