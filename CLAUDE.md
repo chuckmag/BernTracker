@@ -165,14 +165,6 @@ cd apps/api && npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do np
 
 **Requires:** API running on `localhost:3000`, DB accessible via `DATABASE_URL`.
 
-**Test files:**
-
-| File | Covers |
-|---|---|
-| `tests/workouts.ts` | Workout CRUD, publish, dayOrder, role-based access, program subscriptions |
-| `tests/results.ts` | Result logging, leaderboard sorting/filtering, paginated history |
-| `tests/feed.ts` | Feed (member sees PUBLISHED-only), WOD detail, WorkoutResult shape |
-
 **Adding a new test file:** Follow the pattern in any existing file. Add the new script to the `test` command in `apps/api/package.json`.
 
 ---
@@ -197,12 +189,6 @@ cd apps/web && npx vitest run
 - E2E tests (Playwright) cover **user flows end-to-end**: navigation, real API calls, DB state. Use E2E when the correctness depends on the full stack.
 - **Every page must have at least one render test** that asserts it mounts without throwing. This catches crashes from type mismatches, missing fields, or bad assumptions about API shape — bugs that would otherwise only surface in the browser.
 
-**Test files:**
-
-| File | Covers |
-|---|---|
-| `src/pages/WodDetail.test.tsx` | WodDetail renders with empty movements, with movement chips, and with undefined workoutMovements |
-
 **Patterns to follow:**
 - Wrap the component in `<MemoryRouter>` with `<Routes>` matching the real URL pattern so `useParams` works.
 - Mock `../lib/api` fully — every `api.*` call used by the component must be mocked or the test will hang.
@@ -224,13 +210,6 @@ cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
 ```
 
 **Requires:** `turbo dev` running (API on `:3000`, web on `:5173`).
-
-**Test files:**
-
-| File | Covers |
-|---|---|
-| `tests/calendar-multi-workout.spec.ts` | Multi-workout calendar: overflow pills, drawer create/edit/delete, reorder, role gates |
-| `tests/feed-wod-detail.spec.ts` | Feed page, WOD Detail page: sidebar role awareness, workout display, results table, level filter chips, "Your Result" badge, movement chips |
 
 **Patterns to follow:**
 - Use `test.describe.configure({ mode: 'serial' })` — tests share seeded DB state.
@@ -262,10 +241,9 @@ Every PR must include a **Tests** section that describes what was tested and how
 - <what each case asserts — one bullet per meaningful assertion group>
 - Auth guards (401 / 403) for all protected routes
 
-**Playwright E2E** (`apps/web/tests/<file>.spec.ts`, N tests):
+**Playwright E2E** (`apps/web/tests/<file>.spec.ts`):
 - T1: <test name and what it verifies>
 - T2: ...
-- (list every named test with a one-line description)
 
 **Not automated / manual verification needed:**
 - [ ] <Anything that genuinely cannot be driven by a test, e.g. visual polish, third-party OAuth, device-specific behavior>
