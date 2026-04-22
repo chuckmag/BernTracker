@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { api, TYPE_ABBR, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
+import MarkdownDescription from '../components/MarkdownDescription.tsx'
 
 const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
   GIRL_WOD: 'Girl WOD',
@@ -150,7 +151,7 @@ export default function WodDetail() {
       {/* Description */}
       {workout.description && (
         <div className="bg-gray-900 rounded-lg px-4 py-3">
-          <p className="text-sm text-gray-300 whitespace-pre-wrap">{workout.description}</p>
+          <MarkdownDescription source={workout.description} />
         </div>
       )}
 
