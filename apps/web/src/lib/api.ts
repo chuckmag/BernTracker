@@ -351,6 +351,13 @@ export const api = {
     pending: (token?: string) =>
       req<PendingMovement[]>('/api/movements/pending', { token }),
 
+    update: (id: string, data: { name?: string; parentId?: string | null }, token?: string) =>
+      req<PendingMovement>(`/api/movements/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+        token,
+      }),
+
     review: (id: string, status: 'ACTIVE' | 'REJECTED', token?: string) =>
       req<Movement>(`/api/movements/${id}/review`, {
         method: 'PATCH',

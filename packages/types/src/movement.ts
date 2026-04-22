@@ -20,7 +20,13 @@ export const ReviewMovementSchema = z.object({
   status: z.enum(['ACTIVE', 'REJECTED']),
 })
 
+export const UpdatePendingMovementSchema = z.object({
+  name: z.string().min(1).optional(),
+  parentId: z.string().nullable().optional(),
+})
+
 export type MovementStatus = z.infer<typeof MovementStatusSchema>
 export type Movement = z.infer<typeof MovementSchema>
 export type SuggestMovementInput = z.infer<typeof SuggestMovementSchema>
 export type ReviewMovementInput = z.infer<typeof ReviewMovementSchema>
+export type UpdatePendingMovementInput = z.infer<typeof UpdatePendingMovementSchema>

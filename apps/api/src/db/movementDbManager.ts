@@ -62,6 +62,23 @@ export async function reviewMovementById(id: string, status: 'ACTIVE' | 'REJECTE
   })
 }
 
+export async function updatePendingMovementById(id: string, data: { name?: string; parentId?: string | null }) {
+  const movement = await prisma.movement.findUnique({ where: { id } })
+  if (!movement) throw Object.assign(new Error('Movement not found'), { statusCode: 404 })
+  if (movement.status !== 'PENDING') {
+    throw Object.assign(new Error('Only PENDING movements can be edited'), { statusCode: 400 })
+  }
+  if (data.name && data.name !== movement.name) {
+    const conflict = await prisma.movement.findUnique({ where: { name: data.name } })
+    if (conflict) throw Object.assign(new Error('A movement with that name already exists'), { statusCode: 409 })
+  }
+  return prisma.movement.update({
+    where: { id },
+    data: { ...(data.name !== undefined && { name: data.name }), ...(data.parentId !== undefined && { parentId: data.parentId }) },
+    ...movementWithVariationsSelect,
+  })
+}
+
 export async function expandMovementIdsWithVariations(movementIds: string[]): Promise<string[]> {
   if (movementIds.length === 0) return []
   const movements = await prisma.movement.findMany({

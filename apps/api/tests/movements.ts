@@ -59,6 +59,7 @@ let pullUpMovementId = ''
 let workoutWithMovementId = ''
 let workoutWithoutMovementId = ''
 let pendingMovementId = ''
+let pendingEditMovementId = ''
 
 async function setup() {
   console.log('\n=== Setup ===')
@@ -161,11 +162,17 @@ async function setup() {
   })
   workoutWithoutMovementId = w2.id
 
-  // Pre-existing pending movement
+  // Pre-existing pending movement (used for review tests)
   const pending = await prisma.movement.create({
     data: { name: `Pending-Move-${TS}`, status: 'PENDING' },
   })
   pendingMovementId = pending.id
+
+  // Separate pending movement for edit tests (review tests don't touch this one)
+  const pendingEdit = await prisma.movement.create({
+    data: { name: `Pending-Edit-${TS}`, status: 'PENDING' },
+  })
+  pendingEditMovementId = pendingEdit.id
 
   console.log(`  gym=${gymId}  program=${programId}`)
   console.log(`  reviewer=${reviewerUserId} (${reviewerEmail})`)
@@ -303,6 +310,44 @@ async function runTests() {
       `/gyms/${gymId}/workouts?from=2026-03-01&to=2026-03-31&movementIds=${thrusterMovementId}`,
     )
     check('T15: movementIds filter no auth → 401', 401, r.status)
+  }
+
+  // ── PATCH /api/movements/:id (update pending) ────────────────────────────────
+  console.log('\n=== PATCH /api/movements/:id ===')
+
+  {
+    const r = await api('PATCH', `/movements/${pendingEditMovementId}`, reviewerToken, { name: `Renamed-Edit-${TS}` })
+    check('T16: rename PENDING movement → 200', 200, r.status)
+    check('T16: name updated', `Renamed-Edit-${TS}`, r.body.name)
+    check('T16: still PENDING', 'PENDING', r.body.status)
+  }
+
+  {
+    const r = await api('PATCH', `/movements/${pendingEditMovementId}`, reviewerToken, { parentId: thrusterMovementId })
+    check('T17: set parentId on PENDING movement → 200', 200, r.status)
+    check('T17: parentId set', thrusterMovementId, (r.body.parent as { id: string } | null)?.id)
+  }
+
+  {
+    // pendingMovementId was approved (ACTIVE) in T8 — editing it must fail
+    const r = await api('PATCH', `/movements/${pendingMovementId}`, reviewerToken, { name: `Should-Fail-${TS}` })
+    check('T18: edit ACTIVE movement → 400', 400, r.status)
+  }
+
+  {
+    // Try to rename to an already-existing movement name (thrusterMovementId's name)
+    const r = await api('PATCH', `/movements/${pendingEditMovementId}`, reviewerToken, { name: `Thruster-${TS}` })
+    check('T19: rename to duplicate name → 409', 409, r.status)
+  }
+
+  {
+    const r = await api('PATCH', `/movements/${pendingEditMovementId}`, memberToken, { name: `NonReviewer-${TS}` })
+    check('T20: edit pending as non-reviewer → 403', 403, r.status)
+  }
+
+  {
+    const r = await api('PATCH', `/movements/${pendingEditMovementId}`, undefined, { name: `NoAuth-${TS}` })
+    check('T21: edit pending no auth → 401', 401, r.status)
   }
 }
 
