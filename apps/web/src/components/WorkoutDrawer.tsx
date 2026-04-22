@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react'
-import { api, TYPE_ABBR, type GymProgram, type NamedWorkout, type Role, type Workout, type WorkoutType } from '../lib/api'
+import { useState, useEffect, useRef } from 'react'
+import TurndownService from 'turndown'
+// @ts-expect-error — turndown-plugin-gfm ships no types
+import { gfm } from 'turndown-plugin-gfm'
+import { api, TYPE_ABBR, type GymProgram, type Movement, type NamedWorkout, type Role, type Workout, type WorkoutStatus, type WorkoutType } from '../lib/api'
 import { useMovements } from '../context/MovementsContext.tsx'
 
 const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
@@ -12,6 +15,21 @@ const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
   { value: 'WARMUP', label: 'Warmup' },
 ]
 
+// Single Turndown instance handles HTML→Markdown conversion when the user pastes
+// rich content (e.g., tables copied from a web page) into the description.
+const turndownService = new TurndownService({
+  headingStyle: 'atx',
+  bulletListMarker: '-',
+  codeBlockStyle: 'fenced',
+})
+turndownService.use(gfm)
+
+const AUTOSAVE_DEBOUNCE_MS = 2000
+// Content thresholds that prevent accidentally creating empty drafts when the user
+// opens the drawer and immediately closes it.
+const AUTOSAVE_MIN_TITLE = 3
+const AUTOSAVE_MIN_DESCRIPTION = 5
+
 interface WorkoutDrawerProps {
   gymId: string
   dateKey: string | null
@@ -20,14 +38,32 @@ interface WorkoutDrawerProps {
   userGymRole?: Role | null
   onClose: () => void
   onSaved: () => void
+  onAutoSaved?: () => void
   onReordered?: () => void
   onWorkoutSelect: (id: string) => void
   onNewWorkout: () => void
 }
 
-export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, userGymRole, onClose, onSaved, onReordered, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
+function buildSnapshot(args: {
+  title: string
+  description: string
+  type: WorkoutType
+  namedWorkoutId: string | null
+  movementIds: string[]
+  programId: string | null
+}): string {
+  return JSON.stringify({
+    title: args.title.trim(),
+    description: args.description,
+    type: args.type,
+    namedWorkoutId: args.namedWorkoutId,
+    movementIds: args.movementIds,
+    programId: args.programId,
+  })
+}
+
+export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, userGymRole, onClose, onSaved, onAutoSaved, onReordered, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
   const isOpen = dateKey !== null
-  const isEdit = !!workout
 
   const allMovements = useMovements()
   const [programs, setPrograms] = useState<GymProgram[]>([])
@@ -52,7 +88,22 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const [showPublishConfirm, setShowPublishConfirm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // Fetch programs and named workouts when drawer opens
+  // When autosave creates a new workout, the drawer keeps editing it locally rather
+  // than waiting for the parent to pipe a `workout` prop back in (which would reset
+  // the form mid-edit). `localWorkoutId` and `localStatus` drive the edit/published
+  // modes so the flow is seamless across the create→edit boundary.
+  const [localWorkoutId, setLocalWorkoutId] = useState<string | null>(workout?.id ?? null)
+  const [localStatus, setLocalStatus] = useState<WorkoutStatus>(workout?.status ?? 'DRAFT')
+  const [autosaving, setAutosaving] = useState(false)
+  const [autosavedAt, setAutosavedAt] = useState<Date | null>(null)
+
+  const autosaveInFlightRef = useRef<Promise<void> | null>(null)
+  const lastAutosaveSnapshotRef = useRef<string | null>(null)
+  const descriptionRef = useRef<HTMLTextAreaElement | null>(null)
+
+  const isEdit = !!localWorkoutId
+  const isPublished = localStatus === 'PUBLISHED'
+
   useEffect(() => {
     if (!isOpen) return
     api.namedWorkouts.list()
@@ -70,31 +121,146 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   }, [isOpen, isEdit, gymId])
 
   useEffect(() => {
-    if (isOpen) {
-      setTitle(workout?.title ?? '')
-      setType(workout?.type ?? 'AMRAP')
-      setDescription(workout?.description ?? '')
-      setProgramId(workout?.programId ?? '')
-      setNamedWorkoutId(workout?.namedWorkoutId ?? null)
-      setSelectedMovements(workout?.workoutMovements?.map((wm) => wm.movement) ?? [])
-      setDismissedIds(new Set())
-      setMovementSearch('')
-      setSearchOpen(false)
-      setSuggestError(null)
-      setError(null)
-      setShowPublishConfirm(false)
-      setShowDeleteConfirm(false)
-    }
+    if (!isOpen) return
+    setTitle(workout?.title ?? '')
+    setType(workout?.type ?? 'AMRAP')
+    setDescription(workout?.description ?? '')
+    setProgramId(workout?.programId ?? '')
+    setNamedWorkoutId(workout?.namedWorkoutId ?? null)
+    setSelectedMovements(workout?.workoutMovements?.map((wm) => wm.movement) ?? [])
+    setDismissedIds(new Set())
+    setMovementSearch('')
+    setSearchOpen(false)
+    setSuggestError(null)
+    setError(null)
+    setShowPublishConfirm(false)
+    setShowDeleteConfirm(false)
+    setLocalWorkoutId(workout?.id ?? null)
+    setLocalStatus(workout?.status ?? 'DRAFT')
+    setAutosavedAt(null)
+    // Seed the autosave comparison with the initial state so that merely opening the
+    // drawer (without edits) doesn't trigger a save.
+    lastAutosaveSnapshotRef.current = buildSnapshot({
+      title: workout?.title ?? '',
+      description: workout?.description ?? '',
+      type: workout?.type ?? 'AMRAP',
+      namedWorkoutId: workout?.namedWorkoutId ?? null,
+      movementIds: workout?.workoutMovements?.map((wm) => wm.movement.id) ?? [],
+      programId: workout?.id ? null : (workout?.programId ?? ''),
+    })
   }, [isOpen, workout?.id])
+
+  // programId is part of the snapshot only while the workout is still being created.
+  // Once it exists server-side, the program is immutable, so further edits to the
+  // dropdown must not flag a "change" that would re-trigger autosave.
+  const snapshot = buildSnapshot({
+    title,
+    description,
+    type,
+    namedWorkoutId,
+    movementIds: selectedMovements.map((m) => m.id),
+    programId: localWorkoutId ? null : programId,
+  })
+
+  const canAutosave =
+    isOpen &&
+    !isPublished &&
+    !saving &&
+    !deleting &&
+    title.trim().length >= AUTOSAVE_MIN_TITLE &&
+    description.trim().length >= AUTOSAVE_MIN_DESCRIPTION &&
+    (localWorkoutId !== null || programId !== '')
+
+  async function runAutosave(): Promise<void> {
+    if (autosaveInFlightRef.current) return
+    if (!canAutosave) return
+    if (lastAutosaveSnapshotRef.current === snapshot) return
+
+    const snapshotAtSave = snapshot
+    const movementIds = selectedMovements.map((m) => m.id)
+
+    const task = (async () => {
+      setAutosaving(true)
+      try {
+        if (localWorkoutId) {
+          await api.workouts.update(localWorkoutId, {
+            title: title.trim(),
+            description,
+            type,
+            movementIds,
+            namedWorkoutId,
+          })
+          lastAutosaveSnapshotRef.current = snapshotAtSave
+        } else {
+          const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
+          const created = await api.workouts.create(gymId, {
+            programId,
+            title: title.trim(),
+            description,
+            type,
+            scheduledAt,
+            movementIds,
+            namedWorkoutId: namedWorkoutId ?? undefined,
+          })
+          setLocalWorkoutId(created.id)
+          setLocalStatus(created.status)
+          // After create, programId drops out of future snapshots — store the
+          // post-create shape so the next render doesn't look dirty.
+          lastAutosaveSnapshotRef.current = buildSnapshot({
+            title,
+            description,
+            type,
+            namedWorkoutId,
+            movementIds,
+            programId: null,
+          })
+        }
+        setAutosavedAt(new Date())
+        onAutoSaved?.()
+      } catch {
+        // Autosave failures stay silent; the user can still manually Save/Publish,
+        // which surfaces errors via the normal error state.
+      } finally {
+        setAutosaving(false)
+      }
+    })()
+
+    autosaveInFlightRef.current = task
+    try {
+      await task
+    } finally {
+      autosaveInFlightRef.current = null
+    }
+  }
+
+  // Debounced autosave — 2s after the last edit
+  useEffect(() => {
+    if (!canAutosave) return
+    if (lastAutosaveSnapshotRef.current === snapshot) return
+    const timer = setTimeout(() => { runAutosave() }, AUTOSAVE_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot, canAutosave])
+
+  // Flush pending autosaves on close so the user never loses in-flight edits
+  async function handleClose() {
+    const pending = autosaveInFlightRef.current
+    if (pending) await pending
+    if (canAutosave && lastAutosaveSnapshotRef.current !== snapshot) {
+      await runAutosave()
+    }
+    onClose()
+  }
 
   useEffect(() => {
     if (!isOpen) return
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') handleClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [isOpen, onClose])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, snapshot, canAutosave, localWorkoutId])
 
   // Auto-detect movements from description (debounced 800ms)
   useEffect(() => {
@@ -113,8 +279,8 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
         .finally(() => setDetectLoading(false))
     }, 800)
     return () => clearTimeout(timer)
-  // dismissedIds intentionally omitted — closure captures current value without triggering re-runs on dismiss
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // dismissedIds intentionally omitted — closure captures current value without triggering re-runs on dismiss
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [description, isOpen, allMovements.length])
 
   function handleApplyTemplate() {
@@ -127,6 +293,33 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setDismissedIds(new Set())
   }
 
+  // When the clipboard carries HTML (e.g., a table copied from a web page), convert
+  // it to markdown at paste time so the rendered description preserves the structure.
+  function handleDescriptionPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const html = e.clipboardData.getData('text/html')
+    if (!html || !html.trim()) return
+    let md = ''
+    try {
+      md = turndownService.turndown(html).trim()
+    } catch {
+      return
+    }
+    if (!md) return
+    e.preventDefault()
+    const ta = e.currentTarget
+    const start = ta.selectionStart
+    const end = ta.selectionEnd
+    const next = description.slice(0, start) + md + description.slice(end)
+    setDescription(next)
+    requestAnimationFrame(() => {
+      const el = descriptionRef.current
+      if (!el) return
+      const pos = start + md.length
+      el.setSelectionRange(pos, pos)
+      el.focus()
+    })
+  }
+
   function validate() {
     if (!isEdit && !programId) { setError('Program is required'); return false }
     if (!title.trim()) { setError('Title is required'); return false }
@@ -136,12 +329,15 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
 
   async function handleSaveDraft() {
     if (!validate()) return
+    // Wait for any in-flight autosave so we PATCH the canonical server state.
+    const pending = autosaveInFlightRef.current
+    if (pending) await pending
     setSaving(true)
     setError(null)
     try {
       const movementIds = selectedMovements.map((m) => m.id)
-      if (isEdit) {
-        await api.workouts.update(workout.id, { title: title.trim(), description, type, movementIds, namedWorkoutId })
+      if (localWorkoutId) {
+        await api.workouts.update(localWorkoutId, { title: title.trim(), description, type, movementIds, namedWorkoutId })
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
         await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movementIds, namedWorkoutId: namedWorkoutId ?? undefined })
@@ -156,18 +352,21 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
 
   async function handlePublish() {
     if (!validate()) return
+    const pending = autosaveInFlightRef.current
+    if (pending) await pending
     setSaving(true)
     setError(null)
     try {
       const movementIds = selectedMovements.map((m) => m.id)
-      if (isEdit) {
-        await api.workouts.update(workout.id, { title: title.trim(), description, type, movementIds, namedWorkoutId })
-        await api.workouts.publish(workout.id)
+      let id = localWorkoutId
+      if (id) {
+        await api.workouts.update(id, { title: title.trim(), description, type, movementIds, namedWorkoutId })
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
         const created = await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movementIds, namedWorkoutId: namedWorkoutId ?? undefined })
-        await api.workouts.publish(created.id)
+        id = created.id
       }
+      await api.workouts.publish(id!)
       onSaved()
       setSaving(false)
     } catch (e) {
@@ -177,10 +376,11 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   }
 
   async function handleDelete() {
+    if (!localWorkoutId) return
     setDeleting(true)
     setError(null)
     try {
-      await api.workouts.delete(workout!.id)
+      await api.workouts.delete(localWorkoutId)
       onSaved()
     } catch (e) {
       setError((e as Error).message)
@@ -189,17 +389,19 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   }
 
   async function handleReorder(direction: 'up' | 'down') {
-    if (!workout) return
-    const currentIndex = workoutsOnDay.findIndex((w) => w.id === workout.id)
+    if (!localWorkoutId) return
+    const currentIndex = workoutsOnDay.findIndex((w) => w.id === localWorkoutId)
+    if (currentIndex < 0) return
+    const current = workoutsOnDay[currentIndex]
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
     if (targetIndex < 0 || targetIndex >= workoutsOnDay.length) return
-    const targetWorkout = workoutsOnDay[targetIndex]
+    const target = workoutsOnDay[targetIndex]
     setReordering(true)
     setError(null)
     try {
       await Promise.all([
-        api.workouts.update(workout.id, { dayOrder: targetWorkout.dayOrder }),
-        api.workouts.update(targetWorkout.id, { dayOrder: workout.dayOrder }),
+        api.workouts.update(current.id, { dayOrder: target.dayOrder }),
+        api.workouts.update(target.id, { dayOrder: current.dayOrder }),
       ])
       onReordered?.()
     } catch (e) {
@@ -219,10 +421,23 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       })
     : ''
 
+  const programName =
+    workout?.program?.name ??
+    programs.find((gp) => gp.programId === programId)?.program.name ??
+    '—'
+
+  const autosaveLabel = isPublished
+    ? null
+    : autosaving
+      ? 'Autosaving…'
+      : autosavedAt
+        ? 'Saved'
+        : null
+
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/40 z-30" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/40 z-30" onClick={handleClose} />
       )}
 
       <div
@@ -239,20 +454,25 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
             <h2 className="text-base font-semibold">{isEdit ? 'Edit Workout' : 'New Workout'}</h2>
           </div>
           <div className="flex items-center gap-3">
+            {autosaveLabel && (
+              <span className="text-[10px] text-gray-500" data-testid="autosave-status">
+                {autosaveLabel}
+              </span>
+            )}
             {isEdit && (
               <span
                 className={[
                   'text-xs px-2 py-0.5 rounded-full font-medium border',
-                  workout.status === 'PUBLISHED'
+                  isPublished
                     ? 'bg-green-900/60 text-green-400 border-green-700/40'
                     : 'bg-yellow-900/40 text-yellow-400 border-yellow-700/30',
                 ].join(' ')}
               >
-                {workout.status === 'PUBLISHED' ? 'Published' : 'Draft'}
+                {isPublished ? 'Published' : 'Draft'}
               </span>
             )}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-gray-500 hover:text-white transition-colors text-xl leading-none"
               aria-label="Close drawer"
             >
@@ -272,7 +492,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                 Today's Workouts
               </div>
               {workoutsOnDay.map((w, idx) => {
-                const isCurrent = isEdit && w.id === workout?.id
+                const isCurrent = isEdit && w.id === localWorkoutId
                 const rowContent = (
                   <>
                     <span className={w.status === 'PUBLISHED' ? 'text-green-400' : 'text-yellow-400'}>
@@ -336,7 +556,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
             </label>
             {isEdit ? (
               <p className="text-sm text-white px-3 py-2 bg-gray-800/50 border border-gray-700 rounded">
-                {workout.program?.name ?? '—'}
+                {programName}
               </p>
             ) : (
               <select
@@ -381,13 +601,18 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
           </div>
 
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Description</label>
+            <label className="block text-xs text-gray-400 mb-1">
+              Description
+              <span className="ml-1 text-gray-600">(supports markdown — paste tables or formatting)</span>
+            </label>
             <textarea
+              ref={descriptionRef}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Workout details, movements, reps..."
+              onPaste={handleDescriptionPaste}
+              placeholder="Workout details, movements, reps…"
               rows={6}
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 resize-none"
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 resize-none font-mono"
             />
           </div>
 
@@ -595,7 +820,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                 >
                   {saving ? 'Saving...' : 'Save as Draft'}
                 </button>
-                {workout?.status !== 'PUBLISHED' && (
+                {!isPublished && (
                   <button
                     onClick={() => setShowPublishConfirm(true)}
                     disabled={saving}

@@ -91,4 +91,31 @@ describe('WodDetail', () => {
     renderPage()
     expect(await screen.findByRole('heading', { name: 'Test Workout' })).toBeInTheDocument()
   })
+
+  it('renders markdown tables in the description', async () => {
+    const md = [
+      '| Round | Reps |',
+      '| --- | --- |',
+      '| 1 | 21 |',
+      '| 2 | 15 |',
+    ].join('\n')
+    vi.mocked(api.workouts.get).mockResolvedValue(makeWorkout({ description: md }))
+    renderPage()
+    // Headers render as <th>
+    expect(await screen.findByRole('columnheader', { name: 'Round' })).toBeInTheDocument()
+    expect(await screen.findByRole('columnheader', { name: 'Reps' })).toBeInTheDocument()
+    // Cells render as <td>
+    expect(await screen.findByRole('cell', { name: '21' })).toBeInTheDocument()
+    expect(await screen.findByRole('cell', { name: '15' })).toBeInTheDocument()
+  })
+
+  it('renders markdown bold and list formatting in the description', async () => {
+    const md = '**Warm up** with:\n- Jumping jacks\n- Air squats'
+    vi.mocked(api.workouts.get).mockResolvedValue(makeWorkout({ description: md }))
+    renderPage()
+    const strong = await screen.findByText('Warm up')
+    expect(strong.tagName).toBe('STRONG')
+    expect(await screen.findByText('Jumping jacks')).toBeInTheDocument()
+    expect(await screen.findByText('Air squats')).toBeInTheDocument()
+  })
 })
