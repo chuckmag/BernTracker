@@ -268,6 +268,18 @@ git commit -m "chore(db): add migration for <description>"
 
 **Why this matters:** Prisma migration files are the source of truth for schema history. If a migration is applied to a dev database without committing the file, other developers and production deployments will see drift errors and may need to run `prisma migrate reset --force` (which destroys all data). Always commit migration files as part of the PR that introduced the schema change — never after.
 
+### Isolate migration PRs — ship small, ship fast
+
+Identify schema migrations at planning time and split them into their own tiny, backwards-compatible PRs that land ahead of feature work.
+
+**Why this matters:** Parallel branches that each modify the Prisma schema don't conflict in git (different timestamped migration files), but the SQL can conflict at `migrate deploy` time, or a later migration can depend on state that was rebased away. The longer a schema-touching branch lives, the bigger the conflict surface — and in QA/prod the blast radius is data loss, not just merge friction.
+
+**How to apply:**
+- At issue-breakdown time, call out every schema change as its own sub-issue.
+- Make the migration **additive** where possible — new nullable columns, new tables, no destructive `DROP` / incompatible `ALTER`. This keeps old code against the new schema, and new code against the old schema, both functional, decoupling the migration merge from the code merge.
+- Ship the migration PR first and let it deploy, then ship the feature PR that reads/writes the new columns.
+- If two engineers both need to touch the same model, coordinate so one lands first; the second rebases, deletes their local migration folder, re-runs `prisma migrate dev` against the updated schema, and commits the regenerated migration with a fresh timestamp.
+
 ## Issue sizing and breakdown strategy
 
 When breaking a large feature issue into sub-issues for implementation:
