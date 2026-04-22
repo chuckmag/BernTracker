@@ -7,7 +7,7 @@ WORKDIR /app
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
-COPY package.json package-lock.json turbo.json ./
+COPY package.json package-lock.json turbo.json tsconfig.json ./
 COPY packages/db/package.json ./packages/db/
 COPY packages/types/package.json ./packages/types/
 COPY apps/web/package.json ./apps/web/

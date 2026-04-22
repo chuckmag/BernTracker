@@ -4,7 +4,7 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-COPY package.json package-lock.json turbo.json ./
+COPY package.json package-lock.json turbo.json tsconfig.json ./
 COPY packages/db/package.json ./packages/db/
 COPY packages/types/package.json ./packages/types/
 COPY apps/api/package.json ./apps/api/
