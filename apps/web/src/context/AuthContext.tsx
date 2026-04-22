@@ -11,6 +11,7 @@ interface AuthUser {
   name: string
   role: string
   identifiedGender: IdentifiedGender
+  isMovementReviewer: boolean
 }
 
 interface AuthState {

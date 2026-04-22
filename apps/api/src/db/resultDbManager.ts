@@ -18,6 +18,7 @@ interface LeaderboardFilters {
 interface Pagination {
   page: number
   limit: number
+  movementIds?: string[]
 }
 
 type LeaderboardEntry = Awaited<ReturnType<typeof fetchLeaderboardRows>>[number]
@@ -115,12 +116,15 @@ export async function deleteResultByOwner(resultId: string, userId: string) {
 }
 
 export async function findResultHistoryByUser(userId: string, pagination: Pagination) {
-  const { page, limit } = pagination
+  const { page, limit, movementIds } = pagination
   const skip = (page - 1) * limit
+  const movementFilter = movementIds?.length
+    ? { workout: { workoutMovements: { some: { movementId: { in: movementIds } } } } }
+    : {}
 
   const [results, total] = await prisma.$transaction([
     prisma.result.findMany({
-      where: { userId },
+      where: { userId, ...movementFilter },
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit,
@@ -128,7 +132,7 @@ export async function findResultHistoryByUser(userId: string, pagination: Pagina
         workout: { select: { id: true, title: true, type: true, scheduledAt: true } },
       },
     }),
-    prisma.result.count({ where: { userId } }),
+    prisma.result.count({ where: { userId, ...movementFilter } }),
   ])
 
   return { results, total, page, limit, pages: Math.ceil(total / limit) }

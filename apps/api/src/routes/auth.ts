@@ -146,7 +146,10 @@ router.get('/me', requireAuth, async (req, res) => {
     res.status(404).json({ error: 'User not found' })
     return
   }
-  res.json(user)
+  res.json({
+    ...user,
+    isMovementReviewer: user.email === (process.env.MOVEMENT_REVIEWER_EMAIL ?? ''),
+  })
 })
 
 // GET /google — redirect to Google consent screen

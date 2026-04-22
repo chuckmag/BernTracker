@@ -3,6 +3,7 @@ import TurndownService from 'turndown'
 // @ts-expect-error — turndown-plugin-gfm ships no types
 import { gfm } from 'turndown-plugin-gfm'
 import { api, TYPE_ABBR, type GymProgram, type Movement, type NamedWorkout, type Role, type Workout, type WorkoutStatus, type WorkoutType } from '../lib/api'
+import { useMovements } from '../context/MovementsContext.tsx'
 
 const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
   { value: 'AMRAP', label: 'AMRAP' },
@@ -64,6 +65,7 @@ function buildSnapshot(args: {
 export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, userGymRole, onClose, onSaved, onAutoSaved, onReordered, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
   const isOpen = dateKey !== null
 
+  const allMovements = useMovements()
   const [programs, setPrograms] = useState<GymProgram[]>([])
   const [programsLoading, setProgramsLoading] = useState(false)
   const [programId, setProgramId] = useState('')
@@ -72,7 +74,6 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const [description, setDescription] = useState('')
   const [namedWorkouts, setNamedWorkouts] = useState<NamedWorkout[]>([])
   const [namedWorkoutId, setNamedWorkoutId] = useState<string | null>(null)
-  const [allMovements, setAllMovements] = useState<Movement[]>([])
   const [selectedMovements, setSelectedMovements] = useState<Movement[]>([])
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [movementSearch, setMovementSearch] = useState('')
@@ -105,8 +106,9 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
 
   useEffect(() => {
     if (!isOpen) return
-    api.namedWorkouts.list().then(setNamedWorkouts).catch(() => {})
-    api.movements.list().then(setAllMovements).catch(() => {})
+    api.namedWorkouts.list()
+      .then(setNamedWorkouts)
+      .catch(() => {}) // non-fatal
     if (isEdit) return
     setProgramsLoading(true)
     api.gyms.programs.list(gymId)
@@ -688,6 +690,14 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                     onChange={(e) => { setMovementSearch(e.target.value); setSearchOpen(true); setSuggestError(null) }}
                     onFocus={() => setSearchOpen(true)}
                     onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Tab' && searchResults.length === 1) {
+                        e.preventDefault()
+                        setSelectedMovements((prev) => [...prev, searchResults[0]])
+                        setMovementSearch('')
+                        setSearchOpen(false)
+                      }
+                    }}
                     placeholder="Search movements to add…"
                     className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500"
                   />

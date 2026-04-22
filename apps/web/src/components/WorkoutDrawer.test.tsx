@@ -21,6 +21,10 @@ vi.mock('../lib/api', () => ({
   },
 }))
 
+vi.mock('../context/MovementsContext.tsx', () => ({
+  useMovements: () => [],
+}))
+
 import { api } from '../lib/api'
 
 const noop = () => {}

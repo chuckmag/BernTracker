@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, TYPE_ABBR, type HistoryResult, type WorkoutLevel, type WorkoutType } from '../lib/api.ts'
+import { useMovements } from '../context/MovementsContext.tsx'
+import MovementFilterInput from '../components/MovementFilterInput.tsx'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   RX_PLUS: 'RX+',
@@ -39,22 +41,24 @@ function shortDate(dateStr: string): string {
 
 export default function History() {
   const navigate = useNavigate()
+  const allMovements = useMovements()
   const [results, setResults] = useState<HistoryResult[]>([])
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [filterMovementIds, setFilterMovementIds] = useState<string[]>([])
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
-    api.results.history(page)
+    api.results.history(page, filterMovementIds.length ? filterMovementIds : undefined)
       .then((data) => { if (!cancelled) { setResults(data.results); setPages(data.pages) } })
       .catch((e) => { if (!cancelled) setError((e as Error).message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [page])
+  }, [page, filterMovementIds])
 
   // Group results by month
   const groups: { month: string; rows: HistoryResult[] }[] = []
@@ -71,6 +75,17 @@ export default function History() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold">History</h1>
+
+      {/* Movement filter */}
+      {allMovements.length > 0 && (
+        <div className="px-3 py-2 bg-gray-900 rounded-lg border border-gray-800">
+          <MovementFilterInput
+            allMovements={allMovements}
+            selectedIds={filterMovementIds}
+            onChange={(ids) => { setPage(1); setFilterMovementIds(ids) }}
+          />
+        </div>
+      )}
 
       {loading && <p className="text-gray-400">Loading…</p>}
       {error && <p className="text-red-400">{error}</p>}

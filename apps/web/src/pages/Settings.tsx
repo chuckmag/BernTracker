@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { api, type Gym, type GymProgram } from '../lib/api'
+import { api, type Gym, type GymProgram, type PendingMovement } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
+import { useAuth } from '../context/AuthContext.tsx'
+import { useMovements } from '../context/MovementsContext.tsx'
 
 const TIMEZONES = [
   'UTC',
@@ -17,6 +19,34 @@ const TIMEZONES = [
 
 export default function Settings() {
   const { gymId, setGymId } = useGym()
+  const { user } = useAuth()
+  const allMovements = useMovements()
+
+  // Pending movement review state (reviewer only)
+  const [pendingMovements, setPendingMovements] = useState<PendingMovement[]>([])
+  const [pendingLoading, setPendingLoading] = useState(false)
+  const [reviewingId, setReviewingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!user?.isMovementReviewer) return
+    setPendingLoading(true)
+    api.movements.pending()
+      .then(setPendingMovements)
+      .catch(() => {})
+      .finally(() => setPendingLoading(false))
+  }, [user?.isMovementReviewer])
+
+  async function handleReview(id: string, status: 'ACTIVE' | 'REJECTED') {
+    setReviewingId(id)
+    try {
+      await api.movements.review(id, status)
+      setPendingMovements((prev) => prev.filter((m) => m.id !== id))
+    } catch {
+      // leave in list; user can retry
+    } finally {
+      setReviewingId(null)
+    }
+  }
   const [gym, setGym] = useState<Gym | null>(null)
   const [programs, setPrograms] = useState<GymProgram[]>([])
   const [loading, setLoading] = useState(false)
@@ -282,6 +312,59 @@ export default function Settings() {
           </table>
         )}
       </section>
+
+      {/* Pending Movement Review — reviewer only */}
+      {user?.isMovementReviewer && (
+        <section>
+          <h2 className="text-lg font-semibold mb-4">
+            Pending Movements
+            {pendingMovements.length > 0 && (
+              <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">
+                {pendingMovements.length}
+              </span>
+            )}
+          </h2>
+
+          {pendingLoading && <p className="text-sm text-gray-400">Loading…</p>}
+
+          {!pendingLoading && pendingMovements.length === 0 && (
+            <p className="text-sm text-gray-500">No pending movements.</p>
+          )}
+
+          {pendingMovements.length > 0 && (
+            <div className="space-y-2">
+              {pendingMovements.map((m) => (
+                <div key={m.id} className="flex items-center justify-between px-4 py-3 rounded-lg bg-gray-900">
+                  <div>
+                    <span className="text-sm text-white">{m.name}</span>
+                    {m.parentId && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        variation of {allMovements.find((a) => a.id === m.parentId)?.name ?? 'unknown'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleReview(m.id, 'ACTIVE')}
+                      disabled={reviewingId === m.id}
+                      className="px-3 py-1 text-xs rounded bg-green-700 hover:bg-green-600 text-white disabled:opacity-50 transition-colors"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleReview(m.id, 'REJECTED')}
+                      disabled={reviewingId === m.id}
+                      className="px-3 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50 transition-colors"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }
