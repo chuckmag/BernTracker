@@ -165,13 +165,7 @@ cd apps/api && npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do np
 
 **Requires:** API running on `localhost:3000`, DB accessible via `DATABASE_URL`.
 
-**Test files:**
-
-| File | Covers |
-|---|---|
-| `tests/workouts.ts` | Workout CRUD, publish, dayOrder, role-based access, program subscriptions |
-| `tests/results.ts` | Result logging, leaderboard sorting/filtering, paginated history |
-| `tests/feed.ts` | Feed (member sees PUBLISHED-only), WOD detail, WorkoutResult shape |
+**Test files:** See scripts under `apps/api/tests/` — one `.ts` file per domain (workouts, results, feed, etc.).
 
 **Adding a new test file:** Follow the pattern in any existing file. Add the new script to the `test` command in `apps/api/package.json`.
 
@@ -197,11 +191,7 @@ cd apps/web && npx vitest run
 - E2E tests (Playwright) cover **user flows end-to-end**: navigation, real API calls, DB state. Use E2E when the correctness depends on the full stack.
 - **Every page must have at least one render test** that asserts it mounts without throwing. This catches crashes from type mismatches, missing fields, or bad assumptions about API shape — bugs that would otherwise only surface in the browser.
 
-**Test files:**
-
-| File | Covers |
-|---|---|
-| `src/pages/WodDetail.test.tsx` | WodDetail renders with empty movements, with movement chips, and with undefined workoutMovements |
+**Test files:** Co-located with the component they cover as `*.test.tsx` under `apps/web/src/` (e.g., `src/pages/WodDetail.test.tsx` sits next to `src/pages/WodDetail.tsx`).
 
 **Patterns to follow:**
 - Wrap the component in `<MemoryRouter>` with `<Routes>` matching the real URL pattern so `useParams` works.
@@ -225,12 +215,7 @@ cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
 
 **Requires:** `turbo dev` running (API on `:3000`, web on `:5173`).
 
-**Test files:**
-
-| File | Covers |
-|---|---|
-| `tests/calendar-multi-workout.spec.ts` | Multi-workout calendar: overflow pills, drawer create/edit/delete, reorder, role gates |
-| `tests/feed-wod-detail.spec.ts` | Feed page, WOD Detail page: sidebar role awareness, workout display, results table, level filter chips, "Your Result" badge, movement chips |
+**Test files:** See specs under `apps/web/tests/` — one `.spec.ts` file per user flow (calendar, feed, WOD detail, autosave, etc.).
 
 **Patterns to follow:**
 - Use `test.describe.configure({ mode: 'serial' })` — tests share seeded DB state.
