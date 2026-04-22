@@ -165,6 +165,8 @@ cd apps/api && npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do np
 
 **Requires:** API running on `localhost:3000`, DB accessible via `DATABASE_URL`.
 
+**Test files:** `apps/api/tests/` — one `.ts` file per domain.
+
 **Adding a new test file:** Follow the pattern in any existing file. Add the new script to the `test` command in `apps/api/package.json`.
 
 ---
@@ -189,6 +191,8 @@ cd apps/web && npx vitest run
 - E2E tests (Playwright) cover **user flows end-to-end**: navigation, real API calls, DB state. Use E2E when the correctness depends on the full stack.
 - **Every page must have at least one render test** that asserts it mounts without throwing. This catches crashes from type mismatches, missing fields, or bad assumptions about API shape — bugs that would otherwise only surface in the browser.
 
+**Test files:** `apps/web/src/` — co-located with the component as `*.test.tsx`.
+
 **Patterns to follow:**
 - Wrap the component in `<MemoryRouter>` with `<Routes>` matching the real URL pattern so `useParams` works.
 - Mock `../lib/api` fully — every `api.*` call used by the component must be mocked or the test will hang.
@@ -210,6 +214,8 @@ cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
 ```
 
 **Requires:** `turbo dev` running (API on `:3000`, web on `:5173`).
+
+**Test files:** `apps/web/tests/` — one `.spec.ts` file per user flow.
 
 **Patterns to follow:**
 - Use `test.describe.configure({ mode: 'serial' })` — tests share seeded DB state.
