@@ -166,6 +166,7 @@ export default function Calendar() {
         userGymRole={userGymRole}
         onClose={() => { setSelectedDate(null); setSelectedWorkoutId(null) }}
         onSaved={() => { setSelectedDate(null); setSelectedWorkoutId(null); loadWorkouts() }}
+        onAutoSaved={loadWorkouts}
         onReordered={loadWorkouts}
         onWorkoutSelect={(id) => setSelectedWorkoutId(id)}
         onNewWorkout={() => setSelectedWorkoutId(null)}
