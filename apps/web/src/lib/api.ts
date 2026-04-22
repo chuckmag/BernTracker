@@ -80,6 +80,14 @@ export interface Movement {
   name: string
   parentId: string | null
 }
+
+export interface PendingMovement {
+  id: string
+  name: string
+  status: 'PENDING'
+  parentId: string | null
+}
+
 export type WorkoutType = 'STRENGTH' | 'FOR_TIME' | 'EMOM' | 'CARDIO' | 'AMRAP' | 'METCON' | 'WARMUP'
 export type WorkoutCategory = 'GIRL_WOD' | 'HERO_WOD' | 'OPEN_WOD' | 'GAMES_WOD' | 'BENCHMARK'
 
@@ -337,6 +345,16 @@ export const api = {
       req<Movement>('/api/movements/suggest', {
         method: 'POST',
         body: JSON.stringify(data),
+        token,
+      }),
+
+    pending: (token?: string) =>
+      req<PendingMovement[]>('/api/movements/pending', { token }),
+
+    review: (id: string, status: 'ACTIVE' | 'REJECTED', token?: string) =>
+      req<Movement>(`/api/movements/${id}/review`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
         token,
       }),
   },
