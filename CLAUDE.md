@@ -64,7 +64,7 @@ When an engineer asks for help setting up the project, use the README Getting St
 - **Starting Docker Desktop** — must be opened as a GUI app before any `docker` commands work; if the engineer sees `dial unix /var/run/docker.sock: no such file or directory`, Docker Desktop is not running
 - **Running `docker run --name berntracker-db ...`** — creates the Postgres container; only needed once. On subsequent sessions: `docker start berntracker-db`
 - **Copying `.env.example` → `.env`** — file contains secrets and must be created manually
-- **Adding local DNS entries** — append to `/etc/hosts` so browser requests to the containerised stack resolve to the local Traefik proxy. Requires `sudo`:
+- **Adding local DNS entries** — append to `/etc/hosts` so browser requests to the containerised stack resolve to the local nginx proxy. Requires `sudo`:
   ```bash
   echo "127.0.0.1 local.berntracker.com db-studio.local.berntracker.com" | sudo tee -a /etc/hosts
   ```
@@ -72,7 +72,6 @@ When an engineer asks for help setting up the project, use the README Getting St
   - Web: `http://local.berntracker.com`
   - API: `http://local.berntracker.com/api/*` (same origin as web, no CORS)
   - Prisma Studio: `http://db-studio.local.berntracker.com`
-  - Traefik dashboard: `http://localhost:8080`
 - Installing Expo Go on a physical device
 
 ### Common setup errors and fixes
@@ -85,7 +84,7 @@ When an engineer asks for help setting up the project, use the README Getting St
 | `command not found: turbo` | Dependencies not installed | `npm install` from repo root |
 | `ConfigError: The expected package.json path: .../apps/mobile/package.json does not exist` | `expo start` run from repo root, or `npm install` not run after adding mobile workspace | Run from `apps/mobile`: `cd apps/mobile && npx expo start`. If new workspace was added, run `npm install` from root first to register the symlink. |
 | `DNS_PROBE_FINISHED_NXDOMAIN` / `This site can't be reached` for `local.berntracker.com` | `/etc/hosts` entries missing | Add the `127.0.0.1 local.berntracker.com db-studio.local.berntracker.com` entry to `/etc/hosts` (see manual steps above) |
-| `Bind for 0.0.0.0:80 failed: port is already allocated` | Port 80 in use by another process | Stop the conflicting process, or change Traefik's `ports:` in `docker-compose.yml` from `80:80` to `8080:80` (URLs become `local.berntracker.com:8080`) |
+| `Bind for 0.0.0.0:80 failed: port is already allocated` | Port 80 in use by another process | Stop the conflicting process, or change the proxy `ports:` in `docker-compose.yml` from `80:80` to `8080:80` (URLs become `local.berntracker.com:8080`) |
 
 ## Architecture
 

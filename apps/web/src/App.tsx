@@ -17,12 +17,13 @@ import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
 import History from './pages/History.tsx'
 
-export function PageErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
+export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
   const navigate = useNavigate()
+  const message = error instanceof Error ? error.message : String(error)
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
       <p className="text-gray-400 text-sm">Something went wrong on this page.</p>
-      <p className="text-gray-600 text-xs font-mono">{error.message}</p>
+      <p className="text-gray-600 text-xs font-mono">{message}</p>
       <div className="flex gap-3">
         <button
           onClick={resetErrorBoundary}
