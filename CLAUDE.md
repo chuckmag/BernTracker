@@ -165,8 +165,6 @@ cd apps/api && npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do np
 
 **Requires:** API running on `localhost:3000`, DB accessible via `DATABASE_URL`.
 
-**Test files:** See scripts under `apps/api/tests/` — one `.ts` file per domain (workouts, results, feed, etc.).
-
 **Adding a new test file:** Follow the pattern in any existing file. Add the new script to the `test` command in `apps/api/package.json`.
 
 ---
@@ -191,8 +189,6 @@ cd apps/web && npx vitest run
 - E2E tests (Playwright) cover **user flows end-to-end**: navigation, real API calls, DB state. Use E2E when the correctness depends on the full stack.
 - **Every page must have at least one render test** that asserts it mounts without throwing. This catches crashes from type mismatches, missing fields, or bad assumptions about API shape — bugs that would otherwise only surface in the browser.
 
-**Test files:** Co-located with the component they cover as `*.test.tsx` under `apps/web/src/` (e.g., `src/pages/WodDetail.test.tsx` sits next to `src/pages/WodDetail.tsx`).
-
 **Patterns to follow:**
 - Wrap the component in `<MemoryRouter>` with `<Routes>` matching the real URL pattern so `useParams` works.
 - Mock `../lib/api` fully — every `api.*` call used by the component must be mocked or the test will hang.
@@ -214,8 +210,6 @@ cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
 ```
 
 **Requires:** `turbo dev` running (API on `:3000`, web on `:5173`).
-
-**Test files:** See specs under `apps/web/tests/` — one `.spec.ts` file per user flow (calendar, feed, WOD detail, autosave, etc.).
 
 **Patterns to follow:**
 - Use `test.describe.configure({ mode: 'serial' })` — tests share seeded DB state.
@@ -247,10 +241,9 @@ Every PR must include a **Tests** section that describes what was tested and how
 - <what each case asserts — one bullet per meaningful assertion group>
 - Auth guards (401 / 403) for all protected routes
 
-**Playwright E2E** (`apps/web/tests/<file>.spec.ts`, N tests):
+**Playwright E2E** (`apps/web/tests/<file>.spec.ts`):
 - T1: <test name and what it verifies>
 - T2: ...
-- (list every named test with a one-line description)
 
 **Not automated / manual verification needed:**
 - [ ] <Anything that genuinely cannot be driven by a test, e.g. visual polish, third-party OAuth, device-specific behavior>
@@ -274,6 +267,18 @@ git commit -m "chore(db): add migration for <description>"
 ```
 
 **Why this matters:** Prisma migration files are the source of truth for schema history. If a migration is applied to a dev database without committing the file, other developers and production deployments will see drift errors and may need to run `prisma migrate reset --force` (which destroys all data). Always commit migration files as part of the PR that introduced the schema change — never after.
+
+### Isolate migration PRs — ship small, ship fast
+
+Identify schema migrations at planning time and split them into their own tiny, backwards-compatible PRs that land ahead of feature work.
+
+**Why this matters:** Parallel branches that each modify the Prisma schema don't conflict in git (different timestamped migration files), but the SQL can conflict at `migrate deploy` time, or a later migration can depend on state that was rebased away. The longer a schema-touching branch lives, the bigger the conflict surface — and in QA/prod the blast radius is data loss, not just merge friction.
+
+**How to apply:**
+- At issue-breakdown time, call out every schema change as its own sub-issue.
+- Make the migration **additive** where possible — new nullable columns, new tables, no destructive `DROP` / incompatible `ALTER`. This keeps old code against the new schema, and new code against the old schema, both functional, decoupling the migration merge from the code merge.
+- Ship the migration PR first and let it deploy, then ship the feature PR that reads/writes the new columns.
+- If two engineers both need to touch the same model, coordinate so one lands first; the second rebases, deletes their local migration folder, re-runs `prisma migrate dev` against the updated schema, and commits the regenerated migration with a fresh timestamp.
 
 ## Issue sizing and breakdown strategy
 
