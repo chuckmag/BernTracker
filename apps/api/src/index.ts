@@ -31,7 +31,11 @@ process.on('unhandledRejection', (reason) => {
 const app = express()
 const port = process.env.PORT ?? 3000
 
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }))
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+app.use(cors({ origin: allowedOrigins, credentials: true }))
 app.use(express.json())
 app.use(cookieParser())
 app.use(requestLogger)
