@@ -5,4 +5,4 @@ buildCommand = ""
 [deploy]
 startCommand = ""
 healthcheckPath = "/"
-healthcheckTimeout = 60
+healthcheckTimeout = 30
