@@ -113,7 +113,7 @@ export default function Register() {
 
         <button
           type="button"
-          onClick={() => { window.location.href = '/api/auth/google' }}
+          onClick={() => { window.location.href = `${import.meta.env.VITE_API_URL ?? ''}/api/auth/google` }}
           className="w-full rounded-md border border-gray-700 py-2 text-sm font-medium text-gray-200 hover:bg-gray-800"
         >
           Sign up with Google
