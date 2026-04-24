@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { api, TYPE_ABBR, type HistoryResult, type WorkoutLevel, type WorkoutType } from '../lib/api.ts'
 import { useMovements } from '../context/MovementsContext.tsx'
 import MovementFilterInput from '../components/MovementFilterInput.tsx'
+import Button from '../components/ui/Button.tsx'
+import EmptyState from '../components/ui/EmptyState.tsx'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   RX_PLUS: 'RX+',
@@ -91,7 +93,10 @@ export default function History() {
       {error && <p className="text-red-400">{error}</p>}
 
       {!loading && !error && results.length === 0 && (
-        <p className="text-sm text-gray-500">No results logged yet.</p>
+        <EmptyState
+          title="No results yet"
+          body="Log your first result to start your history."
+        />
       )}
 
       {groups.map(({ month, rows }) => (
@@ -123,21 +128,13 @@ export default function History() {
       {/* Pagination */}
       {pages > 1 && (
         <div className="flex items-center justify-between pt-2">
-          <button
-            onClick={() => setPage((p) => p - 1)}
-            disabled={page <= 1}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
+          <Button variant="tertiary" onClick={() => setPage((p) => p - 1)} disabled={page <= 1}>
             ← Prev
-          </button>
+          </Button>
           <span className="text-xs text-gray-500">Page {page} of {pages}</span>
-          <button
-            onClick={() => setPage((p) => p + 1)}
-            disabled={page >= pages}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
+          <Button variant="tertiary" onClick={() => setPage((p) => p + 1)} disabled={page >= pages}>
             Next →
-          </button>
+          </Button>
         </div>
       )}
     </div>

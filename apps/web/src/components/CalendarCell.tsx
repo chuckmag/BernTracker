@@ -27,8 +27,8 @@ export default function CalendarCell({ date, isToday, workouts, selected, onAddC
       <div className="flex items-center justify-between mb-1 shrink-0">
         <span
           className={[
-            'text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full',
-            isToday ? 'bg-indigo-600 text-white' : 'text-gray-400',
+            'text-xs w-6 h-6 flex items-center justify-center rounded-full',
+            isToday ? 'font-medium bg-indigo-600 text-white' : 'text-gray-400',
           ].join(' ')}
         >
           {date.getDate()}

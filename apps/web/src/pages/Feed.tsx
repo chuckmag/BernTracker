@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, TYPE_ABBR, type Workout } from '../lib/api.ts'
 import { useGym } from '../context/GymContext.tsx'
+import EmptyState from '../components/ui/EmptyState.tsx'
+import Skeleton from '../components/ui/Skeleton.tsx'
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -80,10 +82,13 @@ export default function Feed() {
 
       {error && <p className="text-red-400 mb-4">{error}</p>}
 
-      {loading && <p className="text-gray-400">Loading...</p>}
+      {loading && <Skeleton variant="feed-row" count={4} />}
 
       {!loading && sortedKeys.length === 0 && (
-        <p className="text-gray-400">No published workouts in the last 30 days.</p>
+        <EmptyState
+          title="No published workouts"
+          body="Nothing posted in the last 30 days."
+        />
       )}
 
       <div className="space-y-8">
