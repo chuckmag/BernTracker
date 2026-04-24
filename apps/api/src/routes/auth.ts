@@ -156,11 +156,15 @@ router.get('/me', requireAuth, async (req, res) => {
   })
 })
 
-// GET /google — redirect to Google consent screen
-router.get('/google', (_req, res) => {
+// GET /google — redirect to Google consent screen.
+// Accepts ?prompt=select_account (or other Google prompt values) so the sign-up
+// flow can force the account picker instead of silently reusing the last session.
+router.get('/google', (req, res) => {
+  const prompt = typeof req.query.prompt === 'string' ? req.query.prompt : undefined
   const url = googleClient().generateAuthUrl({
     access_type: 'offline',
     scope: ['openid', 'email', 'profile'],
+    ...(prompt ? { prompt } : {}),
   })
   res.redirect(url)
 })

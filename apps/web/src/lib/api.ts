@@ -199,7 +199,63 @@ export interface GymProgram {
   program: Program
 }
 
+export type IdentifiedGender = 'FEMALE' | 'MALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY' | null
+
+export interface AuthUser {
+  id: string
+  email: string
+  name: string
+  role: Role
+  identifiedGender: IdentifiedGender
+  isMovementReviewer: boolean
+}
+
+export interface AuthResponse {
+  accessToken: string
+  user: AuthUser
+}
+
+// Auth endpoints bypass `req()` because their 401s mean "wrong credentials"
+// or "no session yet" — not "session expired" (which would trigger the
+// unauthorized handler + refresh retry that `req()` does).
+async function authPost<T>(path: string, body?: unknown, failMsg = 'Request failed'): Promise<T> {
+  const res = await fetchWithTimeout(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (res.status === 204) return undefined as T
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? failMsg)
+  return data as T
+}
+
 export const api = {
+  auth: {
+    // Full URL for the Google OAuth start endpoint. Not a fetch — the button
+    // navigates to it with window.location / window.open.
+    googleAuthUrl: (opts?: { prompt?: 'select_account' | 'consent' | 'none' }): string => {
+      const params = new URLSearchParams()
+      if (opts?.prompt) params.set('prompt', opts.prompt)
+      const qs = params.toString()
+      return `${BASE_URL}/api/auth/google${qs ? `?${qs}` : ''}`
+    },
+    register: (data: { name: string; email: string; password: string }) =>
+      authPost<AuthResponse>('/api/auth/register', data, 'Registration failed'),
+    login: (data: { email: string; password: string }) =>
+      authPost<AuthResponse>('/api/auth/login', data, 'Login failed'),
+    logout: () => authPost<void>('/api/auth/logout'),
+    refresh: async (): Promise<{ accessToken: string } | null> => {
+      try {
+        return await authPost<{ accessToken: string }>('/api/auth/refresh')
+      } catch {
+        return null
+      }
+    },
+    me: (token: string) => req<AuthUser>('/api/auth/me', { token }),
+  },
+
   me: {
     gyms: () => req<MyGym[]>('/api/me/gyms'),
   },

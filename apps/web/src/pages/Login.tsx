@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
+import { api } from '../lib/api'
 
 export default function Login() {
   const { login } = useAuth()
@@ -15,21 +16,11 @@ export default function Login() {
     setError(null)
     setSubmitting(true)
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error ?? 'Login failed')
-        return
-      }
+      const data = await api.auth.login({ email, password })
       login(data.accessToken, data.user)
       navigate('/dashboard', { replace: true })
-    } catch {
-      setError('Network error — is the API running?')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error — is the API running?')
     } finally {
       setSubmitting(false)
     }
@@ -96,7 +87,7 @@ export default function Login() {
 
           <button
             type="button"
-            onClick={() => { window.open(`${import.meta.env.VITE_API_URL ?? ''}/api/auth/google`, '_self') }}
+            onClick={() => { window.open(api.auth.googleAuthUrl(), '_self') }}
             className="w-full rounded-md border border-gray-700 py-2 text-sm font-medium text-gray-200 hover:bg-gray-800"
           >
             Sign in with Google
