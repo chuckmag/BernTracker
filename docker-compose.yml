@@ -34,6 +34,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/berntracker
       NODE_ENV: development
       ALLOWED_ORIGINS: http://local.berntracker.com,http://localhost:5173
+      FRONTEND_URL: http://local.berntracker.com
     depends_on:
       - postgres
 
