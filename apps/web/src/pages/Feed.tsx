@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, TYPE_ABBR, type Workout } from '../lib/api.ts'
+import { api, type Workout } from '../lib/api.ts'
+import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
@@ -102,14 +103,16 @@ export default function Feed() {
             </div>
 
             <div className="space-y-2">
-              {workoutsByDate[dateKey].map((workout) => (
+              {workoutsByDate[dateKey].map((workout) => {
+                const styles = WORKOUT_TYPE_STYLES[workout.type]
+                return (
                 <button
                   key={workout.id}
                   onClick={() => navigate(`/workouts/${workout.id}`)}
-                  className="w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left group"
+                  className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left group border-l-4 ${styles.accentBar}`}
                 >
-                  <span className="shrink-0 mt-0.5 w-6 h-6 flex items-center justify-center rounded text-xs font-bold bg-gray-800 text-gray-300 group-hover:bg-gray-700">
-                    {TYPE_ABBR[workout.type]}
+                  <span className={`shrink-0 mt-0.5 w-6 h-6 flex items-center justify-center rounded text-xs font-bold ${styles.bg} ${styles.tint}`}>
+                    {styles.abbr}
                   </span>
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm font-medium text-white break-words">
@@ -121,7 +124,8 @@ export default function Feed() {
                   </span>
                   <span className="shrink-0 mt-0.5 text-gray-600 group-hover:text-gray-400 transition-colors">›</span>
                 </button>
-              ))}
+                )
+              })}
             </div>
           </div>
         ))}

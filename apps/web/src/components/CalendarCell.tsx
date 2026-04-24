@@ -1,4 +1,5 @@
-import { TYPE_ABBR, type Workout } from '../lib/api'
+import { type Workout } from '../lib/api'
+import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles'
 
 const MAX_VISIBLE = 2
 
@@ -44,21 +45,24 @@ export default function CalendarCell({ date, isToday, workouts, selected, onAddC
 
       {/* Workout pills */}
       <div className="flex-1 min-h-0 flex flex-col gap-px overflow-hidden">
-        {visible.map((w) => (
+        {visible.map((w) => {
+          const styles = WORKOUT_TYPE_STYLES[w.type]
+          return (
           <button
             key={w.id}
             onClick={(e) => { e.stopPropagation(); onWorkoutClick(w.id) }}
-            className="w-full flex items-center gap-1 px-1 py-0.5 rounded text-left hover:bg-gray-800/70 transition-colors"
+            className={`w-full flex items-center gap-1 px-1 py-0.5 rounded text-left hover:bg-gray-800/70 transition-colors border-l-2 ${styles?.accentBar ?? 'border-gray-700'}`}
           >
             <span className={['text-[10px] shrink-0', w.status === 'PUBLISHED' ? 'text-green-400' : 'text-yellow-400'].join(' ')}>
               {w.status === 'PUBLISHED' ? '●' : '○'}
             </span>
-            <span className="text-[10px] font-mono text-indigo-400 shrink-0 w-3">
-              {TYPE_ABBR[w.type] ?? '?'}
+            <span className="text-[10px] font-mono text-indigo-400 shrink-0 w-4">
+              {styles?.abbr ?? '?'}
             </span>
             <span className="text-[10px] text-gray-200 truncate flex-1">{w.title}</span>
           </button>
-        ))}
+          )
+        })}
       </div>
       {overflow > 0 && (
         <div className="text-[10px] text-gray-500 pl-1 shrink-0">+{overflow} more</div>

@@ -1,7 +1,8 @@
 import { useState, useEffect, Fragment } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
-import { api, TYPE_ABBR, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
+import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
+import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
 import MarkdownDescription from '../components/MarkdownDescription.tsx'
 import Button from '../components/ui/Button.tsx'
@@ -135,8 +136,8 @@ export default function WodDetail() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-3 mb-1">
-          <span className="w-8 h-8 flex items-center justify-center rounded bg-gray-800 text-sm font-bold text-gray-300">
-            {TYPE_ABBR[workout.type]}
+          <span className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${WORKOUT_TYPE_STYLES[workout.type].bg} ${WORKOUT_TYPE_STYLES[workout.type].tint}`}>
+            {WORKOUT_TYPE_STYLES[workout.type].abbr}
           </span>
           <h1 className="text-2xl font-bold">{workout.title}</h1>
           {workout.namedWorkout && (
