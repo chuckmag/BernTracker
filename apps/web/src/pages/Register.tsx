@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
+import { api } from '../lib/api'
 
 export default function Register() {
   const { login } = useAuth()
@@ -16,21 +17,11 @@ export default function Register() {
     setError(null)
     setSubmitting(true)
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name, email, password }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error ?? 'Registration failed')
-        return
-      }
+      const data = await api.auth.register({ name, email, password })
       login(data.accessToken, data.user)
       navigate('/dashboard', { replace: true })
-    } catch {
-      setError('Network error — is the API running?')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error — is the API running?')
     } finally {
       setSubmitting(false)
     }
@@ -113,7 +104,7 @@ export default function Register() {
 
         <button
           type="button"
-          onClick={() => { window.open(`${import.meta.env.VITE_API_URL ?? ''}/api/auth/google`, '_self') }}
+          onClick={() => { window.open(api.auth.googleAuthUrl({ prompt: 'select_account' }), '_self') }}
           className="w-full rounded-md border border-gray-700 py-2 text-sm font-medium text-gray-200 hover:bg-gray-800"
         >
           Sign up with Google

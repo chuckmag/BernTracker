@@ -1,18 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { setUnauthorizedHandler, setAccessToken as setApiToken } from '../lib/api'
+import { api, setUnauthorizedHandler, setAccessToken as setApiToken, type AuthUser } from '../lib/api'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? ''
-
-export type IdentifiedGender = 'FEMALE' | 'MALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY' | null
-
-interface AuthUser {
-  id: string
-  email: string
-  name: string
-  role: string
-  identifiedGender: IdentifiedGender
-  isMovementReviewer: boolean
-}
+export type { IdentifiedGender } from '../lib/api'
 
 interface AuthState {
   user: AuthUser | null
@@ -44,20 +33,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (didFetch.current) return
     didFetch.current = true
 
-    fetch(`${BASE_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
-      .then(async (r) => {
-        if (r.ok) {
-          const data = await r.json()
-          setAccessToken(data.accessToken)
-          setApiToken(data.accessToken)
-          const me = await fetch(`${BASE_URL}/api/auth/me`, {
-            headers: { Authorization: `Bearer ${data.accessToken}` },
-            credentials: 'include',
-          })
-          if (me.ok) setUser(await me.json())
+    api.auth.refresh()
+      .then(async (refreshed) => {
+        if (!refreshed) return
+        setAccessToken(refreshed.accessToken)
+        setApiToken(refreshed.accessToken)
+        try {
+          const me = await api.auth.me(refreshed.accessToken)
+          setUser(me)
+        } catch {
+          // me failed — treat as unauthenticated; unauthorized handler will redirect if needed
         }
       })
-      .catch(() => {})
       .finally(() => setIsLoading(false))
   }, [])
 
@@ -68,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
-    await fetch(`${BASE_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {})
+    await api.auth.logout().catch(() => {})
     setAccessToken(null)
     setApiToken(null)
     setUser(null)
