@@ -18,10 +18,14 @@ const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173'
 
 const router = Router()
 
+// Cross-origin setup on hosted environments (Railway gives each service its own
+// subdomain — see #77). SameSite=None is required for the web to receive the
+// cookie after the cross-site auth call, and browsers reject None without Secure.
+const IS_LOCAL_DEV = process.env.NODE_ENV === 'development'
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  secure: !IS_LOCAL_DEV,
+  sameSite: (IS_LOCAL_DEV ? 'lax' : 'none') as 'lax' | 'none',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 }
 
