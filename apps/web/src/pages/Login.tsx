@@ -96,7 +96,7 @@ export default function Login() {
 
           <button
             type="button"
-            onClick={() => { window.location.href = `${import.meta.env.VITE_API_URL ?? ''}/api/auth/google` }}
+            onClick={() => { window.open(`${import.meta.env.VITE_API_URL ?? ''}/api/auth/google`, '_self') }}
             className="w-full rounded-md border border-gray-700 py-2 text-sm font-medium text-gray-200 hover:bg-gray-800"
           >
             Sign in with Google
