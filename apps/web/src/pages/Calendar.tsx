@@ -5,6 +5,7 @@ import { useMovements } from '../context/MovementsContext.tsx'
 import CalendarCell from '../components/CalendarCell'
 import WorkoutDrawer from '../components/WorkoutDrawer'
 import MovementFilterInput from '../components/MovementFilterInput'
+import Button from '../components/ui/Button'
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -105,21 +106,13 @@ export default function Calendar() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Calendar</h1>
         <div className="flex items-center gap-2">
-          <button
-            onClick={prevMonth}
-            className="text-gray-400 hover:text-white px-3 py-1 rounded hover:bg-gray-800 transition-colors"
-            aria-label="Previous month"
-          >
+          <Button variant="tertiary" onClick={prevMonth} aria-label="Previous month">
             ←
-          </button>
+          </Button>
           <span className="text-base font-medium w-44 text-center select-none">{monthLabel}</span>
-          <button
-            onClick={nextMonth}
-            className="text-gray-400 hover:text-white px-3 py-1 rounded hover:bg-gray-800 transition-colors"
-            aria-label="Next month"
-          >
+          <Button variant="tertiary" onClick={nextMonth} aria-label="Next month">
             →
-          </button>
+          </Button>
         </div>
       </div>
 

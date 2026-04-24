@@ -4,6 +4,9 @@ import { useAuth } from '../context/AuthContext.tsx'
 import { api, TYPE_ABBR, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
 import MarkdownDescription from '../components/MarkdownDescription.tsx'
+import Button from '../components/ui/Button.tsx'
+import Chip from '../components/ui/Chip.tsx'
+import ChipGroup from '../components/ui/ChipGroup.tsx'
 
 const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
   GIRL_WOD: 'Girl WOD',
@@ -185,12 +188,9 @@ export default function WodDetail() {
           )}
         </div>
       ) : (
-        <button
-          onClick={() => setShowLogDrawer(true)}
-          className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium transition-colors"
-        >
+        <Button variant="primary" onClick={() => setShowLogDrawer(true)} className="w-full py-2.5">
           Log Result
-        </button>
+        </Button>
       )}
 
       {/* Results table */}
@@ -201,40 +201,32 @@ export default function WodDetail() {
         </div>
 
         {/* Level filter chips */}
-        <div className="flex flex-wrap gap-2 mb-2">
+        <ChipGroup className="flex-wrap mb-2">
           {LEVEL_FILTERS.map((lvl) => (
-            <button
+            <Chip
               key={lvl}
-              onClick={() => setLevelFilter(lvl)}
-              className={[
-                'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                levelFilter === lvl
-                  ? 'bg-gray-200 text-gray-900'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white',
-              ].join(' ')}
+              variant="neutral"
+              toggled={levelFilter === lvl}
+              onToggle={() => setLevelFilter(lvl)}
             >
               {lvl === 'ALL' ? 'All' : LEVEL_LABELS[lvl as WorkoutLevel]}
-            </button>
+            </Chip>
           ))}
-        </div>
+        </ChipGroup>
 
         {/* Gender filter chips */}
-        <div className="flex gap-2 mb-4">
+        <ChipGroup className="mb-4">
           {GENDER_FILTERS.map(({ value, label }) => (
-            <button
+            <Chip
               key={value}
-              onClick={() => setGenderFilter(value)}
-              className={[
-                'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                genderFilter === value
-                  ? 'bg-gray-200 text-gray-900'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white',
-              ].join(' ')}
+              variant="neutral"
+              toggled={genderFilter === value}
+              onToggle={() => setGenderFilter(value)}
             >
               {label}
-            </button>
+            </Chip>
           ))}
-        </div>
+        </ChipGroup>
 
         {filteredResults.length === 0 ? (
           <p className="text-sm text-gray-500">No results yet.</p>
