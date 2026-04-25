@@ -101,8 +101,9 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <h2 className="text-base font-semibold">{isEdit ? 'Edit Program' : 'New Program'}</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-colors text-xl leading-none"
+            className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:text-white hover:bg-gray-800 transition-colors text-xl leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
             aria-label="Close drawer"
           >
             ×
@@ -166,10 +167,12 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
                 type="button"
                 onClick={() => setCoverColor(null)}
                 aria-label="No color"
+                aria-pressed={coverColor === null}
                 className={[
                   'w-7 h-7 rounded-full border transition-all',
-                  coverColor === null ? 'border-white ring-2 ring-indigo-500' : 'border-gray-700 hover:border-gray-500',
-                  'bg-gray-800 flex items-center justify-center text-gray-500 text-xs',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900',
+                  coverColor === null ? 'border-white ring-2 ring-indigo-500' : 'border-gray-700 hover:border-gray-400',
+                  'bg-gray-800 flex items-center justify-center text-gray-400 text-xs',
                 ].join(' ')}
               >
                 ∅
@@ -180,9 +183,11 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
                   type="button"
                   onClick={() => setCoverColor(c)}
                   aria-label={`Color ${c}`}
+                  aria-pressed={coverColor === c}
                   style={{ backgroundColor: c }}
                   className={[
                     'w-7 h-7 rounded-full border transition-all',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900',
                     coverColor === c ? 'border-white ring-2 ring-offset-2 ring-offset-gray-900 ring-white' : 'border-gray-700 hover:scale-110',
                   ].join(' ')}
                 />

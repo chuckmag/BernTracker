@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, type GymProgram, type Program } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import Button from '../components/ui/Button'
+import Skeleton from '../components/ui/Skeleton'
 import ProgramFormDrawer from '../components/ProgramFormDrawer'
 
 type Tab = 'overview' | 'members' | 'workouts'
@@ -61,7 +62,7 @@ export default function ProgramDetail() {
     }
   }
 
-  if (loading) return <p className="text-gray-400">Loading…</p>
+  if (loading) return <Skeleton variant="feed-row" count={3} />
 
   if (!detail) {
     return (
@@ -103,9 +104,10 @@ export default function ProgramDetail() {
               onClick={() => setTab(t)}
               className={[
                 'px-4 py-2 text-sm font-medium capitalize border-b-2 -mb-px transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
                 tab === t
                   ? 'border-indigo-500 text-white'
-                  : 'border-transparent text-gray-500 hover:text-gray-300',
+                  : 'border-transparent text-gray-400 hover:text-white',
               ].join(' ')}
             >
               {t}
@@ -122,7 +124,7 @@ export default function ProgramDetail() {
 
       {canDelete && tab === 'overview' && (
         <div className="mt-10 pt-6 border-t border-gray-800">
-          <h3 className="text-xs uppercase tracking-wider text-gray-500 mb-3">Danger zone</h3>
+          <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3">Danger zone</h3>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
             {deleting ? 'Deleting…' : 'Delete program'}
           </Button>
@@ -149,19 +151,19 @@ function OverviewTab({ program }: { program: Program }) {
   return (
     <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
       <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-500 mb-1">Start date</dt>
+        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Start date</dt>
         <dd className="text-white">{fmt(program.startDate)}</dd>
       </div>
       <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-500 mb-1">End date</dt>
+        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">End date</dt>
         <dd className="text-white">{fmt(program.endDate)}</dd>
       </div>
       <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-500 mb-1">Members</dt>
+        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Members</dt>
         <dd className="text-white">{memberCount}</dd>
       </div>
       <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-500 mb-1">Workouts</dt>
+        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Workouts</dt>
         <dd className="text-white">{workoutCount}</dd>
       </div>
     </dl>
@@ -172,7 +174,7 @@ function ComingSoon({ label }: { label: string }) {
   return (
     <div className="text-center py-12 border border-dashed border-gray-800 rounded-lg">
       <p className="text-sm text-gray-400">{label}</p>
-      <p className="mt-1 text-xs text-gray-600">Coming in a later slice of #82</p>
+      <p className="mt-1 text-xs text-gray-400">Coming in a later slice of #82</p>
     </div>
   )
 }

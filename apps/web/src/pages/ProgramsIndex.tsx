@@ -4,6 +4,7 @@ import { api, type GymProgram, type Program } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
+import Skeleton from '../components/ui/Skeleton'
 import ProgramFormDrawer from '../components/ProgramFormDrawer'
 
 function formatDateRange(start: string, end: string | null): string {
@@ -73,7 +74,7 @@ export default function ProgramsIndex() {
       </div>
 
       {error && <p className="text-red-400 mb-4">{error}</p>}
-      {loading && <p className="text-gray-400">Loading…</p>}
+      {loading && <Skeleton variant="feed-row" count={3} />}
 
       {!loading && gymPrograms.length === 0 && !error && (
         <EmptyState
@@ -118,10 +119,10 @@ function ProgramCard({ program }: { program: Program }) {
         {program.description && (
           <p className="mt-1 text-xs text-gray-400 line-clamp-2">{program.description}</p>
         )}
-        <p className="mt-3 text-xs text-gray-500">{formatDateRange(program.startDate, program.endDate)}</p>
-        <div className="mt-3 flex items-center gap-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-gray-400">{formatDateRange(program.startDate, program.endDate)}</p>
+        <div className="mt-3 flex items-center gap-3 text-xs text-gray-400">
           <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
-          <span className="text-gray-700">·</span>
+          <span className="text-gray-700" aria-hidden="true">·</span>
           <span>{workoutCount} {workoutCount === 1 ? 'workout' : 'workouts'}</span>
         </div>
       </div>
