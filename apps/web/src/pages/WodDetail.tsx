@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
@@ -6,8 +6,7 @@ import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
 import MarkdownDescription from '../components/MarkdownDescription.tsx'
 import Button from '../components/ui/Button.tsx'
-import Chip from '../components/ui/Chip.tsx'
-import ChipGroup from '../components/ui/ChipGroup.tsx'
+import SegmentedControl from '../components/ui/SegmentedControl.tsx'
 
 const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
   GIRL_WOD: 'Girl WOD',
@@ -17,7 +16,6 @@ const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
   BENCHMARK: 'Benchmark',
 }
 
-type LevelFilter = WorkoutLevel | 'ALL'
 type GenderFilter = WorkoutGender | 'ALL'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
@@ -27,9 +25,23 @@ const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   MODIFIED: 'Modified',
 }
 
-const LEVEL_FILTERS: LevelFilter[] = ['ALL', 'RX_PLUS', 'RX', 'SCALED', 'MODIFIED']
+// Difficulty rank used by the graded level filter and the result ordering.
+// Higher rank = harder. Selecting level X shows results with rank ≤ X.
+const LEVEL_RANK: Record<WorkoutLevel, number> = {
+  MODIFIED: 0,
+  SCALED:   1,
+  RX:       2,
+  RX_PLUS:  3,
+}
 
-const GENDER_FILTERS: { value: GenderFilter; label: string }[] = [
+const LEVEL_OPTIONS: { value: WorkoutLevel; label: string }[] = [
+  { value: 'RX_PLUS',  label: 'RX+' },
+  { value: 'RX',       label: 'RX' },
+  { value: 'SCALED',   label: 'Scaled' },
+  { value: 'MODIFIED', label: 'Modified' },
+]
+
+const GENDER_OPTIONS: { value: GenderFilter; label: string }[] = [
   { value: 'ALL',    label: 'Open' },
   { value: 'MALE',   label: 'Male' },
   { value: 'FEMALE', label: 'Female' },
@@ -68,11 +80,19 @@ export default function WodDetail() {
 
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [results, setResults] = useState<WorkoutResult[]>([])
-  const [levelFilter, setLevelFilter] = useState<LevelFilter>('ALL')
+  const [levelFilter, setLevelFilter] = useState<WorkoutLevel>('RX')
+  const [showAllLevels, setShowAllLevels] = useState(false)
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showLogDrawer, setShowLogDrawer] = useState(false)
+
+  // Tracks which workout id has had the auto-detect default applied.
+  // The auto-detect snaps levelFilter to the viewer's own logged level on
+  // first leaderboard load (per workout). After it fires once, manual
+  // segment changes — and re-fetches triggered by logging a result — must
+  // not overwrite the user's selection.
+  const autoDetectAppliedRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -86,6 +106,15 @@ export default function WodDetail() {
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    if (loading) return
+    if (autoDetectAppliedRef.current === id) return
+    autoDetectAppliedRef.current = id ?? null
+    if (!user) return
+    const my = results.find((r) => r.userId === user.id)
+    if (my) setLevelFilter(my.level)
+  }, [id, loading, results, user])
 
   if (loading) {
     return (
@@ -118,9 +147,12 @@ export default function WodDetail() {
 
   const myResult = results.find((r) => r.userId === user?.id)
 
+  // Graded inclusion: selecting level X shows X-and-easier (lower-rank) results.
+  // Sort is stable, so within each level the API's performance ordering is preserved.
   const filteredResults = results
-    .filter((r) => levelFilter === 'ALL' || r.level === levelFilter)
+    .filter((r) => showAllLevels || LEVEL_RANK[r.level] <= LEVEL_RANK[levelFilter])
     .filter((r) => genderFilter === 'ALL' || r.workoutGender === genderFilter)
+    .sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level])
 
   return (
     <>
@@ -201,33 +233,35 @@ export default function WodDetail() {
           <hr className="flex-1 border-gray-800" />
         </div>
 
-        {/* Level filter chips */}
-        <ChipGroup className="flex-wrap mb-2">
-          {LEVEL_FILTERS.map((lvl) => (
-            <Chip
-              key={lvl}
-              variant="neutral"
-              toggled={levelFilter === lvl}
-              onToggle={() => setLevelFilter(lvl)}
-            >
-              {lvl === 'ALL' ? 'All' : LEVEL_LABELS[lvl as WorkoutLevel]}
-            </Chip>
-          ))}
-        </ChipGroup>
+        {/* Level filter: segmented control + Show-all checkbox */}
+        <div className="flex flex-wrap items-center gap-3 mb-2">
+          <SegmentedControl
+            options={LEVEL_OPTIONS}
+            value={levelFilter}
+            onChange={setLevelFilter}
+            disabled={showAllLevels}
+            aria-label="Filter results by level"
+          />
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showAllLevels}
+              onChange={(e) => setShowAllLevels(e.target.checked)}
+              className="accent-indigo-500 cursor-pointer"
+            />
+            Show all levels
+          </label>
+        </div>
 
-        {/* Gender filter chips */}
-        <ChipGroup className="mb-4">
-          {GENDER_FILTERS.map(({ value, label }) => (
-            <Chip
-              key={value}
-              variant="neutral"
-              toggled={genderFilter === value}
-              onToggle={() => setGenderFilter(value)}
-            >
-              {label}
-            </Chip>
-          ))}
-        </ChipGroup>
+        {/* Gender filter */}
+        <div className="mb-4">
+          <SegmentedControl
+            options={GENDER_OPTIONS}
+            value={genderFilter}
+            onChange={setGenderFilter}
+            aria-label="Filter results by gender"
+          />
+        </div>
 
         {filteredResults.length === 0 ? (
           <p className="text-sm text-gray-500">No results yet.</p>
