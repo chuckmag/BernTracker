@@ -3,17 +3,8 @@ import TurndownService from 'turndown'
 // @ts-expect-error — turndown-plugin-gfm ships no types
 import { gfm } from 'turndown-plugin-gfm'
 import { api, TYPE_ABBR, type GymProgram, type Movement, type NamedWorkout, type Role, type Workout, type WorkoutStatus, type WorkoutType } from '../lib/api'
+import { WORKOUT_CATEGORIES, WORKOUT_TYPE_STYLES, typesInCategory } from '../lib/workoutTypeStyles'
 import { useMovements } from '../context/MovementsContext.tsx'
-
-const TYPE_OPTIONS: { value: WorkoutType; label: string }[] = [
-  { value: 'AMRAP', label: 'AMRAP' },
-  { value: 'FOR_TIME', label: 'For Time' },
-  { value: 'EMOM', label: 'EMOM' },
-  { value: 'STRENGTH', label: 'Strength' },
-  { value: 'CARDIO', label: 'Cardio' },
-  { value: 'METCON', label: 'MetCon' },
-  { value: 'WARMUP', label: 'Warmup' },
-]
 
 // Single Turndown instance handles HTML→Markdown conversion when the user pastes
 // rich content (e.g., tables copied from a web page) into the description.
@@ -583,9 +574,24 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
               onChange={(e) => setType(e.target.value as WorkoutType)}
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
             >
-              {TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
+              {WORKOUT_CATEGORIES.map((cat) => {
+                const visibleTypes = typesInCategory(cat).filter(
+                  (t) => !WORKOUT_TYPE_STYLES[t].deprecated || t === type,
+                )
+                if (visibleTypes.length === 0) return null
+                return (
+                  <optgroup key={cat} label={cat}>
+                    {visibleTypes.map((t) => {
+                      const style = WORKOUT_TYPE_STYLES[t]
+                      return (
+                        <option key={t} value={t}>
+                          {style.label}{style.deprecated ? ' (legacy)' : ''}
+                        </option>
+                      )
+                    })}
+                  </optgroup>
+                )
+              })}
             </select>
           </div>
 

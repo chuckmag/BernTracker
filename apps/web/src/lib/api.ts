@@ -90,7 +90,17 @@ export interface PendingMovement {
   parentId: string | null
 }
 
-export type WorkoutType = 'STRENGTH' | 'FOR_TIME' | 'EMOM' | 'CARDIO' | 'AMRAP' | 'METCON' | 'WARMUP'
+export type WorkoutType =
+  // Strength
+  | 'STRENGTH' | 'POWER_LIFTING' | 'WEIGHT_LIFTING' | 'BODY_BUILDING' | 'MAX_EFFORT'
+  // Metcon
+  | 'AMRAP' | 'FOR_TIME' | 'EMOM' | 'METCON' | 'TABATA' | 'INTERVALS' | 'CHIPPER' | 'LADDER' | 'DEATH_BY'
+  // MonoStructural
+  | 'CARDIO' | 'RUNNING' | 'ROWING' | 'BIKING' | 'SWIMMING' | 'SKI_ERG' | 'MIXED_MONO'
+  // Skill Work
+  | 'GYMNASTICS' | 'WEIGHTLIFTING_TECHNIQUE'
+  // Warmup / Recovery
+  | 'WARMUP' | 'MOBILITY' | 'COOLDOWN'
 export type WorkoutCategory = 'GIRL_WOD' | 'HERO_WOD' | 'OPEN_WOD' | 'GAMES_WOD' | 'BENCHMARK'
 
 /**

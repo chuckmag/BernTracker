@@ -111,7 +111,7 @@ export default function Feed() {
                   onClick={() => navigate(`/workouts/${workout.id}`)}
                   className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left group border-l-4 ${styles.accentBar}`}
                 >
-                  <span className={`shrink-0 mt-0.5 w-6 h-6 flex items-center justify-center rounded text-xs font-bold ${styles.bg} ${styles.tint}`}>
+                  <span className={`shrink-0 mt-0.5 w-7 h-6 flex items-center justify-center rounded text-xs font-bold ${styles.bg} ${styles.tint}`}>
                     {styles.abbr}
                   </span>
                   <span className="flex-1 min-w-0">
