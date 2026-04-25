@@ -116,7 +116,7 @@ export default function History() {
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left"
               >
                 <span className="text-xs text-gray-500 w-14 shrink-0">{shortDate(r.workout.scheduledAt)}</span>
-                <span className={`w-6 h-6 flex items-center justify-center rounded text-xs font-bold shrink-0 ${styles.bg} ${styles.tint}`}>
+                <span className={`w-7 h-6 flex items-center justify-center rounded text-xs font-bold shrink-0 ${styles.bg} ${styles.tint}`}>
                   {styles.abbr}
                 </span>
                 <span className="flex-1 text-sm font-medium text-white truncate">{r.workout.title}</span>

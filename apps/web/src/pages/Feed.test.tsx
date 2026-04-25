@@ -21,7 +21,18 @@ import { api } from '../lib/api'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const ALL_TYPES: WorkoutType[] = ['STRENGTH', 'FOR_TIME', 'EMOM', 'CARDIO', 'AMRAP', 'METCON', 'WARMUP']
+const ALL_TYPES: WorkoutType[] = [
+  // Strength
+  'STRENGTH', 'POWER_LIFTING', 'WEIGHT_LIFTING', 'BODY_BUILDING', 'MAX_EFFORT',
+  // Conditioning
+  'AMRAP', 'FOR_TIME', 'EMOM', 'METCON', 'TABATA', 'INTERVALS', 'CHIPPER', 'LADDER', 'DEATH_BY',
+  // MonoStructural
+  'CARDIO', 'RUNNING', 'ROWING', 'BIKING', 'SWIMMING', 'SKI_ERG', 'MIXED_MONO',
+  // Skill Work
+  'GYMNASTICS', 'WEIGHTLIFTING_TECHNIQUE',
+  // Warmup / Recovery
+  'WARMUP', 'MOBILITY', 'COOLDOWN',
+]
 
 function makeWorkout(type: WorkoutType, idx: number) {
   // Space scheduledAt across distinct days so they render as separate cards.
