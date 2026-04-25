@@ -8,6 +8,7 @@ import MarkdownDescription from '../components/MarkdownDescription.tsx'
 import Button from '../components/ui/Button.tsx'
 import Chip from '../components/ui/Chip.tsx'
 import ChipGroup from '../components/ui/ChipGroup.tsx'
+import SegmentedControl from '../components/ui/SegmentedControl.tsx'
 
 const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
   GIRL_WOD: 'Girl WOD',
@@ -17,7 +18,6 @@ const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
   BENCHMARK: 'Benchmark',
 }
 
-type LevelFilter = WorkoutLevel | 'ALL'
 type GenderFilter = WorkoutGender | 'ALL'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
@@ -27,7 +27,12 @@ const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   MODIFIED: 'Modified',
 }
 
-const LEVEL_FILTERS: LevelFilter[] = ['ALL', 'RX_PLUS', 'RX', 'SCALED', 'MODIFIED']
+const LEVEL_OPTIONS: { value: WorkoutLevel; label: string }[] = [
+  { value: 'RX_PLUS',  label: 'RX+' },
+  { value: 'RX',       label: 'RX' },
+  { value: 'SCALED',   label: 'Scaled' },
+  { value: 'MODIFIED', label: 'Modified' },
+]
 
 const GENDER_FILTERS: { value: GenderFilter; label: string }[] = [
   { value: 'ALL',    label: 'Open' },
@@ -68,7 +73,8 @@ export default function WodDetail() {
 
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [results, setResults] = useState<WorkoutResult[]>([])
-  const [levelFilter, setLevelFilter] = useState<LevelFilter>('ALL')
+  const [levelFilter, setLevelFilter] = useState<WorkoutLevel>('RX')
+  const [showAllLevels, setShowAllLevels] = useState(false)
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('ALL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -119,7 +125,7 @@ export default function WodDetail() {
   const myResult = results.find((r) => r.userId === user?.id)
 
   const filteredResults = results
-    .filter((r) => levelFilter === 'ALL' || r.level === levelFilter)
+    .filter((r) => showAllLevels || r.level === levelFilter)
     .filter((r) => genderFilter === 'ALL' || r.workoutGender === genderFilter)
 
   return (
@@ -201,19 +207,25 @@ export default function WodDetail() {
           <hr className="flex-1 border-gray-800" />
         </div>
 
-        {/* Level filter chips */}
-        <ChipGroup className="flex-wrap mb-2">
-          {LEVEL_FILTERS.map((lvl) => (
-            <Chip
-              key={lvl}
-              variant="neutral"
-              toggled={levelFilter === lvl}
-              onToggle={() => setLevelFilter(lvl)}
-            >
-              {lvl === 'ALL' ? 'All' : LEVEL_LABELS[lvl as WorkoutLevel]}
-            </Chip>
-          ))}
-        </ChipGroup>
+        {/* Level filter: segmented control + Show-all checkbox */}
+        <div className="flex flex-wrap items-center gap-3 mb-2">
+          <SegmentedControl
+            options={LEVEL_OPTIONS}
+            value={levelFilter}
+            onChange={setLevelFilter}
+            disabled={showAllLevels}
+            aria-label="Filter results by level"
+          />
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showAllLevels}
+              onChange={(e) => setShowAllLevels(e.target.checked)}
+              className="accent-indigo-500 cursor-pointer"
+            />
+            Show all levels
+          </label>
+        </div>
 
         {/* Gender filter chips */}
         <ChipGroup className="mb-4">
