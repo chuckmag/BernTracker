@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "turbo dev",
     "dev:api": "cd apps/api && npm run dev",
+    "dev:jobs": "cd apps/api && npm run job",
     "dev:web": "cd apps/web && npm run dev",
     "dev:mobile": "cd apps/mobile && npm run dev",
     "build": "turbo build",
