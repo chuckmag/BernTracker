@@ -1,8 +1,27 @@
+# Resolver IP comes from /etc/resolv.conf at startup via nginx:alpine's
+# 15-local-resolvers.envsh script. This makes the same template work on local
+# Docker (resolver = 127.0.0.11) and Railway (resolver = whatever Railway sets).
+# Variable-based proxy_pass + per-request DNS resolution avoids the startup
+# race where the API service isn't registered yet when nginx boots.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s;
+
 server {
     listen ${PORT};
     root /usr/share/nginx/html;
     index index.html;
 
+    # /api/* -> proxy to the API service over private networking
+    # (api:3000 locally; ${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}} on Railway).
+    location /api/ {
+        set $api_backend "${API_INTERNAL_HOST}:${API_INTERNAL_PORT}";
+        proxy_pass http://$api_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Everything else: SPA fallback to index.html for React Router.
     location / {
         try_files $uri $uri/ /index.html;
     }
