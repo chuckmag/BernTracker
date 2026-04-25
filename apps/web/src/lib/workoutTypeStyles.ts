@@ -2,7 +2,7 @@ import type { WorkoutType } from './api'
 
 export type WorkoutCategory =
   | 'Strength'
-  | 'Conditioning'
+  | 'Metcon'
   | 'MonoStructural'
   | 'Skill Work'
   | 'Warmup/Recovery'
@@ -10,7 +10,7 @@ export type WorkoutCategory =
 /** Display order for categories in pickers and lists. */
 export const WORKOUT_CATEGORIES: WorkoutCategory[] = [
   'Strength',
-  'Conditioning',
+  'Metcon',
   'MonoStructural',
   'Skill Work',
   'Warmup/Recovery',
@@ -35,16 +35,16 @@ export const WORKOUT_TYPE_STYLES: Record<WorkoutType, WorkoutTypeStyle> = {
   BODY_BUILDING:  { abbr: 'BB',  label: 'Bodybuilding',   category: 'Strength', tint: 'text-pink-300',    bg: 'bg-pink-500/15',    accentBar: 'border-pink-400'    },
   MAX_EFFORT:     { abbr: 'ME',  label: 'Max Effort',     category: 'Strength', tint: 'text-fuchsia-300', bg: 'bg-fuchsia-500/15', accentBar: 'border-fuchsia-400' },
 
-  // ─── Conditioning (Metcon) ──────────────────────────────────────────────────
-  AMRAP:     { abbr: 'AM',  label: 'AMRAP',     category: 'Conditioning', tint: 'text-indigo-300',  bg: 'bg-indigo-500/15',  accentBar: 'border-indigo-400'  },
-  FOR_TIME:  { abbr: 'FT',  label: 'For Time',  category: 'Conditioning', tint: 'text-amber-300',   bg: 'bg-amber-500/15',   accentBar: 'border-amber-400'   },
-  EMOM:      { abbr: 'EM',  label: 'EMOM',      category: 'Conditioning', tint: 'text-teal-300',    bg: 'bg-teal-500/15',    accentBar: 'border-teal-400'    },
-  METCON:    { abbr: 'MET', label: 'Metcon',    category: 'Conditioning', tint: 'text-violet-300',  bg: 'bg-violet-500/15',  accentBar: 'border-violet-400'  },
-  TABATA:    { abbr: 'TB',  label: 'Tabata',    category: 'Conditioning', tint: 'text-purple-300',  bg: 'bg-purple-500/15',  accentBar: 'border-purple-400'  },
-  INTERVALS: { abbr: 'IN',  label: 'Intervals', category: 'Conditioning', tint: 'text-blue-300',    bg: 'bg-blue-500/15',    accentBar: 'border-blue-400'    },
-  CHIPPER:   { abbr: 'CH',  label: 'Chipper',   category: 'Conditioning', tint: 'text-cyan-300',    bg: 'bg-cyan-500/15',    accentBar: 'border-cyan-400'    },
-  LADDER:    { abbr: 'LD',  label: 'Ladder',    category: 'Conditioning', tint: 'text-emerald-300', bg: 'bg-emerald-500/15', accentBar: 'border-emerald-400' },
-  DEATH_BY:  { abbr: 'DB',  label: 'Death By',  category: 'Conditioning', tint: 'text-yellow-300',  bg: 'bg-yellow-500/15',  accentBar: 'border-yellow-400'  },
+  // ─── Metcon ─────────────────────────────────────────────────────────────────
+  AMRAP:     { abbr: 'AM',  label: 'AMRAP',     category: 'Metcon', tint: 'text-indigo-300',  bg: 'bg-indigo-500/15',  accentBar: 'border-indigo-400'  },
+  FOR_TIME:  { abbr: 'FT',  label: 'For Time',  category: 'Metcon', tint: 'text-amber-300',   bg: 'bg-amber-500/15',   accentBar: 'border-amber-400'   },
+  EMOM:      { abbr: 'EM',  label: 'EMOM',      category: 'Metcon', tint: 'text-teal-300',    bg: 'bg-teal-500/15',    accentBar: 'border-teal-400'    },
+  METCON:    { abbr: 'MET', label: 'Metcon',    category: 'Metcon', tint: 'text-violet-300',  bg: 'bg-violet-500/15',  accentBar: 'border-violet-400', deprecated: true },
+  TABATA:    { abbr: 'TB',  label: 'Tabata',    category: 'Metcon', tint: 'text-purple-300',  bg: 'bg-purple-500/15',  accentBar: 'border-purple-400'  },
+  INTERVALS: { abbr: 'IN',  label: 'Intervals', category: 'Metcon', tint: 'text-blue-300',    bg: 'bg-blue-500/15',    accentBar: 'border-blue-400'    },
+  CHIPPER:   { abbr: 'CH',  label: 'Chipper',   category: 'Metcon', tint: 'text-cyan-300',    bg: 'bg-cyan-500/15',    accentBar: 'border-cyan-400'    },
+  LADDER:    { abbr: 'LD',  label: 'Ladder',    category: 'Metcon', tint: 'text-emerald-300', bg: 'bg-emerald-500/15', accentBar: 'border-emerald-400' },
+  DEATH_BY:  { abbr: 'DB',  label: 'Death By',  category: 'Metcon', tint: 'text-yellow-300',  bg: 'bg-yellow-500/15',  accentBar: 'border-yellow-400'  },
 
   // ─── MonoStructural ─────────────────────────────────────────────────────────
   CARDIO:     { abbr: 'CAR', label: 'Cardio',      category: 'MonoStructural', tint: 'text-sky-300',     bg: 'bg-sky-500/15',     accentBar: 'border-sky-400',     deprecated: true },

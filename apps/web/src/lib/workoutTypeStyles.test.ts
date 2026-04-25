@@ -17,11 +17,11 @@ describe('WORKOUT_TYPE_STYLES', () => {
     }
   })
 
-  it('marks STRENGTH and CARDIO as deprecated; nothing else', () => {
+  it('marks STRENGTH, CARDIO, and METCON as deprecated; nothing else', () => {
     const deprecated = (Object.keys(WORKOUT_TYPE_STYLES) as WorkoutType[]).filter(
       (t) => WORKOUT_TYPE_STYLES[t].deprecated,
     )
-    expect(deprecated.sort()).toEqual(['CARDIO', 'STRENGTH'])
+    expect(deprecated.sort()).toEqual(['CARDIO', 'METCON', 'STRENGTH'])
   })
 
   it('every entry has a non-empty 2-3 char abbreviation', () => {
@@ -45,7 +45,7 @@ describe('WORKOUT_TYPE_STYLES', () => {
 describe('categoryOf', () => {
   it('returns the declared category for known types', () => {
     expect(categoryOf('POWER_LIFTING')).toBe('Strength')
-    expect(categoryOf('AMRAP')).toBe('Conditioning')
+    expect(categoryOf('AMRAP')).toBe('Metcon')
     expect(categoryOf('RUNNING')).toBe('MonoStructural')
     expect(categoryOf('GYMNASTICS')).toBe('Skill Work')
     expect(categoryOf('WARMUP')).toBe('Warmup/Recovery')
@@ -61,7 +61,7 @@ describe('typesInCategory', () => {
   it('returns only types whose category matches', () => {
     const expected: Record<WorkoutCategory, WorkoutType[]> = {
       'Strength':       ['STRENGTH', 'POWER_LIFTING', 'WEIGHT_LIFTING', 'BODY_BUILDING', 'MAX_EFFORT'],
-      'Conditioning':   ['AMRAP', 'FOR_TIME', 'EMOM', 'METCON', 'TABATA', 'INTERVALS', 'CHIPPER', 'LADDER', 'DEATH_BY'],
+      'Metcon':         ['AMRAP', 'FOR_TIME', 'EMOM', 'METCON', 'TABATA', 'INTERVALS', 'CHIPPER', 'LADDER', 'DEATH_BY'],
       'MonoStructural': ['CARDIO', 'RUNNING', 'ROWING', 'BIKING', 'SWIMMING', 'SKI_ERG', 'MIXED_MONO'],
       'Skill Work':     ['GYMNASTICS', 'WEIGHTLIFTING_TECHNIQUE'],
       'Warmup/Recovery':['WARMUP', 'MOBILITY', 'COOLDOWN'],

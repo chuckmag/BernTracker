@@ -24,7 +24,7 @@ import { api } from '../lib/api'
 const ALL_TYPES: WorkoutType[] = [
   // Strength
   'STRENGTH', 'POWER_LIFTING', 'WEIGHT_LIFTING', 'BODY_BUILDING', 'MAX_EFFORT',
-  // Conditioning
+  // Metcon
   'AMRAP', 'FOR_TIME', 'EMOM', 'METCON', 'TABATA', 'INTERVALS', 'CHIPPER', 'LADDER', 'DEATH_BY',
   // MonoStructural
   'CARDIO', 'RUNNING', 'ROWING', 'BIKING', 'SWIMMING', 'SKI_ERG', 'MIXED_MONO',
