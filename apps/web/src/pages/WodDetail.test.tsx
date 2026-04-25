@@ -133,42 +133,60 @@ function makeResult(overrides: { id: string; userId: string; name: string; level
   }
 }
 
+// API delivers in non-sorted order on purpose so the level-desc sort is exercised.
 const MIXED_LEADERBOARD = [
-  makeResult({ id: 'r-1', userId: 'u-1', name: 'RxPlus User',  level: 'RX_PLUS',  seconds: 290 }),
-  makeResult({ id: 'r-2', userId: 'u-2', name: 'Rx User',      level: 'RX',       seconds: 305 }),
-  makeResult({ id: 'r-3', userId: 'u-3', name: 'Scaled User',  level: 'SCALED',   seconds: 330 }),
-  makeResult({ id: 'r-4', userId: 'u-4', name: 'Modified User',level: 'MODIFIED', seconds: 360 }),
+  makeResult({ id: 'r-2', userId: 'u-2', name: 'Rx User',       level: 'RX',       seconds: 305 }),
+  makeResult({ id: 'r-4', userId: 'u-4', name: 'Modified User', level: 'MODIFIED', seconds: 360 }),
+  makeResult({ id: 'r-1', userId: 'u-1', name: 'RxPlus User',   level: 'RX_PLUS',  seconds: 290 }),
+  makeResult({ id: 'r-3', userId: 'u-3', name: 'Scaled User',   level: 'SCALED',   seconds: 330 }),
 ]
 
-describe('WodDetail level filter', () => {
+// Returns the body-row athlete names in DOM order so assertions can verify sort.
+function visibleAthleteOrder(): string[] {
+  const cells = Array.from(document.querySelectorAll('tbody tr td:nth-child(2)'))
+  return cells
+    .map((td) => td.textContent ?? '')
+    // Strip the "(you)" suffix added next to the viewer's row.
+    .map((s) => s.replace(/\s*\(you\)\s*$/, '').trim())
+    .filter((s) => s.length > 0)
+}
+
+describe('WodDetail level filter — graded inclusion + ordering', () => {
   beforeEach(() => {
     vi.mocked(api.workouts.get).mockResolvedValue(makeWorkout())
     vi.mocked(api.results.leaderboard).mockResolvedValue(MIXED_LEADERBOARD as never)
   })
 
-  it('shows only RX results by default', async () => {
+  it('defaults to RX when the viewer has no logged result, showing RX + Scaled + Modified ordered by level desc', async () => {
     renderPage()
-    expect(await screen.findByText('Rx User')).toBeInTheDocument()
+    await screen.findByText('Rx User')
+
+    // RX+ excluded, the other three included.
     expect(screen.queryByText('RxPlus User')).not.toBeInTheDocument()
-    expect(screen.queryByText('Scaled User')).not.toBeInTheDocument()
-    expect(screen.queryByText('Modified User')).not.toBeInTheDocument()
+    expect(screen.getByText('Rx User')).toBeInTheDocument()
+    expect(screen.getByText('Scaled User')).toBeInTheDocument()
+    expect(screen.getByText('Modified User')).toBeInTheDocument()
+
+    // Order: RX → Scaled → Modified (harder first).
+    expect(visibleAthleteOrder()).toEqual(['Rx User', 'Scaled User', 'Modified User'])
   })
 
-  it('filters to Scaled when the Scaled segment is clicked', async () => {
+  it('clicking the Scaled segment shows Scaled + Modified only', async () => {
     const user = userEvent.setup()
     renderPage()
-    // Wait for the page to mount + leaderboard to resolve.
     await screen.findByText('Rx User')
 
     await user.click(screen.getByRole('radio', { name: 'Scaled' }))
 
-    expect(await screen.findByText('Scaled User')).toBeInTheDocument()
-    expect(screen.queryByText('Rx User')).not.toBeInTheDocument()
+    await screen.findByText('Scaled User')
     expect(screen.queryByText('RxPlus User')).not.toBeInTheDocument()
-    expect(screen.queryByText('Modified User')).not.toBeInTheDocument()
+    expect(screen.queryByText('Rx User')).not.toBeInTheDocument()
+    expect(screen.getByText('Modified User')).toBeInTheDocument()
+
+    expect(visibleAthleteOrder()).toEqual(['Scaled User', 'Modified User'])
   })
 
-  it('toggling "Show all levels" reveals every result and disables the segments', async () => {
+  it('toggling "Show all levels" reveals every result ordered RX+ → RX → Scaled → Modified and disables the segments', async () => {
     const user = userEvent.setup()
     renderPage()
     await screen.findByText('Rx User')
@@ -176,13 +194,34 @@ describe('WodDetail level filter', () => {
     await user.click(screen.getByRole('checkbox', { name: /show all levels/i }))
 
     expect(await screen.findByText('RxPlus User')).toBeInTheDocument()
-    expect(screen.getByText('Rx User')).toBeInTheDocument()
-    expect(screen.getByText('Scaled User')).toBeInTheDocument()
-    expect(screen.getByText('Modified User')).toBeInTheDocument()
+    expect(visibleAthleteOrder()).toEqual([
+      'RxPlus User', 'Rx User', 'Scaled User', 'Modified User',
+    ])
 
-    // Each segment is disabled while "Show all" is on.
     for (const label of ['RX+', 'RX', 'Scaled', 'Modified']) {
       expect(screen.getByRole('radio', { name: label })).toBeDisabled()
     }
+  })
+
+  it("auto-selects the viewer's own logged level when the leaderboard contains it", async () => {
+    // user-1 is the auth-mocked viewer; give them a Scaled result.
+    const leaderboardWithViewer = [
+      ...MIXED_LEADERBOARD,
+      makeResult({ id: 'r-me', userId: 'user-1', name: 'Test User', level: 'SCALED', seconds: 340 }),
+    ]
+    vi.mocked(api.results.leaderboard).mockResolvedValue(leaderboardWithViewer as never)
+
+    renderPage()
+    // Wait for auto-detect to apply: the Scaled segment becomes pressed.
+    await screen.findByText(/Test User/)
+
+    await screen.findByRole('radio', { name: 'Scaled', checked: true })
+
+    // RxPlus / Rx are hidden; Scaled (self + others) and Modified are shown.
+    expect(screen.queryByText('RxPlus User')).not.toBeInTheDocument()
+    expect(screen.queryByText('Rx User')).not.toBeInTheDocument()
+    expect(screen.getByText('Scaled User')).toBeInTheDocument()
+    expect(screen.getByText('Modified User')).toBeInTheDocument()
+    expect(screen.getByText(/Test User/)).toBeInTheDocument()
   })
 })
