@@ -17,6 +17,7 @@ vi.mock('../lib/api', () => ({
     workouts: { list: vi.fn(), get: vi.fn() },
     results: { leaderboard: vi.fn(), history: vi.fn() },
     gyms: { programs: { list: vi.fn() } },
+    programs: { get: vi.fn() },
     namedWorkouts: { list: vi.fn() },
     movements: { list: vi.fn(), detect: vi.fn() },
   },

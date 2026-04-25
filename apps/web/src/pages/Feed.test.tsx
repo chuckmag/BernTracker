@@ -10,6 +10,7 @@ import type { WorkoutType } from '../lib/api'
 vi.mock('../lib/api', () => ({
   api: {
     workouts: { list: vi.fn() },
+    programs: { get: vi.fn() },
   },
 }))
 
@@ -65,6 +66,62 @@ function renderFeed() {
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
+
+describe('Feed — ?programId filter', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(api.workouts.list).mockResolvedValue([] as never)
+    vi.mocked(api.programs.get).mockResolvedValue({
+      gymId: 'gym-1',
+      programId: 'prog-1',
+      createdAt: '2026-03-01T00:00:00.000Z',
+      program: {
+        id: 'prog-1',
+        name: 'Override — March 2026',
+        description: null,
+        startDate: '2026-03-01T00:00:00.000Z',
+        endDate: null,
+        coverColor: '#6366F1',
+        createdAt: '2026-03-01T00:00:00.000Z',
+        updatedAt: '2026-03-01T00:00:00.000Z',
+      },
+    } as never)
+  })
+
+  it('passes programId in the filters bag to api.workouts.list', async () => {
+    render(
+      <MemoryRouter initialEntries={['/feed?programId=prog-1']}>
+        <Feed />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
+    const lastCall = vi.mocked(api.workouts.list).mock.calls.at(-1)!
+    // Args: (gymId, fromIso, toIso, filters)
+    expect(lastCall[3]).toEqual({ programId: 'prog-1' })
+  })
+
+  it('renders the program name and a back-to-all-workouts link when filtered', async () => {
+    render(
+      <MemoryRouter initialEntries={['/feed?programId=prog-1']}>
+        <Feed />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Override — March 2026' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Back to all workouts/ })).toHaveAttribute('href', '/feed')
+  })
+
+  it('does not call api.programs.get when no programId is in the URL', async () => {
+    render(
+      <MemoryRouter initialEntries={['/feed']}>
+        <Feed />
+      </MemoryRouter>,
+    )
+    await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
+    expect(api.programs.get).not.toHaveBeenCalled()
+    // Plain "Feed" heading
+    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
+  })
+})
 
 describe('Feed — workout-type tokens', () => {
   beforeEach(() => {

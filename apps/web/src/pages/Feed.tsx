@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { api, type Workout } from '../lib/api.ts'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { api, type GymProgram, type Workout } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
@@ -29,7 +29,10 @@ function formatDayLabel(dateKey: string, todayKey: string): string {
 
 export default function Feed() {
   const { gymId } = useGym()
+  const [searchParams] = useSearchParams()
+  const programId = searchParams.get('programId') || undefined
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [program, setProgram] = useState<GymProgram | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -39,18 +42,25 @@ export default function Feed() {
     let cancelled = false
     setLoading(true)
     setError(null)
+    setProgram(null)
     const today = new Date()
     const from = new Date(today)
     from.setDate(today.getDate() - 30)
     const to = new Date(today)
     to.setDate(today.getDate() + 14)
     to.setHours(23, 59, 59, 999)
-    api.workouts.list(gymId, from.toISOString(), to.toISOString())
-      .then((data) => { if (!cancelled) setWorkouts(data.filter((w) => w.status === 'PUBLISHED')) })
+    const listPromise = api.workouts.list(gymId, from.toISOString(), to.toISOString(), programId ? { programId } : undefined)
+    const programPromise = programId ? api.programs.get(programId) : Promise.resolve(null)
+    Promise.all([listPromise, programPromise])
+      .then(([data, p]) => {
+        if (cancelled) return
+        setWorkouts(data.filter((w) => w.status === 'PUBLISHED'))
+        setProgram(p)
+      })
       .catch((e) => { if (!cancelled) setError((e as Error).message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [gymId])
+  }, [gymId, programId])
 
   if (!gymId) {
     return (
@@ -79,7 +89,28 @@ export default function Feed() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Feed</h1>
+      {programId && (
+        <div className="mb-4">
+          <Link to="/feed" className="text-xs text-indigo-400 hover:text-indigo-300">
+            ← Back to all workouts
+          </Link>
+        </div>
+      )}
+
+      {programId && program ? (
+        <div className="flex items-start gap-3 mb-6">
+          <div
+            style={{ backgroundColor: program.program.coverColor ?? '#374151' }}
+            className="w-1.5 h-10 rounded-full shrink-0"
+          />
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold truncate">{program.program.name}</h1>
+            <p className="text-xs uppercase tracking-wider text-gray-400 mt-0.5">Feed</p>
+          </div>
+        </div>
+      ) : (
+        <h1 className="text-2xl font-bold mb-6">Feed</h1>
+      )}
 
       {error && <p className="text-red-400 mb-4">{error}</p>}
 

@@ -27,6 +27,12 @@ interface WorkoutDrawerProps {
   workout?: Workout
   workoutsOnDay: Workout[]
   userGymRole?: Role | null
+  /**
+   * Pre-selects this program in the picker when the drawer opens in create
+   * mode. Used by Calendar's `?programId` filter so a workout created from a
+   * filtered view is auto-tagged to that program.
+   */
+  defaultProgramId?: string
   onClose: () => void
   onSaved: () => void
   onAutoSaved?: () => void
@@ -53,7 +59,7 @@ function buildSnapshot(args: {
   })
 }
 
-export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, userGymRole, onClose, onSaved, onAutoSaved, onReordered, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
+export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, userGymRole, defaultProgramId, onClose, onSaved, onAutoSaved, onReordered, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
   const isOpen = dateKey !== null
 
   const allMovements = useMovements()
@@ -105,18 +111,18 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     api.gyms.programs.list(gymId)
       .then((list) => {
         setPrograms(list)
-        setProgramId((prev) => prev || list[0]?.programId || '')
+        setProgramId((prev) => prev || defaultProgramId || list[0]?.programId || '')
       })
       .catch(() => setError('Failed to load programs'))
       .finally(() => setProgramsLoading(false))
-  }, [isOpen, isEdit, gymId])
+  }, [isOpen, isEdit, gymId, defaultProgramId])
 
   useEffect(() => {
     if (!isOpen) return
     setTitle(workout?.title ?? '')
     setType(workout?.type ?? 'AMRAP')
     setDescription(workout?.description ?? '')
-    setProgramId(workout?.programId ?? '')
+    setProgramId(workout?.programId ?? defaultProgramId ?? '')
     setNamedWorkoutId(workout?.namedWorkoutId ?? null)
     setSelectedMovements(workout?.workoutMovements?.map((wm) => wm.movement) ?? [])
     setDismissedIds(new Set())
@@ -137,9 +143,9 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       type: workout?.type ?? 'AMRAP',
       namedWorkoutId: workout?.namedWorkoutId ?? null,
       movementIds: workout?.workoutMovements?.map((wm) => wm.movement.id) ?? [],
-      programId: workout?.id ? null : (workout?.programId ?? ''),
+      programId: workout?.id ? null : (workout?.programId ?? defaultProgramId ?? ''),
     })
-  }, [isOpen, workout?.id])
+  }, [isOpen, workout?.id, defaultProgramId])
 
   // programId is part of the snapshot only while the workout is still being created.
   // Once it exists server-side, the program is immutable, so further edits to the

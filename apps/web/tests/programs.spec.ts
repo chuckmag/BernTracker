@@ -1,11 +1,13 @@
 /**
- * Playwright E2E for Slice 1 of #82 — Programs CRUD (staff).
+ * Playwright E2E for Slice 1 + Slice 2 of #82 — Programs CRUD + ?programId filter.
  *
  * Covers:
- *   T1: OWNER can create a program from the index page
- *   T2: OWNER can edit a program's name
- *   T3: MEMBER role does not see Programs in the sidebar
- *   T4: OWNER can delete a program and it disappears from the index
+ *   T1: OWNER can create a program from the index page (#83)
+ *   T2: OWNER can edit a program's name (#83)
+ *   T3: MEMBER role does not see Programs in the sidebar (#83)
+ *   T4: OWNER can delete a program and it disappears from the index (#83)
+ *   T5: PROGRAMMER follows "Open in Calendar" → filtered Calendar with header (#84)
+ *   T6: Direct visit to /feed?programId=<unrelated-program> surfaces an error (#84)
  *
  * Requires: turbo dev running (API on :3000, web on :5173)
  * Run: cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test tests/programs.spec.ts
@@ -52,7 +54,7 @@ async function gotoPrograms(page: Page) {
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('Programs CRUD UAT (#83)', () => {
+test.describe('Programs CRUD + ?programId filter (#83 + #84)', () => {
   test.beforeAll(async () => {
     const [ownerHash, memberHash] = await Promise.all([
       bcrypt.hash(OWNER_PASSWORD, 10),
@@ -87,6 +89,8 @@ test.describe('Programs CRUD UAT (#83)', () => {
       await prisma.workout.updateMany({ where: { programId: { in: programIds } }, data: { programId: null } })
       await prisma.program.deleteMany({ where: { id: { in: programIds } } })
     }
+    // T6 creates a sibling gym + program — clean those up too
+    await prisma.gym.deleteMany({ where: { slug: { startsWith: `programs-e2e-other-${TS}` } } }).catch(() => {})
     await prisma.user.deleteMany({ where: { id: { in: [ownerUserId, memberUserId] } } })
     await prisma.gym.delete({ where: { id: gymId } }).catch(() => {})
     await prisma.$disconnect()
@@ -145,6 +149,63 @@ test.describe('Programs CRUD UAT (#83)', () => {
     // Feed is the landing page for members
     await expect(page.locator('aside').first()).toBeVisible()
     await expect(page.locator('aside').first().getByRole('link', { name: 'Programs' })).toHaveCount(0)
+  })
+
+  // ── T5: Open in Calendar from program detail ────────────────────────────────
+
+  test('T5: PROGRAMMER follows "Open in Calendar" → filtered Calendar header', async ({ page }) => {
+    const seeded = await prisma.program.create({
+      data: {
+        name: `E2E Filter Calendar ${TS}`,
+        startDate: new Date('2026-05-01'),
+        coverColor: '#10B981',
+        gyms: { create: { gymId } },
+      },
+    })
+
+    await login(page, OWNER_EMAIL, OWNER_PASSWORD)
+    await page.goto(`/programs/${seeded.id}`)
+    await expect(page.locator('h1', { hasText: `E2E Filter Calendar ${TS}` })).toBeVisible()
+
+    // Click "Open in Calendar" — opens /calendar?programId=<seeded.id>
+    await page.getByRole('button', { name: 'Open in Calendar' }).click()
+    await page.waitForURL(`**/calendar?programId=${seeded.id}`)
+
+    // Filtered header shows the program name + the "Calendar" eyebrow
+    await expect(page.locator('h1', { hasText: `E2E Filter Calendar ${TS}` })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('Calendar', { exact: true }).first()).toBeVisible()
+
+    // Back link returns to the unfiltered calendar
+    await page.getByRole('link', { name: /Back to full calendar/ }).click()
+    await page.waitForURL('**/calendar')
+    await expect(page.locator('h1', { hasText: 'Calendar' })).toBeVisible()
+  })
+
+  // ── T6: Forbidden program surfaces error on Feed ────────────────────────────
+
+  test('T6: /feed?programId=<unrelated-program> renders an error state', async ({ page }) => {
+    // Create a sibling gym + program that this test's OWNER isn't a member of.
+    const otherGym = await prisma.gym.create({
+      data: { name: `E2E Other Gym ${TS}`, slug: `programs-e2e-other-${TS}`, timezone: 'UTC' },
+    })
+    const inaccessibleProgram = await prisma.program.create({
+      data: {
+        name: `E2E Forbidden ${TS}`,
+        startDate: new Date('2026-05-01'),
+        gyms: { create: { gymId: otherGym.id } },
+      },
+    })
+
+    await login(page, OWNER_EMAIL, OWNER_PASSWORD)
+    await page.goto(`/feed?programId=${inaccessibleProgram.id}`)
+
+    // The page should render an error message rather than crashing.
+    // The exact copy comes from the API ("Forbidden") via the apiFetch error path.
+    await expect(page.locator('p.text-red-400')).toBeVisible({ timeout: 5000 })
+
+    // Cleanup of these specific fixtures (afterAll catches the gym/program too).
+    await prisma.program.delete({ where: { id: inaccessibleProgram.id } }).catch(() => {})
+    await prisma.gym.delete({ where: { id: otherGym.id } }).catch(() => {})
   })
 
   // ── T4: OWNER deletes a program ──────────────────────────────────────────────

@@ -20,6 +20,7 @@ import {
   applyTemplateToWorkout,
 } from '../db/workoutDbManager.js'
 import { expandMovementIdsWithVariations } from '../db/movementDbManager.js'
+import { findProgramGymAccessForUser } from '../db/programDbManager.js'
 import {
   findGymMembershipByUserAndGym
 } from '../db/userGymDbManager.js'
@@ -82,7 +83,16 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
     ? await expandMovementIdsWithVariations(movementIdList)
     : undefined
 
-  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly, movementIds })
+  const programId = typeof req.query.programId === 'string' && req.query.programId.length > 0
+    ? req.query.programId
+    : undefined
+  if (programId) {
+    const access = await findProgramGymAccessForUser(programId, gymId)
+    if (access === 'not-found') return res.status(404).json({ error: 'Program not found' })
+    if (access === 'forbidden') return res.status(403).json({ error: 'Forbidden' })
+  }
+
+  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly, movementIds, programId })
   res.json(workouts)
 }
 

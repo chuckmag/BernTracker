@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, type Workout } from '../lib/api'
+import { Link, useSearchParams } from 'react-router-dom'
+import { api, type GymProgram, type Workout } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import { useMovements } from '../context/MovementsContext.tsx'
 import CalendarCell from '../components/CalendarCell'
@@ -20,10 +21,13 @@ const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export default function Calendar() {
   const { gymId, gymRole: userGymRole } = useGym()
   const allMovements = useMovements()
+  const [searchParams] = useSearchParams()
+  const programId = searchParams.get('programId') || undefined
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [program, setProgram] = useState<GymProgram | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -37,20 +41,35 @@ export default function Calendar() {
     try {
       const from = new Date(year, month, 1).toISOString()
       const to = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString()
-      const data = await api.workouts.list(gymId, from, to, filterMovementIds.length ? filterMovementIds : undefined)
+      const filters = (filterMovementIds.length || programId)
+        ? {
+            ...(filterMovementIds.length ? { movementIds: filterMovementIds } : {}),
+            ...(programId ? { programId } : {}),
+          }
+        : undefined
+      const data = await api.workouts.list(gymId, from, to, filters)
       if (!signal?.cancelled) setWorkouts(data)
     } catch (e) {
       if (!signal?.cancelled) setError((e as Error).message)
     } finally {
       if (!signal?.cancelled) setLoading(false)
     }
-  }, [gymId, year, month, filterMovementIds])
+  }, [gymId, year, month, filterMovementIds, programId])
 
   useEffect(() => {
     const signal = { cancelled: false }
     loadWorkouts(signal)
     return () => { signal.cancelled = true }
   }, [loadWorkouts])
+
+  useEffect(() => {
+    if (!programId) { setProgram(null); return }
+    let cancelled = false
+    api.programs.get(programId)
+      .then((p) => { if (!cancelled) setProgram(p) })
+      .catch(() => { if (!cancelled) setProgram(null) })
+    return () => { cancelled = true }
+  }, [programId])
 
   const workoutsByDate: Record<string, Workout[]> = {}
   for (const w of workouts) {
@@ -103,9 +122,30 @@ export default function Calendar() {
 
   return (
     <div>
+      {programId && (
+        <div className="mb-4">
+          <Link to="/calendar" className="text-xs text-indigo-400 hover:text-indigo-300">
+            ← Back to full calendar
+          </Link>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Calendar</h1>
+        {programId && program ? (
+          <div className="flex items-start gap-3 min-w-0">
+            <div
+              style={{ backgroundColor: program.program.coverColor ?? '#374151' }}
+              className="w-1.5 h-10 rounded-full shrink-0"
+            />
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold truncate">{program.program.name}</h1>
+              <p className="text-xs uppercase tracking-wider text-gray-400 mt-0.5">Calendar</p>
+            </div>
+          </div>
+        ) : (
+          <h1 className="text-2xl font-bold">Calendar</h1>
+        )}
         <div className="flex items-center gap-2">
           <Button variant="tertiary" onClick={prevMonth} aria-label="Previous month">
             ←
@@ -191,6 +231,7 @@ export default function Calendar() {
         workout={selectedWorkout}
         workoutsOnDay={workoutsOnDay}
         userGymRole={userGymRole}
+        defaultProgramId={programId}
         onClose={() => { setSelectedDate(null); setSelectedWorkoutId(null) }}
         onSaved={() => { setSelectedDate(null); setSelectedWorkoutId(null); loadWorkouts() }}
         onAutoSaved={loadWorkouts}

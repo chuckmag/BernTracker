@@ -248,6 +248,80 @@ async function runTests() {
     const r = await api('GET', `/programs/${createdId}`, ownerToken)
     check('GET deleted program → 404', 404, r.status)
   }
+
+  // ── GET /api/gyms/:gymId/workouts?programId=… (slice 2) ────────────────────
+  console.log('\n=== GET /api/gyms/:gymId/workouts?programId=… (filter) ===')
+
+  // Two fresh programs: A linked to `gymId` (caller's gym), B linked to `otherGymId` only
+  const programA = await prisma.program.create({
+    data: { name: `Filter A ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId } } },
+  })
+  const programB = await prisma.program.create({
+    data: { name: `Filter B ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId: otherGymId } } },
+  })
+  createdProgramIds.push(programA.id, programB.id)
+
+  // One workout per program, both inside the test date range
+  const aWorkout = await prisma.workout.create({
+    data: {
+      programId: programA.id, title: 'A workout', description: 'a', type: 'AMRAP',
+      scheduledAt: new Date('2026-05-10T12:00:00Z'), status: 'PUBLISHED',
+    },
+  })
+  const bWorkout = await prisma.workout.create({
+    data: {
+      programId: programB.id, title: 'B workout', description: 'b', type: 'AMRAP',
+      scheduledAt: new Date('2026-05-10T12:00:00Z'), status: 'PUBLISHED',
+    },
+  })
+
+  const range = 'from=2026-05-01&to=2026-05-31T23:59:59Z'
+
+  {
+    // Regression — no programId → existing behavior. Caller is gymId-scoped, so
+    // they only see workouts whose program is linked to gymId (i.e. A only).
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}`, programmerToken)
+    check('GET no filter → 200', 200, r.status)
+    const titles = (r.body as unknown as { title: string }[]).map((w) => w.title)
+    check('GET no filter includes A', true, titles.includes('A workout'))
+    check('GET no filter excludes B (other gym)', false, titles.includes('B workout'))
+  }
+
+  {
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programId=${programA.id}`, programmerToken)
+    check('GET ?programId=A as PROGRAMMER → 200', 200, r.status)
+    const titles = (r.body as unknown as { title: string }[]).map((w) => w.title)
+    check('GET ?programId=A returns only A', JSON.stringify(['A workout']), JSON.stringify(titles))
+  }
+
+  {
+    // MEMBER role sees published workouts only — A's workout is PUBLISHED, so it's visible
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programId=${programA.id}`, memberToken)
+    check('GET ?programId=A as MEMBER → 200', 200, r.status)
+    const arr = r.body as unknown as { title: string }[]
+    check('GET ?programId=A as MEMBER → 1 result', 1, arr.length)
+  }
+
+  {
+    // B is linked to a gym the caller is not a member of → 403
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programId=${programB.id}`, programmerToken)
+    check('GET ?programId=<unlinked program> → 403', 403, r.status)
+  }
+
+  {
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programId=does-not-exist-${TS}`, programmerToken)
+    check('GET ?programId=<missing> → 404', 404, r.status)
+  }
+
+  {
+    // No auth → 401 from requireAuth, before our filter check runs
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programId=${programA.id}`)
+    check('GET ?programId without auth → 401', 401, r.status)
+  }
+
+  // Cleanup the new fixtures here so teardown doesn't have to know about them
+  await prisma.workout.delete({ where: { id: aWorkout.id } })
+  await prisma.workout.delete({ where: { id: bWorkout.id } })
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────

@@ -118,7 +118,7 @@ export default function ProgramDetail() {
 
       {error && <p className="text-red-400 mb-4">{error}</p>}
 
-      {tab === 'overview' && <OverviewTab program={program} />}
+      {tab === 'overview' && <OverviewTab program={program} canWrite={canWrite} />}
       {tab === 'members' && <ComingSoon label="Member invite and management" />}
       {tab === 'workouts' && <ComingSoon label="Program-filtered workout list and bulk upload" />}
 
@@ -142,31 +142,44 @@ export default function ProgramDetail() {
   )
 }
 
-function OverviewTab({ program }: { program: Program }) {
+function OverviewTab({ program, canWrite }: { program: Program; canWrite: boolean }) {
   const memberCount = program._count?.members ?? 0
   const workoutCount = program._count?.workouts ?? 0
   const fmt = (d: string | null) =>
     d ? new Date(d).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—'
 
   return (
-    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
-      <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Start date</dt>
-        <dd className="text-white">{fmt(program.startDate)}</dd>
+    <>
+      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm mb-8">
+        <div>
+          <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Start date</dt>
+          <dd className="text-white">{fmt(program.startDate)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">End date</dt>
+          <dd className="text-white">{fmt(program.endDate)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Members</dt>
+          <dd className="text-white">{memberCount}</dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Workouts</dt>
+          <dd className="text-white">{workoutCount}</dd>
+        </div>
+      </dl>
+
+      <div className="flex flex-wrap gap-2">
+        <Link to={`/feed?programId=${program.id}`}>
+          <Button variant="secondary">Open in Feed</Button>
+        </Link>
+        {canWrite && (
+          <Link to={`/calendar?programId=${program.id}`}>
+            <Button variant="secondary">Open in Calendar</Button>
+          </Link>
+        )}
       </div>
-      <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">End date</dt>
-        <dd className="text-white">{fmt(program.endDate)}</dd>
-      </div>
-      <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Members</dt>
-        <dd className="text-white">{memberCount}</dd>
-      </div>
-      <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Workouts</dt>
-        <dd className="text-white">{workoutCount}</dd>
-      </div>
-    </dl>
+    </>
   )
 }
 
