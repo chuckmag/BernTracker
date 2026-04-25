@@ -6,6 +6,7 @@ import CalendarCell from '../components/CalendarCell'
 import WorkoutDrawer from '../components/WorkoutDrawer'
 import MovementFilterInput from '../components/MovementFilterInput'
 import Button from '../components/ui/Button'
+import Chip from '../components/ui/Chip'
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -116,14 +117,32 @@ export default function Calendar() {
         </div>
       </div>
 
-      {/* Movement filter */}
+      {/* Sticky movement-filter sub-header */}
       {allMovements.length > 0 && (
-        <div className="mb-4 px-3 py-2 bg-gray-900 rounded-lg border border-gray-800">
-          <MovementFilterInput
-            allMovements={allMovements}
-            selectedIds={filterMovementIds}
-            onChange={setFilterMovementIds}
-          />
+        <div className="sticky top-0 z-20 -mx-4 px-4 py-2 mb-4 bg-gray-950/90 backdrop-blur supports-[backdrop-filter]:bg-gray-950/70 border-b border-gray-800">
+          {/* Wide layout: full chip row */}
+          <div className="hidden min-[520px]:block">
+            <MovementFilterInput
+              allMovements={allMovements}
+              selectedIds={filterMovementIds}
+              onChange={setFilterMovementIds}
+            />
+          </div>
+          {/* Narrow layout: collapsed details/summary */}
+          <details className="block min-[520px]:hidden">
+            <summary className="list-none cursor-pointer [&::-webkit-details-marker]:hidden inline-block">
+              <Chip variant="neutral">
+                Filters{filterMovementIds.length ? ` (${filterMovementIds.length})` : ''}
+              </Chip>
+            </summary>
+            <div className="mt-2">
+              <MovementFilterInput
+                allMovements={allMovements}
+                selectedIds={filterMovementIds}
+                onChange={setFilterMovementIds}
+              />
+            </div>
+          </details>
         </div>
       )}
 
@@ -148,7 +167,7 @@ export default function Calendar() {
         {weeks.map((week, wi) =>
           week.map((date, di) => {
             if (!date) {
-              return <div key={`empty-${wi}-${di}`} className="bg-gray-950 h-24" />
+              return <div key={`empty-${wi}-${di}`} className="bg-gray-950 h-[120px]" />
             }
             const key = toDateKey(date)
             return (

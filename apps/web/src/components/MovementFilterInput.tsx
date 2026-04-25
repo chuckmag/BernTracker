@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Movement } from '../lib/api'
+import Chip from './ui/Chip'
 
 interface Props {
   allMovements: Movement[]
@@ -42,20 +43,14 @@ export default function MovementFilterInput({
     <div className="flex flex-wrap items-center gap-1.5">
       {/* Selected chips */}
       {selectedMovements.map((m) => (
-        <span
+        <Chip
           key={m.id}
-          className="flex items-center gap-1 bg-indigo-600 text-white text-xs px-2.5 py-1 rounded-full"
+          variant="accent"
+          onDismiss={() => remove(m.id)}
+          aria-label={`Remove ${m.name} filter`}
         >
           {m.name}
-          <button
-            type="button"
-            onMouseDown={() => remove(m.id)}
-            className="flex items-center justify-center w-3.5 h-3.5 -mr-0.5 hover:bg-indigo-500 rounded-full transition-colors"
-            aria-label={`Remove ${m.name} filter`}
-          >
-            ×
-          </button>
-        </span>
+        </Chip>
       ))}
 
       {/* Search input + dropdown */}
