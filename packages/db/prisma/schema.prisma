@@ -232,6 +232,9 @@ model Workout {
   scheduledAt DateTime
   dayOrder    Int           @default(0)
   namedWorkoutId String?
+  // Stable identifier from an external source (e.g. "crossfit-mainsite:w20260425")
+  // used for idempotent upserts by background ingest jobs. Null for user-authored workouts.
+  externalSourceId String?  @unique
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
