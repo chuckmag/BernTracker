@@ -11,6 +11,10 @@ interface CreateWorkoutData {
   dayOrder?: number
   movementIds?: string[]
   namedWorkoutId?: string
+  // External ingest jobs (e.g. CrossFit Mainsite cron) set these. The unique
+  // constraint on externalSourceId makes the upsert path idempotent.
+  externalSourceId?: string
+  status?: WorkoutStatus
 }
 
 interface UpdateWorkoutData {
@@ -133,6 +137,10 @@ export async function findWorkoutProgramId(id: string) {
     where: { id },
     select: { programId: true },
   })
+}
+
+export async function findWorkoutByExternalSourceId(externalSourceId: string) {
+  return prisma.workout.findUnique({ where: { externalSourceId } })
 }
 
 export async function updateWorkout(id: string, data: UpdateWorkoutData) {
