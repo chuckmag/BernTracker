@@ -27,7 +27,11 @@ ENV PORT=80
 ENV API_INTERNAL_HOST=api
 ENV API_INTERNAL_PORT=3000
 # Limit envsubst to these specific vars so nginx's own $host, $uri, etc. are left alone.
-ENV NGINX_ENVSUBST_FILTER='^(PORT|API_INTERNAL_HOST|API_INTERNAL_PORT)$'
+# Opt into nginx:alpine's /docker-entrypoint.d/15-local-resolvers.envsh script,
+# which reads /etc/resolv.conf at startup and exports NGINX_LOCAL_RESOLVERS.
+# Lets the same template work on local Docker (127.0.0.11) and Railway (Railway's resolver).
+ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
+ENV NGINX_ENVSUBST_FILTER='^(PORT|API_INTERNAL_HOST|API_INTERNAL_PORT|NGINX_LOCAL_RESOLVERS)$'
 
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/nginx.conf.template /etc/nginx/templates/default.conf.template

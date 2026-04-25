@@ -1,7 +1,9 @@
-# Docker's embedded DNS resolver — used by both local docker-compose and Railway's
-# container networking. Variable-based proxy_pass + per-request resolution avoids
-# the startup race where the API service isn't registered yet when nginx boots.
-resolver 127.0.0.11 valid=10s ipv6=off;
+# Resolver IP comes from /etc/resolv.conf at startup via nginx:alpine's
+# 15-local-resolvers.envsh script. This makes the same template work on local
+# Docker (resolver = 127.0.0.11) and Railway (resolver = whatever Railway sets).
+# Variable-based proxy_pass + per-request DNS resolution avoids the startup
+# race where the API service isn't registered yet when nginx boots.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s;
 
 server {
     listen ${PORT};
