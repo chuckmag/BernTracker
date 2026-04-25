@@ -122,7 +122,7 @@ export default function Feed() {
                       <span className="text-xs text-indigo-400">● {workout.namedWorkout.name}</span>
                     )}
                   </span>
-                  <span className="shrink-0 mt-0.5 text-gray-600 group-hover:text-gray-400 transition-colors">›</span>
+                  <span className="shrink-0 mt-0.5 text-gray-400 group-hover:text-white transition-colors">›</span>
                 </button>
                 )
               })}

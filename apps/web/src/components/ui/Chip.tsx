@@ -58,7 +58,7 @@ export default function Chip({
       type="button"
       onClick={(e: MouseEvent) => { e.stopPropagation(); onDismiss() }}
       aria-label="Remove"
-      className={`ml-0.5 -mr-1 w-4 h-4 inline-flex items-center justify-center rounded-full hover:bg-black/20 ${FOCUS_RING}`}
+      className={`ml-0.5 -mr-1.5 -my-1 w-7 h-7 inline-flex items-center justify-center rounded-full hover:bg-black/20 ${FOCUS_RING}`}
     >
       ×
     </button>
