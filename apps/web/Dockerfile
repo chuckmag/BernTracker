@@ -22,10 +22,12 @@ RUN npx turbo build --filter=@berntracker/web
 # ── Stage 2: serve ───────────────────────────────────────────────────────────
 FROM nginx:alpine AS runtime
 
-# Default PORT for local dev; Railway overrides this at runtime.
+# Defaults for local dev; Railway overrides these at runtime.
 ENV PORT=80
-# Only substitute ${PORT} in the template; leave nginx's own $host, $uri, etc. alone.
-ENV NGINX_ENVSUBST_FILTER=PORT
+ENV API_INTERNAL_HOST=api
+ENV API_INTERNAL_PORT=3000
+# Limit envsubst to these specific vars so nginx's own $host, $uri, etc. are left alone.
+ENV NGINX_ENVSUBST_FILTER='^(PORT|API_INTERNAL_HOST|API_INTERNAL_PORT)$'
 
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/nginx.conf.template /etc/nginx/templates/default.conf.template
