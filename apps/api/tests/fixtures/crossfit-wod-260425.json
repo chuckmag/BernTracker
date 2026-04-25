@@ -1,0 +1,15 @@
+{
+  "wods": {
+    "id": "w20260425",
+    "cleanID": "20260425",
+    "title": "Saturday 260425",
+    "wodRaw": "For time:\r\n400-meter bear crawl\r\n100 push-ups\r\n50 toes-to-bars\r\n30 thrusters",
+    "wodHtml": "<p>For time:<br />400-meter bear crawl<br />100 push-ups<br />50 toes-to-bars<br />30 thrusters</p>",
+    "publishingState": "published",
+    "publishingDate": "2026-04-24T23:55:00+00:00",
+    "url": "/260425",
+    "topicId": "mainsite.20260425",
+    "previous": { "url": "/260424" },
+    "next": false
+  }
+}
