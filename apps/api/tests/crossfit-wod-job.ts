@@ -165,29 +165,49 @@ async function runTests() {
 }
 
 async function runMissingProgramScenario() {
-  console.log('\n=== runCrossfitWodJob — program not found → no-op (no throw) ===')
-  // Save program name out of the way temporarily so the lookup misses, then
-  // restore. Only safe because this test owns the program (created in setup).
+  console.log('\n=== runCrossfitWodJob — program not found → auto-creates program and proceeds ===')
+  // Hide the existing program by renaming it so the name lookup misses. The
+  // job should then create a fresh program with PROGRAM_NAME and write the
+  // workout into it. Only safe because this test owns the program (setup()
+  // skips this branch when an external program already existed).
   if (createdElsewhere) {
     console.log('  (skipping — program existed before test run)')
     return
   }
   const renamedTo = `__hidden_${SENTINEL}__`
   await prisma.program.update({ where: { id: programId }, data: { name: renamedTo } })
+  let createdProgramId: string | null = null
+  let createdWorkoutId: string | null = null
   try {
+    const payload = fixture({
+      externalId: `w${SENTINEL}-bootstrap`,
+      title: `Test WOD bootstrap ${SENTINEL}`,
+    })
     let threw = false
     try {
-      await runCrossfitWodJob({
-        fetchWod: async () => {
-          throw new Error('should not be called when program is missing')
-        },
-      })
+      await runCrossfitWodJob({ fetchWod: async () => payload })
     } catch {
       threw = true
     }
     check('program-missing case does not throw', false, threw)
-    check('fetchWod was not called', false, threw) // would have thrown if called
+
+    const newProgram = await prisma.program.findFirst({ where: { name: PROGRAM_NAME } })
+    check('job created program with expected name', true, newProgram !== null)
+    createdProgramId = newProgram?.id ?? null
+
+    const w = await prisma.workout.findUnique({
+      where: { externalSourceId: `crossfit-mainsite:${payload.externalId}` },
+    })
+    check('workout created against the new program', true, w !== null)
+    check('workout linked to the auto-created program', createdProgramId, w?.programId)
+    createdWorkoutId = w?.id ?? null
   } finally {
+    if (createdWorkoutId) {
+      await prisma.workout.delete({ where: { id: createdWorkoutId } }).catch(() => {})
+    }
+    if (createdProgramId && createdProgramId !== programId) {
+      await prisma.program.delete({ where: { id: createdProgramId } }).catch(() => {})
+    }
     await prisma.program.update({ where: { id: programId }, data: { name: PROGRAM_NAME } })
   }
 }
