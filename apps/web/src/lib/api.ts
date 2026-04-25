@@ -107,15 +107,9 @@ export type WorkoutCategory = 'GIRL_WOD' | 'HERO_WOD' | 'OPEN_WOD' | 'GAMES_WOD'
  * @deprecated Use `WORKOUT_TYPE_STYLES[type].abbr` from `./workoutTypeStyles`.
  * Retained as a shim so non-migrated callers keep working in one step.
  */
-export const TYPE_ABBR: Record<WorkoutType, string> = {
-  WARMUP:   WORKOUT_TYPE_STYLES.WARMUP.abbr,
-  STRENGTH: WORKOUT_TYPE_STYLES.STRENGTH.abbr,
-  AMRAP:    WORKOUT_TYPE_STYLES.AMRAP.abbr,
-  FOR_TIME: WORKOUT_TYPE_STYLES.FOR_TIME.abbr,
-  EMOM:     WORKOUT_TYPE_STYLES.EMOM.abbr,
-  CARDIO:   WORKOUT_TYPE_STYLES.CARDIO.abbr,
-  METCON:   WORKOUT_TYPE_STYLES.METCON.abbr,
-}
+export const TYPE_ABBR = Object.fromEntries(
+  Object.entries(WORKOUT_TYPE_STYLES).map(([k, v]) => [k, v.abbr]),
+) as Record<WorkoutType, string>
 export type WorkoutStatus = 'DRAFT' | 'PUBLISHED'
 
 export interface NamedWorkout {
