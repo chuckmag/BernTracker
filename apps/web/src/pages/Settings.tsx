@@ -398,7 +398,7 @@ export default function Settings() {
                             <button
                               type="button"
                               onClick={() => { setEditParentId(null); setParentSearch('') }}
-                              className="text-xs text-gray-500 hover:text-gray-300"
+                              className="text-xs text-gray-400 hover:text-gray-200"
                             >
                               ×
                             </button>
@@ -452,7 +452,7 @@ export default function Settings() {
                     <div>
                       <span className="text-sm text-white">{m.name}</span>
                       {m.parentId && (
-                        <span className="ml-2 text-xs text-gray-500">
+                        <span className="ml-2 text-xs text-gray-400">
                           variation of {allMovements.find((a) => a.id === m.parentId)?.name ?? 'unknown'}
                         </span>
                       )}
