@@ -201,11 +201,13 @@ export interface Member {
 export interface Program {
   id: string
   name: string
-  description?: string
+  description: string | null
   startDate: string
-  endDate?: string
+  endDate: string | null
+  coverColor: string | null
   createdAt: string
   updatedAt: string
+  _count?: { members: number; workouts: number }
 }
 
 export interface GymProgram {
@@ -311,7 +313,11 @@ export const api = {
       list: (gymId: string, token?: string) =>
         req<GymProgram[]>(`/api/gyms/${gymId}/programs`, { token }),
 
-      create: (gymId: string, data: { name: string; description?: string; startDate: string; endDate?: string }, token?: string) =>
+      create: (
+        gymId: string,
+        data: { name: string; description?: string; startDate: string; endDate?: string; coverColor?: string },
+        token?: string,
+      ) =>
         req<{ program: Program }>(`/api/gyms/${gymId}/programs`, {
           method: 'POST',
           body: JSON.stringify(data),
@@ -439,6 +445,29 @@ export const api = {
   },
 
   programs: {
+    get: (id: string, token?: string) =>
+      req<GymProgram>(`/api/programs/${id}`, { token }),
+
+    update: (
+      id: string,
+      data: {
+        name?: string
+        description?: string | null
+        startDate?: string
+        endDate?: string | null
+        coverColor?: string | null
+      },
+      token?: string,
+    ) =>
+      req<Program>(`/api/programs/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+        token,
+      }),
+
+    delete: (id: string, token?: string) =>
+      req<void>(`/api/programs/${id}`, { method: 'DELETE', token }),
+
     subscribe: (id: string, userId: string, token?: string) =>
       req<unknown>(`/api/programs/${id}/subscribe`, {
         method: 'POST',

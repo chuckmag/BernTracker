@@ -145,6 +145,80 @@ router.get('/gyms/:gymId/workouts', requireAuth, requireGymMembership, getWorkou
 router.get('/gyms/:gymId/workouts', requireAuth, async (req, res) => { ... })
 ```
 
+## Design system (web)
+
+Established by #81. **Always use existing primitives before writing custom Tailwind for the same pattern.** Look here first; only inline styles when the primitive genuinely doesn't fit.
+
+### Primitives — `apps/web/src/components/ui/`
+
+| Primitive | When to use | Notes |
+|---|---|---|
+| `Button` | Every clickable action button | Variants: `primary` (indigo, the default CTA), `secondary` (gray, less weight), `tertiary` (text-only, e.g. pagination/back-arrows), `destructive` (rose, delete actions). Includes the shared focus ring — never bake your own focus styles on top. |
+| `Chip` | Tags, status pills, toggle filter pills | Variants: `neutral`, `accent`, `status-published`, `status-draft`, `status-rejected`. Pass `onToggle` for toggle-pill behavior (auto-adds `aria-pressed`); pass `onDismiss` for an `×` close affordance. |
+| `ChipGroup` | Row of toggle chips | Handles horizontal-scroll overflow and exposes a trailing "Clear" chip via `onClear`. Use in any filter strip. |
+| `SegmentedControl` | Mutually-exclusive selection within a single context | The level filter on `WodDetail` is the canonical example. Use this for radio-group-like UIs with 2–5 options. **Not** for page-level tab navigation (those are still custom — see "Patterns to extract" below). |
+| `Badge` | Small numeric count next to a nav item or icon | 10px font, `min-w-5`. **Not** for big heading-counts — those use a separate `text-sm` chip pattern shared between `Members` and `ProgramsIndex`. |
+| `EmptyState` | Empty list/page with title, body, optional CTA | Use whenever a data fetch returns zero results. Don't render a bare paragraph like "No X yet". |
+| `Skeleton` | Loading state placeholder | Variants: `feed-row`, `history-row`, `calendar-cell`. Pass `count` to repeat. **Always** use this instead of a "Loading…" string. |
+
+### Token modules — `apps/web/src/lib/`
+
+- **`workoutTypeStyles.ts`** — `WORKOUT_TYPE_STYLES[type]` returns `{ abbr, label, category, tint, bg, accentBar }` for every `WorkoutType`. Any surface that renders a workout type **must** pull from this map. The deprecated `TYPE_ABBR` shim in `lib/api.ts` re-exports `.abbr` only; new code should reach for `WORKOUT_TYPE_STYLES` directly.
+- **`workoutTypeStyles.WORKOUT_CATEGORIES`** — display order for category groupings in pickers/lists.
+
+### Dark-theme palette conventions
+
+- Page background: `bg-gray-950`. Cards/drawers: `bg-gray-900`. Inputs: `bg-gray-800`.
+- Borders: `border-gray-800` (subtle), `border-gray-700` (interactive).
+- Primary accent: `indigo-600` (Buttons), `indigo-500` (focus rings, tab underlines).
+- Destructive: `rose-600` / `rose-700`.
+- Status colors (translucent fills): emerald = published/success, amber = draft/warning, rose = rejected/error.
+
+### A11y baseline (#81 PR 5)
+
+Every interactive element must satisfy these. The primitives above already do — only worry about it when you're writing a one-off control.
+
+- **Contrast:** text under 14px (`text-xs`, `text-[10px]`, `text-[11px]`) uses `text-gray-400` or lighter. `text-gray-500` passes contrast only at `text-sm` (14px) and larger — fine for de-emphasized secondary copy. Reserve `text-gray-600` for invisible / disabled / decorative-only states (e.g. `·` separators marked `aria-hidden="true"`); never put it on visible user-facing copy. Lighthouse will flag any of these.
+- **Touch targets:** the WCAG 2.5.8 AA bar is **24×24** (Lighthouse uses this); aim for **28×28** as the team default. Audit candidate: `grep -rE "w-[0-5]\b|h-[0-5]\b" apps/web/src` — every match should be non-interactive. When you need a bigger hit area without growing the surrounding layout, pair the size bump with a margin clawback: `className="-my-1 -mr-1.5 w-7 h-7 inline-flex items-center justify-center …"`. For checkbox + label pairs, `min-h-7` on the wrapping `<label>` clears the hit area without enlarging the visible checkbox.
+- **Focus rings:** always `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950` (offset color matches the parent surface — use `ring-offset-gray-900` inside a drawer). Use the primitive instead of duplicating this string.
+- **`title`** attribute on truncated text for hover reveal (e.g. workout pills in calendar cells).
+
+### ARIA patterns (lessons-learned)
+
+- **Toggle button** (`Chip` with `onToggle`, color-swatch pickers, etc.): `role="button"` (the default for `<button>`) + `aria-pressed={selected}`.
+- **Radio group** (`SegmentedControl`-style mutually-exclusive selection): container is `role="radiogroup"`; each segment is `role="radio"` with `aria-checked={selected}`. **Do NOT also set `aria-pressed`** — axe's `aria-allowed-attr` rule rejects `aria-pressed` on `radio`. Pair this with **roving tabindex**: only the selected segment has `tabIndex={0}`, others `tabIndex={-1}`. Arrow keys move selection (and focus follows).
+- **Form selects:** pair `<label htmlFor="x">` with `<select id="x">`. Sibling proximity is **not** enough — both axe and screen readers require the explicit association. When there's no visible label (e.g., a single-purpose toolbar select), use `aria-label` instead.
+- **Decorative-only icons / separators:** add `aria-hidden="true"` so axe's contrast rule skips them.
+
+### When to extract a new primitive
+
+Extract when **the same pattern appears in 3+ places** (or 2 with strong likelihood of a third). Don't pre-extract. Two more checks before committing to it:
+
+1. There's interactive behavior worth encapsulating: keyboard handling, ARIA state, focus management, or a non-trivial style permutation (variants).
+2. Pulling it out makes consumer code visibly tighter — the consumer reads as intent, not as a styling recipe.
+
+If only the visual is shared but the behavior is trivial (e.g., a one-line styled `<div>`), inline the markup. If the behavior is shared but the visual differs heavily across uses, prefer a hook/utility over a primitive. If the same enum value drives styling across multiple surfaces, that's a **token map** under `lib/<domain>Styles.ts`, not a primitive.
+
+**Process for adding one:**
+
+1. Identify the two real call sites and sketch the prop API on paper. Variants belong as discriminated string unions, not boolean props (`variant: 'primary' | 'secondary'`, never `isPrimary` + `isSecondary`). Default the most-used variant in the prop signature so consumers can pass nothing for the common case.
+2. Add the file under `apps/web/src/components/ui/<Name>.tsx`. Include the shared `FOCUS_RING` constant if interactive. Mirror the existing primitives' shape — generic over the value type when relevant (see `SegmentedControl<T extends string>`).
+3. Co-locate `<Name>.test.tsx` covering: each variant renders, click / keyboard fires the right handlers, `disabled` blocks both, and `aria-*` attributes reflect state. Follow the existing primitive tests for shape.
+4. Migrate **at least one** real call site in the same PR — never ship an unconsumed primitive. If it's worth pulling out, it's worth proving the pull-out fits at a real call site.
+5. Add a row to the *Primitives* table above and remove the entry from *Patterns to extract* if it was flagged.
+6. Run `npx vitest run` — including the page-level `apps/web/src/test/a11y.test.tsx` axe check — before opening the PR.
+
+**Patterns to extract** (flagged but not yet primitive):
+- **Drawer** — slide-from-right + overlay + Escape-to-close. Currently re-implemented in `WorkoutDrawer`, `LogResultDrawer`, `ProgramFormDrawer`. Worth extracting next time someone touches them.
+- **Tabs** — page-section navigation with underline indicator. Currently custom in `ProgramDetail`; will repeat in slice 4 of #82 (Browse + Members tabs).
+- **FormField + TextInput / Textarea / DatePicker** — every form repeats `<label class="text-xs text-gray-400">` + styled input. Extract when a third form joins (slice 3 of #82 likely is it).
+- **HeadingCount** — the `text-sm` count chip next to page headings (Members, ProgramsIndex use the same `<span class="bg-gray-700 text-sm px-2 py-0.5 rounded-full">{N}</span>` literal twice). Extract to ui/HeadingCount.tsx if a third caller appears.
+- **ConfirmDialog** — currently using `window.confirm` for delete confirmations. Replace with a primitive when we want consistent in-app styling.
+
+### Reference
+
+Visual guide with before/after mockups: `resources/design-guide.html`. Issue #81 has the full implementation plan in 5 PRs.
+
 ## Key enums
 
 ```prisma
