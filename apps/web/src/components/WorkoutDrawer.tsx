@@ -542,7 +542,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
 
           {/* Program — required selector (create) or read-only label (edit) */}
           <div>
-            <label className="block text-xs text-gray-400 mb-1">
+            <label htmlFor="wd-program" className="block text-xs text-gray-400 mb-1">
               Program <span className="text-red-400">*</span>
             </label>
             {isEdit ? (
@@ -551,6 +551,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
               </p>
             ) : (
               <select
+                id="wd-program"
                 value={programId}
                 onChange={(e) => setProgramId(e.target.value)}
                 disabled={programsLoading}
@@ -568,8 +569,9 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
           </div>
 
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Type</label>
+            <label htmlFor="wd-type" className="block text-xs text-gray-400 mb-1">Type</label>
             <select
+              id="wd-type"
               value={type}
               onChange={(e) => setType(e.target.value as WorkoutType)}
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
@@ -623,9 +625,10 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
           </div>
 
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Named Workout <span className="text-gray-400">(optional)</span></label>
+            <label htmlFor="wd-named" className="block text-xs text-gray-400 mb-1">Named Workout <span className="text-gray-400">(optional)</span></label>
             <div className="flex gap-2">
               <select
+                id="wd-named"
                 value={namedWorkoutId ?? ''}
                 onChange={(e) => setNamedWorkoutId(e.target.value || null)}
                 className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"

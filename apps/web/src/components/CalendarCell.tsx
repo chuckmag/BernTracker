@@ -19,7 +19,7 @@ export default function CalendarCell({ date, isToday, workouts, selected, onAddC
   return (
     <div
       className={[
-        'group bg-gray-950 h-[120px] p-1.5 flex flex-col transition-colors',
+        'group bg-gray-950 h-[128px] p-1.5 flex flex-col transition-colors',
         selected ? 'ring-2 ring-inset ring-indigo-500' : 'hover:bg-gray-900',
       ].join(' ')}
     >
@@ -51,7 +51,7 @@ export default function CalendarCell({ date, isToday, workouts, selected, onAddC
               key={w.id}
               onClick={() => onWorkoutClick(w.id)}
               title={w.title}
-              className={`w-full flex items-center gap-1 px-1 py-0.5 rounded text-left hover:bg-gray-800/70 transition-colors border-l-2 ${styles?.accentBar ?? 'border-gray-700'}`}
+              className={`w-full min-h-6 flex items-center gap-1 px-1 py-0.5 rounded text-left hover:bg-gray-800/70 transition-colors border-l-2 ${styles?.accentBar ?? 'border-gray-700'}`}
             >
               <span className={['text-[11px] shrink-0', w.status === 'PUBLISHED' ? 'text-green-400' : 'text-yellow-400'].join(' ')}>
                 {w.status === 'PUBLISHED' ? '●' : '○'}

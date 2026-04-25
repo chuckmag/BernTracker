@@ -167,7 +167,7 @@ export default function Calendar() {
         {weeks.map((week, wi) =>
           week.map((date, di) => {
             if (!date) {
-              return <div key={`empty-${wi}-${di}`} className="bg-gray-950 h-[120px]" />
+              return <div key={`empty-${wi}-${di}`} className="bg-gray-950 h-[128px]" />
             }
             const key = toDateKey(date)
             return (
