@@ -1,6 +1,17 @@
 import { z } from 'zod'
 
-export const WorkoutTypeSchema = z.enum(['STRENGTH', 'FOR_TIME', 'EMOM', 'CARDIO', 'AMRAP', 'METCON', 'WARMUP'])
+export const WorkoutTypeSchema = z.enum([
+  // Strength
+  'STRENGTH', 'POWER_LIFTING', 'WEIGHT_LIFTING', 'BODY_BUILDING', 'MAX_EFFORT',
+  // Conditioning (Metcon)
+  'AMRAP', 'FOR_TIME', 'EMOM', 'METCON', 'TABATA', 'INTERVALS', 'CHIPPER', 'LADDER', 'DEATH_BY',
+  // MonoStructural
+  'CARDIO', 'RUNNING', 'ROWING', 'BIKING', 'SWIMMING', 'SKI_ERG', 'MIXED_MONO',
+  // Skill Work
+  'GYMNASTICS', 'WEIGHTLIFTING_TECHNIQUE',
+  // Warmup / Recovery
+  'WARMUP', 'MOBILITY', 'COOLDOWN',
+])
 
 export const WorkoutCategorySchema = z.enum(['GIRL_WOD', 'HERO_WOD', 'OPEN_WOD', 'GAMES_WOD', 'BENCHMARK'])
 

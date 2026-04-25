@@ -1,3 +1,5 @@
+import { WORKOUT_TYPE_STYLES } from './workoutTypeStyles'
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 const REQUEST_TIMEOUT_MS = 10_000
 
@@ -88,17 +90,31 @@ export interface PendingMovement {
   parentId: string | null
 }
 
-export type WorkoutType = 'STRENGTH' | 'FOR_TIME' | 'EMOM' | 'CARDIO' | 'AMRAP' | 'METCON' | 'WARMUP'
+export type WorkoutType =
+  // Strength
+  | 'STRENGTH' | 'POWER_LIFTING' | 'WEIGHT_LIFTING' | 'BODY_BUILDING' | 'MAX_EFFORT'
+  // Metcon
+  | 'AMRAP' | 'FOR_TIME' | 'EMOM' | 'METCON' | 'TABATA' | 'INTERVALS' | 'CHIPPER' | 'LADDER' | 'DEATH_BY'
+  // MonoStructural
+  | 'CARDIO' | 'RUNNING' | 'ROWING' | 'BIKING' | 'SWIMMING' | 'SKI_ERG' | 'MIXED_MONO'
+  // Skill Work
+  | 'GYMNASTICS' | 'WEIGHTLIFTING_TECHNIQUE'
+  // Warmup / Recovery
+  | 'WARMUP' | 'MOBILITY' | 'COOLDOWN'
 export type WorkoutCategory = 'GIRL_WOD' | 'HERO_WOD' | 'OPEN_WOD' | 'GAMES_WOD' | 'BENCHMARK'
 
+/**
+ * @deprecated Use `WORKOUT_TYPE_STYLES[type].abbr` from `./workoutTypeStyles`.
+ * Retained as a shim so non-migrated callers keep working in one step.
+ */
 export const TYPE_ABBR: Record<WorkoutType, string> = {
-  WARMUP: 'W',
-  STRENGTH: 'S',
-  AMRAP: 'A',
-  FOR_TIME: 'F',
-  EMOM: 'E',
-  CARDIO: 'C',
-  METCON: 'M',
+  WARMUP:   WORKOUT_TYPE_STYLES.WARMUP.abbr,
+  STRENGTH: WORKOUT_TYPE_STYLES.STRENGTH.abbr,
+  AMRAP:    WORKOUT_TYPE_STYLES.AMRAP.abbr,
+  FOR_TIME: WORKOUT_TYPE_STYLES.FOR_TIME.abbr,
+  EMOM:     WORKOUT_TYPE_STYLES.EMOM.abbr,
+  CARDIO:   WORKOUT_TYPE_STYLES.CARDIO.abbr,
+  METCON:   WORKOUT_TYPE_STYLES.METCON.abbr,
 }
 export type WorkoutStatus = 'DRAFT' | 'PUBLISHED'
 

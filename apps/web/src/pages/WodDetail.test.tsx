@@ -10,10 +10,6 @@ vi.mock('../lib/api', () => ({
     workouts: { get: vi.fn() },
     results: { leaderboard: vi.fn() },
   },
-  TYPE_ABBR: {
-    STRENGTH: 'S', FOR_TIME: 'F', EMOM: 'E', CARDIO: 'C',
-    AMRAP: 'A', METCON: 'M', WARMUP: 'W',
-  },
 }))
 
 vi.mock('../context/AuthContext', () => ({

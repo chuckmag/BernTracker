@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, TYPE_ABBR, type HistoryResult, type WorkoutLevel, type WorkoutType } from '../lib/api.ts'
+import { api, type HistoryResult, type WorkoutLevel, type WorkoutType } from '../lib/api.ts'
+import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useMovements } from '../context/MovementsContext.tsx'
 import MovementFilterInput from '../components/MovementFilterInput.tsx'
 import Button from '../components/ui/Button.tsx'
@@ -106,21 +107,24 @@ export default function History() {
             <hr className="flex-1 border-gray-800" />
           </div>
           <div className="space-y-1">
-            {rows.map((r) => (
+            {rows.map((r) => {
+              const styles = WORKOUT_TYPE_STYLES[r.workout.type as WorkoutType]
+              return (
               <button
                 key={r.id}
                 onClick={() => navigate(`/workouts/${r.workout.id}`, { state: { from: 'history' } })}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left"
               >
                 <span className="text-xs text-gray-500 w-14 shrink-0">{shortDate(r.workout.scheduledAt)}</span>
-                <span className="w-6 h-6 flex items-center justify-center rounded bg-gray-800 text-xs font-bold text-gray-400 shrink-0">
-                  {TYPE_ABBR[r.workout.type]}
+                <span className={`w-7 h-6 flex items-center justify-center rounded text-xs font-bold shrink-0 ${styles.bg} ${styles.tint}`}>
+                  {styles.abbr}
                 </span>
                 <span className="flex-1 text-sm font-medium text-white truncate">{r.workout.title}</span>
                 <span className="font-mono text-sm text-gray-300 shrink-0">{formatResultValue(r)}</span>
                 <span className="text-xs text-gray-500 w-16 text-right shrink-0">{LEVEL_LABELS[r.level]}</span>
               </button>
-            ))}
+              )
+            })}
           </div>
         </div>
       ))}

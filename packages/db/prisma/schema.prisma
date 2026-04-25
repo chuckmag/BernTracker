@@ -17,13 +17,41 @@ enum Role {
 }
 
 enum WorkoutType {
-  STRENGTH
+  // Strength category
+  STRENGTH // legacy — prefer a specific sub-type below
+  POWER_LIFTING
+  WEIGHT_LIFTING
+  BODY_BUILDING
+  MAX_EFFORT
+
+  // Conditioning (Metcon) category
+  AMRAP
   FOR_TIME
   EMOM
-  CARDIO
-  AMRAP
   METCON
+  TABATA
+  INTERVALS
+  CHIPPER
+  LADDER
+  DEATH_BY
+
+  // MonoStructural category
+  CARDIO // legacy — prefer a specific sub-type below
+  RUNNING
+  ROWING
+  BIKING
+  SWIMMING
+  SKI_ERG
+  MIXED_MONO
+
+  // Skill Work category
+  GYMNASTICS
+  WEIGHTLIFTING_TECHNIQUE
+
+  // Warmup / Recovery category
   WARMUP
+  MOBILITY
+  COOLDOWN
 }
 
 enum WorkoutLevel {
