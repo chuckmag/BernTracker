@@ -441,12 +441,12 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <div>
-            <p className="text-xs text-gray-500 mb-0.5">{displayDate}</p>
+            <p className="text-xs text-gray-400 mb-0.5">{displayDate}</p>
             <h2 className="text-base font-semibold">{isEdit ? 'Edit Workout' : 'New Workout'}</h2>
           </div>
           <div className="flex items-center gap-3">
             {autosaveLabel && (
-              <span className="text-[10px] text-gray-500" data-testid="autosave-status">
+              <span className="text-[10px] text-gray-400" data-testid="autosave-status">
                 {autosaveLabel}
               </span>
             )}
@@ -479,7 +479,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
           {/* Today's Workouts nav — shown when day has multiple workouts or adding to a day with existing workouts */}
           {(workoutsOnDay.length > 1 || (!isEdit && workoutsOnDay.length >= 1)) && (
             <div className="border border-gray-800 rounded-lg overflow-hidden">
-              <div className="px-3 py-2 bg-gray-800/30 text-[10px] text-gray-500 uppercase tracking-wider">
+              <div className="px-3 py-2 bg-gray-800/30 text-[10px] text-gray-400 uppercase tracking-wider">
                 Today's Workouts
               </div>
               {workoutsOnDay.map((w, idx) => {
@@ -498,13 +498,13 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                         <button
                           onClick={(e) => { e.stopPropagation(); handleReorder('up') }}
                           disabled={idx === 0 || reordering}
-                          className="text-gray-500 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed w-4 h-4 flex items-center justify-center rounded transition-colors"
+                          className="text-gray-500 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed w-7 h-7 flex items-center justify-center rounded transition-colors"
                           title="Move up"
                         >↑</button>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleReorder('down') }}
                           disabled={idx === workoutsOnDay.length - 1 || reordering}
-                          className="text-gray-500 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed w-4 h-4 flex items-center justify-center rounded transition-colors"
+                          className="text-gray-500 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed w-7 h-7 flex items-center justify-center rounded transition-colors"
                           title="Move down"
                         >↓</button>
                       </span>
@@ -679,7 +679,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                             setSelectedMovements((prev) => prev.filter((x) => x.id !== m.id))
                             setDismissedIds((prev) => new Set([...prev, m.id]))
                           }}
-                          className="flex items-center justify-center w-4 h-4 -mr-0.5 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors"
+                          className="flex items-center justify-center w-7 h-7 -mr-1 -my-1 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors"
                           aria-label={`Remove ${m.name}`}
                         >
                           ×
@@ -723,7 +723,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                         >
                           {m.name}
                           {m.parentId && (
-                            <span className="ml-1 text-gray-500 text-xs">
+                            <span className="ml-1 text-gray-400 text-xs">
                               ({allMovements.find((x) => x.id === m.parentId)?.name ?? 'variation'})
                             </span>
                           )}

@@ -65,7 +65,7 @@ export default function CalendarCell({ date, isToday, workouts, selected, onAddC
         })}
       </div>
       {overflow > 0 && (
-        <div className="text-[11px] text-gray-500 pl-1 shrink-0">+{overflow} more</div>
+        <div className="text-[11px] text-gray-400 pl-1 shrink-0">+{overflow} more</div>
       )}
     </div>
   )

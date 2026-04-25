@@ -59,7 +59,6 @@ export default function SegmentedControl<T extends string>({
             type="button"
             role="radio"
             aria-checked={isSelected}
-            aria-pressed={isSelected}
             disabled={disabled}
             tabIndex={isSelected ? 0 : -1}
             onClick={() => onChange(opt.value)}

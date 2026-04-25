@@ -103,7 +103,7 @@ export default function History() {
       {groups.map(({ month, rows }) => (
         <div key={month}>
           <div className="flex items-center gap-3 mb-3">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">{month}</h2>
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">{month}</h2>
             <hr className="flex-1 border-gray-800" />
           </div>
           <div className="space-y-1">
@@ -115,13 +115,13 @@ export default function History() {
                 onClick={() => navigate(`/workouts/${r.workout.id}`, { state: { from: 'history' } })}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left"
               >
-                <span className="text-xs text-gray-500 w-14 shrink-0">{shortDate(r.workout.scheduledAt)}</span>
+                <span className="text-xs text-gray-400 w-14 shrink-0">{shortDate(r.workout.scheduledAt)}</span>
                 <span className={`w-7 h-6 flex items-center justify-center rounded text-xs font-bold shrink-0 ${styles.bg} ${styles.tint}`}>
                   {styles.abbr}
                 </span>
                 <span className="flex-1 text-sm font-medium text-white truncate">{r.workout.title}</span>
                 <span className="font-mono text-sm text-gray-300 shrink-0">{formatResultValue(r)}</span>
-                <span className="text-xs text-gray-500 w-16 text-right shrink-0">{LEVEL_LABELS[r.level]}</span>
+                <span className="text-xs text-gray-400 w-16 text-right shrink-0">{LEVEL_LABELS[r.level]}</span>
               </button>
               )
             })}
@@ -135,7 +135,7 @@ export default function History() {
           <Button variant="tertiary" onClick={() => setPage((p) => p - 1)} disabled={page <= 1}>
             ← Prev
           </Button>
-          <span className="text-xs text-gray-500">Page {page} of {pages}</span>
+          <span className="text-xs text-gray-400">Page {page} of {pages}</span>
           <Button variant="tertiary" onClick={() => setPage((p) => p + 1)} disabled={page >= pages}>
             Next →
           </Button>

@@ -82,7 +82,7 @@ export default function MovementFilterInput({
               >
                 {m.name}
                 {m.parentId && (
-                  <span className="ml-1 text-gray-500 text-xs">
+                  <span className="ml-1 text-gray-400 text-xs">
                     ({allMovements.find((x) => x.id === m.parentId)?.name ?? 'variation'})
                   </span>
                 )}
@@ -96,7 +96,7 @@ export default function MovementFilterInput({
         <button
           type="button"
           onClick={() => onChange([])}
-          className="text-xs text-gray-500 hover:text-gray-300 transition-colors ml-1"
+          className="text-xs text-gray-400 hover:text-gray-200 transition-colors ml-1"
         >
           Clear
         </button>

@@ -146,7 +146,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
               <p className="text-sm font-semibold text-white leading-tight">
                 {isEdit ? 'Edit Result' : 'Log Result'}
               </p>
-              <p className="text-xs text-gray-500 leading-tight truncate max-w-[180px]">{workout.title}</p>
+              <p className="text-xs text-gray-400 leading-tight truncate max-w-[180px]">{workout.title}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-xl leading-none transition-colors" aria-label="Close">×</button>
@@ -209,7 +209,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
                     className="w-full bg-gray-800 text-white text-sm rounded-md px-3 py-2 border border-gray-700 focus:outline-none focus:border-indigo-500 disabled:opacity-40" />
                 </div>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer min-h-7">
                 <input type="checkbox" checked={cappedOut} onChange={(e) => setCappedOut(e.target.checked)} className="w-4 h-4 rounded accent-indigo-500" />
                 <span className="text-sm text-gray-300">Time capped</span>
               </label>
