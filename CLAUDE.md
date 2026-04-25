@@ -145,6 +145,20 @@ router.get('/gyms/:gymId/workouts', requireAuth, requireGymMembership, getWorkou
 router.get('/gyms/:gymId/workouts', requireAuth, async (req, res) => { ... })
 ```
 
+### Background jobs
+
+One-shot scripts triggered on a schedule live under `apps/api/src/jobs/`. The dispatcher at `apps/api/src/jobs/index.ts` is the CLI entrypoint — it takes the job name as `argv[2]`, looks it up in the `JOBS` map, runs the matching handler, disconnects Prisma, and exits (`0` on success, `1` on handler error, `2` on unknown / missing job name).
+
+Each job is its own Railway service: same image (`apps/api/Dockerfile.jobs`), different `startCommand` (the job name), different `cronSchedule`. The image's `ENTRYPOINT` runs the dispatcher, so Railway only needs to override the argument.
+
+**Adding a new job:**
+1. Create `apps/api/src/jobs/<name>.ts` exporting an async handler.
+2. Register it in the dispatcher's `JOBS` map in `src/jobs/index.ts`.
+3. Add a `railway.<name>.toml` (or update `railway.jobs.toml`) with the desired `startCommand` and `cronSchedule`.
+
+**Local invocation:** `npm run build --workspace=@berntracker/api && npm run job --workspace=@berntracker/api -- <name>`.
+
+The Express API service does **not** import job code at runtime — the two services share modules under `src/lib/` and `src/db/`, but have separate entrypoints and separate Railway deployments. A job failure cannot affect the user-facing API.
 ## Design system (web)
 
 Established by #81. **Always use existing primitives before writing custom Tailwind for the same pattern.** Look here first; only inline styles when the primitive genuinely doesn't fit.

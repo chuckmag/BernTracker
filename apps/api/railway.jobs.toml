@@ -1,0 +1,20 @@
+# Railway service config for the background jobs runner.
+#
+# One image (Dockerfile.jobs) backs many Railway services — each service
+# overrides startCommand with a different job name. Add a new service per job;
+# all of them share the same image and dispatcher.
+#
+# In this PR (the dispatcher infra slice), startCommand points at the built-in
+# `noop` handler so the service can be smoke-tested end to end. The CrossFit
+# WOD service is wired up in the convergence PR by changing startCommand to
+# `crossfit-wod` once that handler is registered in src/jobs/index.ts.
+
+[build]
+dockerfilePath = "apps/api/Dockerfile.jobs"
+buildCommand = ""
+
+[deploy]
+# Railway cron syntax — every 15 minutes. Cadence lives in this file; changing
+# it is a config edit, not a code change.
+cronSchedule = "*/15 * * * *"
+startCommand = "noop"
