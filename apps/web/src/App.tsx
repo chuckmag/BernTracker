@@ -23,7 +23,7 @@ export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknow
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
       <p className="text-gray-400 text-sm">Something went wrong on this page.</p>
-      <p className="text-gray-600 text-xs font-mono">{message}</p>
+      <p className="text-gray-400 text-xs font-mono">{message}</p>
       <div className="flex gap-3">
         <button
           onClick={resetErrorBoundary}

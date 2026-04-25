@@ -609,7 +609,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
           <div>
             <label className="block text-xs text-gray-400 mb-1">
               Description
-              <span className="ml-1 text-gray-600">(supports markdown — paste tables or formatting)</span>
+              <span className="ml-1 text-gray-400">(supports markdown — paste tables or formatting)</span>
             </label>
             <textarea
               ref={descriptionRef}
@@ -623,7 +623,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
           </div>
 
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Named Workout <span className="text-gray-600">(optional)</span></label>
+            <label className="block text-xs text-gray-400 mb-1">Named Workout <span className="text-gray-400">(optional)</span></label>
             <div className="flex gap-2">
               <select
                 value={namedWorkoutId ?? ''}
@@ -662,7 +662,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
               <div>
                 <label className="block text-xs text-gray-400 mb-1">
                   Movements
-                  {detectLoading && <span className="ml-2 text-gray-600 text-[10px]">detecting…</span>}
+                  {detectLoading && <span className="ml-2 text-gray-400 text-[10px]">detecting…</span>}
                 </label>
 
                 {selectedMovements.length > 0 && (
