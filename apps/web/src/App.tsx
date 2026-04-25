@@ -12,6 +12,8 @@ import Register from './pages/Register.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Calendar from './pages/Calendar.tsx'
 import Members from './pages/Members.tsx'
+import ProgramsIndex from './pages/ProgramsIndex.tsx'
+import ProgramDetail from './pages/ProgramDetail.tsx'
 import Settings from './pages/Settings.tsx'
 import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
@@ -23,7 +25,7 @@ export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknow
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
       <p className="text-gray-400 text-sm">Something went wrong on this page.</p>
-      <p className="text-gray-600 text-xs font-mono">{message}</p>
+      <p className="text-gray-400 text-xs font-mono">{message}</p>
       <div className="flex gap-3">
         <button
           onClick={resetErrorBoundary}
@@ -59,6 +61,8 @@ function AppLayout() {
               <Route path="/history" element={<History />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/calendar" element={<Calendar />} />
+              <Route path="/programs" element={<ProgramsIndex />} />
+              <Route path="/programs/:id" element={<ProgramDetail />} />
               <Route path="/members" element={<Members />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>

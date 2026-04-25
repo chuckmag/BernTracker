@@ -151,7 +151,7 @@ export default function Calendar() {
       {/* Day-of-week headers */}
       <div className="grid grid-cols-7 mb-px">
         {DAY_HEADERS.map((d) => (
-          <div key={d} className="text-center text-xs text-gray-500 py-1">
+          <div key={d} className="text-center text-xs text-gray-400 py-1">
             {d}
           </div>
         ))}
@@ -167,7 +167,7 @@ export default function Calendar() {
         {weeks.map((week, wi) =>
           week.map((date, di) => {
             if (!date) {
-              return <div key={`empty-${wi}-${di}`} className="bg-gray-950 h-[120px]" />
+              return <div key={`empty-${wi}-${di}`} className="bg-gray-950 h-[128px]" />
             }
             const key = toDateKey(date)
             return (

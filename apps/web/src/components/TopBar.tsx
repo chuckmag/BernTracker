@@ -37,6 +37,7 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
           <select
             value={gymId ?? ''}
             onChange={handleGymChange}
+            aria-label="Select gym"
             className="text-sm bg-gray-800 text-gray-200 border border-gray-700 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
           >
             {gyms.map((g) => (

@@ -9,6 +9,7 @@ const memberLinks = [
 
 const staffLinks = [
   { to: '/calendar', label: 'Calendar' },
+  { to: '/programs', label: 'Programs' },
   { to: '/members',  label: 'Members'  },
   { to: '/settings', label: 'Settings' },
 ]
@@ -65,7 +66,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {isStaff && (
           <>
             <div className="pt-3 pb-1 px-3">
-              <span className="text-xs text-gray-600 uppercase tracking-widest">Staff</span>
+              <span className="text-xs text-gray-400 uppercase tracking-widest">Staff</span>
             </div>
             {staffLinks.map(({ to, label }) => (
               <NavLink

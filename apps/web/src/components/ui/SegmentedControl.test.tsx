@@ -17,11 +17,11 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radio', { name: 'Three' })).toBeInTheDocument()
   })
 
-  it('reflects the selected value via aria-checked / aria-pressed', () => {
+  it('reflects the selected value via aria-checked', () => {
     render(<SegmentedControl options={[...OPTIONS]} value="two" onChange={vi.fn()} />)
-    expect(screen.getByRole('radio', { name: 'One' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('radio', { name: 'Two' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('radio', { name: 'Three' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('radio', { name: 'One' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('radio', { name: 'Two' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Three' })).toHaveAttribute('aria-checked', 'false')
   })
 
   it('fires onChange when a segment is clicked', async () => {
