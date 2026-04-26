@@ -387,10 +387,11 @@ test.describe('Workout autosave + markdown E2E', () => {
     const strong = description.locator('strong', { hasText: 'dynamic stretching' })
     await expect(strong).toBeVisible()
 
-    // List items — each bullet becomes an <li>
-    await expect(description.getByRole('listitem', { name: 'Jumping jacks' })).toBeVisible()
-    await expect(description.getByRole('listitem', { name: 'Air squats' })).toBeVisible()
-    await expect(description.getByRole('listitem', { name: 'Arm circles' })).toBeVisible()
+    // List items — each bullet becomes an <li>. Use locator+hasText (accessible
+    // name on <li> can be inconsistent across markdown renderers).
+    await expect(description.locator('li', { hasText: 'Jumping jacks' })).toBeVisible()
+    await expect(description.locator('li', { hasText: 'Air squats' })).toBeVisible()
+    await expect(description.locator('li', { hasText: 'Arm circles' })).toBeVisible()
 
     // Raw markdown markers should not appear as visible text
     const descText = await description.innerText()
