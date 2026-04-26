@@ -5,7 +5,7 @@ import {
   type NormalizedCrossfitWod,
 } from '../lib/crossfitWodClient.js'
 import { classifyWorkoutType } from '../lib/crossfitWodClassifier.js'
-import { findProgramByName } from '../db/programDbManager.js'
+import { ensureProgramByName } from '../db/programDbManager.js'
 import {
   createWorkoutForProgram,
   findWorkoutByExternalSourceId,
@@ -26,9 +26,12 @@ export interface CrossfitWodJobDeps {
  *
  *   - Idempotent: the unique externalSourceId column means a same-day re-run
  *     short-circuits with a no-op log.
- *   - Soft-fail on upstream issues: if the program isn't seeded yet, or
- *     CrossFit returns a draft / 5xx / malformed payload, the function
- *     resolves cleanly and the next tick retries.
+ *   - Self-bootstrapping: the destination Program is created on first run if
+ *     it doesn't already exist, so a fresh environment doesn't need a manual
+ *     seed step before the cron is enabled.
+ *   - Soft-fail on upstream issues: if CrossFit returns a draft / 5xx /
+ *     malformed payload, the function resolves cleanly and the next tick
+ *     retries.
  *   - Hard-fail on local issues: DB write errors and unexpected exceptions
  *     propagate so the dispatcher exits non-zero (Railway flags the run).
  *
@@ -38,13 +41,12 @@ export interface CrossfitWodJobDeps {
 export async function runCrossfitWodJob(deps: CrossfitWodJobDeps = {}): Promise<void> {
   const fetchWod = deps.fetchWod ?? fetchCrossfitWod
 
-  const program = await findProgramByName(PROGRAM_NAME)
-  if (!program) {
-    log.warning(`program "${PROGRAM_NAME}" not found — skipping (seed it before enabling the cron)`)
-    return
-  }
-
   const today = todayInPacific()
+  const program = await ensureProgramByName(PROGRAM_NAME, {
+    startDate: today,
+    description: 'Daily Workout of the Day published by CrossFit HQ at crossfit.com.',
+  })
+
   const payload = await fetchWod(today)
   if (!payload) {
     // Client already logged the reason. Nothing to do this tick.

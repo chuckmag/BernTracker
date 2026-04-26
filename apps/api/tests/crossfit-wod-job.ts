@@ -164,39 +164,46 @@ async function runTests() {
   }
 }
 
-async function runMissingProgramScenario() {
-  console.log('\n=== runCrossfitWodJob — program not found → no-op (no throw) ===')
-  // Save program name out of the way temporarily so the lookup misses, then
-  // restore. Only safe because this test owns the program (created in setup).
+async function runAutoCreateProgramScenario() {
+  console.log('\n=== runCrossfitWodJob — program missing → auto-created ===')
+  // Only safe to delete the program when the test owns it (created in setup).
+  // If a real seeded program existed before the test, leave it alone.
   if (createdElsewhere) {
     console.log('  (skipping — program existed before test run)')
     return
   }
-  const renamedTo = `__hidden_${SENTINEL}__`
-  await prisma.program.update({ where: { id: programId }, data: { name: renamedTo } })
-  try {
-    let threw = false
-    try {
-      await runCrossfitWodJob({
-        fetchWod: async () => {
-          throw new Error('should not be called when program is missing')
-        },
-      })
-    } catch {
-      threw = true
-    }
-    check('program-missing case does not throw', false, threw)
-    check('fetchWod was not called', false, threw) // would have thrown if called
-  } finally {
-    await prisma.program.update({ where: { id: programId }, data: { name: PROGRAM_NAME } })
-  }
+  // Drop the program so the job has to create it. Workouts under it get
+  // programId=null via onDelete: SetNull and are still cleaned up by the
+  // sentinel match in teardown.
+  await prisma.program.delete({ where: { id: programId } })
+  const beforeCount = await prisma.program.count({ where: { name: PROGRAM_NAME } })
+  check('program absent before run', 0, beforeCount)
+
+  const payload = fixture({ externalId: `w${SENTINEL}-autocreate` })
+  await runCrossfitWodJob({ fetchWod: async () => payload })
+
+  const created = await prisma.program.findFirst({ where: { name: PROGRAM_NAME } })
+  check('program auto-created by job', true, created !== null)
+  check(
+    'auto-created program has expected description',
+    'Daily Workout of the Day published by CrossFit HQ at crossfit.com.',
+    created?.description,
+  )
+  const w = await prisma.workout.findUnique({
+    where: { externalSourceId: `crossfit-mainsite:${payload.externalId}` },
+  })
+  check('workout written under auto-created program', created?.id, w?.programId)
+
+  // Reassign so teardown deletes the program the job created (we still "own"
+  // the program for this test — just a fresh row now).
+  if (created) programId = created.id
 }
 
 async function main() {
   try {
     await setup()
     await runTests()
-    await runMissingProgramScenario()
+    await runAutoCreateProgramScenario()
   } finally {
     await teardown()
     await prisma.$disconnect()
