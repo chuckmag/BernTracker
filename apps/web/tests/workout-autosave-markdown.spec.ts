@@ -16,6 +16,7 @@
 
 import { test, expect, type Page, type Request } from '@playwright/test'
 import { createRequire } from 'module'
+import { randomUUID } from 'crypto'
 import bcrypt from 'bcryptjs'
 
 const _require = createRequire(import.meta.url)
@@ -25,7 +26,7 @@ const prisma = new PrismaClient()
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const TS = Date.now()
+const TS = randomUUID().slice(0, 8)
 const PROGRAMMER_EMAIL = `uat-autosave-prog-${TS}@test.com`
 const PROGRAMMER_PASSWORD = 'TestPass1!'
 
@@ -59,7 +60,7 @@ async function loginAndGoToCalendar(page: Page) {
   await page.fill('#email', PROGRAMMER_EMAIL)
   await page.fill('#password', PROGRAMMER_PASSWORD)
   await page.click('button[type="submit"]')
-  await page.waitForURL('**/dashboard')
+  await page.waitForURL('**/dashboard', { waitUntil: 'commit' })
 
   await page.evaluate((id) => localStorage.setItem('gymId', id), gymId)
   await page.goto('/calendar')
@@ -86,7 +87,9 @@ async function navigateToMonth(page: Page, targetLabel: string) {
 }
 
 function cellForDay(page: Page, day: number) {
-  return page.locator('div.bg-gray-950.h-24').filter({
+  // CalendarCell wraps in `div.group.bg-gray-950`; empty placeholder cells have
+  // bg-gray-950 but not the `group` class, so this filter excludes them.
+  return page.locator('div.group.bg-gray-950').filter({
     has: page.locator('span', { hasText: new RegExp(`^${day}$`) }),
   })
 }
@@ -341,7 +344,7 @@ test.describe('Workout autosave + markdown E2E', () => {
     await page.fill('#email', PROGRAMMER_EMAIL)
     await page.fill('#password', PROGRAMMER_PASSWORD)
     await page.click('button[type="submit"]')
-    await page.waitForURL('**/dashboard')
+    await page.waitForURL('**/dashboard', { waitUntil: 'commit' })
     await page.evaluate((id) => localStorage.setItem('gymId', id), gymId)
 
     await page.goto(`/workouts/${tableWorkoutId}`)
@@ -369,7 +372,7 @@ test.describe('Workout autosave + markdown E2E', () => {
     await page.fill('#email', PROGRAMMER_EMAIL)
     await page.fill('#password', PROGRAMMER_PASSWORD)
     await page.click('button[type="submit"]')
-    await page.waitForURL('**/dashboard')
+    await page.waitForURL('**/dashboard', { waitUntil: 'commit' })
     await page.evaluate((id) => localStorage.setItem('gymId', id), gymId)
 
     await page.goto(`/workouts/${richWorkoutId}`)
@@ -384,10 +387,11 @@ test.describe('Workout autosave + markdown E2E', () => {
     const strong = description.locator('strong', { hasText: 'dynamic stretching' })
     await expect(strong).toBeVisible()
 
-    // List items — each bullet becomes an <li>
-    await expect(description.getByRole('listitem', { name: 'Jumping jacks' })).toBeVisible()
-    await expect(description.getByRole('listitem', { name: 'Air squats' })).toBeVisible()
-    await expect(description.getByRole('listitem', { name: 'Arm circles' })).toBeVisible()
+    // List items — each bullet becomes an <li>. Use locator+hasText (accessible
+    // name on <li> can be inconsistent across markdown renderers).
+    await expect(description.locator('li', { hasText: 'Jumping jacks' })).toBeVisible()
+    await expect(description.locator('li', { hasText: 'Air squats' })).toBeVisible()
+    await expect(description.locator('li', { hasText: 'Arm circles' })).toBeVisible()
 
     // Raw markdown markers should not appear as visible text
     const descText = await description.innerText()

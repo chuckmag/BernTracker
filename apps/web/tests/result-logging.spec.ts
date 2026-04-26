@@ -18,6 +18,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { createRequire } from 'module'
+import { randomUUID } from 'crypto'
 import bcrypt from 'bcryptjs'
 
 const _require = createRequire(import.meta.url)
@@ -27,7 +28,7 @@ const prisma = new PrismaClient()
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const TS = Date.now()
+const TS = randomUUID().slice(0, 8)
 const MEMBER_EMAIL = `uat-result-member-${TS}@test.com`
 const MEMBER_PASSWORD = 'TestPass1!'
 
@@ -50,7 +51,8 @@ async function login(page: Page) {
   await page.fill('#email', MEMBER_EMAIL)
   await page.fill('#password', MEMBER_PASSWORD)
   await page.click('button[type="submit"]')
-  await page.waitForURL('**/feed')
+  // Login.tsx navigates everyone to /dashboard; Feed/WOD pages reached by goto.
+  await page.waitForURL('**/dashboard', { waitUntil: 'commit' })
 }
 
 async function goToWod(page: Page, workoutId: string) {
@@ -148,8 +150,9 @@ test.describe('Result Logging + History E2E (#49)', () => {
     await page.getByRole('button', { name: 'Log Result' }).click()
     await expect(page.getByText('Log Result', { exact: true }).first()).toBeVisible()
 
-    // Drawer header shows workout title
-    await expect(page.getByText('E2E AMRAP Test')).toBeVisible()
+    // Drawer header shows workout title — disambiguate from the page <h1>
+    // by anchoring to the truncated drawer subtitle <p>.
+    await expect(page.locator('p', { hasText: 'E2E AMRAP Test' })).toBeVisible()
 
     // Select Scaled level
     await page.getByRole('button', { name: 'Scaled', exact: true }).click()
@@ -168,8 +171,9 @@ test.describe('Result Logging + History E2E (#49)', () => {
     await expect(page.getByText('Your Result')).toBeVisible({ timeout: 5000 })
     await expect(page.getByRole('button', { name: 'Log Result' })).not.toBeVisible()
 
-    // Leaderboard should show the result value
-    await expect(page.getByText('7 rounds + 4 reps')).toBeVisible()
+    // Leaderboard should show the result value (anchor to the table cell to
+    // disambiguate from the "Your Result" summary span).
+    await expect(page.getByRole('cell', { name: /7 rounds \+ 4 reps/ })).toBeVisible()
 
     // "(you)" label visible for current user's row
     await expect(page.getByText('(you)')).toBeVisible()

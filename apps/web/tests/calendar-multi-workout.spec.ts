@@ -18,6 +18,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { createRequire } from 'module'
+import { randomUUID } from 'crypto'
 import bcrypt from 'bcryptjs'
 
 // @prisma/client is CJS and uses `module.exports = { ...require(...) }` — Node.js
@@ -30,7 +31,7 @@ const prisma = new PrismaClient()
 
 // ─── Shared state (set in beforeAll) ─────────────────────────────────────────
 
-const TS = Date.now()
+const TS = randomUUID().slice(0, 8)
 const TRAINER_EMAIL = `uat-trainer-${TS}@test.com`
 const TRAINER_PASSWORD = 'TestPass1!'
 const COACH_EMAIL = `uat-coach-${TS}@test.com`
@@ -86,7 +87,7 @@ async function loginAndGoToCalendar(page: Page, email: string, password: string)
   await page.fill('#email', email)
   await page.fill('#password', password)
   await page.click('button[type="submit"]')
-  await page.waitForURL('**/dashboard')
+  await page.waitForURL('**/dashboard', { waitUntil: 'commit' })
 
   // Calendar reads gymId from localStorage on mount — must be set before navigation
   await page.evaluate((id) => localStorage.setItem('gymId', id), gymId)
@@ -115,9 +116,10 @@ async function navigateToMonth(page: Page, targetLabel: string) {
 
 /** Returns the CalendarCell div for the given day-of-month number. */
 function cellForDay(page: Page, day: number) {
-  // Empty cells are bare divs with no children; day cells have a date span.
-  // The regex ^{day}$ prevents day 5 from matching day 15 or 25.
-  return page.locator('div.bg-gray-950.h-24').filter({
+  // CalendarCell wraps in `div.group.bg-gray-950`; empty placeholder cells have
+  // bg-gray-950 but not the `group` class, so this filter excludes them. The
+  // regex ^{day}$ prevents day 5 from matching day 15 or 25.
+  return page.locator('div.group.bg-gray-950').filter({
     has: page.locator('span', { hasText: new RegExp(`^${day}$`) }),
   })
 }
@@ -187,6 +189,7 @@ test.describe('Multi-workout calendar UAT (#47)', () => {
   })
 
   // ── T1: "+N more" overflow ───────────────────────────────────────────────
+  // CalendarCell shows up to MAX_VISIBLE=3 pills, so 4 workouts → "+1 more".
 
   test('T1: 4 workouts on one day show "+1 more" overflow text', async ({ page }) => {
     const workouts = await Promise.all([
@@ -198,7 +201,7 @@ test.describe('Multi-workout calendar UAT (#47)', () => {
 
     await loginAndGoToCalendar(page, TRAINER_EMAIL, TRAINER_PASSWORD)
 
-    await expect(cellForDay(page, T1_DAY).getByText('+2 more')).toBeVisible()
+    await expect(cellForDay(page, T1_DAY).getByText('+1 more')).toBeVisible()
 
     await prisma.workout.deleteMany({ where: { id: { in: workouts.map((w) => w.id) } } })
   })

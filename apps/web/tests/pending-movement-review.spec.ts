@@ -19,6 +19,7 @@
 
 import { test, expect, type Page, type Cookie } from '@playwright/test'
 import { createRequire } from 'module'
+import { randomUUID } from 'crypto'
 import bcrypt from 'bcryptjs'
 
 const _require = createRequire(import.meta.url)
@@ -28,7 +29,7 @@ const prisma = new PrismaClient()
 
 // ─── Shared state ─────────────────────────────────────────────────────────────
 
-const TS = Date.now()
+const TS = randomUUID().slice(0, 8)
 const REVIEWER_TEST_PASSWORD = 'TestPass-E2E-1!'
 
 let reviewerUserId = ''

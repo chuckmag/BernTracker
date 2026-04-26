@@ -13,6 +13,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { createRequire } from 'module'
+import { randomUUID } from 'crypto'
 import bcrypt from 'bcryptjs'
 
 const _require = createRequire(import.meta.url)
@@ -22,7 +23,7 @@ const prisma = new PrismaClient()
 
 // ─── Shared state ─────────────────────────────────────────────────────────────
 
-const TS = Date.now()
+const TS = randomUUID().slice(0, 8)
 const OWNER_EMAIL = `prog-e2e-owner-${TS}@test.com`
 const OWNER_PASSWORD = 'TestPass1!'
 const MEMBER_EMAIL = `prog-e2e-member-${TS}@test.com`
@@ -39,7 +40,7 @@ async function login(page: Page, email: string, password: string) {
   await page.fill('#email', email)
   await page.fill('#password', password)
   await page.click('button[type="submit"]')
-  await page.waitForURL('**/dashboard')
+  await page.waitForURL('**/dashboard', { waitUntil: 'commit' })
   await page.evaluate((id) => localStorage.setItem('gymId', id), gymId)
 }
 
