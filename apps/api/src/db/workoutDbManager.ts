@@ -1,6 +1,6 @@
-import { prisma } from '@berntracker/db'
-import { WorkoutStatus } from '@berntracker/db'
-import type { WorkoutType } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
+import { WorkoutStatus } from '@wodalytics/db'
+import type { WorkoutType } from '@wodalytics/db'
 
 interface CreateWorkoutData {
   programId?: string

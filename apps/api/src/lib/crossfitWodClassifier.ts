@@ -1,4 +1,4 @@
-import type { WorkoutType } from '@berntracker/db'
+import type { WorkoutType } from '@wodalytics/db'
 
 /**
  * Best-effort classification of a free-form WOD description into a

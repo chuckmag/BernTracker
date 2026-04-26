@@ -12,7 +12,7 @@
  * Note: 409 duplicate-log path is covered by apps/api/tests/results.ts.
  *
  * Requires: turbo dev running (API on :3000, web on :5173)
- * Run: npm run test --workspace=@berntracker/web
+ * Run: npm run test --workspace=@wodalytics/web
  *   or: cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
  */
 

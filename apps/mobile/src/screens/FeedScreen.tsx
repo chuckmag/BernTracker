@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native'
 export default function FeedScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>BernTracker</Text>
+      <Text style={styles.title}>WODalytics</Text>
       <Text style={styles.subtitle}>Today's WOD coming soon</Text>
     </View>
   )

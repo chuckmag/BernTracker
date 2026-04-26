@@ -1,4 +1,4 @@
-import { prisma } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
 
 interface UpdateProgramData {
   name?: string

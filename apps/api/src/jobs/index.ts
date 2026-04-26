@@ -1,4 +1,4 @@
-import { prisma } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
 import { createLogger } from '../lib/logger.js'
 import { runCrossfitWodJob } from './crossfitWod.js'
 

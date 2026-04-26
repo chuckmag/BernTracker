@@ -9,7 +9,7 @@ import {
   updatePendingMovementById,
   detectMovementsInText,
 } from '../db/movementDbManager.js'
-import { SuggestMovementSchema, ReviewMovementSchema, UpdatePendingMovementSchema } from '@berntracker/types'
+import { SuggestMovementSchema, ReviewMovementSchema, UpdatePendingMovementSchema } from '@wodalytics/types'
 
 const router = Router()
 

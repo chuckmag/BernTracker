@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import type { Role } from '@berntracker/db'
+import type { Role } from '@wodalytics/db'
 
 const ACCESS_EXPIRY = '15m'
 const REFRESH_EXPIRY = '7d'

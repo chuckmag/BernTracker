@@ -1,4 +1,4 @@
-import { prisma, ProgramRole } from '@berntracker/db'
+import { prisma, ProgramRole } from '@wodalytics/db'
 
 export async function findProgramById(id: string) {
   return prisma.program.findUnique({ where: { id } })

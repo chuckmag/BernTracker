@@ -3,8 +3,8 @@ import type { Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { createResult, findLeaderboardByWorkout, findResultHistoryByUser, updateResultByOwner, deleteResultByOwner } from '../db/resultDbManager.js'
 import { expandMovementIdsWithVariations } from '../db/movementDbManager.js'
-import { CreateResultSchema, UpdateResultSchema } from '@berntracker/types'
-import type { WorkoutLevel, WorkoutGender } from '@berntracker/db'
+import { CreateResultSchema, UpdateResultSchema } from '@wodalytics/types'
+import type { WorkoutLevel, WorkoutGender } from '@wodalytics/db'
 
 const router = Router()
 

@@ -12,7 +12,7 @@
  *   T8: WodDetail loads normally with no gymId in localStorage
  *
  * Requires: turbo dev running (API on :3000, web on :5173)
- * Run: npm run test --workspace=@berntracker/web
+ * Run: npm run test --workspace=@wodalytics/web
  *   or: cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
  */
 

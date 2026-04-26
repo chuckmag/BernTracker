@@ -1,7 +1,7 @@
 services:
   proxy:
     image: nginx:alpine
-    container_name: berntracker-proxy
+    container_name: wodalytics-proxy
     ports:
       - "80:80"
     volumes:
@@ -13,28 +13,28 @@ services:
 
   postgres:
     image: postgres:16
-    container_name: berntracker-db
+    container_name: wodalytics-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: berntracker
+      POSTGRES_DB: wodalytics
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   api:
-    image: berntracker-api:local
+    image: wodalytics-api:local
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    container_name: berntracker-api
+    container_name: wodalytics-api
     env_file: .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/berntracker
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/wodalytics
       NODE_ENV: development
-      ALLOWED_ORIGINS: http://local.berntracker.com,http://localhost:5173
-      FRONTEND_URL: http://local.berntracker.com
+      ALLOWED_ORIGINS: http://local.wodalytics.com,http://localhost:5173
+      FRONTEND_URL: http://local.wodalytics.com
     depends_on:
       - postgres
 
@@ -42,15 +42,15 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    container_name: berntracker-web
+    container_name: wodalytics-web
     depends_on:
       - api
 
   studio:
-    image: berntracker-api:local
-    container_name: berntracker-studio
+    image: wodalytics-api:local
+    container_name: wodalytics-studio
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/berntracker
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/wodalytics
     command: sh -c "npx prisma studio --schema=packages/db/prisma/schema.prisma --port 5555 --browser none --hostname 0.0.0.0"
     depends_on:
       - postgres

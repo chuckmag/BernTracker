@@ -34,7 +34,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navContent = (
     <>
       <div className="px-6 py-5 border-b border-gray-800 flex items-center justify-between">
-        <span className="text-lg font-bold tracking-tight">BernTracker</span>
+        <span className="text-lg font-bold tracking-tight">WODalytics</span>
         <button
           onClick={onClose}
           className="md:hidden text-gray-500 hover:text-white text-xl leading-none"
