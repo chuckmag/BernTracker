@@ -143,6 +143,10 @@ export async function findWorkoutByExternalSourceId(externalSourceId: string) {
   return prisma.workout.findUnique({ where: { externalSourceId } })
 }
 
+export async function countWorkoutsByProgramId(programId: string): Promise<number> {
+  return prisma.workout.count({ where: { programId } })
+}
+
 export async function updateWorkout(id: string, data: UpdateWorkoutData) {
   const { movementIds, ...rest } = data
 

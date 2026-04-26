@@ -76,6 +76,41 @@ async function teardown() {
   console.log('  cleaned up')
 }
 
+async function runFirstRunBackfillScenario() {
+  console.log('\n=== runCrossfitWodJob — first run on empty program backfills 6 prior days + today ===')
+  // Program is empty out of setup() unless something else has been writing to
+  // it. Clear any sentinel rows from previous test runs so count starts at 0.
+  await prisma.workout.deleteMany({
+    where: { programId, externalSourceId: { contains: SENTINEL } },
+  })
+  const startCount = await prisma.workout.count({ where: { programId } })
+  // If the program already has unrelated workouts (e.g. real data from a
+  // local backfill), skip — the auto-backfill gate is "count == 0" and we
+  // can't safely delete non-test rows.
+  if (startCount > 0) {
+    console.log(`  (skipping — program is non-empty: ${startCount} workouts)`)
+    return
+  }
+
+  let calls = 0
+  await runCrossfitWodJob({
+    fetchWod: async (date) => {
+      calls++
+      const iso = date.toISOString().slice(0, 10)
+      return fixture({
+        externalId: `w${SENTINEL}-bf-${iso}`,
+        title: `Test WOD bf ${iso}`,
+      })
+    },
+  })
+
+  check('fetchWod called 7 times (6 backfill + 1 today)', 7, calls)
+  const saved = await prisma.workout.count({
+    where: { programId, externalSourceId: { contains: `${SENTINEL}-bf-` } },
+  })
+  check('7 workouts saved (1 per day)', 7, saved)
+}
+
 async function runTests() {
   console.log('\n=== runCrossfitWodJob — happy path: creates a Workout ===')
   {
@@ -215,6 +250,7 @@ async function runMissingProgramScenario() {
 async function main() {
   try {
     await setup()
+    await runFirstRunBackfillScenario()
     await runTests()
     await runMissingProgramScenario()
   } finally {
