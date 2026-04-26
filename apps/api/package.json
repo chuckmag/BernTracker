@@ -1,5 +1,5 @@
 {
-  "name": "@berntracker/api",
+  "name": "@wodalytics/api",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -10,8 +10,8 @@
     "test": "NODE_OPTIONS='--conditions=source' npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do npx tsx \"$f\" || exit 1; done'"
   },
   "dependencies": {
-    "@berntracker/db": "*",
-    "@berntracker/types": "*",
+    "@wodalytics/db": "*",
+    "@wodalytics/types": "*",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

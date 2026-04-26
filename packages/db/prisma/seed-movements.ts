@@ -5,7 +5,7 @@
  * To add new movements in future iterations: add entries to BASES or VARIATIONS
  * below and rerun. Existing rows will not be duplicated or overwritten.
  *
- * Run: npm run db:seed-movements --workspace=@berntracker/db
+ * Run: npm run db:seed-movements --workspace=@wodalytics/db
  */
 
 import { PrismaClient } from '@prisma/client'

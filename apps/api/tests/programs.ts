@@ -5,7 +5,7 @@
  * Run: cd apps/api && npx tsx tests/programs.ts
  */
 
-import { prisma } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
 import { signTokenPair } from '../src/lib/jwt.js'
 
 const BASE = process.env.API_URL ?? 'http://localhost:3000/api'

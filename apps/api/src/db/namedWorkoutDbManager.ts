@@ -1,5 +1,5 @@
-import { prisma } from '@berntracker/db'
-import type { WorkoutCategory, WorkoutType } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
+import type { WorkoutCategory, WorkoutType } from '@wodalytics/db'
 
 const templateWorkoutSelect = {
   select: {

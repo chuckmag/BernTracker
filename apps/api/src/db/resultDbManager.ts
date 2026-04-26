@@ -1,5 +1,5 @@
-import { prisma } from '@berntracker/db'
-import type { WorkoutLevel, WorkoutGender, WorkoutType, Prisma } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
+import type { WorkoutLevel, WorkoutGender, WorkoutType, Prisma } from '@wodalytics/db'
 
 interface CreateResultData {
   userId: string

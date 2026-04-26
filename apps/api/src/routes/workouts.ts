@@ -24,8 +24,8 @@ import { findProgramGymAccessForUser } from '../db/programDbManager.js'
 import {
   findGymMembershipByUserAndGym
 } from '../db/userGymDbManager.js'
-import { CreateWorkoutSchema, UpdateWorkoutSchema } from '@berntracker/types'
-import { Role } from '@berntracker/db'
+import { CreateWorkoutSchema, UpdateWorkoutSchema } from '@wodalytics/types'
+import { Role } from '@wodalytics/db'
 
 const router = Router()
 

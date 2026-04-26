@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-BernTracker is a CrossFit workout tracking tool for gym members and trainers.
+WODalytics is a CrossFit workout tracking tool for gym members and trainers.
 
 ## Tech stack
 
@@ -21,7 +21,7 @@ BernTracker is a CrossFit workout tracking tool for gym members and trainers.
 ## Monorepo structure
 
 ```
-BernTracker/
+WODalytics/
 ├── apps/
 │   ├── api/          # Express API (port 3000)
 │   ├── web/          # Vite admin portal (port 5173)
@@ -53,7 +53,7 @@ npm run db:studio     # open Prisma Studio
 
 ## Worktree development — running dev + tests in parallel
 
-When working in a `git worktree` (e.g. `.claude/worktrees/<branch>`), the default fixed ports (API on 3000, web on 5173) collide with anything already running — the Docker `berntracker-api` container, another worktree's dev stack, or a previous Claude session. **Use the worktree-aware scripts** so each worktree gets its own pair of ports and never blocks another.
+When working in a `git worktree` (e.g. `.claude/worktrees/<branch>`), the default fixed ports (API on 3000, web on 5173) collide with anything already running — the Docker `wodalytics-api` container, another worktree's dev stack, or a previous Claude session. **Use the worktree-aware scripts** so each worktree gets its own pair of ports and never blocks another.
 
 ### Workflow
 
@@ -75,10 +75,10 @@ When working in a `git worktree` (e.g. `.claude/worktrees/<branch>`), the defaul
 3. **Manually invoke the underlying commands** (escape hatch — only when `test:worktree` doesn't fit). Note: `node -p require(...)` does **not** work on `.dev-ports.local` because the `.local` extension isn't registered for JSON. Read it explicitly:
    ```bash
    API_URL="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(".dev-ports.local")).apiUrl + "/api")')" \
-     npm run test --workspace=@berntracker/api
+     npm run test --workspace=@wodalytics/api
 
    WEB_URL="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(".dev-ports.local")).webUrl)')" \
-     npm run test:e2e --workspace=@berntracker/web -- tests/programs.spec.ts
+     npm run test:e2e --workspace=@wodalytics/web -- tests/programs.spec.ts
    ```
 
 ### What Claude must do before saying "all tests pass"
@@ -122,29 +122,29 @@ When an engineer asks for help setting up the project, use the README Getting St
 ### Steps that require manual action from the engineer
 - Installing Homebrew, Node.js, Git, or Docker Desktop — requires system-level install
 - **Starting Docker Desktop** — must be opened as a GUI app before any `docker` commands work; if the engineer sees `dial unix /var/run/docker.sock: no such file or directory`, Docker Desktop is not running
-- **Running `docker run --name berntracker-db ...`** — creates the Postgres container; only needed once. On subsequent sessions: `docker start berntracker-db`
+- **Running `docker run --name wodalytics-db ...`** — creates the Postgres container; only needed once. On subsequent sessions: `docker start wodalytics-db`
 - **Copying `.env.example` → `.env`** — file contains secrets and must be created manually
 - **Adding local DNS entries** — append to `/etc/hosts` so browser requests to the containerised stack resolve to the local nginx proxy. Requires `sudo`:
   ```bash
-  echo "127.0.0.1 local.berntracker.com db-studio.local.berntracker.com" | sudo tee -a /etc/hosts
+  echo "127.0.0.1 local.wodalytics.com db-studio.local.wodalytics.com" | sudo tee -a /etc/hosts
   ```
   Once set, `docker compose up --build` exposes:
-  - Web: `http://local.berntracker.com`
-  - API: `http://local.berntracker.com/api/*` (same origin as web, no CORS)
-  - Prisma Studio: `http://db-studio.local.berntracker.com`
+  - Web: `http://local.wodalytics.com`
+  - API: `http://local.wodalytics.com/api/*` (same origin as web, no CORS)
+  - Prisma Studio: `http://db-studio.local.wodalytics.com`
 - Installing Expo Go on a physical device
 
 ### Common setup errors and fixes
 | Error | Cause | Fix |
 |---|---|---|
 | `dial unix /var/run/docker.sock: no such file or directory` | Docker Desktop not running | Open Docker Desktop and wait for it to start |
-| `Unable to find image 'berntracker-db:latest'` | Ran `docker run berntracker-db` instead of the full command | Run the full `docker run` command with `postgres:16` as the image |
-| `P1001: Can't reach database server at localhost:5432` | Postgres container not running | `docker start berntracker-db` |
+| `Unable to find image 'wodalytics-db:latest'` | Ran `docker run wodalytics-db` instead of the full command | Run the full `docker run` command with `postgres:16` as the image |
+| `P1001: Can't reach database server at localhost:5432` | Postgres container not running | `docker start wodalytics-db` |
 | `Environment variable not found: DATABASE_URL` | `.env` file missing | `cp .env.example .env` from repo root |
 | `command not found: turbo` | Dependencies not installed | `npm install` from repo root |
 | `ConfigError: The expected package.json path: .../apps/mobile/package.json does not exist` | `expo start` run from repo root, or `npm install` not run after adding mobile workspace | Run from `apps/mobile`: `cd apps/mobile && npx expo start`. If new workspace was added, run `npm install` from root first to register the symlink. |
-| `DNS_PROBE_FINISHED_NXDOMAIN` / `This site can't be reached` for `local.berntracker.com` | `/etc/hosts` entries missing | Add the `127.0.0.1 local.berntracker.com db-studio.local.berntracker.com` entry to `/etc/hosts` (see manual steps above) |
-| `Bind for 0.0.0.0:80 failed: port is already allocated` | Port 80 in use by another process | Stop the conflicting process, or change the proxy `ports:` in `docker-compose.yml` from `80:80` to `8080:80` (URLs become `local.berntracker.com:8080`) |
+| `DNS_PROBE_FINISHED_NXDOMAIN` / `This site can't be reached` for `local.wodalytics.com` | `/etc/hosts` entries missing | Add the `127.0.0.1 local.wodalytics.com db-studio.local.wodalytics.com` entry to `/etc/hosts` (see manual steps above) |
+| `Bind for 0.0.0.0:80 failed: port is already allocated` | Port 80 in use by another process | Stop the conflicting process, or change the proxy `ports:` in `docker-compose.yml` from `80:80` to `8080:80` (URLs become `local.wodalytics.com:8080`) |
 
 ## Architecture
 
@@ -216,7 +216,7 @@ Each job is its own Railway service: same image (`apps/api/Dockerfile.jobs`), di
 2. Register it in the dispatcher's `JOBS` map in `src/jobs/index.ts`.
 3. Add a `railway.<name>.toml` (or update `railway.jobs.toml`) with the desired `startCommand` and `cronSchedule`.
 
-**Local invocation:** `npm run build --workspace=@berntracker/api && npm run job --workspace=@berntracker/api -- <name>`.
+**Local invocation:** `npm run build --workspace=@wodalytics/api && npm run job --workspace=@wodalytics/api -- <name>`.
 
 The Express API service does **not** import job code at runtime — the two services share modules under `src/lib/` and `src/db/`, but have separate entrypoints and separate Railway deployments. A job failure cannot affect the user-facing API.
 ## Design system (web)
@@ -326,7 +326,7 @@ Located in `apps/api/tests/`. Each file is a self-contained TypeScript script th
 
 **Run:**
 ```bash
-npm run test --workspace=@berntracker/api
+npm run test --workspace=@wodalytics/api
 # or from apps/api:
 cd apps/api && npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do npx tsx "$f" || exit 1; done'
 ```
@@ -345,7 +345,7 @@ Located in `apps/web/src/**/*.test.tsx`. Each test file lives next to the compon
 
 **Run:**
 ```bash
-npm run test:unit --workspace=@berntracker/web
+npm run test:unit --workspace=@wodalytics/web
 # or from apps/web:
 cd apps/web && npx vitest run
 ```
@@ -375,8 +375,8 @@ Located in `apps/web/tests/`. Each spec file uses Playwright and seeds DB fixtur
 
 **Run:**
 ```bash
-npm run test --workspace=@berntracker/web   # runs unit tests first, then E2E
-npm run test:e2e --workspace=@berntracker/web  # E2E only
+npm run test --workspace=@wodalytics/web   # runs unit tests first, then E2E
+npm run test:e2e --workspace=@wodalytics/web  # E2E only
 # or from apps/web:
 cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
 ```

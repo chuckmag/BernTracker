@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { OAuth2Client } from 'google-auth-library'
-import { prisma } from '@berntracker/db'
-import { LoginSchema, RegisterSchema } from '@berntracker/types'
+import { prisma } from '@wodalytics/db'
+import { LoginSchema, RegisterSchema } from '@wodalytics/types'
 import { signTokenPair, verifyRefreshToken } from '../lib/jwt.js'
 import { requireAuth } from '../middleware/auth.js'
 

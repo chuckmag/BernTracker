@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
-import type { Role } from '@berntracker/db'
-import { prisma } from '@berntracker/db'
+import type { Role } from '@wodalytics/db'
+import { prisma } from '@wodalytics/db'
 import { verifyAccessToken } from '../lib/jwt.js'
 import { createLogger } from '../lib/logger.js'
 

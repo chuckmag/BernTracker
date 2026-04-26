@@ -15,7 +15,7 @@
  * logs read top-to-bottom).
  */
 
-import { prisma, WorkoutStatus } from '@berntracker/db'
+import { prisma, WorkoutStatus } from '@wodalytics/db'
 import { createLogger } from '../src/lib/logger.js'
 import { fetchCrossfitWod } from '../src/lib/crossfitWodClient.js'
 import { classifyWorkoutType } from '../src/lib/crossfitWodClassifier.js'

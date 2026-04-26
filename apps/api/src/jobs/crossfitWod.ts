@@ -1,4 +1,4 @@
-import { WorkoutStatus } from '@berntracker/db'
+import { WorkoutStatus } from '@wodalytics/db'
 import { createLogger } from '../lib/logger.js'
 import {
   fetchCrossfitWod,

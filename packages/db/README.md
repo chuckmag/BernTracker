@@ -1,6 +1,6 @@
-# @berntracker/db — Data Model
+# @wodalytics/db — Data Model
 
-This package owns the Prisma schema and exports a singleton `PrismaClient`. It is the single source of truth for the BernTracker data model.
+This package owns the Prisma schema and exports a singleton `PrismaClient`. It is the single source of truth for the WODalytics data model.
 
 Schema file: [`prisma/schema.prisma`](./prisma/schema.prisma)
 

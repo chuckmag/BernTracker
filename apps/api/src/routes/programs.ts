@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
-import { ProgramRole } from '@berntracker/db'
-import { CreateProgramSchema, UpdateProgramSchema } from '@berntracker/types'
+import { ProgramRole } from '@wodalytics/db'
+import { CreateProgramSchema, UpdateProgramSchema } from '@wodalytics/types'
 import { requireAuth } from '../middleware/auth.js'
 import {
   validateGymExists,

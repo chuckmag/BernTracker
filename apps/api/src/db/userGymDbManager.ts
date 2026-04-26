@@ -1,5 +1,5 @@
-import { prisma } from '@berntracker/db'
-import type { Role } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
+import type { Role } from '@wodalytics/db'
 
 export async function findMembersWithProgramSubscriptionsByGymId(gymId: string) {
   const memberships = await prisma.userGym.findMany({

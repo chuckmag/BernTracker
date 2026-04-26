@@ -14,7 +14,7 @@
  * sets a passwordHash so the normal login form works, then restores null in afterAll.
  *
  * Requires: turbo dev running (API on :3000, web on :5173)
- * Run: npm run test:e2e --workspace=@berntracker/web
+ * Run: npm run test:e2e --workspace=@wodalytics/web
  */
 
 import { test, expect, type Page, type Cookie } from '@playwright/test'

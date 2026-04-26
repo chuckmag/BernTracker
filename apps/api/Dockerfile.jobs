@@ -15,7 +15,7 @@ COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
 
 RUN npx prisma generate --schema=packages/db/prisma/schema.prisma
-RUN npx turbo build --filter=@berntracker/api
+RUN npx turbo build --filter=@wodalytics/api
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
 FROM node:22-alpine AS runtime

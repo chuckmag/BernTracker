@@ -1,7 +1,7 @@
 import express, { type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
-import { prisma } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
 import { authRouter } from './routes/auth.js'
 import gymsRouter from './routes/gyms'
 import programsRouter from './routes/programs'
