@@ -5,8 +5,10 @@ import {
   type NormalizedCrossfitWod,
 } from '../lib/crossfitWodClient.js'
 import { classifyWorkoutType } from '../lib/crossfitWodClassifier.js'
+import { todayInPacific } from '../lib/pacificDate.js'
 import { createProgramByName, findProgramByName } from '../db/programDbManager.js'
 import {
+  countWorkoutsByProgramId,
   createWorkoutForProgram,
   findWorkoutByExternalSourceId,
 } from '../db/workoutDbManager.js'
@@ -15,6 +17,10 @@ const log = createLogger('jobs.crossfit-wod')
 
 const PROGRAM_NAME = 'CrossFit Mainsite WOD'
 const EXTERNAL_SOURCE_PREFIX = 'crossfit-mainsite:'
+// Number of prior days to backfill the very first time the job runs against
+// an empty program (today is processed afterwards in the normal path, so a
+// fresh DB ends up with this many days + 1 of history after the first tick).
+const FIRST_RUN_BACKFILL_PRIOR_DAYS = 6
 
 export interface CrossfitWodJobDeps {
   fetchWod?: (date: Date) => Promise<NormalizedCrossfitWod | null>
@@ -27,7 +33,9 @@ export interface CrossfitWodJobDeps {
  *   - Idempotent: the unique externalSourceId column means a same-day re-run
  *     short-circuits with a no-op log.
  *   - Self-bootstrapping: creates the public program on first run if it
- *     doesn't exist yet, so no manual seed step is required.
+ *     doesn't exist yet, and backfills the prior 6 days of WODs the first
+ *     time the program has zero workouts — so a fresh deploy lands with a
+ *     week of history without any manual operational step.
  *   - Soft-fail on upstream issues: if CrossFit returns a draft / 5xx /
  *     malformed payload, the function resolves cleanly and the next tick
  *     retries.
@@ -47,6 +55,8 @@ export async function runCrossfitWodJob(deps: CrossfitWodJobDeps = {}): Promise<
   }
 
   const today = todayInPacific()
+  await backfillIfFirstRun(program.id, today, fetchWod)
+
   const payload = await fetchWod(today)
   if (!payload) {
     // Client already logged the reason. Nothing to do this tick.
@@ -75,24 +85,47 @@ export async function runCrossfitWodJob(deps: CrossfitWodJobDeps = {}): Promise<
 }
 
 /**
- * Returns midnight of "today" in America/Los_Angeles, expressed as a UTC Date.
- * The job uses this to ask the upstream API for today's WOD on Pacific time —
- * which is when the CrossFit team posts.
- *
- * Uses Intl.DateTimeFormat (no Temporal / dayjs dep) — extracts y/m/d in PT,
- * then constructs a UTC Date from those components. Downstream consumers only
- * read getUTC*() so the absolute instant is irrelevant.
+ * Runs once per program, ever: when the daily job ticks and finds the program
+ * has no workouts at all, walk back FIRST_RUN_BACKFILL_PRIOR_DAYS days and
+ * ingest each day's WOD. After the first save the workout count is non-zero,
+ * so subsequent ticks skip this entirely. Idempotency via externalSourceId
+ * keeps it safe even if the gate were ever wrong.
  */
-function todayInPacific(now: Date = new Date()): Date {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now)
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
-  const y = Number(get('year'))
-  const m = Number(get('month'))
-  const d = Number(get('day'))
-  return new Date(Date.UTC(y, m - 1, d))
+async function backfillIfFirstRun(
+  programId: string,
+  today: Date,
+  fetchWod: (date: Date) => Promise<NormalizedCrossfitWod | null>,
+): Promise<void> {
+  const existingCount = await countWorkoutsByProgramId(programId)
+  if (existingCount > 0) return
+
+  log.info(`first run on empty program — backfilling ${FIRST_RUN_BACKFILL_PRIOR_DAYS} prior days`)
+  for (let offset = 1; offset <= FIRST_RUN_BACKFILL_PRIOR_DAYS; offset++) {
+    const date = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - offset),
+    )
+    const iso = date.toISOString().slice(0, 10)
+    const payload = await fetchWod(date)
+    if (!payload) {
+      log.info(`backfill ${iso}: no published wod (drafted / missing / upstream error)`)
+      continue
+    }
+    const externalSourceId = `${EXTERNAL_SOURCE_PREFIX}${payload.externalId}`
+    const existing = await findWorkoutByExternalSourceId(externalSourceId)
+    if (existing) {
+      log.info(`backfill ${iso}: ${externalSourceId} already saved — skip`)
+      continue
+    }
+    const type = classifyWorkoutType(payload.descriptionRaw)
+    await createWorkoutForProgram({
+      programId,
+      title: payload.title,
+      description: payload.descriptionRaw,
+      type,
+      scheduledAt: new Date(payload.scheduledAt),
+      status: WorkoutStatus.PUBLISHED,
+      externalSourceId,
+    })
+    log.info(`backfill ${iso}: saved ${externalSourceId} (${type})`)
+  }
 }
