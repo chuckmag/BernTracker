@@ -1,7 +1,6 @@
 import { prisma } from '@berntracker/db'
 import { createLogger } from '../lib/logger.js'
 import { runCrossfitWodJob } from './crossfitWod.js'
-import { runCrossfitWodBackfillJob } from './crossfitWodBackfill.js'
 
 const log = createLogger('jobs')
 
@@ -16,7 +15,6 @@ const JOBS: Record<string, JobHandler> = {
     log.info('noop job ran')
   },
   'crossfit-wod': () => runCrossfitWodJob(),
-  'crossfit-wod-backfill': () => runCrossfitWodBackfillJob(),
 }
 
 async function main(): Promise<number> {
