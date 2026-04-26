@@ -18,6 +18,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { createRequire } from 'module'
+import { randomUUID } from 'crypto'
 import bcrypt from 'bcryptjs'
 
 const _require = createRequire(import.meta.url)
@@ -27,16 +28,21 @@ const prisma = new PrismaClient()
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const TS = Date.now()
+const TS = randomUUID().slice(0, 8)
 const PW = 'TestPass1!'
 
 const SINGLE_EMAIL  = `uat-gymctx-single-${TS}@test.com`
 const MULTI_EMAIL   = `uat-gymctx-multi-${TS}@test.com`
 const NOGYM_EMAIL   = `uat-gymctx-nogym-${TS}@test.com`
 
-// Fixed future dates — won't collide with other test suites
-const GYM_A_DATE = '2026-09-10'
-const GYM_B_DATE = '2026-09-11'
+// Dates within Feed's [today - 30, today + 14] window so seeded workouts are
+// visible on /feed.
+const GYM_A_DATE = (() => {
+  const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().slice(0, 10)
+})()
+const GYM_B_DATE = (() => {
+  const d = new Date(); d.setDate(d.getDate() + 4); return d.toISOString().slice(0, 10)
+})()
 
 let singleUserId  = ''
 let multiUserId   = ''
@@ -68,13 +74,14 @@ async function seedWorkout(title: string, programId: string, isoDate: string) {
 
 // ─── Page helpers ─────────────────────────────────────────────────────────────
 
-/** Log in and wait for the Feed page. Does NOT set gymId in localStorage. */
+/** Log in. Does NOT set gymId in localStorage. */
 async function login(page: Page, email: string) {
   await page.goto('/login')
   await page.fill('#email', email)
   await page.fill('#password', PW)
   await page.click('button[type="submit"]')
-  await page.waitForURL('**/feed')
+  // Login.tsx navigates everyone to /dashboard; pages are reached by explicit goto.
+  await page.waitForURL('**/dashboard', { waitUntil: 'commit' })
 }
 
 /** Navigate to Feed and wait for the heading. */

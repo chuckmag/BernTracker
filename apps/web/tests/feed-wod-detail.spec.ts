@@ -20,6 +20,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { createRequire } from 'module'
+import { randomUUID } from 'crypto'
 import bcrypt from 'bcryptjs'
 
 const _require = createRequire(import.meta.url)
@@ -29,15 +30,22 @@ const prisma = new PrismaClient()
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const TS = Date.now()
+const TS = randomUUID().slice(0, 8)
 const MEMBER_EMAIL = `uat-feed-member-${TS}@test.com`
 const MEMBER_PASSWORD = 'TestPass1!'
 const PROGRAMMER_EMAIL = `uat-feed-prog-${TS}@test.com`
 const PROGRAMMER_PASSWORD = 'TestPass1!'
 
-// Fixed future date that won't collide with other test data
-const WORKOUT_DATE = '2026-07-15'
-const WORKOUT_ISO = `${WORKOUT_DATE}T12:00:00.000Z`
+// Date within Feed's [today - 30, today + 14] window so seeded workouts are
+// visible on /feed. Using today + 5 days picks a future weekday that won't
+// collide with real dev data.
+const WORKOUT_ISO = (() => {
+  const d = new Date()
+  d.setDate(d.getDate() + 5)
+  d.setUTCHours(12, 0, 0, 0)
+  return d.toISOString()
+})()
+const WORKOUT_DATE = WORKOUT_ISO.slice(0, 10)
 
 // iPhone X / 11 Pro logical CSS pixels — 375 is the smallest common phone width
 // (iPhone 6/7/8/SE are also 375 wide); 812 is the X/11 Pro height. Used to
@@ -73,7 +81,8 @@ async function loginAndGoToFeed(page: Page, email: string, password: string) {
   await page.fill('#email', email)
   await page.fill('#password', password)
   await page.click('button[type="submit"]')
-  await page.waitForURL('**/feed')
+  // Login.tsx navigates everyone to /dashboard; Feed is reached by explicit goto.
+  await page.waitForURL('**/dashboard', { waitUntil: 'commit' })
 
   // Feed reads gymId from localStorage on mount
   await page.evaluate((id) => localStorage.setItem('gymId', id), gymId)
@@ -279,8 +288,13 @@ test.describe('Feed + WOD Detail E2E (#48)', () => {
     // Description
     await expect(page.getByText('21-15-9: Thrusters + Pull-ups')).toBeVisible()
 
-    // Scheduled date contains "Jul" (July 15)
-    await expect(page.getByText(/Jul.*15.*2026/)).toBeVisible()
+    // Scheduled date matches the seeded month + day (computed dynamically).
+    const seeded = new Date(WORKOUT_ISO)
+    const monthAbbr = seeded.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
+    const dayNum = seeded.getUTCDate()
+    await expect(
+      page.getByText(new RegExp(`${monthAbbr}.*${dayNum}.*${seeded.getUTCFullYear()}`)),
+    ).toBeVisible()
 
     // Log Result button present when user has no result
     await expect(page.getByRole('button', { name: 'Log Result' })).toBeVisible()
