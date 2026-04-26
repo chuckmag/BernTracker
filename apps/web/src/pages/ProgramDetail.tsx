@@ -170,11 +170,11 @@ function OverviewTab({ program, canWrite }: { program: Program; canWrite: boolea
       </dl>
 
       <div className="flex flex-wrap gap-2">
-        <Link to={`/feed?programId=${program.id}`}>
+        <Link to={`/feed?programIds=${program.id}`}>
           <Button variant="secondary">Open in Feed</Button>
         </Link>
         {canWrite && (
-          <Link to={`/calendar?programId=${program.id}`}>
+          <Link to={`/calendar?programIds=${program.id}`}>
             <Button variant="secondary">Open in Calendar</Button>
           </Link>
         )}

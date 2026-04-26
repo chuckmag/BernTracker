@@ -289,6 +289,16 @@ If only the visual is shared but the behavior is trivial (e.g., a one-line style
 - **HeadingCount** — the `text-sm` count chip next to page headings (Members, ProgramsIndex use the same `<span class="bg-gray-700 text-sm px-2 py-0.5 rounded-full">{N}</span>` literal twice). Extract to ui/HeadingCount.tsx if a third caller appears.
 - **ConfirmDialog** — currently using `window.confirm` for delete confirmations. Replace with a primitive when we want consistent in-app styling.
 
+### Cross-app contracts (mobile parity)
+
+Patterns we want the React Native client to mirror when it lands. Each entry pins a localStorage key shape + the request/response contract, so the mobile app stores per-user state in a shape the web already understands.
+
+- **Program filter** (`apps/web/src/context/ProgramFilterContext.tsx`)
+  - Storage: `localStorage["programFilter:<gymId>"]` → JSON `string[]` of program IDs (empty = "all programs")
+  - URL: `?programIds=id1,id2` on `/feed` and `/calendar`
+  - API: `GET /api/gyms/:gymId/workouts?programIds=id1,id2` (each ID independently access-checked; first failure → 403/404)
+  - Mobile: read/write the same storage key (via `AsyncStorage`) and call the same endpoint with the same CSV shape.
+
 ### Reference
 
 Visual guide with before/after mockups: `resources/design-guide.html`. Issue #81 has the full implementation plan in 5 PRs.

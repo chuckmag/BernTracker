@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { api, type GymProgram, type Workout } from '../lib/api.ts'
+import { Link, useNavigate } from 'react-router-dom'
+import { api, type Workout } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
+import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
 
@@ -29,38 +30,36 @@ function formatDayLabel(dateKey: string, todayKey: string): string {
 
 export default function Feed() {
   const { gymId } = useGym()
-  const [searchParams] = useSearchParams()
-  const programId = searchParams.get('programId') || undefined
+  const { selected: programIds, available, clear: clearProgramFilter } = useProgramFilter()
   const [workouts, setWorkouts] = useState<Workout[]>([])
-  const [program, setProgram] = useState<GymProgram | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+
+  const programIdsKey = programIds.join(',')
 
   useEffect(() => {
     if (!gymId) return
     let cancelled = false
     setLoading(true)
     setError(null)
-    setProgram(null)
     const today = new Date()
     const from = new Date(today)
     from.setDate(today.getDate() - 30)
     const to = new Date(today)
     to.setDate(today.getDate() + 14)
     to.setHours(23, 59, 59, 999)
-    const listPromise = api.workouts.list(gymId, from.toISOString(), to.toISOString(), programId ? { programId } : undefined)
-    const programPromise = programId ? api.programs.get(programId) : Promise.resolve(null)
-    Promise.all([listPromise, programPromise])
-      .then(([data, p]) => {
-        if (cancelled) return
-        setWorkouts(data.filter((w) => w.status === 'PUBLISHED'))
-        setProgram(p)
-      })
+    api.workouts.list(
+      gymId,
+      from.toISOString(),
+      to.toISOString(),
+      programIds.length ? { programIds } : undefined,
+    )
+      .then((data) => { if (!cancelled) setWorkouts(data.filter((w) => w.status === 'PUBLISHED')) })
       .catch((e) => { if (!cancelled) setError((e as Error).message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [gymId, programId])
+  }, [gymId, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!gymId) {
     return (
@@ -81,32 +80,48 @@ export default function Feed() {
     workoutsByDate[key].push(w)
   }
 
-  // Sort: today first, then future ascending, then past descending
   const allKeys = Object.keys(workoutsByDate)
   const futureKeys = allKeys.filter((k) => k >= todayKey).sort()
   const pastKeys = allKeys.filter((k) => k < todayKey).sort().reverse()
   const sortedKeys = [...futureKeys, ...pastKeys]
 
+  // Single-program filter gets a featured header (color stripe + name).
+  // Multi-program gets a compact chip pointing at the picker.
+  const singleProgram = programIds.length === 1
+    ? available.find(({ program }) => program.id === programIds[0])?.program ?? null
+    : null
+
   return (
     <div className="max-w-2xl mx-auto">
-      {programId && (
+      {programIds.length > 0 && (
         <div className="mb-4">
-          <Link to="/feed" className="text-xs text-indigo-400 hover:text-indigo-300">
+          <Link
+            to="/feed"
+            onClick={(e) => { e.preventDefault(); clearProgramFilter() }}
+            className="text-xs text-indigo-400 hover:text-indigo-300"
+          >
             ← Back to all workouts
           </Link>
         </div>
       )}
 
-      {programId && program ? (
+      {singleProgram ? (
         <div className="flex items-start gap-3 mb-6">
           <div
-            style={{ backgroundColor: program.program.coverColor ?? '#374151' }}
+            style={{ backgroundColor: singleProgram.coverColor ?? '#374151' }}
             className="w-1.5 h-10 rounded-full shrink-0"
           />
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold truncate">{program.program.name}</h1>
+            <h1 className="text-2xl font-bold truncate">{singleProgram.name}</h1>
             <p className="text-xs uppercase tracking-wider text-gray-400 mt-0.5">Feed</p>
           </div>
+        </div>
+      ) : programIds.length > 1 ? (
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Feed</h1>
+          <p className="text-xs uppercase tracking-wider text-gray-400 mt-1">
+            Filtered to {programIds.length} programs
+          </p>
         </div>
       ) : (
         <h1 className="text-2xl font-bold mb-6">Feed</h1>

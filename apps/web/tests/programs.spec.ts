@@ -167,9 +167,9 @@ test.describe('Programs CRUD + ?programId filter (#83 + #84)', () => {
     await page.goto(`/programs/${seeded.id}`)
     await expect(page.locator('h1', { hasText: `E2E Filter Calendar ${TS}` })).toBeVisible()
 
-    // Click "Open in Calendar" — opens /calendar?programId=<seeded.id>
+    // Click "Open in Calendar" — opens /calendar?programIds=<seeded.id>
     await page.getByRole('button', { name: 'Open in Calendar' }).click()
-    await page.waitForURL(`**/calendar?programId=${seeded.id}`)
+    await page.waitForURL(`**/calendar?programIds=${seeded.id}`)
 
     // Filtered header shows the program name + the "Calendar" eyebrow
     await expect(page.locator('h1', { hasText: `E2E Filter Calendar ${TS}` })).toBeVisible({ timeout: 5000 })
@@ -197,7 +197,7 @@ test.describe('Programs CRUD + ?programId filter (#83 + #84)', () => {
     })
 
     await login(page, OWNER_EMAIL, OWNER_PASSWORD)
-    await page.goto(`/feed?programId=${inaccessibleProgram.id}`)
+    await page.goto(`/feed?programIds=${inaccessibleProgram.id}`)
 
     // The page should render an error message rather than crashing.
     // The exact copy comes from the API ("Forbidden") via the apiFetch error path.

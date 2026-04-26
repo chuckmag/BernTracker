@@ -39,6 +39,21 @@ vi.mock('../context/MovementsContext.tsx', () => ({
   useMovements: () => [],
 }))
 
+// Program filter is irrelevant to the page-level a11y checks — stub it as
+// "no programs selected, none available". Each page falls through to its
+// no-filter rendering path.
+vi.mock('../context/ProgramFilterContext.tsx', () => ({
+  useProgramFilter: () => ({
+    selected: [], available: [], loading: false,
+    setSelected: vi.fn(), toggle: vi.fn(), clear: vi.fn(),
+  }),
+  ProgramFilterProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
+// The sidebar mounts the picker; render it as null in a11y tests.
+vi.mock('../components/ProgramFilterPicker', () => ({ default: () => null }))
+vi.mock('../components/ProgramFilterPicker.tsx', () => ({ default: () => null }))
+
 // WorkoutDrawer/LogResultDrawer pull in their own subtrees that are out of
 // scope for these page-level a11y checks; render them as null so each page
 // renders cleanly without dragging in unrelated DOM.

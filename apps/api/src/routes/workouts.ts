@@ -83,16 +83,22 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
     ? await expandMovementIdsWithVariations(movementIdList)
     : undefined
 
-  const programId = typeof req.query.programId === 'string' && req.query.programId.length > 0
-    ? req.query.programId
-    : undefined
-  if (programId) {
-    const access = await findProgramGymAccessForUser(programId, gymId)
-    if (access === 'not-found') return res.status(404).json({ error: 'Program not found' })
-    if (access === 'forbidden') return res.status(403).json({ error: 'Forbidden' })
+  const rawProgramIds = req.query.programIds
+  const programIdList = typeof rawProgramIds === 'string' && rawProgramIds.length > 0
+    ? rawProgramIds.split(',').map((s) => s.trim()).filter(Boolean)
+    : []
+  if (programIdList.length > 0) {
+    // Each id is independently access-checked. Return the first failure so
+    // a malformed url in the picker doesn't silently leak a partial result.
+    for (const id of programIdList) {
+      const access = await findProgramGymAccessForUser(id, gymId)
+      if (access === 'not-found') return res.status(404).json({ error: `Program not found: ${id}` })
+      if (access === 'forbidden') return res.status(403).json({ error: 'Forbidden' })
+    }
   }
+  const programIds = programIdList.length > 0 ? programIdList : undefined
 
-  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly, movementIds, programId })
+  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly, movementIds, programIds })
   res.json(workouts)
 }
 

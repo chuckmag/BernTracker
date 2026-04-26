@@ -325,11 +325,11 @@ export const api = {
       gymId: string,
       from: string,
       to: string,
-      filters?: { movementIds?: string[]; programId?: string },
+      filters?: { movementIds?: string[]; programIds?: string[] },
       token?: string,
     ) => {
       const params = new URLSearchParams({ from, to })
-      if (filters?.programId) params.set('programId', filters.programId)
+      if (filters?.programIds?.length) params.set('programIds', filters.programIds.join(','))
       let qs = params.toString()
       if (filters?.movementIds?.length) {
         // movementIds intentionally repeated rather than CSV — matches the

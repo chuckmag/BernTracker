@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import Feed from './Feed'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles'
-import type { WorkoutType } from '../lib/api'
+import type { WorkoutType, GymProgram } from '../lib/api'
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -11,6 +11,7 @@ vi.mock('../lib/api', () => ({
   api: {
     workouts: { list: vi.fn() },
     programs: { get: vi.fn() },
+    gyms: { programs: { list: vi.fn() } },
   },
 }))
 
@@ -18,7 +19,47 @@ vi.mock('../context/GymContext.tsx', () => ({
   useGym: () => ({ gymId: 'gym-1', gymRole: 'OWNER', gyms: [], setGymId: vi.fn(), loading: false }),
 }))
 
+// Per-test mock state for the program filter context. Mutate `mockFilter` in
+// `beforeEach` / inside an `it` block to drive the picker selection.
+const mockFilter: {
+  selected: string[]
+  available: GymProgram[]
+  loading: boolean
+  setSelected: ReturnType<typeof vi.fn>
+  toggle: ReturnType<typeof vi.fn>
+  clear: ReturnType<typeof vi.fn>
+} = {
+  selected: [],
+  available: [],
+  loading: false,
+  setSelected: vi.fn(),
+  toggle: vi.fn(),
+  clear: vi.fn(),
+}
+vi.mock('../context/ProgramFilterContext.tsx', () => ({
+  useProgramFilter: () => mockFilter,
+  ProgramFilterProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
 import { api } from '../lib/api'
+
+function makeGymProgram(id: string, name: string, coverColor: string | null = null): GymProgram {
+  return {
+    gymId: 'gym-1',
+    programId: id,
+    createdAt: '2026-03-01T00:00:00.000Z',
+    program: {
+      id,
+      name,
+      description: null,
+      startDate: '2026-03-01T00:00:00.000Z',
+      endDate: null,
+      coverColor,
+      createdAt: '2026-03-01T00:00:00.000Z',
+      updatedAt: '2026-03-01T00:00:00.000Z',
+    },
+  }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,65 +108,59 @@ function renderFeed() {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('Feed — ?programId filter', () => {
+describe('Feed — programIds filter (slice 2)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(api.workouts.list).mockResolvedValue([] as never)
-    vi.mocked(api.programs.get).mockResolvedValue({
-      gymId: 'gym-1',
-      programId: 'prog-1',
-      createdAt: '2026-03-01T00:00:00.000Z',
-      program: {
-        id: 'prog-1',
-        name: 'Override — March 2026',
-        description: null,
-        startDate: '2026-03-01T00:00:00.000Z',
-        endDate: null,
-        coverColor: '#6366F1',
-        createdAt: '2026-03-01T00:00:00.000Z',
-        updatedAt: '2026-03-01T00:00:00.000Z',
-      },
-    } as never)
+    mockFilter.selected = []
+    mockFilter.available = [
+      makeGymProgram('prog-1', 'Override — March 2026', '#6366F1'),
+      makeGymProgram('prog-2', 'Comp Team', '#EC4899'),
+    ]
   })
 
-  it('passes programId in the filters bag to api.workouts.list', async () => {
-    render(
-      <MemoryRouter initialEntries={['/feed?programId=prog-1']}>
-        <Feed />
-      </MemoryRouter>,
-    )
+  it('omits programIds from the filters bag when no programs are selected', async () => {
+    render(<MemoryRouter><Feed /></MemoryRouter>)
     await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
     const lastCall = vi.mocked(api.workouts.list).mock.calls.at(-1)!
-    // Args: (gymId, fromIso, toIso, filters)
-    expect(lastCall[3]).toEqual({ programId: 'prog-1' })
-  })
-
-  it('renders the program name and a back-to-all-workouts link when filtered', async () => {
-    render(
-      <MemoryRouter initialEntries={['/feed?programId=prog-1']}>
-        <Feed />
-      </MemoryRouter>,
-    )
-    expect(await screen.findByRole('heading', { name: 'Override — March 2026' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Back to all workouts/ })).toHaveAttribute('href', '/feed')
-  })
-
-  it('does not call api.programs.get when no programId is in the URL', async () => {
-    render(
-      <MemoryRouter initialEntries={['/feed']}>
-        <Feed />
-      </MemoryRouter>,
-    )
-    await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
-    expect(api.programs.get).not.toHaveBeenCalled()
-    // Plain "Feed" heading
+    // Args: (gymId, fromIso, toIso, filters?)
+    expect(lastCall[3]).toBeUndefined()
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
+  })
+
+  it('passes programIds in the filters bag and renders the single-program header', async () => {
+    mockFilter.selected = ['prog-1']
+    render(<MemoryRouter><Feed /></MemoryRouter>)
+    await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
+    const lastCall = vi.mocked(api.workouts.list).mock.calls.at(-1)!
+    expect(lastCall[3]).toEqual({ programIds: ['prog-1'] })
+    expect(await screen.findByRole('heading', { name: 'Override — March 2026' })).toBeInTheDocument()
+  })
+
+  it('renders the multi-program header when 2+ programs are selected', async () => {
+    mockFilter.selected = ['prog-1', 'prog-2']
+    render(<MemoryRouter><Feed /></MemoryRouter>)
+    await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
+    const lastCall = vi.mocked(api.workouts.list).mock.calls.at(-1)!
+    expect(lastCall[3]).toEqual({ programIds: ['prog-1', 'prog-2'] })
+    // Plain "Feed" heading + a "Filtered to 2 programs" eyebrow
+    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
+    expect(screen.getByText('Filtered to 2 programs')).toBeInTheDocument()
+  })
+
+  it('shows a "Back to all workouts" link when any program is selected', async () => {
+    mockFilter.selected = ['prog-1']
+    render(<MemoryRouter><Feed /></MemoryRouter>)
+    await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
+    expect(screen.getByRole('link', { name: /Back to all workouts/ })).toBeInTheDocument()
   })
 })
 
 describe('Feed — workout-type tokens', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockFilter.selected = []
+    mockFilter.available = []
   })
 
   it('renders each workout type card with its expected accentBar class', async () => {
