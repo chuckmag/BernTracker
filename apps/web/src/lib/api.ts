@@ -321,10 +321,22 @@ export const api = {
   },
 
   workouts: {
-    list: (gymId: string, from: string, to: string, movementIds?: string[], token?: string) => {
-      const base = `/api/gyms/${gymId}/workouts?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
-      const qs = movementIds?.length ? `&${movementIds.map((id) => `movementIds=${encodeURIComponent(id)}`).join('&')}` : ''
-      return req<Workout[]>(`${base}${qs}`, { token })
+    list: (
+      gymId: string,
+      from: string,
+      to: string,
+      filters?: { movementIds?: string[]; programIds?: string[] },
+      token?: string,
+    ) => {
+      const params = new URLSearchParams({ from, to })
+      if (filters?.programIds?.length) params.set('programIds', filters.programIds.join(','))
+      let qs = params.toString()
+      if (filters?.movementIds?.length) {
+        // movementIds intentionally repeated rather than CSV — matches the
+        // server-side parser in routes/workouts.ts
+        qs += '&' + filters.movementIds.map((id) => `movementIds=${encodeURIComponent(id)}`).join('&')
+      }
+      return req<Workout[]>(`/api/gyms/${gymId}/workouts?${qs}`, { token })
     },
 
     create: (

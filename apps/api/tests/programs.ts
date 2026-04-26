@@ -248,6 +248,111 @@ async function runTests() {
     const r = await api('GET', `/programs/${createdId}`, ownerToken)
     check('GET deleted program → 404', 404, r.status)
   }
+
+  // ── GET /api/gyms/:gymId/workouts?programIds=… (slice 2) ───────────────────
+  console.log('\n=== GET /api/gyms/:gymId/workouts?programIds=… (multi-program filter) ===')
+
+  // Three fresh programs: A1 + A2 linked to `gymId` (caller's gym), B linked to
+  // `otherGymId` only. One workout per program, all in the test date range.
+  const programA1 = await prisma.program.create({
+    data: { name: `Filter A1 ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId } } },
+  })
+  const programA2 = await prisma.program.create({
+    data: { name: `Filter A2 ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId } } },
+  })
+  const programB = await prisma.program.create({
+    data: { name: `Filter B ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId: otherGymId } } },
+  })
+  createdProgramIds.push(programA1.id, programA2.id, programB.id)
+
+  const a1Workout = await prisma.workout.create({
+    data: {
+      programId: programA1.id, title: 'A1 workout', description: 'a1', type: 'AMRAP',
+      scheduledAt: new Date('2026-05-10T12:00:00Z'), status: 'PUBLISHED',
+    },
+  })
+  const a2Workout = await prisma.workout.create({
+    data: {
+      programId: programA2.id, title: 'A2 workout', description: 'a2', type: 'AMRAP',
+      scheduledAt: new Date('2026-05-10T12:00:00Z'), status: 'PUBLISHED',
+    },
+  })
+  const bWorkout = await prisma.workout.create({
+    data: {
+      programId: programB.id, title: 'B workout', description: 'b', type: 'AMRAP',
+      scheduledAt: new Date('2026-05-10T12:00:00Z'), status: 'PUBLISHED',
+    },
+  })
+
+  const range = 'from=2026-05-01&to=2026-05-31T23:59:59Z'
+
+  {
+    // Regression — no programIds → existing behavior. Caller is gymId-scoped, so
+    // they only see workouts whose program is linked to gymId (A1 + A2).
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}`, programmerToken)
+    check('GET no filter → 200', 200, r.status)
+    const titles = (r.body as unknown as { title: string }[]).map((w) => w.title)
+    check('GET no filter includes A1', true, titles.includes('A1 workout'))
+    check('GET no filter includes A2', true, titles.includes('A2 workout'))
+    check('GET no filter excludes B (other gym)', false, titles.includes('B workout'))
+  }
+
+  {
+    // Single program in the CSV
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programIds=${programA1.id}`, programmerToken)
+    check('GET ?programIds=A1 as PROGRAMMER → 200', 200, r.status)
+    const titles = (r.body as unknown as { title: string }[]).map((w) => w.title).sort()
+    check('GET ?programIds=A1 returns only A1', JSON.stringify(['A1 workout']), JSON.stringify(titles))
+  }
+
+  {
+    // Multi-program CSV — both A1 and A2 are accessible
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programIds=${programA1.id},${programA2.id}`, programmerToken)
+    check('GET ?programIds=A1,A2 → 200', 200, r.status)
+    const titles = (r.body as unknown as { title: string }[]).map((w) => w.title).sort()
+    check('GET ?programIds=A1,A2 returns both', JSON.stringify(['A1 workout', 'A2 workout']), JSON.stringify(titles))
+  }
+
+  {
+    // MEMBER role sees published workouts only — both A1 and A2 are PUBLISHED
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programIds=${programA1.id},${programA2.id}`, memberToken)
+    check('GET ?programIds=A1,A2 as MEMBER → 200', 200, r.status)
+    const arr = r.body as unknown as { title: string }[]
+    check('GET ?programIds=A1,A2 as MEMBER → 2 results', 2, arr.length)
+  }
+
+  {
+    // Mix of accessible (A1) and inaccessible (B) — should 403 on first failure
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programIds=${programA1.id},${programB.id}`, programmerToken)
+    check('GET ?programIds=A1,B (B unlinked) → 403', 403, r.status)
+  }
+
+  {
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programIds=${programB.id}`, programmerToken)
+    check('GET ?programIds=B (unlinked) → 403', 403, r.status)
+  }
+
+  {
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programIds=does-not-exist-${TS}`, programmerToken)
+    check('GET ?programIds=<missing> → 404', 404, r.status)
+  }
+
+  {
+    // CSV with empty entries (e.g. trailing comma) → treated as no filter
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programIds=`, programmerToken)
+    check('GET ?programIds= (empty) → 200', 200, r.status)
+  }
+
+  {
+    // No auth → 401 from requireAuth, before our filter check runs
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range}&programIds=${programA1.id}`)
+    check('GET ?programIds without auth → 401', 401, r.status)
+  }
+
+  // Cleanup the new fixtures here so teardown doesn't have to know about them
+  await prisma.workout.delete({ where: { id: a1Workout.id } })
+  await prisma.workout.delete({ where: { id: a2Workout.id } })
+  await prisma.workout.delete({ where: { id: bWorkout.id } })
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────
