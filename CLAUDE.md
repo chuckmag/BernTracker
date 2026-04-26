@@ -36,17 +36,77 @@ BernTracker/
 ## Commands
 
 ```bash
-turbo dev          # start all apps concurrently
-turbo build        # build all apps
-turbo lint         # typecheck all workspaces (correct way to run tsc across the monorepo)
-npm run db:migrate # run Prisma migrations (uses root .env via dotenv-cli)
-npm run db:studio  # open Prisma Studio
+turbo dev             # start all apps concurrently (default ports: 3000 / 5173)
+npm run dev:worktree  # worktree-aware dev — picks free ports, prints URLs, writes .dev-ports.local
+npm run test:worktree -- api          # API integration tests against the worktree's dev stack
+npm run test:worktree -- e2e [args]   # Playwright E2E against the worktree's dev stack
+turbo build           # build all apps
+turbo lint            # typecheck all workspaces (correct way to run tsc across the monorepo)
+npm run db:migrate    # run Prisma migrations (uses root .env via dotenv-cli)
+npm run db:studio     # open Prisma Studio
 ```
 
 > **Note:** Do NOT run `npx tsc --noEmit` from the repo root. The root `tsconfig.json`
 > is a base config (Node.js settings, no JSX) extended by each workspace. Running it
 > at root will either error or apply the wrong settings to React files.
 > Use `turbo lint` for all workspaces, or `npm run lint --workspace=<name>` for one.
+
+## Worktree development — running dev + tests in parallel
+
+When working in a `git worktree` (e.g. `.claude/worktrees/<branch>`), the default fixed ports (API on 3000, web on 5173) collide with anything already running — the Docker `berntracker-api` container, another worktree's dev stack, or a previous Claude session. **Use the worktree-aware scripts** so each worktree gets its own pair of ports and never blocks another.
+
+### Workflow
+
+1. **Start the dev stack inside the worktree:**
+   ```bash
+   npm run dev:worktree
+   ```
+   - Picks two free ports (one in the 3001–3100 range, one in 5174–5273 — defaults 3000 / 5173 are reserved for non-worktree `turbo dev`), logs them, and writes `.dev-ports.local` (gitignored) at the worktree root.
+   - Spawns `dev:api` with `API_PORT=<api>` and `dev:web` with `WEB_PORT=<web>`. Vite's proxy reads `API_PORT` so the browser hits the right backend.
+   - Output is interleaved with `[api]` / `[web]` prefixes. Ctrl-C tears both down cleanly.
+
+2. **Run tests against that stack:**
+   ```bash
+   npm run test:worktree -- api
+   npm run test:worktree -- e2e tests/programs.spec.ts
+   ```
+   `test:worktree` reads `.dev-ports.local` and propagates `API_URL` / `WEB_URL` into the existing test commands. No need to set env vars by hand.
+
+3. **Manually invoke the underlying commands** (escape hatch — only when `test:worktree` doesn't fit). Note: `node -p require(...)` does **not** work on `.dev-ports.local` because the `.local` extension isn't registered for JSON. Read it explicitly:
+   ```bash
+   API_URL="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(".dev-ports.local")).apiUrl + "/api")')" \
+     npm run test --workspace=@berntracker/api
+
+   WEB_URL="$(node -e 'console.log(JSON.parse(require("fs").readFileSync(".dev-ports.local")).webUrl)')" \
+     npm run test:e2e --workspace=@berntracker/web -- tests/programs.spec.ts
+   ```
+
+### What Claude must do before saying "all tests pass"
+
+Before reporting test success in a PR (especially for a slice or feature work), Claude **must**:
+
+1. From the worktree, run `npm run dev:worktree` in the background and wait for both servers to bind.
+2. Run **both** `npm run test:worktree -- api` and `npm run test:worktree -- e2e` against that stack.
+3. Report the actual numbers (passed / failed / total) plus any flaky tests.
+4. Tear the dev stack down (`kill` the bg PIDs) before opening the PR.
+
+Skipping the live test runs and falling back to "static checks only" — like the slice-1 / slice-2 PRs had to — is a regression that this workflow exists to prevent. If the worktree dev stack genuinely won't start (port conflict the helper can't resolve, DB unreachable), say so explicitly in the PR rather than papering over with "reviewer to verify".
+
+### Env vars honored
+
+| Var | Where | Default |
+|---|---|---|
+| `API_PORT` | `apps/api/src/index.ts` | `process.env.PORT ?? 3000` |
+| `WEB_PORT` | `apps/web/vite.config.ts` (`server.port`) | `5173` |
+| `API_PORT` | `apps/web/vite.config.ts` (`server.proxy.target`) | `3000` |
+| `API_URL`  | `apps/api/tests/*.ts` (`BASE` constant) | `http://localhost:3000/api` |
+| `WEB_URL`  | `apps/web/playwright.config.ts` (`baseURL`) | `http://localhost:5173` |
+
+All defaults preserve historical single-stack behavior — running `npm run dev` (or `dev:api` / `dev:web` standalone) without these vars still binds to 3000 / 5173.
+
+### Two worktrees in parallel
+
+Engineers (or Claude sessions) can run `npm run dev:worktree` in two separate worktrees concurrently. Each picks its own pair of free ports — no collision. **The DB is still shared**, so be mindful of fixture-naming collisions in tests (#101 tracks the auth-state leak this can cause; #74 tracks per-worktree DB isolation).
 
 ## Developer onboarding
 

@@ -29,7 +29,9 @@ process.on('unhandledRejection', (reason) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const app = express()
-const port = process.env.PORT ?? 3000
+// API_PORT is preferred so a worktree can pick its own port without colliding
+// with `PORT`, which other tooling (Railway, Docker Compose) sets to 3000.
+const port = process.env.API_PORT ?? process.env.PORT ?? 3000
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .split(',')
