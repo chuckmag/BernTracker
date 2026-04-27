@@ -1,4 +1,4 @@
-import { prisma } from '@wodalytics/db'
+import { prisma, type ProgramVisibility } from '@wodalytics/db'
 
 interface CreateProgramData {
   name: string
@@ -6,6 +6,7 @@ interface CreateProgramData {
   startDate: string | Date
   endDate?: string | Date
   coverColor?: string
+  visibility?: ProgramVisibility
 }
 
 const programCountSelect = {
@@ -39,9 +40,32 @@ export async function createProgramAndLinkToGym(gymId: string, data: CreateProgr
       startDate: new Date(data.startDate),
       endDate: data.endDate ? new Date(data.endDate) : undefined,
       coverColor: data.coverColor,
+      visibility: data.visibility,
       gyms: { create: { gymId } },
     },
     include: programCountSelect,
   })
   return { program }
+}
+
+/**
+ * Lists PUBLIC programs in the gym that the caller has NOT yet joined.
+ * Drives the Browse page (slice 4 / #87). Caller's gym membership is
+ * already vetted by the route guard.
+ */
+export async function findBrowseProgramsForGymAndUser(gymId: string, userId: string) {
+  return prisma.gymProgram.findMany({
+    where: {
+      gymId,
+      program: {
+        visibility: 'PUBLIC',
+        // Exclude programs the caller is already a member of.
+        members: { none: { userId } },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      program: { include: programCountSelect },
+    },
+  })
 }

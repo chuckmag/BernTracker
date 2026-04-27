@@ -282,37 +282,10 @@ async function runTests() {
   if (dayOrderWorkout1Id) await prisma.workout.delete({ where: { id: dayOrderWorkout1Id } })
   if (dayOrderWorkout2Id) await prisma.workout.delete({ where: { id: dayOrderWorkout2Id } })
 
-  // ── Subscribe role ─────────────────────────────────────────────────────────
-  console.log('\n=== Subscribe role ===')
-
-  {
-    const u = await prisma.user.create({ data: { email: `at-sub-prog-${TS}@test.com` } })
-    const r = await api('POST', `/programs/${programId}/subscribe`, undefined, {
-      userId: u.id,
-      role: 'PROGRAMMER',
-    })
-    check('POST /programs/:id/subscribe role=PROGRAMMER → 201', 201, r.status)
-    check('POST /programs/:id/subscribe → role=PROGRAMMER', 'PROGRAMMER', r.body.role)
-    await prisma.user.delete({ where: { id: u.id } })
-  }
-
-  {
-    const u = await prisma.user.create({ data: { email: `at-sub-mem-${TS}@test.com` } })
-    const r = await api('POST', `/programs/${programId}/subscribe`, undefined, { userId: u.id })
-    check('POST /programs/:id/subscribe (no role) → 201', 201, r.status)
-    check('POST /programs/:id/subscribe → role=MEMBER', 'MEMBER', r.body.role)
-    await prisma.user.delete({ where: { id: u.id } })
-  }
-
-  {
-    // memberUser is already subscribed as MEMBER — re-subscribe promotes to PROGRAMMER
-    const r = await api('POST', `/programs/${programId}/subscribe`, undefined, {
-      userId: memberUserId,
-      role: 'PROGRAMMER',
-    })
-    check('Re-subscribe MEMBER as PROGRAMMER → 201', 201, r.status)
-    check('Re-subscribe → role promoted to PROGRAMMER', 'PROGRAMMER', r.body.role)
-  }
+  // (The legacy "Subscribe role" block lived here. Slice 4 (#87) repurposed
+  // POST /programs/:id/subscribe as auth'd self-subscribe; staff-managed
+  // membership now uses POST /programs/:id/members. Coverage moved to
+  // apps/api/tests/programs.ts under the slice-3 + slice-4 sections.)
 
   // ── Workout auth: gym-linked program (#118) ────────────────────────────────
   // Regression coverage for the bug where workout write access ran the caller's

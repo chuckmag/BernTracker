@@ -6,6 +6,7 @@ import ProgramFilterPicker from './ProgramFilterPicker.tsx'
 const memberLinks = [
   { to: '/feed',    label: 'Feed'    },
   { to: '/history', label: 'History' },
+  { to: '/browse-programs', label: 'Browse Programs' },
 ]
 
 const staffLinks = [
