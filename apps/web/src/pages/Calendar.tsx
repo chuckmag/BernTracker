@@ -1,7 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, type Role, type Workout } from '../lib/api'
+import { Link } from 'react-router-dom'
+import { api, type Workout } from '../lib/api'
+import { useGym } from '../context/GymContext.tsx'
+import { useMovements } from '../context/MovementsContext.tsx'
+import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 import CalendarCell from '../components/CalendarCell'
 import WorkoutDrawer from '../components/WorkoutDrawer'
+import MovementFilterInput from '../components/MovementFilterInput'
+import Button from '../components/ui/Button'
+import Chip from '../components/ui/Chip'
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -13,7 +20,9 @@ function toDateKey(date: Date): string {
 const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function Calendar() {
-  const [gymId] = useState<string | null>(() => localStorage.getItem('gymId'))
+  const { gymId, gymRole: userGymRole } = useGym()
+  const allMovements = useMovements()
+  const { selected: programIds, available, clear: clearProgramFilter } = useProgramFilter()
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -22,35 +31,48 @@ export default function Calendar() {
   const [error, setError] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null)
-  const [userGymRole, setUserGymRole] = useState<Role | null>(null)
+  const [filterMovementIds, setFilterMovementIds] = useState<string[]>([])
 
-  const loadWorkouts = useCallback(async () => {
+  const programIdsKey = programIds.join(',')
+
+  const loadWorkouts = useCallback(async (signal?: { cancelled: boolean }) => {
     if (!gymId) return
     setLoading(true)
     setError(null)
     try {
       const from = new Date(year, month, 1).toISOString()
       const to = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString()
-      const data = await api.workouts.list(gymId, from, to)
-      setWorkouts(data)
+      const filters = (filterMovementIds.length || programIds.length)
+        ? {
+            ...(filterMovementIds.length ? { movementIds: filterMovementIds } : {}),
+            ...(programIds.length ? { programIds } : {}),
+          }
+        : undefined
+      const data = await api.workouts.list(gymId, from, to, filters)
+      if (!signal?.cancelled) setWorkouts(data)
     } catch (e) {
-      setError((e as Error).message)
+      if (!signal?.cancelled) setError((e as Error).message)
     } finally {
-      setLoading(false)
+      if (!signal?.cancelled) setLoading(false)
     }
-  }, [gymId, year, month])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gymId, year, month, filterMovementIds, programIdsKey])
 
   useEffect(() => {
-    loadWorkouts()
+    const signal = { cancelled: false }
+    loadWorkouts(signal)
+    return () => { signal.cancelled = true }
   }, [loadWorkouts])
 
-  useEffect(() => {
-    if (!gymId) return
-    api.me.gyms().then((gyms) => {
-      const myGym = gyms.find((g) => g.id === gymId)
-      if (myGym) setUserGymRole(myGym.role)
-    }).catch(() => {})
-  }, [gymId])
+  // Single-program filter gets a featured header (color stripe + name).
+  // Multi-program gets a compact "Filtered to N programs" eyebrow.
+  const singleProgram = programIds.length === 1
+    ? available.find(({ program }) => program.id === programIds[0])?.program ?? null
+    : null
+  // First selected program is the create-mode default for new workouts; with
+  // multi-select we can't pre-select an unambiguous default, so fall back to
+  // the drawer's existing "first program in list" behavior beyond N=1.
+  const defaultProgramIdForCreate = programIds.length === 1 ? programIds[0] : undefined
 
   const workoutsByDate: Record<string, Workout[]> = {}
   for (const w of workouts) {
@@ -103,34 +125,87 @@ export default function Calendar() {
 
   return (
     <div>
+      {programIds.length > 0 && (
+        <div className="mb-4">
+          <Link
+            to="/calendar"
+            onClick={(e) => { e.preventDefault(); clearProgramFilter() }}
+            className="text-xs text-indigo-400 hover:text-indigo-300"
+          >
+            ← Back to full calendar
+          </Link>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Calendar</h1>
+        {singleProgram ? (
+          <div className="flex items-start gap-3 min-w-0">
+            <div
+              style={{ backgroundColor: singleProgram.coverColor ?? '#374151' }}
+              className="w-1.5 h-10 rounded-full shrink-0"
+            />
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold truncate">{singleProgram.name}</h1>
+              <p className="text-xs uppercase tracking-wider text-gray-400 mt-0.5">Calendar</p>
+            </div>
+          </div>
+        ) : programIds.length > 1 ? (
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold">Calendar</h1>
+            <p className="text-xs uppercase tracking-wider text-gray-400 mt-0.5">
+              Filtered to {programIds.length} programs
+            </p>
+          </div>
+        ) : (
+          <h1 className="text-2xl font-bold">Calendar</h1>
+        )}
         <div className="flex items-center gap-2">
-          <button
-            onClick={prevMonth}
-            className="text-gray-400 hover:text-white px-3 py-1 rounded hover:bg-gray-800 transition-colors"
-            aria-label="Previous month"
-          >
+          <Button variant="tertiary" onClick={prevMonth} aria-label="Previous month">
             ←
-          </button>
+          </Button>
           <span className="text-base font-medium w-44 text-center select-none">{monthLabel}</span>
-          <button
-            onClick={nextMonth}
-            className="text-gray-400 hover:text-white px-3 py-1 rounded hover:bg-gray-800 transition-colors"
-            aria-label="Next month"
-          >
+          <Button variant="tertiary" onClick={nextMonth} aria-label="Next month">
             →
-          </button>
+          </Button>
         </div>
       </div>
+
+      {/* Sticky movement-filter sub-header */}
+      {allMovements.length > 0 && (
+        <div className="sticky top-0 z-20 -mx-4 px-4 py-2 mb-4 bg-gray-950/90 backdrop-blur supports-[backdrop-filter]:bg-gray-950/70 border-b border-gray-800">
+          {/* Wide layout: full chip row */}
+          <div className="hidden min-[520px]:block">
+            <MovementFilterInput
+              allMovements={allMovements}
+              selectedIds={filterMovementIds}
+              onChange={setFilterMovementIds}
+            />
+          </div>
+          {/* Narrow layout: collapsed details/summary */}
+          <details className="block min-[520px]:hidden">
+            <summary className="list-none cursor-pointer [&::-webkit-details-marker]:hidden inline-block">
+              <Chip variant="neutral">
+                Filters{filterMovementIds.length ? ` (${filterMovementIds.length})` : ''}
+              </Chip>
+            </summary>
+            <div className="mt-2">
+              <MovementFilterInput
+                allMovements={allMovements}
+                selectedIds={filterMovementIds}
+                onChange={setFilterMovementIds}
+              />
+            </div>
+          </details>
+        </div>
+      )}
 
       {error && <p className="text-red-400 mb-4">{error}</p>}
 
       {/* Day-of-week headers */}
       <div className="grid grid-cols-7 mb-px">
         {DAY_HEADERS.map((d) => (
-          <div key={d} className="text-center text-xs text-gray-500 py-1">
+          <div key={d} className="text-center text-xs text-gray-400 py-1">
             {d}
           </div>
         ))}
@@ -146,7 +221,7 @@ export default function Calendar() {
         {weeks.map((week, wi) =>
           week.map((date, di) => {
             if (!date) {
-              return <div key={`empty-${wi}-${di}`} className="bg-gray-950 h-24" />
+              return <div key={`empty-${wi}-${di}`} className="bg-gray-950 h-[128px]" />
             }
             const key = toDateKey(date)
             return (
@@ -170,8 +245,10 @@ export default function Calendar() {
         workout={selectedWorkout}
         workoutsOnDay={workoutsOnDay}
         userGymRole={userGymRole}
+        defaultProgramId={defaultProgramIdForCreate}
         onClose={() => { setSelectedDate(null); setSelectedWorkoutId(null) }}
         onSaved={() => { setSelectedDate(null); setSelectedWorkoutId(null); loadWorkouts() }}
+        onAutoSaved={loadWorkouts}
         onReordered={loadWorkouts}
         onWorkoutSelect={(id) => setSelectedWorkoutId(id)}
         onNewWorkout={() => setSelectedWorkoutId(null)}

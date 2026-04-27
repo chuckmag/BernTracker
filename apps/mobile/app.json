@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "BernTracker",
-    "slug": "berntracker",
+    "name": "WODalytics",
+    "slug": "wodalytics",
     "owner": "chuckmag",
     "version": "1.0.0",
-    "scheme": "com.berntracker.app",
+    "scheme": "com.wodalytics.app",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.berntracker.app"
+      "bundleIdentifier": "com.wodalytics.app"
     },
     "android": {
-      "package": "com.berntracker.app",
+      "package": "com.wodalytics.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

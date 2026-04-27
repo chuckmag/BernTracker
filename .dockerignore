@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.env
+.env.*
+!.env.example
+apps/mobile
+.git
+.claude
+.turbo
+**/.turbo
+apps/web/test-results
+apps/web/playwright-report

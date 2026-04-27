@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { OAuth2Client } from 'google-auth-library'
-import { prisma } from '@berntracker/db'
-import { LoginSchema, RegisterSchema } from '@berntracker/types'
+import { prisma } from '@wodalytics/db'
+import { LoginSchema, RegisterSchema } from '@wodalytics/types'
 import { signTokenPair, verifyRefreshToken } from '../lib/jwt.js'
 import { requireAuth } from '../middleware/auth.js'
 
@@ -18,10 +18,14 @@ const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173'
 
 const router = Router()
 
+// Cross-origin setup on hosted environments (Railway gives each service its own
+// subdomain — see #77). SameSite=None is required for the web to receive the
+// cookie after the cross-site auth call, and browsers reject None without Secure.
+const IS_LOCAL_DEV = process.env.NODE_ENV === 'development'
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  secure: !IS_LOCAL_DEV,
+  sameSite: (IS_LOCAL_DEV ? 'lax' : 'none') as 'lax' | 'none',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 }
 
@@ -88,7 +92,7 @@ router.post('/login', async (req, res) => {
   })
 
   res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-  res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
+  res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role, identifiedGender: user.identifiedGender } })
 })
 
 // POST /refresh
@@ -140,27 +144,33 @@ router.post('/logout', async (req, res) => {
 router.get('/me', requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
-    select: { id: true, email: true, name: true, role: true },
+    select: { id: true, email: true, name: true, role: true, identifiedGender: true },
   })
   if (!user) {
     res.status(404).json({ error: 'User not found' })
     return
   }
-  res.json(user)
+  res.json({
+    ...user,
+    isMovementReviewer: user.email === (process.env.MOVEMENT_REVIEWER_EMAIL ?? ''),
+  })
 })
 
-// GET /google — redirect to Google consent screen
-// Optional query param: mobile_redirect=<scheme://...>
-// When present (mobile clients), the callback will redirect to that scheme
-// with tokens as query params instead of redirecting to the web frontend.
+// GET /google — redirect to Google consent screen.
+// Optional query params:
+//   - mobile_redirect=<scheme://...>: when present (mobile clients) the callback
+//     redirects to that scheme with tokens as query params instead of the web
+//     frontend. State carries it through the OAuth round-trip (also CSRF protection).
+//   - prompt=<select_account|...>: forwarded to Google so the sign-up flow can
+//     force the account picker instead of silently reusing the last session.
 router.get('/google', (req, res) => {
   const mobileRedirect = req.query.mobile_redirect as string | undefined
+  const prompt = typeof req.query.prompt === 'string' ? req.query.prompt : undefined
   const url = googleClient().generateAuthUrl({
     access_type: 'offline',
     scope: ['openid', 'email', 'profile'],
-    // Encode mobile_redirect in state so it survives the OAuth round-trip.
-    // State is also used by Google for CSRF protection.
     state: mobileRedirect ? JSON.stringify({ mobileRedirect }) : undefined,
+    ...(prompt ? { prompt } : {}),
   })
   res.redirect(url)
 })
@@ -259,14 +269,14 @@ router.post('/google/mobile', async (req, res) => {
   // refreshToken returned in body (not just cookie) so mobile clients can
   // persist it in SecureStore — mobile fetch doesn't use httpOnly cookies.
   res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-  res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, name: user.name, role: user.role } })
+  res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, name: user.name, role: user.role, identifiedGender: user.identifiedGender } })
 })
 
 async function findOrCreateGoogleUser(googleId: string, email: string, name: string) {
   // Check for existing OAuth account
   const existing = await prisma.oAuthAccount.findUnique({
     where: { provider_providerId: { provider: 'google', providerId: googleId } },
-    include: { user: { select: { id: true, email: true, name: true, role: true } } },
+    include: { user: { select: { id: true, email: true, name: true, role: true, identifiedGender: true } } },
   })
   if (existing) return existing.user
 
@@ -276,7 +286,7 @@ async function findOrCreateGoogleUser(googleId: string, email: string, name: str
     await prisma.oAuthAccount.create({
       data: { userId: existingUser.id, provider: 'google', providerId: googleId },
     })
-    return { id: existingUser.id, email: existingUser.email, name: existingUser.name, role: existingUser.role }
+    return { id: existingUser.id, email: existingUser.email, name: existingUser.name, role: existingUser.role, identifiedGender: existingUser.identifiedGender }
   }
 
   // Create new user + OAuthAccount
@@ -286,7 +296,7 @@ async function findOrCreateGoogleUser(googleId: string, email: string, name: str
       name,
       oauthAccounts: { create: { provider: 'google', providerId: googleId } },
     },
-    select: { id: true, email: true, name: true, role: true },
+    select: { id: true, email: true, name: true, role: true, identifiedGender: true },
   })
   return user
 }

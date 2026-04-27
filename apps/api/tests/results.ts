@@ -8,10 +8,10 @@
  * drive assertions through the live API, clean up in a finally block.
  */
 
-import { prisma } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
 import { signTokenPair } from '../src/lib/jwt.js'
 
-const BASE = 'http://localhost:3000/api'
+const BASE = process.env.API_URL ?? 'http://localhost:3000/api'
 let pass = 0
 let fail = 0
 

@@ -1,6 +1,6 @@
-import { prisma } from '@berntracker/db'
-import { WorkoutStatus } from '@berntracker/db'
-import type { WorkoutType } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
+import { WorkoutStatus } from '@wodalytics/db'
+import type { WorkoutType } from '@wodalytics/db'
 
 interface CreateWorkoutData {
   programId?: string
@@ -9,6 +9,12 @@ interface CreateWorkoutData {
   type: WorkoutType
   scheduledAt: Date
   dayOrder?: number
+  movementIds?: string[]
+  namedWorkoutId?: string
+  // External ingest jobs (e.g. CrossFit Mainsite cron) set these. The unique
+  // constraint on externalSourceId makes the upsert path idempotent.
+  externalSourceId?: string
+  status?: WorkoutStatus
 }
 
 interface UpdateWorkoutData {
@@ -17,13 +23,23 @@ interface UpdateWorkoutData {
   type?: WorkoutType
   scheduledAt?: Date
   dayOrder?: number
+  movementIds?: string[]
+  namedWorkoutId?: string | null
 }
 
 interface WorkoutDateRangeFilters {
   publishedOnly?: boolean
+  movementIds?: string[]
+  programIds?: string[]
 }
 
 const programSelect = { select: { id: true, name: true } } as const
+const namedWorkoutSelect = { select: { id: true, name: true, category: true } } as const
+const workoutMovementsInclude = {
+  workoutMovements: {
+    include: { movement: { select: { id: true, name: true, parentId: true } } },
+  },
+} as const
 
 
 export async function countWorkoutsOnSameDay(gymId: string, scheduledAt: Date): Promise<number> {
@@ -38,9 +54,15 @@ export async function countWorkoutsOnSameDay(gymId: string, scheduledAt: Date): 
 }
 
 export async function createWorkoutForProgram(data: CreateWorkoutData) {
+  const { movementIds, ...rest } = data
   return prisma.workout.create({
-    data,
-    include: { program: programSelect },
+    data: {
+      ...rest,
+      ...(movementIds?.length
+        ? { workoutMovements: { create: movementIds.map((id) => ({ movementId: id })) } }
+        : {}),
+    },
+    include: { program: programSelect, namedWorkout: namedWorkoutSelect, ...workoutMovementsInclude },
   })
 }
 
@@ -55,12 +77,18 @@ export async function findWorkoutsByGymAndDateRange(
       scheduledAt: { gte: from, lte: to },
       program: { gyms: { some: { gymId } } },
       ...(filters.publishedOnly ? { status: WorkoutStatus.PUBLISHED } : {}),
+      ...(filters.movementIds?.length
+        ? { workoutMovements: { some: { movementId: { in: filters.movementIds } } } }
+        : {}),
+      ...(filters.programIds?.length ? { programId: { in: filters.programIds } } : {}),
     },
     // createdAt is a stable tiebreaker for equal dayOrder values (e.g. pre-migration rows defaulted to 0)
     orderBy: [{ scheduledAt: 'asc' }, { dayOrder: 'asc' }, { createdAt: 'asc' }],
     include: {
       program: programSelect,
+      namedWorkout: namedWorkoutSelect,
       _count: { select: { results: true } },
+      ...workoutMovementsInclude,
     },
   })
 
@@ -98,24 +126,57 @@ export async function findWorkoutById(id: string) {
     where: { id },
     include: {
       program: programSelect,
+      namedWorkout: namedWorkoutSelect,
       _count: { select: { results: true } },
+      ...workoutMovementsInclude,
     },
   })
 }
 
-// Lightweight query for auth middleware — returns only programId
-export async function findWorkoutProgramId(id: string) {
+// Lightweight query for auth middleware — returns the workout's programId plus
+// the program's linked gymIds (empty array when the program is unaffiliated,
+// e.g. the public CrossFit Mainsite program created by the ingest job).
+export async function findWorkoutWithProgramGyms(id: string) {
   return prisma.workout.findUnique({
     where: { id },
-    select: { programId: true },
+    select: {
+      programId: true,
+      program: { select: { gyms: { select: { gymId: true } } } },
+    },
   })
 }
 
+export async function findWorkoutByExternalSourceId(externalSourceId: string) {
+  return prisma.workout.findUnique({ where: { externalSourceId } })
+}
+
+export async function countWorkoutsByProgramId(programId: string): Promise<number> {
+  return prisma.workout.count({ where: { programId } })
+}
+
 export async function updateWorkout(id: string, data: UpdateWorkoutData) {
-  return prisma.workout.update({
-    where: { id },
-    data,
-    include: { program: programSelect },
+  const { movementIds, ...rest } = data
+
+  if (movementIds === undefined) {
+    return prisma.workout.update({
+      where: { id },
+      data: rest,
+      include: { program: programSelect, namedWorkout: namedWorkoutSelect, ...workoutMovementsInclude },
+    })
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.workoutMovement.deleteMany({ where: { workoutId: id } })
+    if (movementIds.length > 0) {
+      await tx.workoutMovement.createMany({
+        data: movementIds.map((movementId) => ({ workoutId: id, movementId })),
+      })
+    }
+    return tx.workout.update({
+      where: { id },
+      data: rest,
+      include: { program: programSelect, namedWorkout: namedWorkoutSelect, ...workoutMovementsInclude },
+    })
   })
 }
 
@@ -123,7 +184,48 @@ export async function publishWorkoutById(id: string) {
   return prisma.workout.update({
     where: { id },
     data: { status: WorkoutStatus.PUBLISHED },
-    include: { program: programSelect },
+    include: { program: programSelect, namedWorkout: namedWorkoutSelect, ...workoutMovementsInclude },
+  })
+}
+
+export async function applyTemplateToWorkout(workoutId: string) {
+  const workout = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    select: { namedWorkoutId: true },
+  })
+  if (!workout?.namedWorkoutId) {
+    throw Object.assign(new Error('Workout has no named workout set'), { statusCode: 400 })
+  }
+
+  const namedWorkout = await prisma.namedWorkout.findUnique({
+    where: { id: workout.namedWorkoutId },
+    include: {
+      templateWorkout: {
+        select: {
+          type: true,
+          description: true,
+          workoutMovements: { select: { movementId: true } },
+        },
+      },
+    },
+  })
+  if (!namedWorkout?.templateWorkout) {
+    throw Object.assign(new Error('Named workout has no template'), { statusCode: 400 })
+  }
+
+  const { type, description, workoutMovements } = namedWorkout.templateWorkout
+  const movementIds = workoutMovements.map((wm) => wm.movementId)
+
+  await prisma.workoutMovement.deleteMany({ where: { workoutId } })
+  if (movementIds.length > 0) {
+    await prisma.workoutMovement.createMany({
+      data: movementIds.map((movementId) => ({ workoutId, movementId })),
+    })
+  }
+  return prisma.workout.update({
+    where: { id: workoutId },
+    data: { type, description },
+    include: { program: programSelect, namedWorkout: namedWorkoutSelect, ...workoutMovementsInclude },
   })
 }
 

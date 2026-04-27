@@ -1,22 +1,25 @@
 {
-  "name": "@berntracker/api",
+  "name": "@wodalytics/api",
   "version": "0.0.1",
   "private": true,
   "scripts": {
     "dev": "../../node_modules/.bin/nodemon",
     "build": "tsc",
     "start": "node --env-file=../../.env dist/index.js",
-    "test": "npx dotenv-cli -e ../../.env -- sh -c 'npx tsx tests/workouts.ts && npx tsx tests/results.ts'"
+    "job": "node --env-file=../../.env dist/jobs/index.js",
+    "test": "NODE_OPTIONS='--conditions=source' npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do npx tsx \"$f\" || exit 1; done'"
   },
   "dependencies": {
-    "@berntracker/db": "*",
-    "@berntracker/types": "*",
+    "@wodalytics/db": "*",
+    "@wodalytics/types": "*",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "fuse.js": "^7.3.0",
     "google-auth-library": "^10.6.1",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

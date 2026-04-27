@@ -1,0 +1,333 @@
+import { useState, useEffect, useRef, Fragment } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext.tsx'
+import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
+import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
+import LogResultDrawer from '../components/LogResultDrawer.tsx'
+import MarkdownDescription from '../components/MarkdownDescription.tsx'
+import Button from '../components/ui/Button.tsx'
+import SegmentedControl from '../components/ui/SegmentedControl.tsx'
+
+const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
+  GIRL_WOD: 'Girl WOD',
+  HERO_WOD: 'Hero WOD',
+  OPEN_WOD: 'Open WOD',
+  GAMES_WOD: 'Games WOD',
+  BENCHMARK: 'Benchmark',
+}
+
+type GenderFilter = WorkoutGender | 'ALL'
+
+const LEVEL_LABELS: Record<WorkoutLevel, string> = {
+  RX_PLUS: 'RX+',
+  RX: 'RX',
+  SCALED: 'Scaled',
+  MODIFIED: 'Modified',
+}
+
+// Difficulty rank used by the graded level filter and the result ordering.
+// Higher rank = harder. Selecting level X shows results with rank ≤ X.
+const LEVEL_RANK: Record<WorkoutLevel, number> = {
+  MODIFIED: 0,
+  SCALED:   1,
+  RX:       2,
+  RX_PLUS:  3,
+}
+
+const LEVEL_OPTIONS: { value: WorkoutLevel; label: string }[] = [
+  { value: 'RX_PLUS',  label: 'RX+' },
+  { value: 'RX',       label: 'RX' },
+  { value: 'SCALED',   label: 'Scaled' },
+  { value: 'MODIFIED', label: 'Modified' },
+]
+
+const GENDER_OPTIONS: { value: GenderFilter; label: string }[] = [
+  { value: 'ALL',    label: 'Open' },
+  { value: 'MALE',   label: 'Male' },
+  { value: 'FEMALE', label: 'Female' },
+]
+
+function formatSeconds(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function formatResultValue(result: WorkoutResult): string {
+  const v = result.value
+  const type = result.workout.type
+
+  if (type === 'AMRAP') {
+    const rounds = v.rounds as number
+    const reps = v.reps as number
+    return `${rounds} rounds + ${reps} reps`
+  }
+
+  if (type === 'FOR_TIME') {
+    if (v.cappedOut) return 'CAPPED'
+    return formatSeconds(v.seconds as number)
+  }
+
+  return '—'
+}
+
+export default function WodDetail() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { user } = useAuth()
+  const fromHistory = (location.state as { from?: string } | null)?.from === 'history'
+
+  const [workout, setWorkout] = useState<Workout | null>(null)
+  const [results, setResults] = useState<WorkoutResult[]>([])
+  const [levelFilter, setLevelFilter] = useState<WorkoutLevel>('RX')
+  const [showAllLevels, setShowAllLevels] = useState(false)
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>('ALL')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showLogDrawer, setShowLogDrawer] = useState(false)
+
+  // Tracks which workout id has had the auto-detect default applied.
+  // The auto-detect snaps levelFilter to the viewer's own logged level on
+  // first leaderboard load (per workout). After it fires once, manual
+  // segment changes — and re-fetches triggered by logging a result — must
+  // not overwrite the user's selection.
+  const autoDetectAppliedRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!id) return
+    setLoading(true)
+    setError(null)
+    Promise.all([api.workouts.get(id), api.results.leaderboard(id)])
+      .then(([w, r]) => {
+        setWorkout(w)
+        setResults(r)
+      })
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setLoading(false))
+  }, [id])
+
+  useEffect(() => {
+    if (loading) return
+    if (autoDetectAppliedRef.current === id) return
+    autoDetectAppliedRef.current = id ?? null
+    if (!user) return
+    const my = results.find((r) => r.userId === user.id)
+    if (my) setLevelFilter(my.level)
+  }, [id, loading, results, user])
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    )
+  }
+
+  if (error || !workout) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <p className="text-red-400">{error ?? 'Workout not found.'}</p>
+        <button
+          onClick={() => navigate('/feed')}
+          className="mt-4 text-sm text-gray-400 hover:text-white transition-colors"
+        >
+          ← Back to Feed
+        </button>
+      </div>
+    )
+  }
+
+  const scheduledDate = new Date(workout.scheduledAt).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+
+  const myResult = results.find((r) => r.userId === user?.id)
+
+  // Graded inclusion: selecting level X shows X-and-easier (lower-rank) results.
+  // Sort is stable, so within each level the API's performance ordering is preserved.
+  const filteredResults = results
+    .filter((r) => showAllLevels || LEVEL_RANK[r.level] <= LEVEL_RANK[levelFilter])
+    .filter((r) => genderFilter === 'ALL' || r.workoutGender === genderFilter)
+    .sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level])
+
+  return (
+    <>
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Back nav */}
+      <button
+        onClick={() => navigate(fromHistory ? '/history' : '/feed')}
+        className="text-sm text-gray-400 hover:text-white transition-colors"
+      >
+        {fromHistory ? '← Back to History' : '← Back to Feed'}
+      </button>
+
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-3 mb-1">
+          <span className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${WORKOUT_TYPE_STYLES[workout.type].bg} ${WORKOUT_TYPE_STYLES[workout.type].tint}`}>
+            {WORKOUT_TYPE_STYLES[workout.type].abbr}
+          </span>
+          <h1 className="text-2xl font-bold">{workout.title}</h1>
+          {workout.namedWorkout && (
+            <span className="flex items-center gap-1.5 ml-1">
+              <span className="text-sm text-indigo-400">● {workout.namedWorkout.name}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-900/50 text-indigo-300 border border-indigo-700/40">
+                {CATEGORY_LABELS[workout.namedWorkout.category]}
+              </span>
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-gray-500 ml-11">{scheduledDate}</p>
+      </div>
+
+      {/* Description */}
+      {workout.description && (
+        <div className="bg-gray-900 rounded-lg px-4 py-3">
+          <MarkdownDescription source={workout.description} />
+        </div>
+      )}
+
+      {/* Movements */}
+      {(workout.workoutMovements?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {workout.workoutMovements?.map((wm) => (
+            <span key={wm.movement.id} className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300 border border-gray-700">
+              {wm.movement.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Log Result CTA */}
+      {myResult ? (
+        <div className="px-4 py-3 rounded-lg bg-gray-900 border border-gray-700">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your Result</span>
+            <span className="text-sm font-medium text-white">{formatResultValue(myResult)}</span>
+            <span className="text-xs text-gray-400">{LEVEL_LABELS[myResult.level]}</span>
+            <button
+              onClick={() => setShowLogDrawer(true)}
+              className="ml-auto text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+            >
+              Edit
+            </button>
+          </div>
+          {myResult.notes && (
+            <p className="mt-1.5 text-xs text-gray-400 italic line-clamp-2">{myResult.notes}</p>
+          )}
+        </div>
+      ) : (
+        <Button variant="primary" onClick={() => setShowLogDrawer(true)} className="w-full py-2.5">
+          Log Result
+        </Button>
+      )}
+
+      {/* Results table */}
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Results</h2>
+          <hr className="flex-1 border-gray-800" />
+        </div>
+
+        {/* Level filter: segmented control + Show-all checkbox */}
+        <div className="flex flex-wrap items-center gap-3 mb-2">
+          <SegmentedControl
+            options={LEVEL_OPTIONS}
+            value={levelFilter}
+            onChange={setLevelFilter}
+            disabled={showAllLevels}
+            aria-label="Filter results by level"
+          />
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showAllLevels}
+              onChange={(e) => setShowAllLevels(e.target.checked)}
+              className="accent-indigo-500 cursor-pointer"
+            />
+            Show all levels
+          </label>
+        </div>
+
+        {/* Gender filter */}
+        <div className="mb-4">
+          <SegmentedControl
+            options={GENDER_OPTIONS}
+            value={genderFilter}
+            onChange={setGenderFilter}
+            aria-label="Filter results by gender"
+          />
+        </div>
+
+        {filteredResults.length === 0 ? (
+          <p className="text-sm text-gray-500">No results yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-800 text-left">
+                  <th className="pb-2 pr-4 text-xs font-medium text-gray-400 w-10">#</th>
+                  <th className="pb-2 pr-4 text-xs font-medium text-gray-400">Athlete</th>
+                  <th className="pb-2 pr-4 text-xs font-medium text-gray-400">Level</th>
+                  <th className="pb-2 text-xs font-medium text-gray-400">Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredResults.map((result, index) => {
+                  const isMe = result.userId === user?.id
+                  return (
+                    <Fragment key={result.id}>
+                      <tr
+                        className={[
+                          result.notes ? '' : 'border-b border-gray-900',
+                          isMe ? 'text-indigo-300' : 'text-gray-300',
+                        ].join(' ')}
+                      >
+                        <td className="py-2.5 pr-4 text-gray-500">{index + 1}</td>
+                        <td className="py-2.5 pr-4 font-medium">
+                          {result.user.name ?? 'Unknown'}
+                          {isMe && <span className="ml-1.5 text-xs text-indigo-400">(you)</span>}
+                        </td>
+                        <td className="py-2.5 pr-4 text-gray-400">{LEVEL_LABELS[result.level]}</td>
+                        <td className="py-2.5 font-mono">{formatResultValue(result)}</td>
+                      </tr>
+                      {result.notes && (
+                        <tr className="border-b border-gray-900">
+                          <td />
+                          <td colSpan={3} className="pb-2.5 max-w-0">
+                            <p className="truncate text-xs text-gray-400 italic">{result.notes}</p>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {showLogDrawer && workout && (
+      <LogResultDrawer
+        workout={workout}
+        existingResult={myResult ?? undefined}
+        onClose={() => setShowLogDrawer(false)}
+        onSaved={() => {
+          setShowLogDrawer(false)
+          api.results.leaderboard(id!).then(setResults).catch(() => {})
+        }}
+        onDeleted={() => {
+          setShowLogDrawer(false)
+          api.results.leaderboard(id!).then(setResults).catch(() => {})
+        }}
+      />
+    )}
+    </>
+  )
+}

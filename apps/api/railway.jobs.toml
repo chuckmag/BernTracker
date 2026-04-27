@@ -1,0 +1,19 @@
+# Railway service config for the CrossFit Mainsite WOD ingest cron.
+#
+# One image (Dockerfile.jobs) backs many Railway services — each service
+# overrides startCommand with a different job name. Add a new service per job;
+# all of them share the same image and dispatcher.
+#
+# Prerequisite: a Program named "CrossFit Mainsite WOD" must exist in the DB
+# before this service does anything useful. Until then the job logs a warning
+# and exits 0 each tick.
+
+[build]
+dockerfilePath = "apps/api/Dockerfile.jobs"
+buildCommand = ""
+
+[deploy]
+# Railway cron syntax — every 15 minutes. Cadence lives in this file; changing
+# it is a config edit, not a code change.
+cronSchedule = "*/15 * * * *"
+startCommand = "crossfit-wod"

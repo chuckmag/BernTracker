@@ -35,3 +35,11 @@ export const CreateResultSchema = z.object({
 })
 
 export type CreateResultInput = z.infer<typeof CreateResultSchema>
+
+export const UpdateResultSchema = z.object({
+  level: WorkoutLevelSchema.optional(),
+  value: ResultValueSchema.optional(),
+  notes: z.string().nullable().optional(),
+})
+
+export type UpdateResultInput = z.infer<typeof UpdateResultSchema>

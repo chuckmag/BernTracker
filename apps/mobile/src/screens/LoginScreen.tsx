@@ -113,7 +113,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
-        <Text style={styles.logo}>BernTracker</Text>
+        <Text style={styles.logo}>WODalytics</Text>
         <Text style={styles.subtitle}>Sign in to your gym</Text>
 
         {error && <Text style={styles.error}>{error}</Text>}

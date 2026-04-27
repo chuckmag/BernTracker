@@ -5,9 +5,11 @@ import {
   validateGymExists,
   requireGymMembership,
   requireGymWriteAccess,
-  requireWorkoutProgramMembership,
-  requireWorkoutProgramWriteAccess,
 } from '../middleware/gym.js'
+import {
+  requireWorkoutReadAccess,
+  requireWorkoutWriteAccess,
+} from '../middleware/workout.js'
 import {
   createWorkoutForProgram as createWorkoutForProgramDb,
   countWorkoutsOnSameDay,
@@ -17,12 +19,15 @@ import {
   publishWorkoutById,
   publishWorkoutsByGymAndDateRange,
   deleteWorkout,
+  applyTemplateToWorkout,
 } from '../db/workoutDbManager.js'
+import { expandMovementIdsWithVariations } from '../db/movementDbManager.js'
+import { findProgramGymAccessForUser } from '../db/programDbManager.js'
 import {
   findGymMembershipByUserAndGym
 } from '../db/userGymDbManager.js'
-import { CreateWorkoutSchema, UpdateWorkoutSchema } from '@berntracker/types'
-import { Role } from '@berntracker/db'
+import { CreateWorkoutSchema, UpdateWorkoutSchema } from '@wodalytics/types'
+import { Role } from '@wodalytics/db'
 
 const router = Router()
 
@@ -40,16 +45,19 @@ router.post('/gyms/:gymId/workouts', requireAuth, validateGymExists, requireGymW
 router.post('/gyms/:gymId/workouts/publish', requireAuth, validateGymExists, requireGymWriteAccess, batchPublishWorkoutsForGym)
 
 // GET  /api/workouts/:id
-router.get('/workouts/:id', requireAuth, requireWorkoutProgramMembership, getWorkoutById)
+router.get('/workouts/:id', requireAuth, requireWorkoutReadAccess, getWorkoutById)
 
 // PATCH /api/workouts/:id
-router.patch('/workouts/:id', requireAuth, requireWorkoutProgramWriteAccess, patchWorkout)
+router.patch('/workouts/:id', requireAuth, requireWorkoutWriteAccess, patchWorkout)
 
 // POST /api/workouts/:id/publish
-router.post('/workouts/:id/publish', requireAuth, requireWorkoutProgramWriteAccess, publishSingleWorkout)
+router.post('/workouts/:id/publish', requireAuth, requireWorkoutWriteAccess, publishSingleWorkout)
+
+// POST /api/workouts/:id/apply-template
+router.post('/workouts/:id/apply-template', requireAuth, requireWorkoutWriteAccess, applyTemplate)
 
 // DELETE /api/workouts/:id
-router.delete('/workouts/:id', requireAuth, requireWorkoutProgramWriteAccess, deleteWorkoutById)
+router.delete('/workouts/:id', requireAuth, requireWorkoutWriteAccess, deleteWorkoutById)
 
 export default router
 
@@ -70,8 +78,29 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
 
   const membership = await findGymMembershipByUserAndGym(req.user!.id, gymId)
   const publishedOnly = membership?.role === Role.MEMBER
-  console.log(membership?.role)
-  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly })
+
+  const rawMovementIds = req.query.movementIds
+  const movementIdList = rawMovementIds ? String(rawMovementIds).split(',').filter(Boolean) : []
+  const movementIds = movementIdList.length
+    ? await expandMovementIdsWithVariations(movementIdList)
+    : undefined
+
+  const rawProgramIds = req.query.programIds
+  const programIdList = typeof rawProgramIds === 'string' && rawProgramIds.length > 0
+    ? rawProgramIds.split(',').map((s) => s.trim()).filter(Boolean)
+    : []
+  if (programIdList.length > 0) {
+    // Each id is independently access-checked. Return the first failure so
+    // a malformed url in the picker doesn't silently leak a partial result.
+    for (const id of programIdList) {
+      const access = await findProgramGymAccessForUser(id, gymId)
+      if (access === 'not-found') return res.status(404).json({ error: `Program not found: ${id}` })
+      if (access === 'forbidden') return res.status(403).json({ error: 'Forbidden' })
+    }
+  }
+  const programIds = programIdList.length > 0 ? programIdList : undefined
+
+  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly, movementIds, programIds })
   res.json(workouts)
 }
 
@@ -84,7 +113,7 @@ async function createWorkoutForProgram(req: Request, res: Response) {
     return res.status(400).json({ error: `${field}: ${message}` })
   }
 
-  const { programId, title, description, type, scheduledAt, dayOrder } = parsed.data
+  const { programId, title, description, type, scheduledAt, dayOrder, movementIds } = parsed.data
   const gymId = req.params.gymId as string
   const scheduledAtDate = new Date(scheduledAt)
   const resolvedDayOrder = dayOrder ?? await countWorkoutsOnSameDay(gymId, scheduledAtDate)
@@ -95,6 +124,7 @@ async function createWorkoutForProgram(req: Request, res: Response) {
     type,
     scheduledAt: scheduledAtDate,
     dayOrder: resolvedDayOrder,
+    movementIds,
   })
   res.status(201).json(workout)
 }
@@ -134,13 +164,15 @@ async function patchWorkout(req: Request, res: Response) {
     return res.status(400).json({ error: `${field}: ${message}` })
   }
 
-  const { title, description, type, scheduledAt, dayOrder } = parsed.data
+  const { title, description, type, scheduledAt, dayOrder, movementIds, namedWorkoutId } = parsed.data
   const workout = await updateWorkout(id, {
     title,
     description,
     type,
     scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
     dayOrder,
+    movementIds,
+    namedWorkoutId,
   })
   res.json(workout)
 }
@@ -165,4 +197,14 @@ async function deleteWorkoutById(req: Request, res: Response) {
 
   await deleteWorkout(id)
   res.status(204).send()
+}
+
+async function applyTemplate(req: Request, res: Response) {
+  const id = req.params.id as string
+  const existing = await findWorkoutById(id)
+  if (!existing) return res.status(404).json({ error: 'Workout not found' })
+  if (!existing.namedWorkoutId) return res.status(400).json({ error: 'Workout has no named workout set' })
+
+  const workout = await applyTemplateToWorkout(id)
+  res.json(workout)
 }
