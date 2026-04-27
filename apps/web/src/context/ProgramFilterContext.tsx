@@ -76,7 +76,10 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
     }
     let cancelled = false
     setLoading(true)
-    api.gyms.programs.list(gymId)
+    // Slice 3 — read from /me/programs so the picker only surfaces programs
+    // the caller can actually navigate to (full gym list for staff, the
+    // user's UserProgram subscriptions for MEMBER).
+    api.me.programs(gymId)
       .then((list) => { if (!cancelled) setAvailable(list) })
       .catch(() => { if (!cancelled) setAvailable([]) })
       .finally(() => { if (!cancelled) setLoading(false) })

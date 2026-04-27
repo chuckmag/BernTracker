@@ -28,13 +28,23 @@ const API_BASE = 3001
 const WEB_BASE = 5174
 const SCAN_RANGE = 100  // tries [base, base + SCAN_RANGE)
 
-function isFree(port) {
+// Probe IPv4 + IPv6 loopback independently — Express defaults to one stack,
+// Vite defaults to the other, and a sibling worktree on either is enough to
+// fail the actual server bind even if the other stack looks clear. Treat the
+// port as free only if both binds succeed.
+function isFreeOn(host, port) {
   return new Promise((resolveProbe) => {
     const server = net.createServer()
     server.once('error', () => resolveProbe(false))
     server.once('listening', () => server.close(() => resolveProbe(true)))
-    server.listen(port, '127.0.0.1')
+    server.listen(port, host)
   })
+}
+
+async function isFree(port) {
+  if (!(await isFreeOn('127.0.0.1', port))) return false
+  if (!(await isFreeOn('::1', port))) return false
+  return true
 }
 
 async function findFreePort(start, taken = new Set()) {

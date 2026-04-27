@@ -204,6 +204,16 @@ export interface Program {
   _count?: { members: number; workouts: number }
 }
 
+export type ProgramRole = 'MEMBER' | 'PROGRAMMER'
+
+export interface ProgramMember {
+  id: string
+  email: string
+  name: string | null
+  role: ProgramRole
+  joinedAt: string
+}
+
 export interface GymProgram {
   gymId: string
   programId: string
@@ -270,6 +280,13 @@ export const api = {
 
   me: {
     gyms: () => req<MyGym[]>('/api/me/gyms'),
+    /**
+     * Caller's available programs in the given gym. Server returns all gym
+     * programs for staff (OWNER/PROGRAMMER/COACH); MEMBER sees only their
+     * UserProgram subscriptions. Drives the sidebar ProgramFilterPicker.
+     */
+    programs: (gymId: string, token?: string) =>
+      req<GymProgram[]>(`/api/me/programs?gymId=${encodeURIComponent(gymId)}`, { token }),
   },
 
   gyms: {
@@ -473,6 +490,24 @@ export const api = {
 
     delete: (id: string, token?: string) =>
       req<void>(`/api/programs/${id}`, { method: 'DELETE', token }),
+
+    members: {
+      list: (programId: string, token?: string) =>
+        req<ProgramMember[]>(`/api/programs/${programId}/members`, { token }),
+
+      invite: (
+        programId: string,
+        data: { userId?: string; email?: string; role?: ProgramRole },
+        token?: string,
+      ) =>
+        req<{ programId: string; userId: string; role: ProgramRole; joinedAt: string }>(
+          `/api/programs/${programId}/members`,
+          { method: 'POST', body: JSON.stringify(data), token },
+        ),
+
+      remove: (programId: string, userId: string, token?: string) =>
+        req<void>(`/api/programs/${programId}/members/${userId}`, { method: 'DELETE', token }),
+    },
 
     subscribe: (id: string, userId: string, token?: string) =>
       req<unknown>(`/api/programs/${id}/subscribe`, {

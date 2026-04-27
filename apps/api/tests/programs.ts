@@ -353,6 +353,160 @@ async function runTests() {
   await prisma.workout.delete({ where: { id: a1Workout.id } })
   await prisma.workout.delete({ where: { id: a2Workout.id } })
   await prisma.workout.delete({ where: { id: bWorkout.id } })
+
+  // ── /api/programs/:id/members + /api/me/programs (slice 3) ──────────────────
+  console.log('\n=== /api/programs/:id/members + /api/me/programs (slice 3) ===')
+
+  // Reuse `programA1` from the filter section as the membership program. Both
+  // owner and programmer already belong to gymId; member already belongs as
+  // MEMBER role; coach already belongs as COACH; outsider is in otherGymId.
+  const memberProgramId = programA1.id
+
+  {
+    // GET members — empty
+    const r = await api('GET', `/programs/${memberProgramId}/members`, programmerToken)
+    check('GET members (empty) → 200', 200, r.status)
+    check('GET members (empty) → []', '[]', JSON.stringify(r.body))
+  }
+
+  {
+    // POST invite by userId — happy path (PROGRAMMER managing)
+    const r = await api('POST', `/programs/${memberProgramId}/members`, programmerToken, {
+      userId: memberUserId,
+    })
+    check('POST invite by userId → 201', 201, r.status)
+    check('POST invite returns userId', memberUserId, r.body.userId)
+    check('POST invite default role MEMBER', 'MEMBER', r.body.role)
+  }
+
+  {
+    // POST invite same user again — duplicate
+    const r = await api('POST', `/programs/${memberProgramId}/members`, programmerToken, {
+      userId: memberUserId,
+    })
+    check('POST invite duplicate → 409', 409, r.status)
+  }
+
+  {
+    // POST invite by email — happy path with role=PROGRAMMER
+    const r = await api('POST', `/programs/${memberProgramId}/members`, programmerToken, {
+      email: `prog-coach-${TS}@test.com`,
+      role: 'PROGRAMMER',
+    })
+    check('POST invite by email → 201', 201, r.status)
+    check('POST invite role=PROGRAMMER respected', 'PROGRAMMER', r.body.role)
+  }
+
+  {
+    // POST invite by email of a non-gym user → 404
+    const ghost = await prisma.user.create({ data: { email: `prog-ghost-${TS}@test.com` } })
+    const r = await api('POST', `/programs/${memberProgramId}/members`, programmerToken, {
+      email: `prog-ghost-${TS}@test.com`,
+    })
+    check('POST invite non-gym email → 404', 404, r.status)
+    await prisma.user.delete({ where: { id: ghost.id } })
+  }
+
+  {
+    // POST invite without userId or email → 400
+    const r = await api('POST', `/programs/${memberProgramId}/members`, programmerToken, {})
+    check('POST invite empty → 400', 400, r.status)
+  }
+
+  {
+    // POST invite as COACH → 403 (read-only)
+    const r = await api('POST', `/programs/${memberProgramId}/members`, coachToken, {
+      userId: ownerUserId,
+    })
+    check('POST invite as COACH → 403', 403, r.status)
+  }
+
+  {
+    // POST invite as MEMBER → 403
+    const r = await api('POST', `/programs/${memberProgramId}/members`, memberToken, {
+      userId: ownerUserId,
+    })
+    check('POST invite as MEMBER → 403', 403, r.status)
+  }
+
+  {
+    // GET members as COACH — read-only access permitted
+    const r = await api('GET', `/programs/${memberProgramId}/members`, coachToken)
+    check('GET members as COACH → 200', 200, r.status)
+    check('GET members count after invites', 2, (r.body as unknown as unknown[]).length)
+  }
+
+  {
+    // GET members as MEMBER → 403 (write access required)
+    const r = await api('GET', `/programs/${memberProgramId}/members`, memberToken)
+    check('GET members as MEMBER → 403', 403, r.status)
+  }
+
+  {
+    // DELETE member as COACH → 403
+    const r = await api('DELETE', `/programs/${memberProgramId}/members/${memberUserId}`, coachToken)
+    check('DELETE member as COACH → 403', 403, r.status)
+  }
+
+  {
+    // DELETE member as PROGRAMMER → 204
+    const r = await api('DELETE', `/programs/${memberProgramId}/members/${memberUserId}`, programmerToken)
+    check('DELETE member as PROGRAMMER → 204', 204, r.status)
+  }
+
+  {
+    // DELETE same member again → 404 (already gone)
+    const r = await api('DELETE', `/programs/${memberProgramId}/members/${memberUserId}`, programmerToken)
+    check('DELETE member already gone → 404', 404, r.status)
+  }
+
+  // ── /api/me/programs?gymId ───────────────────────────────────────────────────
+  console.log('\n=== GET /api/me/programs?gymId=… ===')
+
+  {
+    const r = await api('GET', `/me/programs?gymId=${gymId}`, ownerToken)
+    check('me/programs as OWNER → 200', 200, r.status)
+    // Staff sees all programs in the gym (slice-1 program + filter A1/A2)
+    const ids = (r.body as unknown as { programId: string }[]).map((g) => g.programId).sort()
+    check('me/programs as OWNER includes A1', true, ids.includes(programA1.id))
+    check('me/programs as OWNER includes A2', true, ids.includes(programA2.id))
+  }
+
+  {
+    // member user is currently subscribed to memberProgramId via the role=PROGRAMMER
+    // invite-by-email above? No — that was the coach. memberUserId was deleted from
+    // the program just above. So member should see 0 program subscriptions.
+    const r = await api('GET', `/me/programs?gymId=${gymId}`, memberToken)
+    check('me/programs as MEMBER (no subs) → 200', 200, r.status)
+    check('me/programs as MEMBER (no subs) → []', '[]', JSON.stringify(r.body))
+  }
+
+  {
+    // Subscribe member to A2 directly via Prisma; me/programs should now return [A2].
+    await prisma.userProgram.create({ data: { userId: memberUserId, programId: programA2.id, role: 'MEMBER' } })
+    const r = await api('GET', `/me/programs?gymId=${gymId}`, memberToken)
+    check('me/programs as MEMBER (1 sub) → 200', 200, r.status)
+    const arr = r.body as unknown as { programId: string }[]
+    check('me/programs as MEMBER → 1 result', 1, arr.length)
+    check('me/programs as MEMBER returns the right program', programA2.id, arr[0]?.programId)
+    await prisma.userProgram.delete({ where: { userId_programId: { userId: memberUserId, programId: programA2.id } } })
+  }
+
+  {
+    // Outsider (in otherGymId only) hitting gymId → 403
+    const r = await api('GET', `/me/programs?gymId=${gymId}`, outsiderToken)
+    check('me/programs for non-member → 403', 403, r.status)
+  }
+
+  {
+    const r = await api('GET', `/me/programs`, ownerToken)
+    check('me/programs without gymId → 400', 400, r.status)
+  }
+
+  {
+    const r = await api('GET', `/me/programs?gymId=${gymId}`)
+    check('me/programs without auth → 401', 401, r.status)
+  }
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────

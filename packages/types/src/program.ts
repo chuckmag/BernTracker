@@ -22,5 +22,20 @@ export const UpdateProgramSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, { message: 'At least one field is required' })
 
+// Slice 3 — invite a gym member onto a program. The caller supplies either
+// the userId (autocomplete picker had it) or an email (the engineer typed it
+// in). The server resolves email → userId via the gym's roster; only one of
+// the two is required, but both are accepted (userId wins if both present).
+export const InviteProgramMemberSchema = z
+  .object({
+    userId: z.string().min(1).optional(),
+    email: z.string().email().optional(),
+    role: z.enum(['MEMBER', 'PROGRAMMER']).optional(),
+  })
+  .refine((data) => Boolean(data.userId || data.email), {
+    message: 'Either userId or email is required',
+  })
+
 export type CreateProgramInput = z.infer<typeof CreateProgramSchema>
 export type UpdateProgramInput = z.infer<typeof UpdateProgramSchema>
+export type InviteProgramMemberInput = z.infer<typeof InviteProgramMemberSchema>

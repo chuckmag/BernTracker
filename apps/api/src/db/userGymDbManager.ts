@@ -58,6 +58,25 @@ export async function findGymMembershipByUserAndGym(userId: string, gymId: strin
   return prisma.userGym.findUnique({ where: { userId_gymId: { userId, gymId } } })
 }
 
+/**
+ * Resolves an email → user (if they exist AND are a member of the given gym).
+ * Returns null when either the user doesn't exist or they're in a different
+ * gym. Used by the slice-3 invite endpoint to translate the operator's typed
+ * email into a userId without leaking cross-gym presence.
+ */
+export async function findGymMemberByEmail(email: string, gymId: string) {
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, email: true, name: true },
+  })
+  if (!user) return null
+  const membership = await prisma.userGym.findUnique({
+    where: { userId_gymId: { userId: user.id, gymId } },
+  })
+  if (!membership) return null
+  return user
+}
+
 
 export async function findGymMembershipsByUserId(userId: string) {
   const memberships = await prisma.userGym.findMany({
