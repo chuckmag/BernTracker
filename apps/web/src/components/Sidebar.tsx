@@ -9,10 +9,10 @@ const memberLinks = [
 ]
 
 const staffLinks = [
-  { to: '/calendar', label: 'Calendar' },
-  { to: '/programs', label: 'Programs' },
-  { to: '/members',  label: 'Members'  },
-  { to: '/settings', label: 'Settings' },
+  { to: '/calendar',     label: 'Calendar' },
+  { to: '/programs',     label: 'Programs' },
+  { to: '/members',      label: 'Members'  },
+  { to: '/gym-settings', label: 'Gym Settings' },
 ]
 
 interface SidebarProps {

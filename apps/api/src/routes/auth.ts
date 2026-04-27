@@ -16,6 +16,20 @@ function googleClient() {
 
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173'
 
+// Fields exposed to the authenticated client (AuthUser shape).
+const AUTH_USER_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  firstName: true,
+  lastName: true,
+  birthday: true,
+  avatarUrl: true,
+  onboardedAt: true,
+  role: true,
+  identifiedGender: true,
+} as const
+
 const router = Router()
 
 // Cross-origin setup on hosted environments (Railway gives each service its own
@@ -47,7 +61,7 @@ router.post('/register', async (req, res) => {
   const passwordHash = await bcrypt.hash(password, 10)
   const user = await prisma.user.create({
     data: { email, name, passwordHash },
-    select: { id: true, email: true, name: true, role: true },
+    select: AUTH_USER_SELECT,
   })
 
   const { accessToken, refreshToken } = signTokenPair(user.id, user.role)
@@ -92,7 +106,7 @@ router.post('/login', async (req, res) => {
   })
 
   res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-  res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role, identifiedGender: user.identifiedGender } })
+  res.json({ accessToken, user: pickAuthUser(user) })
 })
 
 // POST /refresh
@@ -144,14 +158,14 @@ router.post('/logout', async (req, res) => {
 router.get('/me', requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
-    select: { id: true, email: true, name: true, role: true, identifiedGender: true },
+    select: AUTH_USER_SELECT,
   })
   if (!user) {
     res.status(404).json({ error: 'User not found' })
     return
   }
   res.json({
-    ...user,
+    ...pickAuthUser(user),
     isMovementReviewer: user.email === (process.env.MOVEMENT_REVIEWER_EMAIL ?? ''),
   })
 })
@@ -245,24 +259,52 @@ router.post('/google/mobile', async (req, res) => {
   })
 
   res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-  res.json({ accessToken, user: { id: user.id, email: user.email, name: user.name, role: user.role, identifiedGender: user.identifiedGender } })
+  res.json({ accessToken, user: pickAuthUser(user) })
 })
+
+type AuthUserRow = {
+  id: string
+  email: string
+  name: string | null
+  firstName: string | null
+  lastName: string | null
+  birthday: Date | null
+  avatarUrl: string | null
+  onboardedAt: Date | null
+  role: 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER'
+  identifiedGender: 'FEMALE' | 'MALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY' | null
+}
+
+function pickAuthUser(u: AuthUserRow): AuthUserRow {
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    birthday: u.birthday,
+    avatarUrl: u.avatarUrl,
+    onboardedAt: u.onboardedAt,
+    role: u.role,
+    identifiedGender: u.identifiedGender,
+  }
+}
 
 async function findOrCreateGoogleUser(googleId: string, email: string, name: string) {
   // Check for existing OAuth account
   const existing = await prisma.oAuthAccount.findUnique({
     where: { provider_providerId: { provider: 'google', providerId: googleId } },
-    include: { user: { select: { id: true, email: true, name: true, role: true, identifiedGender: true } } },
+    include: { user: { select: AUTH_USER_SELECT } },
   })
   if (existing) return existing.user
 
   // Try to link to an existing email user
-  const existingUser = await prisma.user.findUnique({ where: { email } })
+  const existingUser = await prisma.user.findUnique({ where: { email }, select: AUTH_USER_SELECT })
   if (existingUser) {
     await prisma.oAuthAccount.create({
       data: { userId: existingUser.id, provider: 'google', providerId: googleId },
     })
-    return { id: existingUser.id, email: existingUser.email, name: existingUser.name, role: existingUser.role, identifiedGender: existingUser.identifiedGender }
+    return existingUser
   }
 
   // Create new user + OAuthAccount
@@ -272,7 +314,7 @@ async function findOrCreateGoogleUser(googleId: string, email: string, name: str
       name,
       oauthAccounts: { create: { provider: 'google', providerId: googleId } },
     },
-    select: { id: true, email: true, name: true, role: true, identifiedGender: true },
+    select: AUTH_USER_SELECT,
   })
   return user
 }

@@ -226,11 +226,47 @@ export type IdentifiedGender = 'FEMALE' | 'MALE' | 'NON_BINARY' | 'PREFER_NOT_TO
 export interface AuthUser {
   id: string
   email: string
-  name: string
+  name: string | null
+  firstName: string | null
+  lastName: string | null
+  birthday: string | null
+  avatarUrl: string | null
+  onboardedAt: string | null
   role: Role
   identifiedGender: IdentifiedGender
   isMovementReviewer: boolean
 }
+
+export interface EmergencyContact {
+  id: string
+  userId: string
+  name: string
+  relationship: string | null
+  phone: string
+  email: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserProfile extends Omit<AuthUser, 'isMovementReviewer'> {
+  emergencyContacts: EmergencyContact[]
+}
+
+export interface UpdateProfilePayload {
+  firstName?: string
+  lastName?: string
+  birthday?: string | null
+  identifiedGender?: IdentifiedGender
+}
+
+export interface CreateEmergencyContactPayload {
+  name: string
+  relationship?: string
+  phone: string
+  email?: string
+}
+
+export type UpdateEmergencyContactPayload = Partial<CreateEmergencyContactPayload>
 
 export interface AuthResponse {
   accessToken: string
@@ -276,6 +312,34 @@ export const api = {
       }
     },
     me: (token: string) => req<AuthUser>('/api/auth/me', { token }),
+  },
+
+  users: {
+    me: {
+      profile: {
+        get: () => req<UserProfile>('/api/users/me/profile'),
+        update: (data: UpdateProfilePayload) =>
+          req<UserProfile>('/api/users/me/profile', {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+          }),
+      },
+      emergencyContacts: {
+        list: () => req<EmergencyContact[]>('/api/users/me/emergency-contacts'),
+        create: (data: CreateEmergencyContactPayload) =>
+          req<EmergencyContact>('/api/users/me/emergency-contacts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+          }),
+        update: (id: string, data: UpdateEmergencyContactPayload) =>
+          req<EmergencyContact>(`/api/users/me/emergency-contacts/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+          }),
+        remove: (id: string) =>
+          req<void>(`/api/users/me/emergency-contacts/${id}`, { method: 'DELETE' }),
+      },
+    },
   },
 
   me: {
