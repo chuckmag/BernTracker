@@ -177,17 +177,38 @@ router.get('/google', (req, res) => {
 
 // GET /google/callback — exchange code, findOrCreate user, issue tokens
 router.get('/google/callback', async (req, res) => {
-  const code = req.query.code as string | undefined
-  if (!code) {
-    res.status(400).json({ error: 'Missing code' })
-    return
-  }
-
-  // Recover mobile_redirect from state if present
+  // Recover mobile_redirect from state first so we can redirect errors back to
+  // the app instead of leaving the user stuck on a JSON page in the browser.
   let mobileRedirect: string | undefined
   const stateStr = req.query.state as string | undefined
   if (stateStr) {
-    try { mobileRedirect = JSON.parse(stateStr).mobileRedirect } catch {}
+    try {
+      mobileRedirect = JSON.parse(stateStr).mobileRedirect
+    } catch (err) {
+      console.log(`[auth] /google/callback: failed to parse state — ${err instanceof Error ? err.message : err}`, { state: stateStr })
+    }
+  }
+
+  function failCallback(status: number, errorCode: string, detail: string, err?: unknown) {
+    console.log(`[auth] /google/callback: ${errorCode} — ${detail}`, err)
+    if (mobileRedirect) {
+      const params = new URLSearchParams({ error: errorCode })
+      res.redirect(`${mobileRedirect}?${params}`)
+    } else {
+      res.status(status).json({ error: detail })
+    }
+  }
+
+  const code = req.query.code as string | undefined
+  if (!code) {
+    failCallback(400, 'missing_code', 'Missing code')
+    return
+  }
+
+  // Diagnostic: if env config is missing the exchange will fail; surface it now.
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    failCallback(500, 'oauth_misconfigured', 'GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set on the server')
+    return
   }
 
   let googleId: string, email: string, name: string
@@ -203,8 +224,8 @@ router.get('/google/callback', async (req, res) => {
     googleId = payload.sub
     email = payload.email!
     name = payload.name ?? email
-  } catch {
-    res.status(401).json({ error: 'Google token verification failed' })
+  } catch (err) {
+    failCallback(401, 'google_exchange_failed', 'Google token verification failed', err)
     return
   }
 

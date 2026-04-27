@@ -46,6 +46,12 @@ export default function LoginScreen() {
       }
 
       const { queryParams } = Linking.parse(result.url)
+      const errorCode = typeof queryParams?.error === 'string' ? queryParams.error : null
+      if (errorCode) {
+        setError(`Google sign-in failed (${errorCode}). Check API logs.`)
+        return
+      }
+
       const accessToken = typeof queryParams?.token === 'string' ? queryParams.token : null
       const refreshToken = typeof queryParams?.refreshToken === 'string' ? queryParams.refreshToken : null
       if (!accessToken || !refreshToken) {
