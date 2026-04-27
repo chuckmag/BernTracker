@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useGym } from '../context/GymContext.tsx'
+import ProgramFilterPicker from './ProgramFilterPicker.tsx'
 
 const memberLinks = [
   { to: '/feed',    label: 'Feed'    },
@@ -34,7 +35,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navContent = (
     <>
       <div className="px-6 py-5 border-b border-gray-800 flex items-center justify-between">
-        <span className="text-lg font-bold tracking-tight">BernTracker</span>
+        <span className="text-lg font-bold tracking-tight">WODalytics</span>
         <button
           onClick={onClose}
           className="md:hidden text-gray-500 hover:text-white text-xl leading-none"
@@ -43,6 +44,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           ×
         </button>
       </div>
+
+      <ProgramFilterPicker />
 
       <nav className="flex-1 px-3 py-4 space-y-1">
         {memberLinks.map(({ to, label }) => (

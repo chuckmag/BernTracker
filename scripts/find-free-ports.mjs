@@ -28,13 +28,20 @@ const API_BASE = 3001
 const WEB_BASE = 5174
 const SCAN_RANGE = 100  // tries [base, base + SCAN_RANGE)
 
-function isFree(port) {
+function probeHost(port, host) {
   return new Promise((resolveProbe) => {
     const server = net.createServer()
     server.once('error', () => resolveProbe(false))
     server.once('listening', () => server.close(() => resolveProbe(true)))
-    server.listen(port, '127.0.0.1')
+    server.listen(port, host)
   })
+}
+
+// Probe both IPv4 and IPv6 — Vite binds dual-stack on macOS, so a process
+// listening only on `[::1]` (IPv6) would still cause Vite to fail with
+// EADDRINUSE even though `127.0.0.1` is technically free.
+async function isFree(port) {
+  return (await probeHost(port, '127.0.0.1')) && (await probeHost(port, '::1'))
 }
 
 async function findFreePort(start, taken = new Set()) {

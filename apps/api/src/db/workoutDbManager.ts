@@ -1,6 +1,6 @@
-import { prisma } from '@berntracker/db'
-import { WorkoutStatus } from '@berntracker/db'
-import type { WorkoutType } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
+import { WorkoutStatus } from '@wodalytics/db'
+import type { WorkoutType } from '@wodalytics/db'
 
 interface CreateWorkoutData {
   programId?: string
@@ -30,6 +30,7 @@ interface UpdateWorkoutData {
 interface WorkoutDateRangeFilters {
   publishedOnly?: boolean
   movementIds?: string[]
+  programIds?: string[]
 }
 
 const programSelect = { select: { id: true, name: true } } as const
@@ -79,6 +80,7 @@ export async function findWorkoutsByGymAndDateRange(
       ...(filters.movementIds?.length
         ? { workoutMovements: { some: { movementId: { in: filters.movementIds } } } }
         : {}),
+      ...(filters.programIds?.length ? { programId: { in: filters.programIds } } : {}),
     },
     // createdAt is a stable tiebreaker for equal dayOrder values (e.g. pre-migration rows defaulted to 0)
     orderBy: [{ scheduledAt: 'asc' }, { dayOrder: 'asc' }, { createdAt: 'asc' }],

@@ -1,4 +1,4 @@
-# BernTracker
+# WODalytics
 
 A CrossFit workout tracking tool for gym members and trainers.
 
@@ -108,15 +108,15 @@ A containerization tool that packages software and its dependencies into an isol
 
 ```bash
 # First time — start the database (runs in the background)
-docker run --name berntracker-db \
+docker run --name wodalytics-db \
   -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=berntracker \
+  -e POSTGRES_DB=wodalytics \
   -p 5432:5432 \
   -d postgres:16
 
 # After the container exists — just start/stop it
-docker start berntracker-db
-docker stop berntracker-db
+docker start wodalytics-db
+docker stop wodalytics-db
 
 # Check if it's running
 docker ps
@@ -129,7 +129,7 @@ docker ps
 ## Monorepo structure
 
 ```
-BernTracker/
+WODalytics/
 ├── apps/
 │   ├── api/          # Express API (port 3000)
 │   ├── web/          # Vite admin portal (port 5173)

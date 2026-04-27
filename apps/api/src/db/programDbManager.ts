@@ -1,4 +1,4 @@
-import { prisma } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
 
 interface UpdateProgramData {
   name?: string
@@ -35,4 +35,26 @@ export async function findProgramByName(name: string) {
 // since the program tracks daily WODs going forward from creation.
 export async function createProgramByName(name: string, startDate: Date = new Date()) {
   return prisma.program.create({ data: { name, startDate } })
+}
+
+export type ProgramGymAccessResult = 'ok' | 'not-found' | 'forbidden'
+
+// Verify the program exists, is linked to the given gym, and the caller is a
+// member of that gym. Used by the workouts list endpoint when a `?programId`
+// query param is present (route-level `requireGymMembership` already vetted
+// caller-vs-gym; this helper just ties program-vs-gym into the picture).
+//
+// Slice 2 deliberately does not enforce visibility (PUBLIC vs PRIVATE) — that
+// arrives in slice 4 (#87) and tightens this same check.
+export async function findProgramGymAccessForUser(
+  programId: string,
+  gymId: string,
+): Promise<ProgramGymAccessResult> {
+  const program = await prisma.program.findUnique({
+    where: { id: programId },
+    select: { gyms: { where: { gymId }, select: { gymId: true } } },
+  })
+  if (!program) return 'not-found'
+  if (program.gyms.length === 0) return 'forbidden'
+  return 'ok'
 }

@@ -6,7 +6,7 @@
  * Run as part of `npm test` from apps/api (or directly via tsx).
  */
 
-import { prisma } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
 import { runCrossfitWodJob } from '../src/jobs/crossfitWod.js'
 import type { NormalizedCrossfitWod } from '../src/lib/crossfitWodClient.js'
 

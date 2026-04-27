@@ -20,11 +20,12 @@ import {
   applyTemplateToWorkout,
 } from '../db/workoutDbManager.js'
 import { expandMovementIdsWithVariations } from '../db/movementDbManager.js'
+import { findProgramGymAccessForUser } from '../db/programDbManager.js'
 import {
   findGymMembershipByUserAndGym
 } from '../db/userGymDbManager.js'
-import { CreateWorkoutSchema, UpdateWorkoutSchema } from '@berntracker/types'
-import { Role } from '@berntracker/db'
+import { CreateWorkoutSchema, UpdateWorkoutSchema } from '@wodalytics/types'
+import { Role } from '@wodalytics/db'
 
 const router = Router()
 
@@ -82,7 +83,22 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
     ? await expandMovementIdsWithVariations(movementIdList)
     : undefined
 
-  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly, movementIds })
+  const rawProgramIds = req.query.programIds
+  const programIdList = typeof rawProgramIds === 'string' && rawProgramIds.length > 0
+    ? rawProgramIds.split(',').map((s) => s.trim()).filter(Boolean)
+    : []
+  if (programIdList.length > 0) {
+    // Each id is independently access-checked. Return the first failure so
+    // a malformed url in the picker doesn't silently leak a partial result.
+    for (const id of programIdList) {
+      const access = await findProgramGymAccessForUser(id, gymId)
+      if (access === 'not-found') return res.status(404).json({ error: `Program not found: ${id}` })
+      if (access === 'forbidden') return res.status(403).json({ error: 'Forbidden' })
+    }
+  }
+  const programIds = programIdList.length > 0 ? programIdList : undefined
+
+  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly, movementIds, programIds })
   res.json(workouts)
 }
 

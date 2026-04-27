@@ -1,4 +1,4 @@
-import { prisma } from '@berntracker/db'
+import { prisma } from '@wodalytics/db'
 
 export async function createGymAndAddOwnerMember(
   data: { name: string; slug: string; timezone?: string },

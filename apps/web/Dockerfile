@@ -17,7 +17,7 @@ RUN npm ci
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 
-RUN npx turbo build --filter=@berntracker/web
+RUN npx turbo build --filter=@wodalytics/web
 
 # ── Stage 2: serve ───────────────────────────────────────────────────────────
 FROM nginx:alpine AS runtime

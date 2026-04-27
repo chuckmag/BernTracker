@@ -43,8 +43,8 @@ const env = {
 
 const cmd = 'npm'
 const args = target === 'api'
-  ? ['run', 'test', '--workspace=@berntracker/api']
-  : ['run', 'test:e2e', '--workspace=@berntracker/web', '--', ...extraArgs]
+  ? ['run', 'test', '--workspace=@wodalytics/api']
+  : ['run', 'test:e2e', '--workspace=@wodalytics/web', '--', ...extraArgs]
 
 console.log(`[test:worktree] target=${target} API_URL=${env.API_URL} WEB_URL=${env.WEB_URL}`)
 const child = spawn(cmd, args, { cwd: root, env, stdio: 'inherit' })

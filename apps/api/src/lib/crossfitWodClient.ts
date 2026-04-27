@@ -67,7 +67,7 @@ export async function fetchCrossfitWod(
     res = await fetchImpl(url, {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'BernTracker/1.0 (+https://github.com/chuckmag/BernTracker)',
+        'User-Agent': 'WODalytics/1.0 (+https://github.com/chuckmag/WODalytics)',
       },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })

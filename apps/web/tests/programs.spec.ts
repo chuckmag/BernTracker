@@ -1,5 +1,5 @@
 /**
- * Playwright E2E for Programs CRUD (#82, #83).
+ * Playwright E2E for Programs CRUD (#82, #83) + ?programIds filter (#84).
  *
  * Each test is independent — it seeds its own gym, users, and any programs
  * it needs, and tears them down in afterEach. No describe.serial.
@@ -135,5 +135,61 @@ test.describe('Programs CRUD E2E', () => {
 
     await page.waitForURL('**/programs')
     await expect(page.getByText(seeded.name)).not.toBeVisible()
+  })
+
+  // ── #84: programIds filter — Open in Calendar deep-link + forbidden surface ─
+  // ────────────────────────────────────────────────────────────────────────────
+
+  test('OWNER follows "Open in Calendar" → filtered Calendar with the program header', async ({ page }) => {
+    const name = `E2E Filter Calendar ${randomUUID().slice(0, 6)}`
+    const seeded = await prisma.program.create({
+      data: {
+        name,
+        startDate: new Date('2026-05-01'),
+        coverColor: '#10B981',
+        gyms: { create: { gymId: f.gymId } },
+      },
+    })
+    await loginAndSelectGym(page, f.owner.id, 'OWNER', f.gymId)
+    await page.goto(`/programs/${seeded.id}`)
+    await expect(page.locator('h1', { hasText: name })).toBeVisible()
+
+    // Open in Calendar → /calendar?programIds=<id>
+    await page.getByRole('button', { name: 'Open in Calendar' }).click()
+    await page.waitForURL(`**/calendar?programIds=${seeded.id}`)
+
+    // Filtered header shows the program name + a Calendar eyebrow.
+    await expect(page.locator('h1', { hasText: name })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('Calendar', { exact: true }).first()).toBeVisible()
+
+    // "Back to full calendar" returns to the unfiltered view.
+    await page.getByRole('link', { name: /Back to full calendar/ }).click()
+    await page.waitForURL('**/calendar')
+    await expect(page.locator('h1', { hasText: 'Calendar' })).toBeVisible()
+  })
+
+  test('OWNER visiting /feed?programIds=<inaccessible> sees an error state', async ({ page }) => {
+    // Sibling gym + program this OWNER isn't a member of.
+    const ts = randomUUID().slice(0, 8)
+    const otherGym = await prisma.gym.create({
+      data: { name: `E2E Other Gym ${ts}`, slug: `programs-e2e-other-${ts}`, timezone: 'UTC' },
+    })
+    const inaccessible = await prisma.program.create({
+      data: {
+        name: `E2E Forbidden ${ts}`,
+        startDate: new Date('2026-05-01'),
+        gyms: { create: { gymId: otherGym.id } },
+      },
+    })
+    try {
+      await loginAndSelectGym(page, f.owner.id, 'OWNER', f.gymId)
+      await page.goto(`/feed?programIds=${inaccessible.id}`)
+      // Page renders an error message rather than crashing. The exact copy
+      // comes from the API's "Forbidden" via the apiFetch error path.
+      await expect(page.locator('p.text-red-400')).toBeVisible({ timeout: 5000 })
+    } finally {
+      await prisma.program.delete({ where: { id: inaccessible.id } }).catch(() => {})
+      await prisma.gym.delete({ where: { id: otherGym.id } }).catch(() => {})
+    }
   })
 })
