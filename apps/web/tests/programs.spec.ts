@@ -1,235 +1,195 @@
 /**
- * Playwright E2E for Slice 1 + Slice 2 of #82 — Programs CRUD + ?programId filter.
+ * Playwright E2E for Programs CRUD (#82, #83) + ?programIds filter (#84).
  *
- * Covers:
- *   T1: OWNER can create a program from the index page (#83)
- *   T2: OWNER can edit a program's name (#83)
- *   T3: MEMBER role does not see Programs in the sidebar (#83)
- *   T4: OWNER can delete a program and it disappears from the index (#83)
- *   T5: PROGRAMMER follows "Open in Calendar" → filtered Calendar with header (#84)
- *   T6: Direct visit to /feed?programId=<unrelated-program> surfaces an error (#84)
+ * Each test is independent — it seeds its own gym, users, and any programs
+ * it needs, and tears them down in afterEach. No describe.serial.
  *
- * Requires: turbo dev running (API on :3000, web on :5173)
- * Run: cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test tests/programs.spec.ts
+ * Auth uses JWT cookie injection via tests/lib/auth.ts (no /login form).
+ *
+ * Run via the worktree:
+ *   npm run test:worktree -- e2e tests/programs.spec.ts
  */
 
 import { test, expect, type Page } from '@playwright/test'
-import { createRequire } from 'module'
 import { randomUUID } from 'crypto'
-import bcrypt from 'bcryptjs'
+import { loginAs, prisma, type Role } from './lib/auth.js'
 
-const _require = createRequire(import.meta.url)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const { PrismaClient } = _require('@prisma/client') as any
-const prisma = new PrismaClient()
-
-// ─── Shared state ─────────────────────────────────────────────────────────────
-
-const TS = randomUUID().slice(0, 8)
-const OWNER_EMAIL = `prog-e2e-owner-${TS}@test.com`
-const OWNER_PASSWORD = 'TestPass1!'
-const MEMBER_EMAIL = `prog-e2e-member-${TS}@test.com`
-const MEMBER_PASSWORD = 'TestPass1!'
-
-let gymId = ''
-let ownerUserId = ''
-let memberUserId = ''
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async function login(page: Page, email: string, password: string) {
-  await page.goto('/login')
-  await page.fill('#email', email)
-  await page.fill('#password', password)
-  await page.click('button[type="submit"]')
-  await page.waitForURL('**/dashboard', { waitUntil: 'commit' })
-  await page.evaluate((id) => localStorage.setItem('gymId', id), gymId)
+interface SeededFixture {
+  gymId: string
+  owner: { id: string; email: string }
+  member: { id: string; email: string }
 }
 
-async function gotoPrograms(page: Page) {
-  await page.goto('/programs')
-  await page.waitForSelector('h1:has-text("Programs")')
+async function seedFixture(): Promise<SeededFixture> {
+  const ts = randomUUID().slice(0, 8)
+  const gym = await prisma.gym.create({
+    data: { name: `Programs E2E ${ts}`, slug: `programs-e2e-${ts}`, timezone: 'UTC' },
+  })
+  const owner = await prisma.user.create({
+    data: { email: `prog-e2e-owner-${ts}@test.com` },
+  })
+  const member = await prisma.user.create({
+    data: { email: `prog-e2e-member-${ts}@test.com` },
+  })
+  await prisma.userGym.createMany({
+    data: [
+      { userId: owner.id, gymId: gym.id, role: 'OWNER' },
+      { userId: member.id, gymId: gym.id, role: 'MEMBER' },
+    ],
+  })
+  return {
+    gymId: gym.id,
+    owner: { id: owner.id, email: owner.email },
+    member: { id: member.id, email: member.email },
+  }
 }
 
-// ─── Suite ────────────────────────────────────────────────────────────────────
-
-test.describe.configure({ mode: 'serial' })
-
-test.describe('Programs CRUD + ?programId filter (#83 + #84)', () => {
-  test.beforeAll(async () => {
-    const [ownerHash, memberHash] = await Promise.all([
-      bcrypt.hash(OWNER_PASSWORD, 10),
-      bcrypt.hash(MEMBER_PASSWORD, 10),
-    ])
-
-    const gym = await prisma.gym.create({
-      data: { name: `Programs E2E ${TS}`, slug: `programs-e2e-${TS}`, timezone: 'UTC' },
-    })
-    gymId = gym.id
-
-    const [owner, member] = await Promise.all([
-      prisma.user.create({ data: { email: OWNER_EMAIL, passwordHash: ownerHash } }),
-      prisma.user.create({ data: { email: MEMBER_EMAIL, passwordHash: memberHash } }),
-    ])
-    ownerUserId = owner.id
-    memberUserId = member.id
-
-    await prisma.userGym.createMany({
-      data: [
-        { userId: ownerUserId, gymId, role: 'OWNER' },
-        { userId: memberUserId, gymId, role: 'MEMBER' },
-      ],
-    })
+async function teardown(f: SeededFixture) {
+  const linked = await prisma.gymProgram.findMany({
+    where: { gymId: f.gymId },
+    select: { programId: true },
   })
+  const programIds = linked.map((g: { programId: string }) => g.programId)
+  if (programIds.length > 0) {
+    await prisma.workout.updateMany({
+      where: { programId: { in: programIds } },
+      data: { programId: null },
+    })
+    await prisma.program.deleteMany({ where: { id: { in: programIds } } })
+  }
+  await prisma.user.deleteMany({ where: { id: { in: [f.owner.id, f.member.id] } } })
+  await prisma.gym.delete({ where: { id: f.gymId } }).catch(() => {})
+}
 
-  test.afterAll(async () => {
-    // Remove any programs left over from failed tests
-    const linked = await prisma.gymProgram.findMany({ where: { gymId }, select: { programId: true } })
-    const programIds = linked.map((g: { programId: string }) => g.programId)
-    if (programIds.length > 0) {
-      await prisma.workout.updateMany({ where: { programId: { in: programIds } }, data: { programId: null } })
-      await prisma.program.deleteMany({ where: { id: { in: programIds } } })
-    }
-    // T6 creates a sibling gym + program — clean those up too
-    await prisma.gym.deleteMany({ where: { slug: { startsWith: `programs-e2e-other-${TS}` } } }).catch(() => {})
-    await prisma.user.deleteMany({ where: { id: { in: [ownerUserId, memberUserId] } } })
-    await prisma.gym.delete({ where: { id: gymId } }).catch(() => {})
-    await prisma.$disconnect()
-  })
+async function loginAndSelectGym(page: Page, userId: string, role: Role, gymId: string) {
+  await loginAs(page.context(), userId, role)
+  // Pages read gymId from localStorage on mount. Seed it before any /goto so
+  // the GymContext picks the right gym immediately.
+  await page.addInitScript((id) => localStorage.setItem('gymId', id), gymId)
+}
 
-  // ── T1: OWNER creates a program ──────────────────────────────────────────────
+test.describe('Programs CRUD E2E', () => {
+  let f: SeededFixture
+  test.beforeEach(async () => { f = await seedFixture() })
+  test.afterEach(async () => { await teardown(f) })
 
-  test('T1: OWNER can create a program from the index', async ({ page }) => {
-    await login(page, OWNER_EMAIL, OWNER_PASSWORD)
-    await gotoPrograms(page)
+  test('OWNER creates a program from the index', async ({ page }) => {
+    await loginAndSelectGym(page, f.owner.id, 'OWNER', f.gymId)
+    await page.goto('/programs')
+    await page.waitForSelector('h1:has-text("Programs")')
 
-    // Empty-state CTA also works; click the header button for explicitness
     await page.getByRole('button', { name: /\+ New Program/ }).first().click()
-
     await expect(page.locator('h2', { hasText: 'New Program' })).toBeVisible()
 
-    const programName = `E2E Program T1 ${TS}`
-    await page.fill('input[placeholder*="Override"]', programName)
+    const name = `E2E New Program ${randomUUID().slice(0, 6)}`
+    await page.fill('input[placeholder*="Override"]', name)
     await page.fill('input[type="date"] >> nth=0', '2026-05-01')
     await page.getByRole('button', { name: 'Create Program' }).click()
 
-    // Card with the new program name appears on the index
-    await expect(page.getByText(programName)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(name)).toBeVisible({ timeout: 5000 })
   })
 
-  // ── T2: OWNER edits a program ────────────────────────────────────────────────
-
-  test('T2: OWNER can rename a program', async ({ page }) => {
+  test('OWNER renames a program', async ({ page }) => {
     const seeded = await prisma.program.create({
       data: {
-        name: `E2E Rename Me ${TS}`,
+        name: `E2E Rename Me ${randomUUID().slice(0, 6)}`,
         startDate: new Date('2026-05-01'),
-        gyms: { create: { gymId } },
+        gyms: { create: { gymId: f.gymId } },
       },
     })
-
-    await login(page, OWNER_EMAIL, OWNER_PASSWORD)
+    await loginAndSelectGym(page, f.owner.id, 'OWNER', f.gymId)
     await page.goto(`/programs/${seeded.id}`)
-    await expect(page.locator('h1', { hasText: `E2E Rename Me ${TS}` })).toBeVisible()
+    await expect(page.locator('h1', { hasText: seeded.name })).toBeVisible()
 
     await page.getByRole('button', { name: 'Edit' }).click()
     await expect(page.locator('h2', { hasText: 'Edit Program' })).toBeVisible()
 
-    const newName = `E2E Renamed ${TS}`
+    const newName = `E2E Renamed ${randomUUID().slice(0, 6)}`
     await page.fill('input[placeholder*="Override"]', newName)
     await page.getByRole('button', { name: 'Save Changes' }).click()
 
     await expect(page.locator('h1', { hasText: newName })).toBeVisible({ timeout: 5000 })
   })
 
-  // ── T3: MEMBER does not see Programs in sidebar ─────────────────────────────
-
-  test('T3: MEMBER does not see Programs in the sidebar', async ({ page }) => {
-    await login(page, MEMBER_EMAIL, MEMBER_PASSWORD)
+  test('MEMBER does not see Programs in the sidebar', async ({ page }) => {
+    await loginAndSelectGym(page, f.member.id, 'MEMBER', f.gymId)
     await page.goto('/feed')
-    // Feed is the landing page for members
     await expect(page.locator('aside').first()).toBeVisible()
     await expect(page.locator('aside').first().getByRole('link', { name: 'Programs' })).toHaveCount(0)
   })
 
-  // ── T5: Open in Calendar from program detail ────────────────────────────────
-
-  test('T5: PROGRAMMER follows "Open in Calendar" → filtered Calendar header', async ({ page }) => {
+  test('OWNER deletes a program', async ({ page }) => {
     const seeded = await prisma.program.create({
       data: {
-        name: `E2E Filter Calendar ${TS}`,
+        name: `E2E Delete Me ${randomUUID().slice(0, 6)}`,
         startDate: new Date('2026-05-01'),
-        coverColor: '#10B981',
-        gyms: { create: { gymId } },
+        gyms: { create: { gymId: f.gymId } },
       },
     })
-
-    await login(page, OWNER_EMAIL, OWNER_PASSWORD)
+    await loginAndSelectGym(page, f.owner.id, 'OWNER', f.gymId)
     await page.goto(`/programs/${seeded.id}`)
-    await expect(page.locator('h1', { hasText: `E2E Filter Calendar ${TS}` })).toBeVisible()
+    await expect(page.locator('h1', { hasText: seeded.name })).toBeVisible()
 
-    // Click "Open in Calendar" — opens /calendar?programIds=<seeded.id>
+    page.once('dialog', (d) => d.accept())
+    await page.getByRole('button', { name: /Delete program/ }).click()
+
+    await page.waitForURL('**/programs')
+    await expect(page.getByText(seeded.name)).not.toBeVisible()
+  })
+
+  // ── #84: programIds filter — Open in Calendar deep-link + forbidden surface ─
+  // ────────────────────────────────────────────────────────────────────────────
+
+  test('OWNER follows "Open in Calendar" → filtered Calendar with the program header', async ({ page }) => {
+    const name = `E2E Filter Calendar ${randomUUID().slice(0, 6)}`
+    const seeded = await prisma.program.create({
+      data: {
+        name,
+        startDate: new Date('2026-05-01'),
+        coverColor: '#10B981',
+        gyms: { create: { gymId: f.gymId } },
+      },
+    })
+    await loginAndSelectGym(page, f.owner.id, 'OWNER', f.gymId)
+    await page.goto(`/programs/${seeded.id}`)
+    await expect(page.locator('h1', { hasText: name })).toBeVisible()
+
+    // Open in Calendar → /calendar?programIds=<id>
     await page.getByRole('button', { name: 'Open in Calendar' }).click()
     await page.waitForURL(`**/calendar?programIds=${seeded.id}`)
 
-    // Filtered header shows the program name + the "Calendar" eyebrow
-    await expect(page.locator('h1', { hasText: `E2E Filter Calendar ${TS}` })).toBeVisible({ timeout: 5000 })
+    // Filtered header shows the program name + a Calendar eyebrow.
+    await expect(page.locator('h1', { hasText: name })).toBeVisible({ timeout: 5000 })
     await expect(page.getByText('Calendar', { exact: true }).first()).toBeVisible()
 
-    // Back link returns to the unfiltered calendar
+    // "Back to full calendar" returns to the unfiltered view.
     await page.getByRole('link', { name: /Back to full calendar/ }).click()
     await page.waitForURL('**/calendar')
     await expect(page.locator('h1', { hasText: 'Calendar' })).toBeVisible()
   })
 
-  // ── T6: Forbidden program surfaces error on Feed ────────────────────────────
-
-  test('T6: /feed?programId=<unrelated-program> renders an error state', async ({ page }) => {
-    // Create a sibling gym + program that this test's OWNER isn't a member of.
+  test('OWNER visiting /feed?programIds=<inaccessible> sees an error state', async ({ page }) => {
+    // Sibling gym + program this OWNER isn't a member of.
+    const ts = randomUUID().slice(0, 8)
     const otherGym = await prisma.gym.create({
-      data: { name: `E2E Other Gym ${TS}`, slug: `programs-e2e-other-${TS}`, timezone: 'UTC' },
+      data: { name: `E2E Other Gym ${ts}`, slug: `programs-e2e-other-${ts}`, timezone: 'UTC' },
     })
-    const inaccessibleProgram = await prisma.program.create({
+    const inaccessible = await prisma.program.create({
       data: {
-        name: `E2E Forbidden ${TS}`,
+        name: `E2E Forbidden ${ts}`,
         startDate: new Date('2026-05-01'),
         gyms: { create: { gymId: otherGym.id } },
       },
     })
-
-    await login(page, OWNER_EMAIL, OWNER_PASSWORD)
-    await page.goto(`/feed?programIds=${inaccessibleProgram.id}`)
-
-    // The page should render an error message rather than crashing.
-    // The exact copy comes from the API ("Forbidden") via the apiFetch error path.
-    await expect(page.locator('p.text-red-400')).toBeVisible({ timeout: 5000 })
-
-    // Cleanup of these specific fixtures (afterAll catches the gym/program too).
-    await prisma.program.delete({ where: { id: inaccessibleProgram.id } }).catch(() => {})
-    await prisma.gym.delete({ where: { id: otherGym.id } }).catch(() => {})
-  })
-
-  // ── T4: OWNER deletes a program ──────────────────────────────────────────────
-
-  test('T4: OWNER can delete a program', async ({ page }) => {
-    const seeded = await prisma.program.create({
-      data: {
-        name: `E2E Delete Me ${TS}`,
-        startDate: new Date('2026-05-01'),
-        gyms: { create: { gymId } },
-      },
-    })
-
-    await login(page, OWNER_EMAIL, OWNER_PASSWORD)
-    await page.goto(`/programs/${seeded.id}`)
-    await expect(page.locator('h1', { hasText: `E2E Delete Me ${TS}` })).toBeVisible()
-
-    // window.confirm auto-accept so the test doesn't stall
-    page.once('dialog', (d) => d.accept())
-    await page.getByRole('button', { name: /Delete program/ }).click()
-
-    // Land back on the Programs index
-    await page.waitForURL('**/programs')
-    await expect(page.getByText(`E2E Delete Me ${TS}`)).not.toBeVisible()
+    try {
+      await loginAndSelectGym(page, f.owner.id, 'OWNER', f.gymId)
+      await page.goto(`/feed?programIds=${inaccessible.id}`)
+      // Page renders an error message rather than crashing. The exact copy
+      // comes from the API's "Forbidden" via the apiFetch error path.
+      await expect(page.locator('p.text-red-400')).toBeVisible({ timeout: 5000 })
+    } finally {
+      await prisma.program.delete({ where: { id: inaccessible.id } }).catch(() => {})
+      await prisma.gym.delete({ where: { id: otherGym.id } }).catch(() => {})
+    }
   })
 })

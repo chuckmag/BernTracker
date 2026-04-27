@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import jwt from 'jsonwebtoken'
 import type { Role } from '@wodalytics/db'
 
@@ -10,12 +11,15 @@ function secret(key: string): string {
   return val
 }
 
+// jti makes each token unique even when minted within the same second for the
+// same (sub, role) pair. RefreshToken.token has a unique constraint, so two
+// concurrent refreshes for one user (e.g. two tabs) would otherwise collide.
 export function signAccessToken(userId: string, role: Role): string {
-  return jwt.sign({ sub: userId, role }, secret('JWT_SECRET'), { expiresIn: ACCESS_EXPIRY })
+  return jwt.sign({ sub: userId, role, jti: randomUUID() }, secret('JWT_SECRET'), { expiresIn: ACCESS_EXPIRY })
 }
 
 export function signRefreshToken(userId: string, role: Role): string {
-  return jwt.sign({ sub: userId, role }, secret('JWT_REFRESH_SECRET'), { expiresIn: REFRESH_EXPIRY })
+  return jwt.sign({ sub: userId, role, jti: randomUUID() }, secret('JWT_REFRESH_SECRET'), { expiresIn: REFRESH_EXPIRY })
 }
 
 export function signTokenPair(userId: string, role: Role) {
