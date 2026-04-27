@@ -2,9 +2,8 @@
  * LoginScreen tests
  *
  * Covers the login form: email/password submit, empty-field guard,
- * bad-credentials error, and Google OAuth sign-in (success and failure).
- * Navigation after login is handled by RootNavigator reacting to
- * the auth context user state change, not by the screen itself.
+ * bad-credentials error, and the server-side Google OAuth flow
+ * (success, missing tokens, error, user cancel).
  */
 
 import React from 'react'
@@ -15,27 +14,23 @@ jest.mock('../src/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
 
-jest.mock('expo-auth-session', () => ({
-  useAuthRequest: jest.fn(),
-  makeRedirectUri: jest.fn(() => 'https://auth.expo.io/@chuckmag/berntracker'),
-  ResponseType: { IdToken: 'id_token' },
-}))
-
 jest.mock('expo-web-browser', () => ({
   maybeCompleteAuthSession: jest.fn(),
+  openAuthSessionAsync: jest.fn(),
 }))
 
 jest.mock('expo-linking', () => ({
-  createURL: jest.fn(() => 'exp://localhost:8081/--/'),
+  createURL: jest.fn(() => 'com.berntracker.app:///auth-callback'),
+  parse: jest.fn(),
 }))
 
 import { useAuth } from '../src/context/AuthContext'
-import { useAuthRequest } from 'expo-auth-session'
+import * as WebBrowser from 'expo-web-browser'
+import * as Linking from 'expo-linking'
 
 describe('LoginScreen', () => {
   const mockLogin = jest.fn()
   const mockLoginWithGoogle = jest.fn()
-  const mockPromptAsync = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -46,7 +41,6 @@ describe('LoginScreen', () => {
       loginWithGoogle: mockLoginWithGoogle,
       logout: jest.fn(),
     })
-    ;(useAuthRequest as jest.Mock).mockReturnValue([{}, null, mockPromptAsync])
   })
 
   test('valid credentials call login() with the correct email and password', async () => {
@@ -86,54 +80,72 @@ describe('LoginScreen', () => {
     await findByText('Invalid email or password.')
   })
 
-  test('pressing "Sign in with Google" calls promptAsync', async () => {
-    mockPromptAsync.mockResolvedValue({ type: 'dismissed' })
+  test('Google sign-in opens server-side auth URL with mobile_redirect param', async () => {
+    ;(WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({ type: 'dismiss' })
 
     const { getByText } = render(<LoginScreen />)
     fireEvent.press(getByText('Sign in with Google'))
 
     await waitFor(() => {
-      expect(mockPromptAsync).toHaveBeenCalled()
+      expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalledTimes(1)
     })
+    const [authUrl, redirectUrl] = (WebBrowser.openAuthSessionAsync as jest.Mock).mock.calls[0]
+    expect(authUrl).toContain('/api/auth/google?mobile_redirect=')
+    expect(authUrl).toContain(encodeURIComponent('com.berntracker.app:///auth-callback'))
+    expect(redirectUrl).toBe('com.berntracker.app:///auth-callback')
   })
 
-  test('successful Google response calls loginWithGoogle with the ID token', async () => {
-    mockLoginWithGoogle.mockResolvedValue(undefined)
-    ;(useAuthRequest as jest.Mock).mockReturnValue([
-      {},
-      { type: 'success', params: { id_token: 'google-id-token-abc' } },
-      mockPromptAsync,
-    ])
+  test('successful redirect parses tokens and calls loginWithGoogle', async () => {
+    ;(WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+      type: 'success',
+      url: 'com.berntracker.app:///auth-callback?token=acc-1&refreshToken=ref-1',
+    })
+    ;(Linking.parse as jest.Mock).mockReturnValue({
+      queryParams: { token: 'acc-1', refreshToken: 'ref-1' },
+    })
 
-    render(<LoginScreen />)
+    const { getByText } = render(<LoginScreen />)
+    fireEvent.press(getByText('Sign in with Google'))
 
     await waitFor(() => {
-      expect(mockLoginWithGoogle).toHaveBeenCalledWith('google-id-token-abc')
+      expect(mockLoginWithGoogle).toHaveBeenCalledWith('acc-1', 'ref-1')
     })
   })
 
-  test('Google response with missing ID token shows error without calling loginWithGoogle', async () => {
-    ;(useAuthRequest as jest.Mock).mockReturnValue([
-      {},
-      { type: 'success', params: {} },
-      mockPromptAsync,
-    ])
+  test('redirect missing tokens shows error without calling loginWithGoogle', async () => {
+    ;(WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+      type: 'success',
+      url: 'com.berntracker.app:///auth-callback',
+    })
+    ;(Linking.parse as jest.Mock).mockReturnValue({ queryParams: {} })
 
-    const { findByText } = render(<LoginScreen />)
+    const { getByText, findByText } = render(<LoginScreen />)
+    fireEvent.press(getByText('Sign in with Google'))
 
-    await findByText('Google sign-in failed — no ID token received.')
+    await findByText('Google sign-in failed — no tokens returned.')
     expect(mockLoginWithGoogle).not.toHaveBeenCalled()
   })
 
-  test('Google error response shows error message', async () => {
-    ;(useAuthRequest as jest.Mock).mockReturnValue([
-      {},
-      { type: 'error', error: new Error('access_denied') },
-      mockPromptAsync,
-    ])
+  test('user cancelling the auth session does not show an error', async () => {
+    ;(WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({ type: 'cancel' })
 
-    const { findByText } = render(<LoginScreen />)
+    const { getByText, queryByText } = render(<LoginScreen />)
+    fireEvent.press(getByText('Sign in with Google'))
+
+    await waitFor(() => {
+      expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalled()
+    })
+    expect(queryByText(/Google sign-in failed/)).toBeNull()
+    expect(mockLoginWithGoogle).not.toHaveBeenCalled()
+  })
+
+  test('non-success result type (e.g. locked) shows generic Google error', async () => {
+    ;(WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({ type: 'locked' })
+
+    const { getByText, findByText } = render(<LoginScreen />)
+    fireEvent.press(getByText('Sign in with Google'))
 
     await findByText('Google sign-in failed. Please try again.')
+    expect(mockLoginWithGoogle).not.toHaveBeenCalled()
   })
 })

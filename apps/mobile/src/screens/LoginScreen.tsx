@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   View,
   Text,
@@ -9,38 +9,13 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native'
-import { useRef } from 'react'
 import * as Linking from 'expo-linking'
 import * as WebBrowser from 'expo-web-browser'
-import { useAuthRequest, ResponseType } from 'expo-auth-session'
 import { useAuth } from '../context/AuthContext'
 
-// Required so the auth session can close the browser after redirect
 WebBrowser.maybeCompleteAuthSession()
 
-// The Expo auth proxy (auth.expo.io) is a stable HTTPS URL that Google Cloud
-// Console accepts. Add https://auth.expo.io/@chuckmag/berntracker to the
-// authorized redirect URIs for the web OAuth client (one-time setup).
-//
-// Hardcoded because makeRedirectUri({ useProxy: true }) requires expo-constants
-// to expose the owner + slug from app.json at runtime, which is unreliable in
-// Expo Go dev mode. The proxy URL is stable and known — hardcoding it is safe.
-//
-// useProxy: true in promptAsync() encodes the local Expo Go URL into the OAuth
-// state param so the proxy knows where to redirect back after Google completes auth.
-// returnUrl is passed explicitly because v5.5's internal makeRedirectUri() reads
-// Constants.manifest (deprecated in SDK 45+) and returns null in SDK 54, causing
-// the proxy to have no return address. Linking.createURL('/') reads the live
-// Expo Go dev server URL (exp://host:port/--/) directly instead.
-// This requires expo-auth-session ~5.5.x (useProxy was removed in v7).
-// expo doctor will warn about the version but the app works correctly.
-const EXPO_PROXY_REDIRECT_URI = 'https://auth.expo.io/@chuckmag/berntracker'
-
-// Google OAuth 2.0 endpoints
-const GOOGLE_DISCOVERY = {
-  authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-  tokenEndpoint: 'https://oauth2.googleapis.com/token',
-}
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
 
 export default function LoginScreen() {
   const { login, loginWithGoogle } = useAuth()
@@ -49,40 +24,36 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Base useAuthRequest (not Google provider) so no iosClientId platform check.
-  // ResponseType.IdToken returns id_token in response.params directly —
-  // no code exchange or client secret needed.
-  const nonce = useRef(Math.random().toString(36).slice(2))
-  const [request, response, promptAsync] = useAuthRequest(
-    {
-      clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
-      redirectUri: EXPO_PROXY_REDIRECT_URI,
-      responseType: ResponseType.IdToken,
-      scopes: ['openid', 'email', 'profile'],
-      usePKCE: false,
-      extraParams: { nonce: nonce.current },
-    },
-    GOOGLE_DISCOVERY,
-  )
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const idToken = response.params?.id_token
-      if (idToken) {
-        handleGoogleAuth(idToken)
-      } else {
-        setError('Google sign-in failed — no ID token received.')
-      }
-    } else if (response?.type === 'error') {
-      setError('Google sign-in failed. Please try again.')
-    }
-  }, [response])
-
-  async function handleGoogleAuth(idToken: string) {
+  // Server-side Google OAuth flow.
+  //
+  // Google only ever sees `${API_URL}/api/auth/google/callback` as the redirect
+  // URI — that's the one registered in Google Cloud Console for the web client.
+  // The mobile app never appears in the OAuth handshake; the API does the code
+  // exchange and then redirects to our app scheme with tokens as query params.
+  // WebBrowser.openAuthSessionAsync intercepts that redirect and returns the URL.
+  async function handleGoogleSignIn() {
     setError(null)
     setLoading(true)
     try {
-      await loginWithGoogle(idToken)
+      const redirectUrl = Linking.createURL('/auth-callback')
+      const authUrl = `${API_URL}/api/auth/google?mobile_redirect=${encodeURIComponent(redirectUrl)}`
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl)
+
+      if (result.type === 'cancel' || result.type === 'dismiss') return
+      if (result.type !== 'success' || !result.url) {
+        setError('Google sign-in failed. Please try again.')
+        return
+      }
+
+      const { queryParams } = Linking.parse(result.url)
+      const accessToken = typeof queryParams?.token === 'string' ? queryParams.token : null
+      const refreshToken = typeof queryParams?.refreshToken === 'string' ? queryParams.refreshToken : null
+      if (!accessToken || !refreshToken) {
+        setError('Google sign-in failed — no tokens returned.')
+        return
+      }
+
+      await loginWithGoogle(accessToken, refreshToken)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Google sign-in failed')
     } finally {
@@ -156,9 +127,9 @@ export default function LoginScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.googleButton, (!request || loading) && styles.buttonDisabled]}
-          onPress={() => promptAsync({ useProxy: true, returnUrl: Linking.createURL('/') })}
-          disabled={!request || loading}
+          style={[styles.googleButton, loading && styles.buttonDisabled]}
+          onPress={handleGoogleSignIn}
+          disabled={loading}
         >
           <Text style={styles.googleButtonText}>Sign in with Google</Text>
         </TouchableOpacity>

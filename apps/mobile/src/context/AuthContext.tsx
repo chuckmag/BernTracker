@@ -13,7 +13,7 @@ interface AuthState {
   user: AuthUser | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
-  loginWithGoogle: (idToken: string) => Promise<void>
+  loginWithGoogle: (accessToken: string, refreshToken: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -72,10 +72,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(u)
   }
 
-  async function loginWithGoogle(idToken: string) {
-    const { accessToken, refreshToken, user: u } = await api.auth.loginWithGoogle(idToken)
+  // Tokens are produced by the API after the server-side Google OAuth callback
+  // (see GET /api/auth/google/callback). LoginScreen extracts them from the
+  // app-scheme redirect and passes them in here.
+  async function loginWithGoogle(accessToken: string, refreshToken: string) {
     await storeTokens(accessToken, refreshToken)
     setAccessToken(accessToken)
+    const u = await api.auth.me()
     setUser(u)
   }
 
