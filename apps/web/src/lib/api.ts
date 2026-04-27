@@ -220,6 +220,7 @@ export interface ProgramMember {
 export interface GymProgram {
   gymId: string
   programId: string
+  isDefault: boolean
   createdAt: string
   program: Program
 }
@@ -340,6 +341,14 @@ export const api = {
 
       browse: (gymId: string, token?: string) =>
         req<GymProgram[]>(`/api/gyms/${gymId}/programs/browse`, { token }),
+
+      /**
+       * Mark a PUBLIC program as the gym default (slice 5 / #88). OWNER only;
+       * server clears any prior default in the same transaction. Returns 400
+       * if the program is PRIVATE, 404 if not linked to this gym.
+       */
+      setDefault: (gymId: string, programId: string, token?: string) =>
+        req<void>(`/api/gyms/${gymId}/programs/${programId}/default`, { method: 'PATCH', token }),
     },
   },
 

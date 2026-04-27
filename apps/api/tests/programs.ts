@@ -650,6 +650,151 @@ async function runTests() {
   }
 
   await prisma.workout.delete({ where: { id: privateWorkout.id } })
+
+  // ── Slice 5 — default program + auto-surfaced for members ──────────────────
+  console.log('\n=== Slice 5: default program ===')
+
+  // Two PUBLIC programs in the same gym + the existing privateProgram from slice 4
+  const defaultA = await prisma.program.create({
+    data: {
+      name: `Slice5 Default A ${TS}`,
+      startDate: new Date('2026-07-01'),
+      visibility: 'PUBLIC',
+      gyms: { create: { gymId } },
+    },
+  })
+  const defaultB = await prisma.program.create({
+    data: {
+      name: `Slice5 Default B ${TS}`,
+      startDate: new Date('2026-07-01'),
+      visibility: 'PUBLIC',
+      gyms: { create: { gymId } },
+    },
+  })
+  createdProgramIds.push(defaultA.id, defaultB.id)
+
+  const setDefaultPath = (pid: string) => `/gyms/${gymId}/programs/${pid}/default`
+
+  {
+    // OWNER marks A as default → 204
+    const r = await api('PATCH', setDefaultPath(defaultA.id), ownerToken)
+    check('PATCH default as OWNER → 204', 204, r.status)
+    const row = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultA.id } } })
+    check('GymProgram.isDefault persisted', true, row?.isDefault)
+  }
+
+  {
+    // PROGRAMMER cannot set default → 403
+    const r = await api('PATCH', setDefaultPath(defaultB.id), programmerToken)
+    check('PATCH default as PROGRAMMER → 403', 403, r.status)
+  }
+
+  {
+    // COACH → 403, MEMBER → 403
+    const r1 = await api('PATCH', setDefaultPath(defaultB.id), coachToken)
+    check('PATCH default as COACH → 403', 403, r1.status)
+    const r2 = await api('PATCH', setDefaultPath(defaultB.id), memberToken)
+    check('PATCH default as MEMBER → 403', 403, r2.status)
+  }
+
+  {
+    // No auth → 401
+    const r = await api('PATCH', setDefaultPath(defaultB.id))
+    check('PATCH default no auth → 401', 401, r.status)
+  }
+
+  {
+    // Atomic swap: marking B as default clears A
+    const r = await api('PATCH', setDefaultPath(defaultB.id), ownerToken)
+    check('PATCH default switches → 204', 204, r.status)
+    const a = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultA.id } } })
+    const b = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultB.id } } })
+    check('Previous default cleared', false, a?.isDefault)
+    check('New default set', true, b?.isDefault)
+  }
+
+  {
+    // PRIVATE program → 400 with explanatory message
+    const r = await api('PATCH', setDefaultPath(privateProgram.id), ownerToken)
+    check('PATCH default on PRIVATE → 400', 400, r.status)
+    check(
+      'PATCH default on PRIVATE error message',
+      true,
+      String(r.body?.error ?? '').toLowerCase().includes('public'),
+    )
+  }
+
+  {
+    // Program not linked to this gym → 404
+    const otherGymProgram = await prisma.program.create({
+      data: {
+        name: `Other Gym Program ${TS}`,
+        startDate: new Date('2026-07-01'),
+        visibility: 'PUBLIC',
+        gyms: { create: { gymId: otherGymId } },
+      },
+    })
+    const r = await api('PATCH', `/gyms/${gymId}/programs/${otherGymProgram.id}/default`, ownerToken)
+    check('PATCH default for unlinked program → 404', 404, r.status)
+    await prisma.program.delete({ where: { id: otherGymProgram.id } })
+  }
+
+  {
+    // GET list response includes isDefault and sorts default first
+    const r = await api('GET', `/gyms/${gymId}/programs`, ownerToken)
+    check('GET list returns isDefault on each row', true, r.body[0]?.isDefault === true || r.body[0]?.isDefault === false)
+    const defaults = (r.body as unknown as { programId: string; isDefault: boolean }[])
+      .filter((g) => g.isDefault)
+      .map((g) => g.programId)
+    check('Exactly one default in list', 1, defaults.length)
+    check('Default is the right program', defaultB.id, defaults[0])
+    check('Default sorted first', defaultB.id, (r.body as unknown as { programId: string }[])[0]?.programId)
+  }
+
+  {
+    // me/programs surfaces the default for a MEMBER even though they have NO
+    // UserProgram row for it (slice 5 / #88 — no auto-subscribe writes).
+    const r = await api('GET', `/me/programs?gymId=${gymId}`, memberToken)
+    check('me/programs as MEMBER → 200', 200, r.status)
+    const ids = (r.body as unknown as { programId: string }[]).map((g) => g.programId)
+    check('me/programs as MEMBER includes default', true, ids.includes(defaultB.id))
+    // No UserProgram row was created — confirm by querying directly
+    const sub = await prisma.userProgram.findUnique({
+      where: { userId_programId: { userId: memberUserId, programId: defaultB.id } },
+    })
+    check('No UserProgram row created for default', null, sub)
+  }
+
+  {
+    // Visibility-flip safeguard: setting default's visibility to PRIVATE clears isDefault
+    const flip = await api('PATCH', `/programs/${defaultB.id}`, programmerToken, { visibility: 'PRIVATE' })
+    check('PATCH program visibility=PRIVATE → 200', 200, flip.status)
+    const row = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultB.id } } })
+    check('Default cleared after PRIVATE flip', false, row?.isDefault)
+    // Restore for any subsequent assertions
+    await api('PATCH', `/programs/${defaultB.id}`, programmerToken, { visibility: 'PUBLIC' })
+  }
+
+  {
+    // Partial unique index belt — try to create a second default row directly
+    // (bypassing the route's clear-and-set transaction) and confirm the DB rejects it.
+    await prisma.gymProgram.update({
+      where: { gymId_programId: { gymId, programId: defaultA.id } },
+      data: { isDefault: true },
+    })
+    let dbCaught = false
+    try {
+      await prisma.gymProgram.update({
+        where: { gymId_programId: { gymId, programId: defaultB.id } },
+        data: { isDefault: true },
+      })
+    } catch {
+      dbCaught = true
+    }
+    check('Partial unique index rejects two defaults', true, dbCaught)
+    // Reset
+    await prisma.gymProgram.updateMany({ where: { gymId }, data: { isDefault: false } })
+  }
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
 import ProgramFormDrawer from '../components/ProgramFormDrawer'
-import { VisibilityBadge } from './ProgramDetail'
+import { VisibilityBadge, DefaultBadge } from './ProgramDetail'
 
 function formatDateRange(start: string, end: string | null): string {
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
@@ -87,8 +87,8 @@ export default function ProgramsIndex() {
 
       {gymPrograms.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {gymPrograms.map(({ program }) => (
-            <ProgramCard key={program.id} program={program} />
+          {gymPrograms.map((gp) => (
+            <ProgramCard key={gp.program.id} program={gp.program} isDefault={gp.isDefault} />
           ))}
         </div>
       )}
@@ -103,7 +103,7 @@ export default function ProgramsIndex() {
   )
 }
 
-function ProgramCard({ program }: { program: Program }) {
+function ProgramCard({ program, isDefault }: { program: Program; isDefault: boolean }) {
   const stripe = program.coverColor ?? '#374151'
   const memberCount = program._count?.members ?? 0
   const workoutCount = program._count?.workouts ?? 0
@@ -114,10 +114,11 @@ function ProgramCard({ program }: { program: Program }) {
     >
       <div style={{ backgroundColor: stripe }} className="h-1.5 w-full" />
       <div className="p-4">
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2 flex-wrap">
           <h3 className="font-semibold text-white truncate group-hover:text-indigo-300 transition-colors flex-1 min-w-0">
             {program.name}
           </h3>
+          {isDefault && <DefaultBadge className="shrink-0" />}
           <VisibilityBadge visibility={program.visibility} className="shrink-0" />
         </div>
         {program.description && (

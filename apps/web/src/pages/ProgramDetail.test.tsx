@@ -17,7 +17,10 @@ vi.mock('../lib/api', () => ({
         remove: vi.fn(),
       },
     },
-    gyms: { programs: { create: vi.fn() }, members: { list: vi.fn() } },
+    gyms: {
+      programs: { create: vi.fn(), setDefault: vi.fn() },
+      members: { list: vi.fn() },
+    },
   },
 }))
 
@@ -29,11 +32,12 @@ vi.mock('../context/GymContext.tsx', () => ({
 import { api } from '../lib/api'
 
 function makeGymProgram(
-  overrides: Partial<{ name: string; description: string | null; visibility: 'PUBLIC' | 'PRIVATE' }> = {},
+  overrides: Partial<{ name: string; description: string | null; visibility: 'PUBLIC' | 'PRIVATE'; isDefault: boolean }> = {},
 ) {
   return {
     gymId: 'gym-1',
     programId: 'program-1',
+    isDefault: overrides.isDefault ?? false,
     createdAt: '2026-03-01T00:00:00.000Z',
     program: {
       id: 'program-1',
@@ -191,5 +195,61 @@ describe('ProgramDetail', () => {
     renderPage()
     expect(await screen.findByRole('heading', { name: 'Override — March 2026' })).toBeInTheDocument()
     expect(screen.getByLabelText('Public program')).toBeInTheDocument()
+  })
+
+  // ─── Default badge + Set-as-default toggle (slice 5) ───────────────────────
+
+  it('renders the ⭐ Default badge when GymProgram.isDefault is true', async () => {
+    vi.mocked(api.programs.get).mockResolvedValue(makeGymProgram({ visibility: 'PUBLIC', isDefault: true }))
+    renderPage()
+    await screen.findByRole('heading', { name: 'Override — March 2026' })
+    expect(screen.getByLabelText('Gym default program')).toBeInTheDocument()
+  })
+
+  it('shows "Set as gym default" toggle for OWNER on a PUBLIC non-default program', async () => {
+    vi.mocked(api.programs.get).mockResolvedValue(makeGymProgram({ visibility: 'PUBLIC' }))
+    renderPage()
+    await screen.findByRole('heading', { name: 'Override — March 2026' })
+    const button = screen.getByRole('button', { name: /Set as gym default/ })
+    expect(button).toBeEnabled()
+  })
+
+  it('disables the Set-as-default toggle when the program is PRIVATE', async () => {
+    vi.mocked(api.programs.get).mockResolvedValue(makeGymProgram({ visibility: 'PRIVATE' }))
+    renderPage()
+    await screen.findByRole('heading', { name: 'Override — March 2026' })
+    const button = screen.getByRole('button', { name: /Set as gym default/ })
+    expect(button).toBeDisabled()
+    // Hint copy explains why
+    expect(screen.getByText(/Default programs must be public/)).toBeInTheDocument()
+  })
+
+  it('shows "⭐ Gym default" (disabled) when the program is already default', async () => {
+    vi.mocked(api.programs.get).mockResolvedValue(makeGymProgram({ visibility: 'PUBLIC', isDefault: true }))
+    renderPage()
+    await screen.findByRole('heading', { name: 'Override — March 2026' })
+    const button = screen.getByRole('button', { name: /Gym default/ })
+    expect(button).toBeDisabled()
+  })
+
+  it('hides the Set-as-default toggle for non-OWNER roles', async () => {
+    mockGymContext.gymRole = 'PROGRAMMER'
+    vi.mocked(api.programs.get).mockResolvedValue(makeGymProgram({ visibility: 'PUBLIC' }))
+    renderPage()
+    await screen.findByRole('heading', { name: 'Override — March 2026' })
+    expect(screen.queryByRole('button', { name: /Set as gym default/ })).not.toBeInTheDocument()
+  })
+
+  it('calls api.gyms.programs.setDefault and reloads on click', async () => {
+    vi.mocked(api.programs.get).mockResolvedValue(makeGymProgram({ visibility: 'PUBLIC' }))
+    vi.mocked(api.gyms.programs.setDefault).mockResolvedValue(undefined as never)
+    renderPage()
+    await screen.findByRole('heading', { name: 'Override — March 2026' })
+
+    fireEvent.click(screen.getByRole('button', { name: /Set as gym default/ }))
+
+    await waitFor(() => expect(api.gyms.programs.setDefault).toHaveBeenCalledWith('gym-1', 'program-1'))
+    // Reload triggers a second `get`
+    await waitFor(() => expect(vi.mocked(api.programs.get).mock.calls.length).toBeGreaterThanOrEqual(2))
   })
 })
