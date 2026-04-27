@@ -97,6 +97,15 @@ enum ProgramRole {
   PROGRAMMER
 }
 
+// Discoverability of a Program. PUBLIC programs surface in the gym's Browse
+// page and any gym member can self-subscribe. PRIVATE programs require staff
+// invite (slice 3 endpoints). Default PRIVATE so existing programs don't
+// accidentally become discoverable on migration.
+enum ProgramVisibility {
+  PUBLIC
+  PRIVATE
+}
+
 enum WorkoutCategory {
   GIRL_WOD    // e.g. Fran, Cindy, Grace
   HERO_WOD    // e.g. Murph, Badger, DT
@@ -171,14 +180,15 @@ model UserGym {
 }
 
 model Program {
-  id          String    @id @default(cuid())
+  id          String            @id @default(cuid())
   name        String
   description String?
   startDate   DateTime
   endDate     DateTime?
   coverColor  String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  visibility  ProgramVisibility @default(PRIVATE)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   gyms     GymProgram[]
   members  UserProgram[]
