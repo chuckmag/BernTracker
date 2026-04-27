@@ -376,12 +376,13 @@ cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
 **Test files:** `apps/web/tests/` — one `.spec.ts` file per user flow.
 
 **Patterns to follow:**
-- Use `test.describe.configure({ mode: 'serial' })` — tests share seeded DB state.
-- Use `test.beforeAll` / `test.afterAll` with Prisma for setup/teardown.
+- Tests are independent. Seed all fixtures in `test.beforeEach` (or inline at the top of the test) and tear down in `test.afterEach`. **Do not** use `test.describe.configure({ mode: 'serial' })` or shared `test.beforeAll` fixtures — `playwright.config.ts` runs the suite in parallel (`fullyParallel: true`).
+- **Auth via JWT cookie injection** — never drive the `/login` form. Use `loginAs(context, userId, role)` from `tests/lib/auth.ts`, which signs a refresh token, persists a `RefreshToken` row, and adds the cookie. AuthProvider's mount-time refresh consumes it on the next `page.goto`. The dedicated login-form spec is the only exception.
 - Seed directly via Prisma (not via API) to keep setup fast and independent of API state.
-- Assign one isolated day or entity per test to avoid cross-test interference.
-- `gymId` must be set in `localStorage` before navigating to gym-scoped pages (pages read it on mount).
+- Use unique nonces for fixture rows (`randomUUID().slice(0, 8)`) so parallel workers can't collide on names/slugs.
+- `gymId` belongs in `localStorage` before any gym-scoped navigation: `await page.addInitScript((id) => localStorage.setItem('gymId', id), gymId)`.
 - Import PrismaClient via `createRequire(import.meta.url)` — do not use ESM named imports from `@prisma/client`.
+- Keep the surface tight (~5 specs covering true cross-stack flows). Anything that's "does this page render the right text" belongs in `apps/web/src/**/*.test.tsx` with mocked `api`. See #111 for the rationale.
 
 ---
 

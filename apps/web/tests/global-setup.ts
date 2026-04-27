@@ -1,10 +1,9 @@
 import { createRequire } from 'module'
 
-// Purge stale test fixtures before the suite runs. Prior failed runs can leave
-// orphaned User / Gym / Program / RefreshToken rows behind (afterAll hooks are
-// skipped when describe.serial bails out early), and accumulated rows under
-// these well-known prefixes drift the dev DB further with every reviewer run.
-// See issue #101.
+// Purge stale test fixtures before the suite runs. Per-test afterEach hooks
+// usually clean up, but a SIGKILL'd test process leaves orphans, and the
+// shared dev DB accumulates them otherwise. Match by well-known prefixes.
+// See issues #101 / #111.
 const _require = createRequire(import.meta.url)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const { PrismaClient } = _require('@prisma/client') as any
@@ -24,11 +23,13 @@ const GYM_SLUG_PREFIXES = [
 export default async function globalSetup() {
   const prisma = new PrismaClient()
   try {
-    // Expired refresh tokens accumulate; clear them so /login isn't competing
-    // with hundreds of stale rows on token-create.
-    await prisma.refreshToken.deleteMany({
-      where: { expiresAt: { lt: new Date() } },
-    })
+    // Expired refresh tokens + stale test-prefixed Movement rows.
+    await prisma.refreshToken.deleteMany({ where: { expiresAt: { lt: new Date() } } })
+    await prisma.movement.deleteMany({
+      where: {
+        OR: ['Pending-', 'Renamed-E2E-', 'Active-Parent-'].map((p) => ({ name: { startsWith: p } })),
+      },
+    }).catch(() => {})
 
     const staleUsers = await prisma.user.findMany({
       where: { OR: USER_EMAIL_PREFIXES.map((p) => ({ email: { startsWith: p } })) },
