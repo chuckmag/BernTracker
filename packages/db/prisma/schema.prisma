@@ -225,6 +225,10 @@ model Program {
 model GymProgram {
   gymId     String
   programId String
+  // At most one default per gym — enforced via a partial unique index in the
+  // migration: `CREATE UNIQUE INDEX … WHERE "isDefault" = true`. New gym
+  // members are auto-subscribed to the default program (slice 5 / #88).
+  isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
 
   gym     Gym     @relation(fields: [gymId], references: [id], onDelete: Cascade)
