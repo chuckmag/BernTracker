@@ -106,31 +106,56 @@ enum ProgramVisibility {
   PRIVATE
 }
 
+// Direction of a pending gym membership request.
+// STAFF_INVITED = staff invited a user (by email) to join the gym.
+// USER_REQUESTED = a user asked to join the gym; staff approves.
+enum MembershipRequestDirection {
+  STAFF_INVITED
+  USER_REQUESTED
+}
+
+enum MembershipRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
 enum WorkoutCategory {
-  GIRL_WOD    // e.g. Fran, Cindy, Grace
-  HERO_WOD    // e.g. Murph, Badger, DT
-  OPEN_WOD    // e.g. 22.1, 23.3
-  GAMES_WOD   // individual/team events from the Games
-  BENCHMARK   // other common benchmarks (Fight Gone Bad, etc.)
+  GIRL_WOD // e.g. Fran, Cindy, Grace
+  HERO_WOD // e.g. Murph, Badger, DT
+  OPEN_WOD // e.g. 22.1, 23.3
+  GAMES_WOD // individual/team events from the Games
+  BENCHMARK // other common benchmarks (Fight Gone Bad, etc.)
 }
 
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String?
-  role             Role     @default(MEMBER)
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String?
+  firstName        String?
+  lastName         String?
+  birthday         DateTime? @db.Date
+  avatarUrl        String?
+  onboardedAt      DateTime?
+  role             Role      @default(MEMBER)
   identifiedGender Gender?
   passwordHash     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  oauthAccounts OAuthAccount[]
-  refreshTokens RefreshToken[]
-  gyms          UserGym[]
-  programs      UserProgram[]
-  results       Result[]
+  oauthAccounts         OAuthAccount[]
+  refreshTokens         RefreshToken[]
+  gyms                  UserGym[]
+  programs              UserProgram[]
+  results               Result[]
+  emergencyContacts     EmergencyContact[]
+  membershipRequests    GymMembershipRequest[] @relation("UserRequests")
+  membershipInvitesSent GymMembershipRequest[] @relation("InvitedBy")
+  membershipDecisions   GymMembershipRequest[] @relation("DecidedBy")
 }
 
 model OAuthAccount {
@@ -163,8 +188,9 @@ model Gym {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members  UserGym[]
-  programs GymProgram[]
+  members            UserGym[]
+  programs           GymProgram[]
+  membershipRequests GymMembershipRequest[]
 }
 
 model UserGym {
@@ -219,53 +245,98 @@ model UserProgram {
   @@id([userId, programId])
 }
 
-model NamedWorkout {
-  id                String          @id @default(cuid())
-  name              String          @unique
-  category          WorkoutCategory
-  aliases           String[]
-  isActive          Boolean         @default(true)
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+model EmergencyContact {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  relationship String?
+  phone        String
+  email        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  templateWorkoutId String?         @unique
-  templateWorkout   Workout?        @relation("NamedWorkoutTemplate", fields: [templateWorkoutId], references: [id])
-  workouts          Workout[]       @relation("NamedWorkoutInstances")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Pending request to join a gym — works in both directions:
+//  - STAFF_INVITED: staff invited an email to the gym; userId may be null
+//    until the invitee signs up or the email matches an existing User.
+//  - USER_REQUESTED: a user asked to join; userId is required, email is null.
+// On APPROVED, a UserGym row is created with role=roleToGrant.
+model GymMembershipRequest {
+  id          String                     @id @default(cuid())
+  gymId       String
+  direction   MembershipRequestDirection
+  status      MembershipRequestStatus    @default(PENDING)
+  email       String?
+  userId      String?
+  roleToGrant Role                       @default(MEMBER)
+  invitedById String?
+  decidedById String?
+  decidedAt   DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+
+  gym       Gym   @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  user      User? @relation("UserRequests", fields: [userId], references: [id], onDelete: SetNull)
+  invitedBy User? @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  decidedBy User? @relation("DecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([gymId, status])
+  @@index([userId, status])
+  @@index([email, status])
+}
+
+model NamedWorkout {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  category  WorkoutCategory
+  aliases   String[]
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  templateWorkoutId String?   @unique
+  templateWorkout   Workout?  @relation("NamedWorkoutTemplate", fields: [templateWorkoutId], references: [id])
+  workouts          Workout[] @relation("NamedWorkoutInstances")
 }
 
 model Workout {
-  id          String        @id @default(cuid())
-  programId   String?
-  title       String
-  description String
-  type        WorkoutType
-  status      WorkoutStatus @default(DRAFT)
-  scheduledAt DateTime
-  dayOrder    Int           @default(0)
-  namedWorkoutId String?
+  id               String        @id @default(cuid())
+  programId        String?
+  title            String
+  description      String
+  type             WorkoutType
+  status           WorkoutStatus @default(DRAFT)
+  scheduledAt      DateTime
+  dayOrder         Int           @default(0)
+  namedWorkoutId   String?
   // Stable identifier from an external source (e.g. "crossfit-mainsite:w20260425")
   // used for idempotent upserts by background ingest jobs. Null for user-authored workouts.
-  externalSourceId String?  @unique
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  externalSourceId String?       @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   // nullable: members can log personal workouts outside any program
-  program          Program?      @relation(fields: [programId], references: [id], onDelete: SetNull)
+  program          Program?          @relation(fields: [programId], references: [id], onDelete: SetNull)
   results          Result[]
-  namedWorkout     NamedWorkout? @relation("NamedWorkoutInstances", fields: [namedWorkoutId], references: [id])
-  templateFor      NamedWorkout? @relation("NamedWorkoutTemplate")  // required by Prisma parser — not used in queries
+  namedWorkout     NamedWorkout?     @relation("NamedWorkoutInstances", fields: [namedWorkoutId], references: [id])
+  templateFor      NamedWorkout?     @relation("NamedWorkoutTemplate") // required by Prisma parser — not used in queries
   workoutMovements WorkoutMovement[]
 }
 
 model Result {
-  id        String       @id @default(cuid())
-  userId    String
-  workoutId String
+  id            String        @id @default(cuid())
+  userId        String
+  workoutId     String
   level         WorkoutLevel
   workoutGender WorkoutGender
   value         Json
-  notes     String?
-  createdAt DateTime     @default(now())
+  notes         String?
+  createdAt     DateTime      @default(now())
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
@@ -274,15 +345,15 @@ model Result {
 }
 
 model Movement {
-  id         String         @id @default(cuid())
-  name       String         @unique
-  status     MovementStatus @default(ACTIVE)
+  id         String            @id @default(cuid())
+  name       String            @unique
+  status     MovementStatus    @default(ACTIVE)
   parentId   String?
-  parent     Movement?      @relation("MovementVariations", fields: [parentId], references: [id])
-  variations Movement[]     @relation("MovementVariations")
+  parent     Movement?         @relation("MovementVariations", fields: [parentId], references: [id])
+  variations Movement[]        @relation("MovementVariations")
   workouts   WorkoutMovement[]
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 
   @@index([parentId])
 }
