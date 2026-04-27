@@ -55,6 +55,7 @@ function makeGymProgram(id: string, name: string, coverColor: string | null = nu
       startDate: '2026-03-01T00:00:00.000Z',
       endDate: null,
       coverColor,
+      visibility: 'PRIVATE',
       createdAt: '2026-03-01T00:00:00.000Z',
       updatedAt: '2026-03-01T00:00:00.000Z',
     },

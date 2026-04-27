@@ -15,6 +15,7 @@ import Calendar from './pages/Calendar.tsx'
 import Members from './pages/Members.tsx'
 import ProgramsIndex from './pages/ProgramsIndex.tsx'
 import ProgramDetail from './pages/ProgramDetail.tsx'
+import BrowsePrograms from './pages/BrowsePrograms.tsx'
 import Settings from './pages/Settings.tsx'
 import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
@@ -64,6 +65,7 @@ function AppLayout() {
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/programs" element={<ProgramsIndex />} />
               <Route path="/programs/:id" element={<ProgramDetail />} />
+              <Route path="/browse-programs" element={<BrowsePrograms />} />
               <Route path="/members" element={<Members />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>

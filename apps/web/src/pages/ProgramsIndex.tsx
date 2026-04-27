@@ -6,6 +6,7 @@ import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
 import ProgramFormDrawer from '../components/ProgramFormDrawer'
+import { VisibilityBadge } from './ProgramDetail'
 
 function formatDateRange(start: string, end: string | null): string {
   const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
@@ -113,9 +114,12 @@ function ProgramCard({ program }: { program: Program }) {
     >
       <div style={{ backgroundColor: stripe }} className="h-1.5 w-full" />
       <div className="p-4">
-        <h3 className="font-semibold text-white truncate group-hover:text-indigo-300 transition-colors">
-          {program.name}
-        </h3>
+        <div className="flex items-start gap-2">
+          <h3 className="font-semibold text-white truncate group-hover:text-indigo-300 transition-colors flex-1 min-w-0">
+            {program.name}
+          </h3>
+          <VisibilityBadge visibility={program.visibility} className="shrink-0" />
+        </div>
         {program.description && (
           <p className="mt-1 text-xs text-gray-400 line-clamp-2">{program.description}</p>
         )}

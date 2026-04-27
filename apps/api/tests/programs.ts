@@ -255,10 +255,10 @@ async function runTests() {
   // Three fresh programs: A1 + A2 linked to `gymId` (caller's gym), B linked to
   // `otherGymId` only. One workout per program, all in the test date range.
   const programA1 = await prisma.program.create({
-    data: { name: `Filter A1 ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId } } },
+    data: { name: `Filter A1 ${TS}`, startDate: new Date('2026-05-01'), visibility: 'PUBLIC', gyms: { create: { gymId } } },
   })
   const programA2 = await prisma.program.create({
-    data: { name: `Filter A2 ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId } } },
+    data: { name: `Filter A2 ${TS}`, startDate: new Date('2026-05-01'), visibility: 'PUBLIC', gyms: { create: { gymId } } },
   })
   const programB = await prisma.program.create({
     data: { name: `Filter B ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId: otherGymId } } },
@@ -507,6 +507,149 @@ async function runTests() {
     const r = await api('GET', `/me/programs?gymId=${gymId}`)
     check('me/programs without auth → 401', 401, r.status)
   }
+
+  // ── Slice 4 — visibility, browse, self-subscribe ───────────────────────────
+  console.log('\n=== Slice 4: visibility + browse + self-subscribe ===')
+
+  {
+    // Default visibility on a freshly created program is PRIVATE.
+    const r = await api('POST', `/gyms/${gymId}/programs`, programmerToken, {
+      name: `Visibility default ${TS}`,
+      startDate: '2026-06-01',
+    })
+    check('POST without visibility → 201', 201, r.status)
+    const created = r.body.program as { id: string; visibility: string } | undefined
+    check('POST default visibility = PRIVATE', 'PRIVATE', created?.visibility)
+    if (created?.id) createdProgramIds.push(created.id)
+  }
+
+  // Two slice-4 fixture programs: one PUBLIC, one PRIVATE, both linked to gymId.
+  const publicProgram = await prisma.program.create({
+    data: {
+      name: `Slice4 Public ${TS}`,
+      startDate: new Date('2026-06-01'),
+      visibility: 'PUBLIC',
+      gyms: { create: { gymId } },
+    },
+  })
+  const privateProgram = await prisma.program.create({
+    data: {
+      name: `Slice4 Private ${TS}`,
+      startDate: new Date('2026-06-01'),
+      visibility: 'PRIVATE',
+      gyms: { create: { gymId } },
+    },
+  })
+  createdProgramIds.push(publicProgram.id, privateProgram.id)
+
+  {
+    // PATCH visibility flip
+    const r = await api('PATCH', `/programs/${privateProgram.id}`, programmerToken, { visibility: 'PUBLIC' })
+    check('PATCH visibility=PUBLIC → 200', 200, r.status)
+    check('PATCH visibility persisted', 'PUBLIC', r.body.visibility)
+    // Flip back so subsequent assertions still see it as PRIVATE.
+    await api('PATCH', `/programs/${privateProgram.id}`, programmerToken, { visibility: 'PRIVATE' })
+  }
+
+  {
+    // PATCH visibility as MEMBER → 403
+    const r = await api('PATCH', `/programs/${publicProgram.id}`, memberToken, { visibility: 'PRIVATE' })
+    check('PATCH visibility as MEMBER → 403', 403, r.status)
+  }
+
+  {
+    // Browse: only PUBLIC programs the caller hasn't joined
+    const r = await api('GET', `/gyms/${gymId}/programs/browse`, memberToken)
+    check('GET browse as MEMBER → 200', 200, r.status)
+    const ids = (r.body as unknown as { programId: string }[]).map((g) => g.programId)
+    check('Browse includes PUBLIC program', true, ids.includes(publicProgram.id))
+    check('Browse excludes PRIVATE program', false, ids.includes(privateProgram.id))
+  }
+
+  {
+    // Self-subscribe to PUBLIC → 201, then duplicate → 409
+    const r = await api('POST', `/programs/${publicProgram.id}/subscribe`, memberToken)
+    check('POST subscribe (PUBLIC) → 201', 201, r.status)
+    check('POST subscribe → role=MEMBER', 'MEMBER', r.body.role)
+  }
+
+  {
+    const r = await api('POST', `/programs/${publicProgram.id}/subscribe`, memberToken)
+    check('POST subscribe duplicate → 409', 409, r.status)
+  }
+
+  {
+    // After joining, browse no longer surfaces the same program
+    const r = await api('GET', `/gyms/${gymId}/programs/browse`, memberToken)
+    const ids = (r.body as unknown as { programId: string }[]).map((g) => g.programId)
+    check('Browse drops just-joined program', false, ids.includes(publicProgram.id))
+  }
+
+  {
+    // Self-subscribe to PRIVATE → 403
+    const r = await api('POST', `/programs/${privateProgram.id}/subscribe`, memberToken)
+    check('POST subscribe (PRIVATE) → 403', 403, r.status)
+  }
+
+  {
+    // Outsider (in otherGymId only) → 403, not 404, so we don't leak existence
+    const r = await api('POST', `/programs/${publicProgram.id}/subscribe`, outsiderToken)
+    check('POST subscribe as non-gym user → 403', 403, r.status)
+  }
+
+  {
+    // Self-unsubscribe — leave the program
+    const r = await api('DELETE', `/programs/${publicProgram.id}/subscribe`, memberToken)
+    check('DELETE subscribe (own membership) → 204', 204, r.status)
+  }
+
+  {
+    // Already left → 404 from the same endpoint
+    const r = await api('DELETE', `/programs/${publicProgram.id}/subscribe`, memberToken)
+    check('DELETE subscribe (already left) → 404', 404, r.status)
+  }
+
+  // ── Visibility-aware /workouts?programIds=… (slice 4 tightening) ────────────
+
+  // Seed one PUBLISHED workout in the PRIVATE program.
+  const privateWorkout = await prisma.workout.create({
+    data: {
+      programId: privateProgram.id, title: 'Private workout', description: 'private', type: 'AMRAP',
+      scheduledAt: new Date('2026-06-10T12:00:00Z'), status: 'PUBLISHED',
+    },
+  })
+
+  const range4 = 'from=2026-06-01&to=2026-06-30T23:59:59Z'
+
+  {
+    // MEMBER (no UserProgram row) hitting /workouts?programIds=<private> → 403
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range4}&programIds=${privateProgram.id}`, memberToken)
+    check('GET ?programIds=<private> as MEMBER → 403', 403, r.status)
+  }
+
+  {
+    // Coach (gym staff) gets through despite no UserProgram row
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range4}&programIds=${privateProgram.id}`, coachToken)
+    check('GET ?programIds=<private> as COACH → 200', 200, r.status)
+  }
+
+  {
+    // OWNER bypasses too
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range4}&programIds=${privateProgram.id}`, ownerToken)
+    check('GET ?programIds=<private> as OWNER → 200', 200, r.status)
+  }
+
+  {
+    // Subscribe member directly so they can see PRIVATE workouts they were invited to
+    await prisma.userProgram.create({ data: { userId: memberUserId, programId: privateProgram.id, role: 'MEMBER' } })
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range4}&programIds=${privateProgram.id}`, memberToken)
+    check('GET ?programIds=<private> as subscribed MEMBER → 200', 200, r.status)
+    await prisma.userProgram.delete({
+      where: { userId_programId: { userId: memberUserId, programId: privateProgram.id } },
+    })
+  }
+
+  await prisma.workout.delete({ where: { id: privateWorkout.id } })
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────

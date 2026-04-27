@@ -33,6 +33,7 @@ function makeGymProgram(overrides: Partial<{ id: string; name: string; memberCou
       startDate: '2026-03-01T00:00:00.000Z',
       endDate: null,
       coverColor: overrides.coverColor ?? null,
+      visibility: 'PRIVATE' as const,
       createdAt: '2026-03-01T00:00:00.000Z',
       updatedAt: '2026-03-01T00:00:00.000Z',
       _count: {

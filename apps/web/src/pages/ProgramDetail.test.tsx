@@ -28,7 +28,9 @@ vi.mock('../context/GymContext.tsx', () => ({
 
 import { api } from '../lib/api'
 
-function makeGymProgram(overrides: Partial<{ name: string; description: string | null }> = {}) {
+function makeGymProgram(
+  overrides: Partial<{ name: string; description: string | null; visibility: 'PUBLIC' | 'PRIVATE' }> = {},
+) {
   return {
     gymId: 'gym-1',
     programId: 'program-1',
@@ -40,6 +42,7 @@ function makeGymProgram(overrides: Partial<{ name: string; description: string |
       startDate: '2026-03-01T00:00:00.000Z',
       endDate: '2026-03-31T00:00:00.000Z',
       coverColor: '#6366F1',
+      visibility: overrides.visibility ?? 'PRIVATE' as const,
       createdAt: '2026-03-01T00:00:00.000Z',
       updatedAt: '2026-03-01T00:00:00.000Z',
       _count: { members: 5, workouts: 31 },
@@ -172,5 +175,21 @@ describe('ProgramDetail', () => {
 
     // The Members tab fetch should have been triggered
     await waitFor(() => expect(api.programs.members.list).toHaveBeenCalledWith('program-1'))
+  })
+
+  // ─── Visibility badge (slice 4) ────────────────────────────────────────────
+
+  it('renders the 🔒 Private visibility badge by default', async () => {
+    vi.mocked(api.programs.get).mockResolvedValue(makeGymProgram())
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Override — March 2026' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Private program')).toBeInTheDocument()
+  })
+
+  it('renders the 🌐 Public visibility badge for a PUBLIC program', async () => {
+    vi.mocked(api.programs.get).mockResolvedValue(makeGymProgram({ visibility: 'PUBLIC' }))
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Override — March 2026' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Public program')).toBeInTheDocument()
   })
 })
