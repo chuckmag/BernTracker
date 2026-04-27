@@ -7,16 +7,14 @@ import {
   type UserProfile,
 } from '../lib/api'
 import Button from '../components/ui/Button'
-import SegmentedControl from '../components/ui/SegmentedControl'
 import AvatarPlaceholder from '../components/AvatarPlaceholder'
 import EmergencyContactsEditor from '../components/EmergencyContactsEditor'
-
-const GENDER_OPTIONS: { value: NonNullable<IdentifiedGender>; label: string }[] = [
-  { value: 'FEMALE', label: 'Female' },
-  { value: 'MALE', label: 'Male' },
-  { value: 'NON_BINARY', label: 'Non-binary' },
-  { value: 'PREFER_NOT_TO_SAY', label: 'Prefer not to say' },
-]
+import {
+  NameFields,
+  BirthdayField,
+  GenderField,
+  GENDER_OPTIONS,
+} from '../components/ProfileFields'
 
 export default function Profile() {
   const { user, logout } = useAuth()
@@ -93,43 +91,17 @@ export default function Profile() {
         <section className="space-y-4">
           <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Personal info</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-xs text-gray-400 mb-1 block">First name</span>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs text-gray-400 mb-1 block">Last name</span>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </label>
-            <label className="block">
-              <span className="text-xs text-gray-400 mb-1 block">Birthday</span>
-              <input
-                type="date"
-                value={birthday}
-                onChange={(e) => setBirthday(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </label>
-            <div>
-              <span className="text-xs text-gray-400 mb-1 block">Gender</span>
-              <SegmentedControl
-                aria-label="Identified gender"
-                options={GENDER_OPTIONS}
-                value={(gender as NonNullable<IdentifiedGender>) || GENDER_OPTIONS[0].value}
-                onChange={setGender}
-                className="flex-wrap"
-              />
-            </div>
+            <NameFields
+              firstName={firstName}
+              lastName={lastName}
+              onFirstNameChange={setFirstName}
+              onLastNameChange={setLastName}
+            />
+            <BirthdayField value={birthday} onChange={setBirthday} />
+            <GenderField
+              value={(gender as NonNullable<IdentifiedGender>) || GENDER_OPTIONS[0].value}
+              onChange={setGender}
+            />
           </div>
         </section>
 
