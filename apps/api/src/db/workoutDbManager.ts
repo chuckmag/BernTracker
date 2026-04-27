@@ -133,11 +133,16 @@ export async function findWorkoutById(id: string) {
   })
 }
 
-// Lightweight query for auth middleware — returns only programId
-export async function findWorkoutProgramId(id: string) {
+// Lightweight query for auth middleware — returns the workout's programId plus
+// the program's linked gymIds (empty array when the program is unaffiliated,
+// e.g. the public CrossFit Mainsite program created by the ingest job).
+export async function findWorkoutWithProgramGyms(id: string) {
   return prisma.workout.findUnique({
     where: { id },
-    select: { programId: true },
+    select: {
+      programId: true,
+      program: { select: { gyms: { select: { gymId: true } } } },
+    },
   })
 }
 

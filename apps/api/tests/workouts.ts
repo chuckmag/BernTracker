@@ -313,6 +313,173 @@ async function runTests() {
     check('Re-subscribe MEMBER as PROGRAMMER → 201', 201, r.status)
     check('Re-subscribe → role promoted to PROGRAMMER', 'PROGRAMMER', r.body.role)
   }
+
+  // ── Workout auth: gym-linked program (#118) ────────────────────────────────
+  // Regression coverage for the bug where workout write access ran the caller's
+  // UserProgram.role through the gym-role allowlist. The fix derives write
+  // access for gym-linked programs from gym roles only; UserProgram is for
+  // subscribers (read access) and the unaffiliated-program fallback.
+  console.log('\n=== Workout auth: gym-linked program (#118) ===')
+
+  // Fresh program + workout owned by a brand-new gym OWNER who has NO
+  // UserProgram row — this is the exact path a gym OWNER takes after
+  // POST /api/gyms/:gymId/programs and is the bug repro.
+  const ownerNoSub = await prisma.user.create({ data: { email: `at-owner-nosub-${TS}@test.com` } })
+  const coachNoSub = await prisma.user.create({ data: { email: `at-coach-nosub-${TS}@test.com` } })
+  const memberSubProgrammer = await prisma.user.create({ data: { email: `at-mem-progsub-${TS}@test.com` } })
+  await prisma.userGym.createMany({
+    data: [
+      { userId: ownerNoSub.id, gymId, role: 'OWNER' },
+      { userId: coachNoSub.id, gymId, role: 'COACH' },
+      { userId: memberSubProgrammer.id, gymId, role: 'MEMBER' },
+    ],
+  })
+  // memberSubProgrammer has UserProgram.PROGRAMMER but only MEMBER gym role —
+  // they must NOT be able to write under the new rule.
+  await prisma.userProgram.create({
+    data: { userId: memberSubProgrammer.id, programId, role: ProgramRole.PROGRAMMER },
+  })
+  const ownerNoSubToken = signTokenPair(ownerNoSub.id, 'OWNER').accessToken
+  const coachNoSubToken = signTokenPair(coachNoSub.id, 'COACH').accessToken
+  const memberSubProgrammerToken = signTokenPair(memberSubProgrammer.id, 'MEMBER').accessToken
+
+  const ownerWorkout = await prisma.workout.create({
+    data: {
+      programId,
+      title: 'Owner-created workout',
+      description: 'created via gym OWNER without UserProgram subscription',
+      type: 'FOR_TIME',
+      scheduledAt: new Date('2026-04-05T10:00:00Z'),
+    },
+  })
+
+  {
+    const r = await api('GET', `/workouts/${ownerWorkout.id}`, ownerNoSubToken)
+    check('Gym OWNER (no UserProgram) → GET 200', 200, r.status)
+  }
+
+  {
+    const r = await api('PATCH', `/workouts/${ownerWorkout.id}`, ownerNoSubToken, { title: 'Renamed by owner' })
+    check('Gym OWNER (no UserProgram) → PATCH 200', 200, r.status)
+    check('Gym OWNER PATCH → title applied', 'Renamed by owner', r.body.title)
+  }
+
+  {
+    const r = await api('POST', `/workouts/${ownerWorkout.id}/publish`, ownerNoSubToken)
+    check('Gym OWNER (no UserProgram) → publish 200', 200, r.status)
+    check('Gym OWNER publish → status PUBLISHED', 'PUBLISHED', r.body.status)
+  }
+
+  {
+    const r = await api('GET', `/workouts/${ownerWorkout.id}`, coachNoSubToken)
+    check('Gym COACH (no UserProgram) → GET 200', 200, r.status)
+  }
+
+  {
+    // Create a second draft to delete with COACH so we can verify write access
+    const w = await prisma.workout.create({
+      data: {
+        programId,
+        title: 'Coach delete target',
+        description: 'd',
+        type: 'EMOM',
+        scheduledAt: new Date('2026-04-06T10:00:00Z'),
+      },
+    })
+    const r = await api('DELETE', `/workouts/${w.id}`, coachNoSubToken)
+    check('Gym COACH (no UserProgram) → DELETE 204', 204, r.status)
+  }
+
+  {
+    const r = await api('PATCH', `/workouts/${ownerWorkout.id}`, memberSubProgrammerToken, { title: 'Should fail' })
+    check('Gym MEMBER + UserProgram.PROGRAMMER → PATCH 403', 403, r.status)
+  }
+
+  {
+    // MEMBER gym role with UserProgram subscription can still READ (subscriber)
+    const r = await api('GET', `/workouts/${ownerWorkout.id}`, memberSubProgrammerToken)
+    check('Gym MEMBER + UserProgram subscriber → GET 200', 200, r.status)
+  }
+
+  {
+    // Bystander outside the gym with no UserProgram → 403 on GET
+    const stranger = await prisma.user.create({ data: { email: `at-stranger-${TS}@test.com` } })
+    const strangerToken = signTokenPair(stranger.id, 'MEMBER').accessToken
+    const r = await api('GET', `/workouts/${ownerWorkout.id}`, strangerToken)
+    check('Stranger (no gym, no UserProgram) → GET 403', 403, r.status)
+    await prisma.user.delete({ where: { id: stranger.id } })
+  }
+
+  await prisma.workout.delete({ where: { id: ownerWorkout.id } }).catch(() => {})
+  await prisma.userProgram.deleteMany({ where: { userId: memberSubProgrammer.id } })
+  await prisma.user.deleteMany({
+    where: { id: { in: [ownerNoSub.id, coachNoSub.id, memberSubProgrammer.id] } },
+  })
+
+  // ── Workout auth: unaffiliated program (UserProgram fallback) (#118) ───────
+  // Programs with zero GymProgram rows (e.g. the public CrossFit Mainsite
+  // program seeded by the ingest job) fall back to UserProgram for both read
+  // (any subscription) and write (PROGRAMMER subscription).
+  console.log('\n=== Workout auth: unaffiliated program (#118) ===')
+
+  const orphanProgram = await prisma.program.create({
+    data: { name: `Orphan Program ${TS}`, startDate: new Date('2026-04-01') },
+  })
+  const orphanWorkout = await prisma.workout.create({
+    data: {
+      programId: orphanProgram.id,
+      title: 'Orphan program workout',
+      description: 'no gym link',
+      type: 'CARDIO',
+      scheduledAt: new Date('2026-04-10T10:00:00Z'),
+    },
+  })
+
+  const orphanProgrammer = await prisma.user.create({ data: { email: `at-orph-prog-${TS}@test.com` } })
+  const orphanMember = await prisma.user.create({ data: { email: `at-orph-mem-${TS}@test.com` } })
+  await prisma.userProgram.createMany({
+    data: [
+      { userId: orphanProgrammer.id, programId: orphanProgram.id, role: ProgramRole.PROGRAMMER },
+      { userId: orphanMember.id, programId: orphanProgram.id, role: ProgramRole.MEMBER },
+    ],
+  })
+  const orphanProgrammerToken = signTokenPair(orphanProgrammer.id, 'MEMBER').accessToken
+  const orphanMemberToken = signTokenPair(orphanMember.id, 'MEMBER').accessToken
+
+  {
+    const r = await api('GET', `/workouts/${orphanWorkout.id}`, orphanMemberToken)
+    check('Unaffiliated program: UserProgram.MEMBER → GET 200', 200, r.status)
+  }
+
+  {
+    const r = await api('PATCH', `/workouts/${orphanWorkout.id}`, orphanMemberToken, { title: 'denied' })
+    check('Unaffiliated program: UserProgram.MEMBER → PATCH 403', 403, r.status)
+  }
+
+  {
+    const r = await api('PATCH', `/workouts/${orphanWorkout.id}`, orphanProgrammerToken, { title: 'orphan renamed' })
+    check('Unaffiliated program: UserProgram.PROGRAMMER → PATCH 200', 200, r.status)
+    check('Unaffiliated program PATCH → title applied', 'orphan renamed', r.body.title)
+  }
+
+  {
+    const r = await api('POST', `/workouts/${orphanWorkout.id}/publish`, orphanProgrammerToken)
+    check('Unaffiliated program: UserProgram.PROGRAMMER → publish 200', 200, r.status)
+  }
+
+  {
+    // Even a gym OWNER (in a different gym) has no claim on an unaffiliated
+    // program — only UserProgram applies.
+    const r = await api('GET', `/workouts/${orphanWorkout.id}`, programmerToken)
+    check('Unaffiliated program: gym staff with no UserProgram → GET 403', 403, r.status)
+  }
+
+  await prisma.workout.delete({ where: { id: orphanWorkout.id } })
+  await prisma.userProgram.deleteMany({ where: { programId: orphanProgram.id } })
+  await prisma.program.delete({ where: { id: orphanProgram.id } })
+  await prisma.user.deleteMany({
+    where: { id: { in: [orphanProgrammer.id, orphanMember.id] } },
+  })
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────
