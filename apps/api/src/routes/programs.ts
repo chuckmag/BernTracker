@@ -22,6 +22,7 @@ import {
   findProgramsWithDetailsByGymId,
   findProgramWithDetailsByIdAndGymId,
   createProgramAndLinkToGym,
+  findBrowseProgramsForGymAndUser,
 } from '../db/gymProgramDbManager.js'
 import {
   findProgramWithGymIds,
@@ -34,7 +35,6 @@ import {
 } from '../db/userGymDbManager.js'
 import {
   findProgramById,
-  subscribeUserToProgram,
   unsubscribeUserFromProgram,
   createUserProgramSubscription,
   findProgramMembersWithUserInfo,
@@ -55,6 +55,9 @@ router.get('/me/programs', requireAuth, listMyProgramsInGym)
 
 // GET  /api/gyms/:gymId/programs
 router.get('/gyms/:gymId/programs', requireAuth, validateGymExists, requireGymMembership, listProgramsForGym)
+
+// GET  /api/gyms/:gymId/programs/browse  — PUBLIC programs the caller hasn't joined yet (slice 4)
+router.get('/gyms/:gymId/programs/browse', requireAuth, validateGymExists, requireGymMembership, listBrowseProgramsForGym)
 
 // POST /api/gyms/:gymId/programs
 router.post('/gyms/:gymId/programs', requireAuth, validateGymExists, requireGymWriteAccess, createProgramForGym)
@@ -77,12 +80,14 @@ router.post('/programs/:id/members', requireAuth, requireProgramGymManager, invi
 // DELETE /api/programs/:id/members/:userId  — remove a member's subscription (slice 3)
 router.delete('/programs/:id/members/:userId', requireAuth, requireProgramGymManager, removeProgramMember)
 
-// POST   /api/programs/:id/subscribe  — used by the gym-level Members page (per-member view).
-//        Predates slice 3's cleaner /members routes; left in place so the existing UI keeps working.
-router.post('/programs/:id/subscribe', subscribeToProgram)
+// POST /api/programs/:id/subscribe  — self-subscribe (slice 4). Caller must be
+//        a member of one of the program's linked gyms; program must be PUBLIC.
+//        Returns 403 on PRIVATE, 409 on duplicate.
+router.post('/programs/:id/subscribe', requireAuth, selfSubscribeToProgram)
 
-// DELETE /api/programs/:id/subscribe  — see note above
-router.delete('/programs/:id/subscribe', unsubscribeFromProgram)
+// DELETE /api/programs/:id/subscribe  — leave a program (slice 4). Mirrors the
+//        self-subscribe endpoint. Staff-managed removal lives at /members/:userId.
+router.delete('/programs/:id/subscribe', requireAuth, selfUnsubscribeFromProgram)
 
 export default router
 
@@ -138,15 +143,23 @@ async function patchProgram(req: Request, res: Response) {
     return res.status(400).json({ error: `${field}: ${message}` })
   }
 
-  const { name, description, startDate, endDate, coverColor } = parsed.data
+  const { name, description, startDate, endDate, coverColor, visibility } = parsed.data
   const program = await updateProgramById(req.params.id as string, {
     name,
     description,
     startDate: startDate ? new Date(startDate) : undefined,
     endDate: endDate === null ? null : endDate ? new Date(endDate) : undefined,
     coverColor,
+    visibility,
   })
   res.json(program)
+}
+
+async function listBrowseProgramsForGym(req: Request, res: Response) {
+  const gymId = req.params.gymId as string
+  const userId = req.user!.id
+  const rows = await findBrowseProgramsForGymAndUser(gymId, userId)
+  res.json(rows)
 }
 
 async function deleteProgram(req: Request, res: Response) {
@@ -230,19 +243,51 @@ async function removeProgramMember(req: Request, res: Response) {
   res.status(204).send()
 }
 
-async function subscribeToProgram(req: Request, res: Response) {
-  const { userId, role } = req.body as { userId: string; role?: 'MEMBER' | 'PROGRAMMER' }
-  const program = await findProgramById(req.params.id as string)
-  if (!program) return res.status(404).json({ error: 'Program not found' })
+async function selfSubscribeToProgram(req: Request, res: Response) {
+  const programId = req.params.id as string
+  const userId = req.user!.id
 
-  const programRole = role === 'PROGRAMMER' ? ProgramRole.PROGRAMMER : ProgramRole.MEMBER
-  const userProgram = await subscribeUserToProgram(userId, req.params.id as string, programRole)
-  res.status(201).json(userProgram)
+  const programWithGyms = await findProgramWithGymIds(programId)
+  if (!programWithGyms) return res.status(404).json({ error: 'Program not found' })
+
+  // Caller must belong to at least one gym linked to the program. Otherwise
+  // they can't even know the program exists, let alone subscribe.
+  const callerInLinkedGym = await isUserMemberOfAnyGym(userId, programWithGyms.gyms.map((g) => g.gymId))
+  if (!callerInLinkedGym) return res.status(403).json({ error: 'Forbidden' })
+
+  // Visibility check — PRIVATE programs only accept staff-managed invites.
+  const programMeta = await findProgramById(programId)
+  if (programMeta?.visibility === 'PRIVATE') {
+    return res.status(403).json({ error: 'This program is private. Ask a staff member for an invite.' })
+  }
+
+  try {
+    const created = await createUserProgramSubscription(userId, programId, ProgramRole.MEMBER)
+    res.status(201).json({
+      programId,
+      userId: created.userId,
+      role: created.role,
+      joinedAt: created.joinedAt,
+    })
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return res.status(409).json({ error: 'Already a member' })
+    }
+    throw err
+  }
 }
 
-async function unsubscribeFromProgram(req: Request, res: Response) {
-  const { userId } = req.body as { userId: string }
-  await unsubscribeUserFromProgram(userId, req.params.id as string)
+async function selfUnsubscribeFromProgram(req: Request, res: Response) {
+  const programId = req.params.id as string
+  const userId = req.user!.id
+  try {
+    await unsubscribeUserFromProgram(userId, programId)
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+      return res.status(404).json({ error: 'Not a member' })
+    }
+    throw err
+  }
   res.status(204).send()
 }
 

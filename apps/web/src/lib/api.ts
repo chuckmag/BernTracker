@@ -192,6 +192,8 @@ export interface Member {
   programs: { id: string; name: string }[]
 }
 
+export type ProgramVisibility = 'PUBLIC' | 'PRIVATE'
+
 export interface Program {
   id: string
   name: string
@@ -199,6 +201,7 @@ export interface Program {
   startDate: string
   endDate: string | null
   coverColor: string | null
+  visibility: ProgramVisibility
   createdAt: string
   updatedAt: string
   _count?: { members: number; workouts: number }
@@ -390,7 +393,7 @@ export const api = {
 
       create: (
         gymId: string,
-        data: { name: string; description?: string; startDate: string; endDate?: string; coverColor?: string },
+        data: { name: string; description?: string; startDate: string; endDate?: string; coverColor?: string; visibility?: ProgramVisibility },
         token?: string,
       ) =>
         req<{ program: Program }>(`/api/gyms/${gymId}/programs`, {
@@ -398,6 +401,9 @@ export const api = {
           body: JSON.stringify(data),
           token,
         }),
+
+      browse: (gymId: string, token?: string) =>
+        req<GymProgram[]>(`/api/gyms/${gymId}/programs/browse`, { token }),
     },
   },
 
@@ -543,6 +549,7 @@ export const api = {
         startDate?: string
         endDate?: string | null
         coverColor?: string | null
+        visibility?: ProgramVisibility
       },
       token?: string,
     ) =>
@@ -573,18 +580,19 @@ export const api = {
         req<void>(`/api/programs/${programId}/members/${userId}`, { method: 'DELETE', token }),
     },
 
-    subscribe: (id: string, userId: string, token?: string) =>
-      req<unknown>(`/api/programs/${id}/subscribe`, {
-        method: 'POST',
-        body: JSON.stringify({ userId }),
-        token,
-      }),
+    /**
+     * Self-subscribe to a PUBLIC program (slice 4). Server returns 403 on
+     * PRIVATE programs, 409 on duplicate. Drives the Browse page's Join
+     * button.
+     */
+    subscribe: (id: string, token?: string) =>
+      req<{ programId: string; userId: string; role: ProgramRole; joinedAt: string }>(
+        `/api/programs/${id}/subscribe`,
+        { method: 'POST', token },
+      ),
 
-    unsubscribe: (id: string, userId: string, token?: string) =>
-      req<void>(`/api/programs/${id}/subscribe`, {
-        method: 'DELETE',
-        body: JSON.stringify({ userId }),
-        token,
-      }),
+    /** Leave a program — caller's own membership only. */
+    unsubscribe: (id: string, token?: string) =>
+      req<void>(`/api/programs/${id}/subscribe`, { method: 'DELETE', token }),
   },
 }

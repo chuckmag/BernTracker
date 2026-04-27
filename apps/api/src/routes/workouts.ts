@@ -90,10 +90,12 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
     ? rawProgramIds.split(',').map((s) => s.trim()).filter(Boolean)
     : []
   if (programIdList.length > 0) {
-    // Each id is independently access-checked. Return the first failure so
-    // a malformed url in the picker doesn't silently leak a partial result.
+    // Each id is independently access-checked. Visibility-aware (slice 4):
+    // PRIVATE programs require staff role in any linked gym OR a UserProgram
+    // row; PUBLIC programs are visible to every gym member.
+    const callerGymRole = membership?.role ?? 'MEMBER'
     for (const id of programIdList) {
-      const access = await findProgramGymAccessForUser(id, gymId)
+      const access = await findProgramGymAccessForUser(id, gymId, req.user!.id, callerGymRole)
       if (access === 'not-found') return res.status(404).json({ error: `Program not found: ${id}` })
       if (access === 'forbidden') return res.status(403).json({ error: 'Forbidden' })
     }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type Program } from '../lib/api'
+import { api, type Program, type ProgramVisibility } from '../lib/api'
 import Button from './ui/Button'
 
 const COVER_COLORS = [
@@ -33,6 +33,7 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [coverColor, setCoverColor] = useState<string | null>(null)
+  const [visibility, setVisibility] = useState<ProgramVisibility>('PRIVATE')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,6 +44,7 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
     setStartDate(toDateInputValue(program?.startDate))
     setEndDate(toDateInputValue(program?.endDate))
     setCoverColor(program?.coverColor ?? null)
+    setVisibility(program?.visibility ?? 'PRIVATE')
     setError(null)
   }, [open, program?.id])
 
@@ -68,6 +70,7 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
           startDate,
           endDate: endDate || null,
           coverColor: coverColor || null,
+          visibility,
         })
         onSaved(updated)
       } else {
@@ -77,6 +80,7 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
           startDate,
           endDate: endDate || undefined,
           coverColor: coverColor || undefined,
+          visibility,
         })
         onSaved(created)
       }
@@ -192,6 +196,40 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
                   ].join(' ')}
                 />
               ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-2">Visibility</label>
+            <div className="grid grid-cols-1 gap-2">
+              {([
+                { value: 'PRIVATE', label: '🔒 Private', body: 'Staff invite only — members must be added to see the program.' },
+                { value: 'PUBLIC',  label: '🌐 Public',  body: 'Any gym member can find and join from Browse Programs.' },
+              ] as const).map((opt) => {
+                const checked = visibility === opt.value
+                return (
+                  <label
+                    key={opt.value}
+                    className={[
+                      'flex items-start gap-3 px-3 py-2 rounded border cursor-pointer transition-colors',
+                      checked ? 'border-indigo-500 bg-indigo-500/10' : 'border-gray-700 hover:border-gray-600',
+                    ].join(' ')}
+                  >
+                    <input
+                      type="radio"
+                      name="visibility"
+                      value={opt.value}
+                      checked={checked}
+                      onChange={() => setVisibility(opt.value)}
+                      className="mt-1 h-4 w-4 border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm text-white">{opt.label}</span>
+                      <span className="block text-xs text-gray-400 mt-0.5">{opt.body}</span>
+                    </span>
+                  </label>
+                )
+              })}
             </div>
           </div>
         </div>
