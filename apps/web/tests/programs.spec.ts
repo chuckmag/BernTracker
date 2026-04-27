@@ -192,4 +192,76 @@ test.describe('Programs CRUD E2E', () => {
       await prisma.gym.delete({ where: { id: otherGym.id } }).catch(() => {})
     }
   })
+
+  // ── #85: Members tab — invite + remove roundtrip ───────────────────────────
+  // ────────────────────────────────────────────────────────────────────────────
+
+  test('OWNER invites a gym member onto a program then removes them', async ({ page }) => {
+    const name = `E2E Membership ${randomUUID().slice(0, 6)}`
+    const seeded = await prisma.program.create({
+      data: {
+        name,
+        startDate: new Date('2026-05-01'),
+        gyms: { create: { gymId: f.gymId } },
+      },
+    })
+    await loginAndSelectGym(page, f.owner.id, 'OWNER', f.gymId)
+    await page.goto(`/programs/${seeded.id}`)
+    await expect(page.locator('h1', { hasText: name })).toBeVisible()
+
+    // The Members tab — text capitalized via CSS, accessible name is "members".
+    await page.getByRole('button', { name: /^members/i }).click()
+    await page.getByRole('button', { name: 'Invite members' }).first().click()
+
+    // Pick the seeded MEMBER user, submit the batch
+    await page.getByLabel('Search gym members').fill(f.member.email)
+    await page.getByRole('checkbox').first().check()
+    await page.getByRole('button', { name: /Invite 1 member/ }).click()
+
+    // Member's row appears in the roster
+    await expect(page.getByText(f.member.email)).toBeVisible({ timeout: 5000 })
+
+    // Remove via the row's button — window.confirm auto-accept
+    page.once('dialog', (d) => d.accept())
+    await page.getByRole('button', { name: 'Remove' }).first().click()
+    await expect(page.getByText(f.member.email)).not.toBeVisible({ timeout: 5000 })
+  })
+
+  test('COACH sees the Members tab without invite/remove controls', async ({ page }) => {
+    // Seed a coach user + a program where the existing seeded MEMBER is subscribed.
+    const coach = await prisma.user.create({
+      data: { email: `prog-e2e-coach-${randomUUID().slice(0, 6)}@test.com` },
+    })
+    await prisma.userGym.create({ data: { userId: coach.id, gymId: f.gymId, role: 'COACH' } })
+
+    const name = `E2E Coach View ${randomUUID().slice(0, 6)}`
+    const seeded = await prisma.program.create({
+      data: {
+        name,
+        startDate: new Date('2026-05-01'),
+        gyms: { create: { gymId: f.gymId } },
+        members: { create: { userId: f.member.id, role: 'MEMBER' } },
+      },
+    })
+    try {
+      await loginAndSelectGym(page, coach.id, 'COACH', f.gymId)
+      await page.goto(`/programs/${seeded.id}`)
+      await expect(page.locator('h1', { hasText: name })).toBeVisible()
+
+      await page.getByRole('button', { name: /^members/i }).click()
+
+      // Roster row visible
+      await expect(page.getByText(f.member.email)).toBeVisible({ timeout: 5000 })
+      // Read-only — neither Invite nor Remove present
+      await expect(page.getByRole('button', { name: 'Invite members' })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Remove' })).toHaveCount(0)
+    } finally {
+      // afterEach handles f.gymId's programs; the coach is on a separate user row.
+      await prisma.userProgram.deleteMany({ where: { programId: seeded.id } }).catch(() => {})
+      await prisma.userGym.delete({
+        where: { userId_gymId: { userId: coach.id, gymId: f.gymId } },
+      }).catch(() => {})
+      await prisma.user.delete({ where: { id: coach.id } }).catch(() => {})
+    }
+  })
 })

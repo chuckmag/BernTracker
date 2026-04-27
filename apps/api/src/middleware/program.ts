@@ -72,3 +72,20 @@ export async function requireProgramGymOwner(req: Request, res: Response, next: 
   }
   next()
 }
+
+const managerRoles: Role[] = ['OWNER', 'PROGRAMMER']
+
+/**
+ * Stricter than requireProgramGymWriteAccess — excludes COACH. Used for the
+ * member-invite/remove endpoints because COACH gets a read-only Members tab.
+ */
+export async function requireProgramGymManager(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const ctx = await loadProgramAndUserRoles(req, res)
+  if (!ctx) return
+  if (!ctx.roles.some((r) => managerRoles.includes(r))) {
+    log.warning(req, `requireProgramGymManager: OWNER or PROGRAMMER required — ${req.method} ${req.path} — userId=${req.user?.id} roles=${ctx.roles.join('|') || 'none'}`)
+    res.status(403).json({ error: 'Forbidden' })
+    return
+  }
+  next()
+}

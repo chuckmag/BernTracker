@@ -28,6 +28,10 @@ const API_BASE = 3001
 const WEB_BASE = 5174
 const SCAN_RANGE = 100  // tries [base, base + SCAN_RANGE)
 
+// Probe both IPv4 and IPv6 — Express defaults to one stack, Vite defaults to
+// the other, and a sibling worktree on either is enough to fail the actual
+// server bind even if the other stack looks clear. Treat the port as free
+// only if both binds succeed.
 function probeHost(port, host) {
   return new Promise((resolveProbe) => {
     const server = net.createServer()
@@ -37,9 +41,6 @@ function probeHost(port, host) {
   })
 }
 
-// Probe both IPv4 and IPv6 — Vite binds dual-stack on macOS, so a process
-// listening only on `[::1]` (IPv6) would still cause Vite to fail with
-// EADDRINUSE even though `127.0.0.1` is technically free.
 async function isFree(port) {
   return (await probeHost(port, '127.0.0.1')) && (await probeHost(port, '::1'))
 }
