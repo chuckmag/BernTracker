@@ -23,3 +23,49 @@ export async function updateGymNameAndTimezone(id: string, data: { name?: string
     data: { ...(data.name ? { name: data.name } : {}), ...(data.timezone ? { timezone: data.timezone } : {}) },
   })
 }
+
+// Discovery query for /gyms/browse (slice D2). Returns a lightweight gym list
+// matching the search query, with member counts and the caller's relationship
+// state (member? request pending?) so the UI can render the right CTA without
+// a follow-up roundtrip.
+export async function findGymsForBrowseAndUser(args: { search: string; userId: string }) {
+  const where = args.search.trim().length > 0
+    ? { name: { contains: args.search.trim(), mode: 'insensitive' as const } }
+    : {}
+  const [gyms, memberships, pendingRequests] = await Promise.all([
+    prisma.gym.findMany({
+      where,
+      orderBy: { name: 'asc' },
+      take: 50,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        timezone: true,
+        _count: { select: { members: true } },
+      },
+    }),
+    prisma.userGym.findMany({
+      where: { userId: args.userId },
+      select: { gymId: true },
+    }),
+    prisma.gymMembershipRequest.findMany({
+      where: { userId: args.userId, direction: 'USER_REQUESTED', status: 'PENDING' },
+      select: { gymId: true },
+    }),
+  ])
+  const memberGymIds = new Set(memberships.map((m) => m.gymId))
+  const pendingGymIds = new Set(pendingRequests.map((r) => r.gymId))
+  return gyms.map((g) => ({
+    id: g.id,
+    name: g.name,
+    slug: g.slug,
+    timezone: g.timezone,
+    memberCount: g._count.members,
+    callerStatus: memberGymIds.has(g.id)
+      ? ('MEMBER' as const)
+      : pendingGymIds.has(g.id)
+        ? ('REQUEST_PENDING' as const)
+        : ('NONE' as const),
+  }))
+}

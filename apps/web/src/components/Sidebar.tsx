@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.tsx'
 import { useGym } from '../context/GymContext.tsx'
 import ProgramFilterPicker from './ProgramFilterPicker.tsx'
 
+// Browse Gyms moved into the TopBar gym picker — no standalone sidebar entry.
 const memberLinks = [
   { to: '/feed',    label: 'Feed'    },
   { to: '/history', label: 'History' },

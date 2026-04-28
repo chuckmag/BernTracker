@@ -14,6 +14,11 @@ import {
   setInvitationStatus,
   findUserByEmail,
   acceptInvitationAndCreateMembership,
+  findExistingPendingJoinRequest,
+  createJoinRequest,
+  findPendingJoinRequestsByGymId,
+  findPendingJoinRequestsForUser,
+  approveJoinRequestAndCreateMembership,
 } from '../db/gymMembershipRequestDbManager.js'
 import { createLogger } from '../lib/logger.js'
 
@@ -38,6 +43,18 @@ router.post('/gyms/:gymId/invitations/:id/revoke', requireAuth, validateGymExist
 router.get('/users/me/invitations', requireAuth, listMyPendingInvitations)
 router.post('/invitations/:id/accept', requireAuth, acceptInvitation)
 router.post('/invitations/:id/decline', requireAuth, declineInvitation)
+
+// ─── Join requests (slice D2) ────────────────────────────────────────────────
+
+// User-side
+router.post('/gyms/:gymId/join-request', requireAuth, validateGymExists, createMyJoinRequest)
+router.delete('/gyms/:gymId/join-request', requireAuth, validateGymExists, cancelMyJoinRequest)
+router.get('/users/me/join-requests', requireAuth, listMyJoinRequests)
+
+// Staff-side
+router.get('/gyms/:gymId/join-requests', requireAuth, validateGymExists, requireGymWriteAccess, listJoinRequestsForGym)
+router.post('/gyms/:gymId/join-requests/:id/approve', requireAuth, validateGymExists, requireGymWriteAccess, approveJoinRequest)
+router.post('/gyms/:gymId/join-requests/:id/decline', requireAuth, validateGymExists, requireGymWriteAccess, declineJoinRequest)
 
 export default router
 
@@ -202,3 +219,100 @@ async function declineInvitation(req: Request, res: Response) {
   res.json(updated)
 }
 
+// ─── Join request handlers ───────────────────────────────────────────────────
+
+async function createMyJoinRequest(req: Request, res: Response) {
+  const userId = req.user!.id
+  const gymId = req.params.gymId as string
+
+  // Already a member? 409.
+  const membership = await findGymMembershipByUserAndGym(userId, gymId)
+  if (membership) {
+    res.status(409).json({ error: 'You are already a member of this gym.' })
+    return
+  }
+  // Already requested? 409.
+  const existing = await findExistingPendingJoinRequest(gymId, userId)
+  if (existing) {
+    res.status(409).json({ error: 'You already have a pending request to join this gym.' })
+    return
+  }
+
+  const created = await createJoinRequest({ gymId, userId })
+  res.status(201).json(created)
+}
+
+async function cancelMyJoinRequest(req: Request, res: Response) {
+  const userId = req.user!.id
+  const gymId = req.params.gymId as string
+  const existing = await findExistingPendingJoinRequest(gymId, userId)
+  if (!existing) {
+    res.status(404).json({ error: 'No pending request found' })
+    return
+  }
+  const updated = await setInvitationStatus({
+    id: existing.id,
+    status: 'REVOKED',
+    decidedById: userId,
+  })
+  res.json(updated)
+}
+
+async function listMyJoinRequests(req: Request, res: Response) {
+  const list = await findPendingJoinRequestsForUser(req.user!.id)
+  res.json(list)
+}
+
+async function listJoinRequestsForGym(req: Request, res: Response) {
+  const list = await findPendingJoinRequestsByGymId(req.params.gymId as string)
+  res.json(list)
+}
+
+async function approveJoinRequest(req: Request, res: Response) {
+  const id = req.params.id as string
+  const gymId = req.params.gymId as string
+  const request = await findInvitationById(id)
+  if (!request || request.gymId !== gymId || request.direction !== 'USER_REQUESTED') {
+    res.status(404).json({ error: 'Join request not found' })
+    return
+  }
+  if (request.status !== 'PENDING') {
+    res.status(409).json({ error: `Request is already ${request.status.toLowerCase()}.` })
+    return
+  }
+  if (!request.userId) {
+    // Defensive — schema migration in slice A doesn't enforce userId !== null
+    // for USER_REQUESTED, so guard at the API.
+    log.warning(req, `approveJoinRequest: request has null userId — id=${id}`)
+    res.status(500).json({ error: 'Malformed request — missing userId' })
+    return
+  }
+  const result = await approveJoinRequestAndCreateMembership({
+    requestId: id,
+    userId: request.userId,
+    gymId: request.gymId,
+    roleToGrant: request.roleToGrant,
+    decidedById: req.user!.id,
+  })
+  res.json(result)
+}
+
+async function declineJoinRequest(req: Request, res: Response) {
+  const id = req.params.id as string
+  const gymId = req.params.gymId as string
+  const request = await findInvitationById(id)
+  if (!request || request.gymId !== gymId || request.direction !== 'USER_REQUESTED') {
+    res.status(404).json({ error: 'Join request not found' })
+    return
+  }
+  if (request.status !== 'PENDING') {
+    res.status(409).json({ error: `Request is already ${request.status.toLowerCase()}.` })
+    return
+  }
+  const updated = await setInvitationStatus({
+    id,
+    status: 'DECLINED',
+    decidedById: req.user!.id,
+  })
+  res.json(updated)
+}

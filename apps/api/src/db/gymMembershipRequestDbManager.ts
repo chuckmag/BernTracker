@@ -146,3 +146,79 @@ export async function acceptInvitationAndCreateMembership(args: {
     })
   })
 }
+
+// ─── Join requests (USER_REQUESTED direction, slice D2) ──────────────────────
+
+const JOIN_REQUEST_INCLUDE = {
+  gym: { select: { id: true, name: true, slug: true } },
+  user: { select: { id: true, name: true, firstName: true, lastName: true, email: true } },
+} as const
+
+export async function findExistingPendingJoinRequest(gymId: string, userId: string) {
+  return prisma.gymMembershipRequest.findFirst({
+    where: {
+      gymId,
+      userId,
+      direction: 'USER_REQUESTED',
+      status: 'PENDING',
+    },
+    select: REQUEST_SELECT,
+  })
+}
+
+export async function createJoinRequest(args: { gymId: string; userId: string }) {
+  return prisma.gymMembershipRequest.create({
+    data: {
+      gymId: args.gymId,
+      direction: 'USER_REQUESTED',
+      userId: args.userId,
+      // roleToGrant is irrelevant for user-requested joins (the gym decides
+      // the role on approve), but the column is non-null in the schema. MEMBER
+      // is a reasonable default; staff can override at approve time.
+      roleToGrant: 'MEMBER',
+    },
+    include: JOIN_REQUEST_INCLUDE,
+  })
+}
+
+export async function findPendingJoinRequestsByGymId(gymId: string) {
+  return prisma.gymMembershipRequest.findMany({
+    where: { gymId, direction: 'USER_REQUESTED', status: 'PENDING' },
+    orderBy: { createdAt: 'desc' },
+    include: JOIN_REQUEST_INCLUDE,
+  })
+}
+
+export async function findPendingJoinRequestsForUser(userId: string) {
+  return prisma.gymMembershipRequest.findMany({
+    where: { userId, direction: 'USER_REQUESTED', status: 'PENDING' },
+    orderBy: { createdAt: 'desc' },
+    include: JOIN_REQUEST_INCLUDE,
+  })
+}
+
+// Atomic approve: upsert UserGym + flip status, mirroring the accept path.
+export async function approveJoinRequestAndCreateMembership(args: {
+  requestId: string
+  userId: string
+  gymId: string
+  roleToGrant: Role
+  decidedById: string
+}) {
+  return prisma.$transaction(async (tx) => {
+    await tx.userGym.upsert({
+      where: { userId_gymId: { userId: args.userId, gymId: args.gymId } },
+      update: { role: args.roleToGrant },
+      create: { userId: args.userId, gymId: args.gymId, role: args.roleToGrant },
+    })
+    return tx.gymMembershipRequest.update({
+      where: { id: args.requestId },
+      data: {
+        status: 'APPROVED',
+        decidedById: args.decidedById,
+        decidedAt: new Date(),
+      },
+      select: REQUEST_SELECT,
+    })
+  })
+}

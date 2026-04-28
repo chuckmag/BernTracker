@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, type Member, type GymProgram, type Role } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import GymInvitationsPanel from './GymInvitationsPanel'
+import GymJoinRequestsPanel from './GymJoinRequestsPanel'
 import Skeleton from './ui/Skeleton'
 import EmptyState from './ui/EmptyState'
 
@@ -202,6 +203,7 @@ export default function MembersTab() {
       </section>
 
       <GymInvitationsPanel />
+      <GymJoinRequestsPanel />
     </div>
   )
 }

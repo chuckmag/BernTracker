@@ -1,9 +1,11 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
+import type { Request, Response } from 'express'
 import {
   createGymAndAddOwnerMember,
   findGymById,
   updateGymNameAndTimezone,
+  findGymsForBrowseAndUser,
 } from '../db/gymDbManager.js'
 import {
   findMembersWithProgramSubscriptionsByGymId,
@@ -26,6 +28,18 @@ router.get('/me/gyms', requireAuth, async (req, res) => {
   const gyms = await findGymMembershipsByUserId(req.user!.id)
   res.json(gyms)
 })
+
+// GET /api/gyms?search=<q>  — discovery for the Browse Gyms page (slice D2).
+// Any authenticated user can list/search gyms. Each row carries the caller's
+// relationship state (MEMBER / REQUEST_PENDING / NONE) so the UI can render
+// the correct CTA without a follow-up roundtrip.
+router.get('/gyms', requireAuth, browseGyms)
+
+async function browseGyms(req: Request, res: Response) {
+  const search = typeof req.query.search === 'string' ? req.query.search : ''
+  const gyms = await findGymsForBrowseAndUser({ search, userId: req.user!.id })
+  res.json(gyms)
+}
 
 // POST /api/gyms
 router.post('/gyms', requireAuth, async (req, res) => {

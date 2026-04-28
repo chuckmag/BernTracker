@@ -47,6 +47,17 @@ vi.mock('../lib/api', () => ({
           accept: vi.fn(),
           decline: vi.fn(),
         },
+        joinRequests: {
+          list: vi.fn().mockResolvedValue([]),
+        },
+      },
+    },
+    me: {
+      gyms: vi.fn().mockResolvedValue([]),
+    },
+    gyms: {
+      joinRequest: {
+        cancel: vi.fn(),
       },
     },
     auth: { logout: vi.fn() },
@@ -106,5 +117,30 @@ describe('Profile page', () => {
     const call = vi.mocked(api.users.me.profile.update).mock.calls[0][0]
     expect(call.firstName).toBe('Alice')
     expect(call.lastName).toBe('Anderson')
+  })
+
+  it('switches to Gym Memberships tab and renders the gym list', async () => {
+    vi.mocked(api.me.gyms).mockResolvedValue([
+      { id: 'g1', name: 'Crossfit Bern', slug: 'bern', role: 'OWNER' },
+    ])
+    render(<MemoryRouter><Profile /></MemoryRouter>)
+    await screen.findByRole('heading', { name: 'Your profile' })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('tab', { name: 'Gym Memberships' }))
+    expect(await screen.findByText('Crossfit Bern')).toBeInTheDocument()
+    // Personal info from the Details tab should not be rendered now.
+    expect(screen.queryByDisplayValue('Alice')).not.toBeInTheDocument()
+  })
+
+  it('hides the Invitations and Outgoing requests sections when there are none', async () => {
+    vi.mocked(api.me.gyms).mockResolvedValue([])
+    render(<MemoryRouter><Profile /></MemoryRouter>)
+    await screen.findByRole('heading', { name: 'Your profile' })
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('tab', { name: 'Gym Memberships' }))
+    // Tab body renders without Invitations / Outgoing requests headings.
+    await screen.findByRole('heading', { name: 'Your gyms' })
+    expect(screen.queryByRole('heading', { name: 'Invitations' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Outgoing requests' })).not.toBeInTheDocument()
   })
 })
