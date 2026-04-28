@@ -10,6 +10,15 @@ const apiPort = process.env.API_PORT ?? '3000'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Resolve workspace packages (`@wodalytics/*`) via their `exports.source`
+  // condition, i.e. directly from src/*.ts. Without this Vite falls back to
+  // `default` → `dist/index.js` and prebundles the compiled output, which
+  // means edits to packages/types or packages/db don't show up until you
+  // manually rebuild dist/. Reading source removes that whole loop and lets
+  // HMR fire on cross-package changes.
+  resolve: {
+    conditions: ['source'],
+  },
   server: {
     port: webPort,
     strictPort: true,

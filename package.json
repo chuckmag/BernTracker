@@ -23,5 +23,10 @@
   "devDependencies": {
     "turbo": "^2.3.3",
     "typescript": "^5.7.3"
+  },
+  "//overrides": "react-native@0.81 peers react@19.1.0 exactly; pin react-dom to match so the web client doesn't blow up with 'Incompatible React versions' from a newer react-dom hoisting against the pinned react.",
+  "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   }
 }
