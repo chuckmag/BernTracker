@@ -130,6 +130,23 @@ enum WorkoutCategory {
   BENCHMARK // other common benchmarks (Fight Gone Bad, etc.)
 }
 
+// Lifecycle of a bulk-upload `WorkoutImport` row (slice 6 / #89):
+//   PENDING   → file uploaded + parsed, awaiting user confirmation in the modal.
+//               No Workout rows exist yet.
+//   DRAFT     → user confirmed the preview; Workout rows created with
+//               status=DRAFT and importId set. Visible on the calendar for
+//               review using the existing draft tooling.
+//   PUBLISHED → bulk-publish action ran; every DRAFT workout from this import
+//               is now PUBLISHED.
+//   FAILED    → unrecoverable parse error or user cancellation on the preview.
+//               No Workout rows are written; row stays in history for audit.
+enum WorkoutImportStatus {
+  PENDING
+  DRAFT
+  PUBLISHED
+  FAILED
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -156,6 +173,7 @@ model User {
   membershipRequests    GymMembershipRequest[] @relation("UserRequests")
   membershipInvitesSent GymMembershipRequest[] @relation("InvitedBy")
   membershipDecisions   GymMembershipRequest[] @relation("DecidedBy")
+  workoutImports        WorkoutImport[]
 }
 
 model OAuthAccount {
@@ -219,6 +237,7 @@ model Program {
   gyms     GymProgram[]
   members  UserProgram[]
   workouts Workout[]
+  imports  WorkoutImport[]
 }
 
 // Join table: a Program can belong to many Gyms and vice versa
@@ -321,6 +340,9 @@ model Workout {
   // Stable identifier from an external source (e.g. "crossfit-mainsite:w20260425")
   // used for idempotent upserts by background ingest jobs. Null for user-authored workouts.
   externalSourceId String?       @unique
+  // Set when this workout was created from a bulk CSV/XLSX upload (slice 6 / #89).
+  // Lets the bulk-publish action scope precisely to drafts from a specific import.
+  importId         String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
@@ -330,6 +352,35 @@ model Workout {
   namedWorkout     NamedWorkout?     @relation("NamedWorkoutInstances", fields: [namedWorkoutId], references: [id])
   templateFor      NamedWorkout?     @relation("NamedWorkoutTemplate") // required by Prisma parser — not used in queries
   workoutMovements WorkoutMovement[]
+  import           WorkoutImport?    @relation(fields: [importId], references: [id], onDelete: SetNull)
+
+  @@index([importId])
+}
+
+// Bulk-upload preview record (slice 6 / #89). One row per file uploaded by
+// staff. The parsed rows live in `parsedJson` between PENDING and DRAFT so
+// the modal can resume after a page reload. Errors and warnings (per-row,
+// per-cell) are keyed in `errorJson`. See WorkoutImportStatus for the
+// state machine.
+model WorkoutImport {
+  id           String              @id @default(cuid())
+  programId    String
+  uploadedBy   String
+  filename     String
+  rowCount     Int
+  createdCount Int                 @default(0)
+  skippedCount Int                 @default(0)
+  status       WorkoutImportStatus @default(PENDING)
+  parsedJson   Json?
+  errorJson    Json?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  program  Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [uploadedBy], references: [id])
+  workouts Workout[]
+
+  @@index([programId])
 }
 
 model Result {
