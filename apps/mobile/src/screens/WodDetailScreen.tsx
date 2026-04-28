@@ -8,11 +8,12 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import type { StackScreenProps } from '@react-navigation/stack'
-import type { FeedStackParamList } from '../../App'
+import type { RootStackParamList } from '../../App'
 import { api, type Workout, type LeaderboardEntry, type WorkoutLevel } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { formatResultValue } from '../lib/format'
 
-type Props = StackScreenProps<FeedStackParamList, 'WodDetail'>
+type Props = StackScreenProps<RootStackParamList, 'WodDetail'>
 
 const LEVEL_FILTERS: { label: string; value: WorkoutLevel | null }[] = [
   { label: 'All', value: null },
@@ -27,15 +28,6 @@ const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   RX: 'RX',
   SCALED: 'Scaled',
   MODIFIED: 'Modified',
-}
-
-function formatResultValue(entry: LeaderboardEntry): string {
-  const v = entry.value
-  if (v.type === 'AMRAP') return `${v.rounds} rds + ${v.reps} reps`
-  const mins = Math.floor(v.seconds / 60)
-  const secs = v.seconds % 60
-  const time = `${mins}:${String(secs).padStart(2, '0')}`
-  return v.cappedOut ? `${time} (capped)` : time
 }
 
 export default function WodDetailScreen({ route, navigation }: Props) {
@@ -113,18 +105,26 @@ export default function WodDetailScreen({ route, navigation }: Props) {
 
       {/* Log Result CTA */}
       {hasLogged ? (
-        <View style={styles.resultBadge}>
-          <Text style={styles.resultBadgeLabel}>YOUR RESULT</Text>
-          <Text style={styles.resultBadgeValue}>{formatResultValue(userResult)}</Text>
+        <TouchableOpacity
+          style={styles.resultBadge}
+          onPress={() =>
+            navigation.navigate('LogResult', {
+              workoutId: workout.id,
+              resultId: userResult.id,
+              existingResult: userResult,
+            })
+          }
+          activeOpacity={0.8}
+          testID="result-badge"
+        >
+          <Text style={styles.resultBadgeLabel}>YOUR RESULT — TAP TO EDIT</Text>
+          <Text style={styles.resultBadgeValue}>{formatResultValue(userResult.value)}</Text>
           <Text style={styles.resultBadgeLevel}>{LEVEL_LABELS[userResult.level]}</Text>
-        </View>
+        </TouchableOpacity>
       ) : (
         <TouchableOpacity
           style={styles.logButton}
-          onPress={() => {
-            // LogResultScreen added in Issue #40
-            // navigation.navigate('LogResult', { workoutId: workout.id, workoutType: workout.type })
-          }}
+          onPress={() => navigation.navigate('LogResult', { workoutId: workout.id })}
           activeOpacity={0.8}
         >
           <Text style={styles.logButtonText}>Log Result</Text>
@@ -166,7 +166,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
               <Text style={styles.rank}>{idx + 1}</Text>
               <View style={styles.leaderboardInfo}>
                 <Text style={styles.leaderboardName}>{entry.user.name}</Text>
-                <Text style={styles.leaderboardValue}>{formatResultValue(entry)}</Text>
+                <Text style={styles.leaderboardValue}>{formatResultValue(entry.value)}</Text>
               </View>
               <Text style={styles.leaderboardLevel}>{LEVEL_LABELS[entry.level]}</Text>
             </View>

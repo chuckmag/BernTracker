@@ -23,6 +23,14 @@ jest.mock('../src/lib/api', () => ({
   },
 }))
 
+jest.mock('../src/lib/format', () => ({
+  formatResultValue: (v: { type: string; seconds?: number; cappedOut?: boolean; rounds?: number; reps?: number }) => {
+    if (v.type === 'AMRAP') return `${v.rounds} rds + ${v.reps} reps`
+    const s = v.seconds ?? 0
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+  },
+}))
+
 import { useAuth } from '../src/context/AuthContext'
 import { api } from '../src/lib/api'
 
@@ -60,7 +68,7 @@ describe('WodDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(useAuth as jest.Mock).mockReturnValue({
-      user: { id: 'me', email: 'me@gym.com', name: 'Me' },
+      user: { id: 'me', email: 'me@gym.com', name: 'Me', identifiedGender: null },
       isLoading: false,
       login: jest.fn(),
       logout: jest.fn(),
@@ -108,6 +116,33 @@ describe('WodDetailScreen', () => {
     // Clear it
     fireEvent.press(await findByText('All'))
     await waitFor(() => expect(api.workouts.results).toHaveBeenCalledWith('workout-1', undefined))
+  })
+
+  test('Log Result button navigates to LogResult with workoutId', async () => {
+    const navigation = makeNavigation()
+    const { findByText } = render(
+      <WodDetailScreen navigation={navigation} route={makeRoute()} />,
+    )
+
+    fireEvent.press(await findByText('Log Result'))
+    expect(navigation.navigate).toHaveBeenCalledWith('LogResult', { workoutId: 'workout-1' })
+  })
+
+  test('tapping the user-result badge navigates to LogResult in edit mode', async () => {
+    const myEntry = makeEntry('e2', 'me', 'Me')
+    ;(api.workouts.results as jest.Mock).mockResolvedValue([myEntry])
+
+    const navigation = makeNavigation()
+    const { findByTestId } = render(
+      <WodDetailScreen navigation={navigation} route={makeRoute()} />,
+    )
+
+    fireEvent.press(await findByTestId('result-badge'))
+    expect(navigation.navigate).toHaveBeenCalledWith('LogResult', {
+      workoutId: 'workout-1',
+      resultId: 'e2',
+      existingResult: myEntry,
+    })
   })
 
   test("current user's leaderboard row has highlight background color applied", async () => {

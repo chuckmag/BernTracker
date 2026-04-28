@@ -8,13 +8,20 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native'
-import { useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
-import type { FeedStackParamList } from '../../App'
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
+import type { FeedStackParamList, MainTabParamList, RootStackParamList } from '../../App'
 import { api, type Workout } from '../lib/api'
 import { useGym } from '../context/GymContext'
 
-type Props = StackScreenProps<FeedStackParamList, 'Feed'>
+type Props = CompositeScreenProps<
+  StackScreenProps<FeedStackParamList, 'Feed'>,
+  CompositeScreenProps<
+    BottomTabScreenProps<MainTabParamList, 'FeedTab'>,
+    StackScreenProps<RootStackParamList>
+  >
+>
 
 const TYPE_ABBR: Record<string, string> = {
   WARMUP: 'W', STRENGTH: 'S', AMRAP: 'A',
