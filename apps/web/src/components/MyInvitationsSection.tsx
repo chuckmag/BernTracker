@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useInvitations } from '../context/InvitationsContext.tsx'
 import Button from './ui/Button'
-import EmptyState from './ui/EmptyState'
 
 const ROLE_LABEL: Record<string, string> = {
   OWNER: 'Owner',
@@ -38,37 +37,38 @@ export default function MyInvitationsSection() {
     }
   }
 
+  // Hide the whole section when there are no pending invitations rather than
+  // taking up profile real estate with an empty state — gym membership is
+  // the common case, invites are intermittent.
+  if (invitations.length === 0) return null
+
   return (
     <section id="invitations" className="space-y-3 scroll-mt-16">
       <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Invitations</h2>
-      {invitations.length === 0 ? (
-        <EmptyState title="No pending invitations" body="When a gym invites you, it'll show up here." />
-      ) : (
-        <ul className="space-y-2">
-          {invitations.map((inv) => (
-            <li key={inv.id} className="rounded-xl bg-gray-900 border border-gray-800 p-4 space-y-3">
-              <div className="space-y-1">
-                <p className="text-sm text-white">
-                  <span className="font-semibold">{inv.gym.name}</span>
-                  <span className="text-gray-400"> invited you as </span>
-                  <span className="text-indigo-300">{ROLE_LABEL[inv.roleToGrant] ?? inv.roleToGrant}</span>
-                </p>
-                <p className="text-xs text-gray-400">
-                  From {inviterDisplayName(inv.invitedBy)} · {new Date(inv.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={() => handle('accept', inv.id)} disabled={actingOn === inv.id}>
-                  {actingOn === inv.id ? 'Accepting…' : 'Accept'}
-                </Button>
-                <Button variant="secondary" onClick={() => handle('decline', inv.id)} disabled={actingOn === inv.id}>
-                  Decline
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="space-y-2">
+        {invitations.map((inv) => (
+          <li key={inv.id} className="rounded-xl bg-gray-900 border border-gray-800 p-4 space-y-3">
+            <div className="space-y-1">
+              <p className="text-sm text-white">
+                <span className="font-semibold">{inv.gym.name}</span>
+                <span className="text-gray-400"> invited you as </span>
+                <span className="text-indigo-300">{ROLE_LABEL[inv.roleToGrant] ?? inv.roleToGrant}</span>
+              </p>
+              <p className="text-xs text-gray-400">
+                From {inviterDisplayName(inv.invitedBy)} · {new Date(inv.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => handle('accept', inv.id)} disabled={actingOn === inv.id}>
+                {actingOn === inv.id ? 'Accepting…' : 'Accept'}
+              </Button>
+              <Button variant="secondary" onClick={() => handle('decline', inv.id)} disabled={actingOn === inv.id}>
+                Decline
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
       {error && <p className="text-sm text-rose-400">{error}</p>}
     </section>
   )

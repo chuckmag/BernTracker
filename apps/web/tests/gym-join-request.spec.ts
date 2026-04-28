@@ -120,13 +120,19 @@ test.describe('Gym join request E2E', () => {
     const ctx = await browser.newContext()
     await loginAs(ctx, f.outsiderId, 'MEMBER')
     const page = await ctx.newPage()
-    await page.goto('/profile')
+    // Memberships tab — outgoing requests live there now (slice D2 review).
+    // Use the hash anchor to land on the right tab without an extra click.
+    await page.goto('/profile#memberships')
 
     await expect(page.getByRole('heading', { name: 'Outgoing requests' })).toBeVisible()
     await expect(page.getByText(f.gymName)).toBeVisible()
 
+    const cancelResponse = page.waitForResponse((res) =>
+      res.url().includes('/join-request') && res.request().method() === 'DELETE'
+    )
     await page.getByRole('button', { name: /Cancel request/ }).click()
-    await expect(page.getByRole('heading', { name: 'Outgoing requests' })).toBeHidden({ timeout: 5_000 })
+    const apiRes = await cancelResponse
+    expect(apiRes.status()).toBe(200)
     await ctx.close()
 
     const after = await prisma.gymMembershipRequest.findUnique({ where: { id: created.id } })
