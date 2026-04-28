@@ -10,11 +10,12 @@ const apiPort = process.env.API_PORT ?? '3000'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // `source` makes Vite resolve workspace packages via their exports.source
-  // condition (./src/*.ts) instead of the prebuilt ./dist/*.js. Without it,
-  // edits in packages/types don't HMR — and a stale Vite prebundle can fail
-  // with "no exported member X" even after a manual `tsc` rebuild.
-  // Lifted from #138/ea8b09c.
+  // Resolve workspace packages (`@wodalytics/*`) via their `exports.source`
+  // condition, i.e. directly from src/*.ts. Without this Vite falls back to
+  // `default` → `dist/index.js` and prebundles the compiled output, which
+  // means edits to packages/types or packages/db don't show up until you
+  // manually rebuild dist/. Reading source removes that whole loop and lets
+  // HMR fire on cross-package changes.
   resolve: {
     conditions: ['source'],
   },

@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { useAuth, type IdentifiedGender } from '../context/AuthContext.tsx'
-import { api, apiFetch, TYPE_ABBR, type Workout, type WorkoutGender, type WorkoutLevel, type WorkoutResult } from '../lib/api.ts'
+import { deriveWorkoutGender } from '@wodalytics/types'
+import { useAuth } from '../context/AuthContext.tsx'
+import { api, apiFetch, TYPE_ABBR, type Workout, type WorkoutLevel, type WorkoutResult } from '../lib/api.ts'
 
 interface LogResultDrawerProps {
   workout: Workout
@@ -18,11 +19,6 @@ const LEVELS: { value: WorkoutLevel; label: string }[] = [
 ]
 
 const SUPPORTED_TYPES = new Set(['AMRAP', 'FOR_TIME'])
-
-function deriveWorkoutGender(g: IdentifiedGender): WorkoutGender {
-  if (g === 'MALE' || g === 'FEMALE') return g
-  return 'OPEN'
-}
 
 function initialAmrap(r?: WorkoutResult) {
   if (!r) return { rounds: '', reps: '' }

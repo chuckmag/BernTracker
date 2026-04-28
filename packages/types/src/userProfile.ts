@@ -1,6 +1,10 @@
 import { z } from 'zod'
 
-const GenderSchema = z.enum(['FEMALE', 'MALE', 'NON_BINARY', 'PREFER_NOT_TO_SAY'])
+export const IdentifiedGenderSchema = z.enum(['FEMALE', 'MALE', 'NON_BINARY', 'PREFER_NOT_TO_SAY'])
+export type IdentifiedGender = z.infer<typeof IdentifiedGenderSchema>
+
+// Backwards-compatible alias for the schema's earlier name.
+const GenderSchema = IdentifiedGenderSchema
 
 // Birthday accepted as YYYY-MM-DD; the API stores it as a date-only column.
 const BirthdaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {

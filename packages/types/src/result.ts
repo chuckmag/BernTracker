@@ -27,6 +27,20 @@ export type ResultValue = z.infer<typeof ResultValueSchema>
 export const WorkoutLevelSchema = z.enum(['RX_PLUS', 'RX', 'SCALED', 'MODIFIED'])
 export const WorkoutGenderSchema = z.enum(['MALE', 'FEMALE', 'OPEN'])
 
+export type WorkoutLevel = z.infer<typeof WorkoutLevelSchema>
+export type WorkoutGender = z.infer<typeof WorkoutGenderSchema>
+
+// Maps a user's self-identified gender to the leaderboard grouping enum.
+// MALE/FEMALE pass through; everything else (NON_BINARY / PREFER_NOT_TO_SAY /
+// null / unset) groups under OPEN. Shared across web and mobile so a single
+// rule decides which leaderboard a result lands in.
+export function deriveWorkoutGender(
+  g: 'MALE' | 'FEMALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY' | null | undefined,
+): WorkoutGender {
+  if (g === 'MALE' || g === 'FEMALE') return g
+  return 'OPEN'
+}
+
 export const CreateResultSchema = z.object({
   level: WorkoutLevelSchema,
   workoutGender: WorkoutGenderSchema,

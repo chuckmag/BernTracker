@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -8,36 +8,89 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native'
-import { useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
-import type { FeedStackParamList } from '../../App'
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
+import type { FeedStackParamList, MainTabParamList, RootStackParamList } from '../../App'
 import { api, type Workout } from '../lib/api'
 import { useGym } from '../context/GymContext'
 
-type Props = StackScreenProps<FeedStackParamList, 'Feed'>
+type Props = CompositeScreenProps<
+  StackScreenProps<FeedStackParamList, 'Feed'>,
+  CompositeScreenProps<
+    BottomTabScreenProps<MainTabParamList, 'FeedTab'>,
+    StackScreenProps<RootStackParamList>
+  >
+>
 
 const TYPE_ABBR: Record<string, string> = {
   WARMUP: 'W', STRENGTH: 'S', AMRAP: 'A',
   FOR_TIME: 'F', EMOM: 'E', CARDIO: 'C', METCON: 'M',
 }
 
+// Initial window when the screen first opens. Subsequent infinite-scroll
+// pages load PAGE_DAYS at a time as the user scrolls into older days.
+const INITIAL_DAYS = 30
+const PAGE_DAYS = 30
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  return x
+}
+
+function addDays(d: Date, days: number): Date {
+  const x = new Date(d)
+  x.setDate(x.getDate() + days)
+  return x
+}
+
 function toDateKey(d: Date) {
-  return d.toISOString().slice(0, 10)
+  // YYYY-MM-DD in local time (the API gives UTC scheduledAt, but we want
+  // calendar-day grouping by the user's local date so workouts in their
+  // gym's evening don't fall onto "tomorrow").
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function formatDateHeader(dateKey: string): string {
   const today = toDateKey(new Date())
-  const tomorrow = toDateKey(new Date(Date.now() + 86400000))
+  const yesterday = toDateKey(addDays(new Date(), -1))
   const d = new Date(dateKey + 'T12:00:00')
   const label = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
   if (dateKey === today) return `TODAY — ${label}`
-  if (dateKey === tomorrow) return `TOMORROW — ${label}`
+  if (dateKey === yesterday) return `YESTERDAY — ${label}`
   return label.toUpperCase()
 }
 
 interface DayBlock {
   date: string
   workouts: Workout[]
+}
+
+// Build a contiguous list of day blocks from `start` (oldest) up to and
+// including `end` (newest), in newest-first order. Days without workouts
+// still get a block so the user sees "No workouts planned".
+function buildDayBlocks(workouts: Workout[], start: Date, end: Date): DayBlock[] {
+  const byDate: Record<string, Workout[]> = {}
+  for (const w of workouts) {
+    if (w.status !== 'PUBLISHED') continue
+    const key = toDateKey(new Date(w.scheduledAt))
+    if (!byDate[key]) byDate[key] = []
+    byDate[key].push(w)
+  }
+
+  const blocks: DayBlock[] = []
+  let cursor = startOfDay(end)
+  const startMidnight = startOfDay(start)
+  while (cursor.getTime() >= startMidnight.getTime()) {
+    const key = toDateKey(cursor)
+    blocks.push({ date: key, workouts: byDate[key] ?? [] })
+    cursor = addDays(cursor, -1)
+  }
+  return blocks
 }
 
 function WorkoutCard({ workout, onPress }: { workout: Workout; onPress: () => void }) {
@@ -62,9 +115,15 @@ function DayBlockItem({ block, onWorkoutPress }: { block: DayBlock; onWorkoutPre
     <View style={styles.dayBlock}>
       <Text style={styles.dayHeader}>{formatDateHeader(block.date)}</Text>
       <View style={styles.divider} />
-      {block.workouts.map((w) => (
-        <WorkoutCard key={w.id} workout={w} onPress={() => onWorkoutPress(w.id)} />
-      ))}
+      {block.workouts.length === 0 ? (
+        <View style={styles.emptyDay}>
+          <Text style={styles.emptyDayText}>No workouts planned</Text>
+        </View>
+      ) : (
+        block.workouts.map((w) => (
+          <WorkoutCard key={w.id} workout={w} onPress={() => onWorkoutPress(w.id)} />
+        ))
+      )}
     </View>
   )
 }
@@ -73,36 +132,24 @@ export default function FeedScreen({ navigation }: Props) {
   const { activeGym } = useGym()
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Tracks the oldest day already loaded; the next "load more" page fetches
+  // the PAGE_DAYS days immediately preceding this date.
+  const oldestLoadedRef = useRef<Date | null>(null)
 
-  const loadFeed = useCallback(async (silent = false) => {
+  const loadInitial = useCallback(async (silent = false) => {
     if (!activeGym) return
     if (!silent) setLoading(true)
     setError(null)
     try {
-      const today = new Date()
-      const end = new Date(today)
-      end.setDate(end.getDate() + 6)
-      const from = today.toISOString()
-      const to = end.toISOString()
-
-      const workouts = await api.gyms.workouts(activeGym.id, from, to)
-
-      // Group by date, published only
-      const byDate: Record<string, Workout[]> = {}
-      for (const w of workouts) {
-        if (w.status !== 'PUBLISHED') continue
-        const key = toDateKey(new Date(w.scheduledAt))
-        if (!byDate[key]) byDate[key] = []
-        byDate[key].push(w)
-      }
-
-      const blocks: DayBlock[] = Object.entries(byDate)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, ws]) => ({ date, workouts: ws }))
-
+      const end = startOfDay(new Date())
+      const start = addDays(end, -(INITIAL_DAYS - 1))
+      const workouts = await api.gyms.workouts(activeGym.id, start.toISOString(), addDays(end, 1).toISOString())
+      const blocks = buildDayBlocks(workouts, start, end)
       setDayBlocks(blocks)
+      oldestLoadedRef.current = start
     } catch {
       setError('Could not load workouts. Pull to refresh.')
     } finally {
@@ -111,11 +158,29 @@ export default function FeedScreen({ navigation }: Props) {
     }
   }, [activeGym])
 
-  useFocusEffect(useCallback(() => { loadFeed() }, [loadFeed]))
+  const loadMoreOlder = useCallback(async () => {
+    if (!activeGym || !oldestLoadedRef.current || loadingMore) return
+    setLoadingMore(true)
+    try {
+      const end = addDays(oldestLoadedRef.current, -1)
+      const start = addDays(end, -(PAGE_DAYS - 1))
+      const workouts = await api.gyms.workouts(activeGym.id, start.toISOString(), addDays(end, 1).toISOString())
+      const newBlocks = buildDayBlocks(workouts, start, end)
+      setDayBlocks((prev) => [...prev, ...newBlocks])
+      oldestLoadedRef.current = start
+    } catch {
+      // Silent: pagination errors don't block the rest of the feed.
+      // The user can pull-to-refresh to retry.
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [activeGym, loadingMore])
+
+  useFocusEffect(useCallback(() => { loadInitial() }, [loadInitial]))
 
   function handleRefresh() {
     setRefreshing(true)
-    loadFeed(true)
+    loadInitial(true)
   }
 
   if (!activeGym) {
@@ -146,10 +211,19 @@ export default function FeedScreen({ navigation }: Props) {
           onWorkoutPress={(id) => navigation.navigate('WodDetail', { workoutId: id })}
         />
       )}
+      onEndReached={loadMoreOlder}
+      onEndReachedThreshold={0.5}
       ListEmptyComponent={
         <View style={styles.center}>
-          <Text style={styles.emptyText}>{error ?? 'No workouts scheduled this week.'}</Text>
+          <Text style={styles.emptyText}>{error ?? 'No workouts to show.'}</Text>
         </View>
+      }
+      ListFooterComponent={
+        loadingMore ? (
+          <View style={styles.footerLoading}>
+            <ActivityIndicator color="#818cf8" />
+          </View>
+        ) : null
       }
       refreshControl={
         <RefreshControl
@@ -201,6 +275,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f2937',
     marginBottom: 8,
   },
+  emptyDay: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  emptyDayText: {
+    color: '#4b5563',
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
   card: {
     backgroundColor: '#111827',
     borderRadius: 10,
@@ -247,5 +330,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#4b5563',
     marginLeft: 8,
+  },
+  footerLoading: {
+    paddingVertical: 24,
+    alignItems: 'center',
   },
 })
