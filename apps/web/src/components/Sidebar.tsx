@@ -9,10 +9,10 @@ const memberLinks = [
   { to: '/browse-programs', label: 'Browse Programs' },
 ]
 
+// Members consolidated into /gym-settings#members (slice D1) — no standalone link.
 const staffLinks = [
   { to: '/calendar',     label: 'Calendar' },
   { to: '/programs',     label: 'Programs' },
-  { to: '/members',      label: 'Members'  },
   { to: '/gym-settings', label: 'Gym Settings' },
 ]
 

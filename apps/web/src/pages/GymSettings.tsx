@@ -3,7 +3,16 @@ import { api, type Gym, type GymProgram, type PendingMovement } from '../lib/api
 import { useGym } from '../context/GymContext.tsx'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useMovements } from '../context/MovementsContext.tsx'
-import GymInvitationsPanel from '../components/GymInvitationsPanel'
+import MembersTab from '../components/MembersTab'
+
+type Tab = 'details' | 'members'
+
+// Hash anchors keep the active tab deep-linkable. /members redirects here to
+// #members so old bookmarks land on the right tab.
+function readTabFromHash(): Tab {
+  if (typeof window === 'undefined') return 'details'
+  return window.location.hash === '#members' ? 'members' : 'details'
+}
 
 const TIMEZONES = [
   'UTC',
@@ -22,6 +31,23 @@ export default function GymSettings() {
   const { gymId, setGymId } = useGym()
   const { user } = useAuth()
   const allMovements = useMovements()
+  const [tab, setTab] = useState<Tab>(readTabFromHash)
+
+  // Listen for hash changes so back/forward and external links pick the right tab.
+  useEffect(() => {
+    function onHashChange() { setTab(readTabFromHash()) }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  function selectTab(next: Tab) {
+    setTab(next)
+    const hash = next === 'members' ? '#members' : ''
+    if (hash !== window.location.hash) {
+      // replaceState avoids cluttering history with tab switches.
+      window.history.replaceState(null, '', `${window.location.pathname}${hash}`)
+    }
+  }
 
   // Pending movement review state (reviewer only)
   const [pendingMovements, setPendingMovements] = useState<PendingMovement[]>([])
@@ -225,47 +251,80 @@ export default function GymSettings() {
     return <p className="text-gray-400">Loading…</p>
   }
 
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'details', label: 'Details' },
+    { id: 'members', label: 'Members' },
+  ]
+
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold">Gym Settings</h1>
       {error && <p className="text-red-400">{error}</p>}
 
-      <GymInvitationsPanel />
-
-      {/* Gym Settings */}
-      <section>
-        <h2 className="text-lg font-semibold mb-4">Gym Details</h2>
-        <form onSubmit={handleSaveGym} className="space-y-4 max-w-sm">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Gym Name</label>
-            <input
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Timezone</label>
-            <select
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
-              value={editTz}
-              onChange={(e) => setEditTz(e.target.value)}
+      {/* Tabs */}
+      <div className="border-b border-gray-800">
+        <nav className="flex gap-1" role="tablist">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => selectTab(t.id)}
+              className={[
+                'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
+                tab === t.id
+                  ? 'border-indigo-500 text-white'
+                  : 'border-transparent text-gray-400 hover:text-white',
+              ].join(' ')}
             >
-              {TIMEZONES.map((tz) => (
-                <option key={tz} value={tz}>{tz}</option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white"
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </form>
-      </section>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {tab === 'details' && (
+        <section>
+          <h2 className="text-lg font-semibold mb-4">Gym Details</h2>
+          <form onSubmit={handleSaveGym} className="space-y-4 max-w-sm">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Gym Name</label>
+              <input
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Timezone</label>
+              <select
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                value={editTz}
+                onChange={(e) => setEditTz(e.target.value)}
+              >
+                {TIMEZONES.map((tz) => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {tab === 'members' && <MembersTab />}
+
+      {/* Programs and Pending Movements live below the tabs for now. The
+          follow-up issue (see PR description) moves them into their own
+          dedicated places so /gym-settings is a pure tab UI. */}
 
       {/* Programs */}
       <section>

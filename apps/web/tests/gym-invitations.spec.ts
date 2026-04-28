@@ -59,7 +59,9 @@ test.describe('Gym invitation E2E', () => {
     await loginAs(ownerCtx, f.ownerId, 'OWNER')
     const ownerPage = await ownerCtx.newPage()
     await ownerPage.addInitScript((id) => localStorage.setItem('gymId', id), f.gymId)
-    await ownerPage.goto('/gym-settings')
+    // /gym-settings is now tabbed (Details default, Members second). Invite
+    // form lives inside the Members tab via GymInvitationsPanel.
+    await ownerPage.goto('/gym-settings#members')
 
     await expect(ownerPage.getByRole('heading', { name: 'Gym Settings' })).toBeVisible()
     await expect(ownerPage.getByRole('heading', { name: 'Invitations', exact: true })).toBeVisible()

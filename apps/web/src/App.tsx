@@ -17,7 +17,6 @@ import Onboarding from './pages/Onboarding.tsx'
 import Profile from './pages/Profile.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Calendar from './pages/Calendar.tsx'
-import Members from './pages/Members.tsx'
 import ProgramsIndex from './pages/ProgramsIndex.tsx'
 import ProgramDetail from './pages/ProgramDetail.tsx'
 import BrowsePrograms from './pages/BrowsePrograms.tsx'
@@ -72,11 +71,11 @@ function AppLayout() {
               <Route path="/programs" element={<ProgramsIndex />} />
               <Route path="/programs/:id" element={<ProgramDetail />} />
               <Route path="/browse-programs" element={<BrowsePrograms />} />
-              <Route path="/members" element={<Members />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/gym-settings" element={<GymSettings />} />
-              {/* Legacy alias — keep so deep links and bookmarks still resolve */}
+              {/* Legacy aliases — old bookmarks and deep links still resolve. */}
               <Route path="/settings" element={<Navigate to="/gym-settings" replace />} />
+              <Route path="/members" element={<Navigate to="/gym-settings#members" replace />} />
             </Routes>
           </ErrorBoundary>
         </main>
