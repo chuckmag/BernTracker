@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { api, type Workout, type LeaderboardEntry, type WorkoutLevel } from '../lib/api'
@@ -50,14 +51,16 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       .finally(() => setLoading(false))
   }, [workoutId, navigation])
 
-  // Reload leaderboard when filter changes
+  // Reload leaderboard when the filter changes AND every time the screen
+  // regains focus — that's how a result that was just created/edited/deleted
+  // on LogResultScreen propagates back here when the user pops back.
   const loadLeaderboard = useCallback(() => {
     api.workouts.results(workoutId, levelFilter ?? undefined)
       .then(setLeaderboard)
       .catch(() => {})
   }, [workoutId, levelFilter])
 
-  useEffect(() => { loadLeaderboard() }, [loadLeaderboard])
+  useFocusEffect(useCallback(() => { loadLeaderboard() }, [loadLeaderboard]))
 
   const userResult = leaderboard.find((e) => e.user.id === user?.id)
   const hasLogged = !!userResult

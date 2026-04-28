@@ -10,6 +10,16 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 import WodDetailScreen from '../src/screens/WodDetailScreen'
 
+jest.mock('@react-navigation/native', () => {
+  const React = require('react')
+  return {
+    // Keep the cb in the dep array so screens that wrap a useCallback whose
+    // identity changes (e.g. on filter change) see the effect re-run, just
+    // like the real useFocusEffect would on the next focus tick.
+    useFocusEffect: (cb: () => void) => React.useEffect(cb, [cb]),
+  }
+})
+
 jest.mock('../src/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
