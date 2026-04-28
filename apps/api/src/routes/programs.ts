@@ -25,12 +25,13 @@ import {
   createProgramAndLinkToGym,
   findBrowseProgramsForGymAndUser,
   setGymProgramDefault,
-  clearDefaultForProgram,
+  clearGymProgramDefault,
 } from '../db/gymProgramDbManager.js'
 import {
   findProgramWithGymIds,
   updateProgramById,
   deleteProgramById,
+  isProgramDefaultForAnyGym,
 } from '../db/programDbManager.js'
 import {
   findGymMembershipByUserAndGym,
@@ -102,6 +103,17 @@ router.patch(
   setProgramAsGymDefault,
 )
 
+// DELETE /api/gyms/:gymId/programs/:programId/default  — clear default flag (slice 5)
+//        OWNER only. Idempotent. Required so OWNERs can flip a previously-default
+//        program back to PRIVATE (the visibility PATCH refuses while default is set).
+router.delete(
+  '/gyms/:gymId/programs/:programId/default',
+  requireAuth,
+  validateGymExists,
+  requireGymOwner,
+  clearProgramAsGymDefault,
+)
+
 export default router
 
 // ─── Handler functions ────────────────────────────────────────────────────────
@@ -157,6 +169,17 @@ async function patchProgram(req: Request, res: Response) {
   }
 
   const { name, description, startDate, endDate, coverColor, visibility } = parsed.data
+
+  // Refuse to flip a default program to PRIVATE — the OWNER must explicitly
+  // clear the default first (slice 5 / #88). Auto-clearing was rejected
+  // because flipping a single field could silently affect every gym member's
+  // picker; we'd rather the OWNER make two deliberate decisions.
+  if (visibility === 'PRIVATE' && (await isProgramDefaultForAnyGym(req.params.id as string))) {
+    return res.status(400).json({
+      error: 'Cannot make a default program private. Clear the gym default first, then change visibility.',
+    })
+  }
+
   const program = await updateProgramById(req.params.id as string, {
     name,
     description,
@@ -165,13 +188,6 @@ async function patchProgram(req: Request, res: Response) {
     coverColor,
     visibility,
   })
-  // Flipping a default program to PRIVATE would orphan it: members would
-  // still see it in the picker (default branch in findProgramsAvailableToUserInGym)
-  // but couldn't actually open it (PRIVATE check on /workouts?programIds=).
-  // Drop the default flag in that case so the picker stays consistent.
-  if (visibility === 'PRIVATE') {
-    await clearDefaultForProgram(req.params.id as string)
-  }
   res.json(program)
 }
 
@@ -320,6 +336,13 @@ async function setProgramAsGymDefault(req: Request, res: Response) {
     }
     throw err
   }
+}
+
+async function clearProgramAsGymDefault(req: Request, res: Response) {
+  const gymId = req.params.gymId as string
+  const programId = req.params.programId as string
+  await clearGymProgramDefault(gymId, programId)
+  res.status(204).send()
 }
 
 async function selfUnsubscribeFromProgram(req: Request, res: Response) {

@@ -95,6 +95,7 @@ export default function ProgramsIndex() {
 
       <ProgramFormDrawer
         gymId={gymId}
+        canSetDefault={gymRole === 'OWNER'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onSaved={handleCreated}

@@ -168,6 +168,8 @@ export default function ProgramDetail() {
       <ProgramFormDrawer
         gymId={detail.gymId}
         program={program}
+        isDefault={detail.isDefault}
+        canSetDefault={gymRole === 'OWNER'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onSaved={handleSaved}

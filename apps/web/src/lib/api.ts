@@ -349,6 +349,15 @@ export const api = {
        */
       setDefault: (gymId: string, programId: string, token?: string) =>
         req<void>(`/api/gyms/${gymId}/programs/${programId}/default`, { method: 'PATCH', token }),
+
+      /**
+       * Clear the default flag for this program. OWNER only, idempotent.
+       * Required before flipping a default program's visibility to PRIVATE
+       * — the visibility PATCH refuses while the default flag is set, so
+       * the OWNER must run this first.
+       */
+      clearDefault: (gymId: string, programId: string, token?: string) =>
+        req<void>(`/api/gyms/${gymId}/programs/${programId}/default`, { method: 'DELETE', token }),
     },
   },
 

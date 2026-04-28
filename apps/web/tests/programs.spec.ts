@@ -215,9 +215,13 @@ test.describe('Programs CRUD E2E', () => {
     await page.getByRole('button', { name: /^members/i }).click()
     await page.getByRole('button', { name: 'Invite members' }).first().click()
 
-    // Pick the seeded MEMBER user, submit the batch
+    // Pick the seeded MEMBER user, submit the batch.
+    // Scope to the row containing the member's email — the page also renders
+    // the (closed) ProgramFormDrawer, whose disabled "Set as gym default"
+    // checkbox would otherwise be the .first() match.
     await page.getByLabel('Search gym members').fill(f.member.email)
-    await page.getByRole('checkbox').first().check()
+    const memberRow = page.locator('label', { hasText: f.member.email })
+    await memberRow.getByRole('checkbox').check()
     await page.getByRole('button', { name: /Invite 1 member/ }).click()
 
     // Member's row appears in the roster

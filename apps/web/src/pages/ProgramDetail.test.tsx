@@ -220,8 +220,11 @@ describe('ProgramDetail', () => {
     await screen.findByRole('heading', { name: 'Override — March 2026' })
     const button = screen.getByRole('button', { name: /Set as gym default/ })
     expect(button).toBeDisabled()
-    // Hint copy explains why
-    expect(screen.getByText(/Default programs must be public/)).toBeInTheDocument()
+    // Hint copy explains why (the OverviewTab variant — the drawer also
+    // mentions the rule but with shorter copy).
+    expect(
+      screen.getByText(/Default programs must be public\. Change visibility first\./),
+    ).toBeInTheDocument()
   })
 
   it('shows "⭐ Gym default" (disabled) when the program is already default', async () => {

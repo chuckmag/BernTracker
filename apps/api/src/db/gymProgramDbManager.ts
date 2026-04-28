@@ -93,16 +93,16 @@ export async function findDefaultProgramIdForGym(gymId: string): Promise<string 
 }
 
 /**
- * Clears the default flag from any GymProgram rows pointing at this program.
- * Called when a program's visibility flips to PRIVATE — a default must be
- * PUBLIC, otherwise members see it in the picker but can't open it.
+ * Clears the default flag from a single GymProgram row. Idempotent — if the
+ * row isn't currently default, this is a no-op. Used by the explicit
+ * "remove default" endpoint that the edit drawer calls before flipping
+ * visibility to PRIVATE.
  */
-export async function clearDefaultForProgram(programId: string): Promise<number> {
-  const result = await prisma.gymProgram.updateMany({
-    where: { programId, isDefault: true },
+export async function clearGymProgramDefault(gymId: string, programId: string): Promise<void> {
+  await prisma.gymProgram.updateMany({
+    where: { gymId, programId, isDefault: true },
     data: { isDefault: false },
   })
-  return result.count
 }
 
 export type SetDefaultResult =

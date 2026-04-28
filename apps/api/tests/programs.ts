@@ -766,12 +766,50 @@ async function runTests() {
   }
 
   {
-    // Visibility-flip safeguard: setting default's visibility to PRIVATE clears isDefault
+    // Visibility-flip safeguard: PATCH visibility=PRIVATE on a default program
+    // is rejected so OWNERs can't accidentally orphan the program for every
+    // gym member. They must clear the gym default first.
     const flip = await api('PATCH', `/programs/${defaultB.id}`, programmerToken, { visibility: 'PRIVATE' })
-    check('PATCH program visibility=PRIVATE → 200', 200, flip.status)
+    check('PATCH default → PRIVATE rejected with 400', 400, flip.status)
+    check(
+      'PATCH default → PRIVATE error mentions clearing default',
+      true,
+      typeof flip.body?.error === 'string' && /default/i.test(flip.body.error as string),
+    )
     const row = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultB.id } } })
-    check('Default cleared after PRIVATE flip', false, row?.isDefault)
-    // Restore for any subsequent assertions
+    check('Default still set after rejected flip', true, row?.isDefault)
+    check('Visibility unchanged after rejected flip', 'PUBLIC', (await prisma.program.findUnique({ where: { id: defaultB.id } }))?.visibility)
+  }
+
+  {
+    // DELETE /default endpoint — explicit clear (called by the edit drawer
+    // before flipping a default program to PRIVATE).
+    const clearPath = (pid: string) => `/gyms/${gymId}/programs/${pid}/default`
+
+    // PROGRAMMER, COACH, MEMBER all rejected — clearing default is OWNER-only.
+    const rProg = await api('DELETE', clearPath(defaultB.id), programmerToken)
+    check('DELETE default as PROGRAMMER → 403', 403, rProg.status)
+    const rCoach = await api('DELETE', clearPath(defaultB.id), coachToken)
+    check('DELETE default as COACH → 403', 403, rCoach.status)
+    const rMember = await api('DELETE', clearPath(defaultB.id), memberToken)
+    check('DELETE default as MEMBER → 403', 403, rMember.status)
+    const rNoAuth = await api('DELETE', clearPath(defaultB.id))
+    check('DELETE default no auth → 401', 401, rNoAuth.status)
+
+    // OWNER → 204 and the row is cleared.
+    const rOwner = await api('DELETE', clearPath(defaultB.id), ownerToken)
+    check('DELETE default as OWNER → 204', 204, rOwner.status)
+    const cleared = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultB.id } } })
+    check('GymProgram.isDefault cleared after DELETE', false, cleared?.isDefault)
+
+    // Idempotent: a second DELETE on a non-default row still returns 204.
+    const rRepeat = await api('DELETE', clearPath(defaultB.id), ownerToken)
+    check('DELETE default repeated → 204 (idempotent)', 204, rRepeat.status)
+
+    // After clearing, OWNER can finally flip visibility to PRIVATE.
+    const flip = await api('PATCH', `/programs/${defaultB.id}`, programmerToken, { visibility: 'PRIVATE' })
+    check('PATCH visibility=PRIVATE after clearing default → 200', 200, flip.status)
+    // Restore for any subsequent assertions / partial-index test below.
     await api('PATCH', `/programs/${defaultB.id}`, programmerToken, { visibility: 'PUBLIC' })
   }
 
