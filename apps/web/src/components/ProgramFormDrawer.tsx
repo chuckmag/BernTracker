@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type Program } from '../lib/api'
+import { api, type Program, type ProgramVisibility } from '../lib/api'
 import Button from './ui/Button'
 
 const COVER_COLORS = [
@@ -16,6 +16,10 @@ const COVER_COLORS = [
 interface ProgramFormDrawerProps {
   gymId: string
   program?: Program  // edit mode when provided
+  /** Whether the program is currently the gym's default. Edit mode only. */
+  isDefault?: boolean
+  /** OWNER-only on the parent — gates the gym-default toggle inside the drawer. */
+  canSetDefault?: boolean
   open: boolean
   onClose: () => void
   onSaved: (program: Program) => void
@@ -26,13 +30,23 @@ function toDateInputValue(iso: string | null | undefined): string {
   return iso.slice(0, 10)
 }
 
-export default function ProgramFormDrawer({ gymId, program, open, onClose, onSaved }: ProgramFormDrawerProps) {
+export default function ProgramFormDrawer({
+  gymId,
+  program,
+  isDefault: initialIsDefault = false,
+  canSetDefault = false,
+  open,
+  onClose,
+  onSaved,
+}: ProgramFormDrawerProps) {
   const isEdit = !!program
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [coverColor, setCoverColor] = useState<string | null>(null)
+  const [visibility, setVisibility] = useState<ProgramVisibility>('PRIVATE')
+  const [isDefault, setIsDefault] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,8 +57,10 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
     setStartDate(toDateInputValue(program?.startDate))
     setEndDate(toDateInputValue(program?.endDate))
     setCoverColor(program?.coverColor ?? null)
+    setVisibility(program?.visibility ?? 'PRIVATE')
+    setIsDefault(initialIsDefault)
     setError(null)
-  }, [open, program?.id])
+  }, [open, program?.id, initialIsDefault])
 
   useEffect(() => {
     if (!open) return
@@ -62,13 +78,32 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
     setError(null)
     try {
       if (isEdit && program) {
+        // Order matters when both default and visibility change in one save:
+        //   - Unmarking default + flipping to PRIVATE: must clear default
+        //     FIRST so the visibility PATCH isn't refused.
+        //   - Marking default: must flip to PUBLIC (or already-be-public)
+        //     before setDefault, otherwise setDefault is refused.
+        // Settling on: PATCH program first (handles visibility, etc.), then
+        // run any default mutation. The "clear default first" path is for
+        // the user who wants to flip default→PRIVATE — they have to uncheck
+        // default in the same save, and we send the clearDefault before the
+        // PATCH only when both flips are happening.
+        const becomingPrivate = visibility === 'PRIVATE' && program.visibility !== 'PRIVATE'
+        if (initialIsDefault && !isDefault && becomingPrivate) {
+          await api.gyms.programs.clearDefault(gymId, program.id)
+        }
         const updated = await api.programs.update(program.id, {
           name: name.trim(),
           description: description.trim() || null,
           startDate,
           endDate: endDate || null,
           coverColor: coverColor || null,
+          visibility,
         })
+        if (canSetDefault && initialIsDefault !== isDefault && !becomingPrivate) {
+          if (isDefault) await api.gyms.programs.setDefault(gymId, program.id)
+          else await api.gyms.programs.clearDefault(gymId, program.id)
+        }
         onSaved(updated)
       } else {
         const { program: created } = await api.gyms.programs.create(gymId, {
@@ -77,7 +112,12 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
           startDate,
           endDate: endDate || undefined,
           coverColor: coverColor || undefined,
+          visibility,
         })
+        // Allow OWNERs to mark as default at create-time too.
+        if (canSetDefault && isDefault && visibility === 'PUBLIC') {
+          await api.gyms.programs.setDefault(gymId, created.id)
+        }
         onSaved(created)
       }
     } catch (e) {
@@ -194,6 +234,90 @@ export default function ProgramFormDrawer({ gymId, program, open, onClose, onSav
               ))}
             </div>
           </div>
+
+          <div>
+            <label className="block text-xs text-gray-400 mb-2">Visibility</label>
+            <div className="grid grid-cols-1 gap-2">
+              {([
+                { value: 'PRIVATE', label: '🔒 Private', body: 'Staff invite only — members must be added to see the program.' },
+                { value: 'PUBLIC',  label: '🌐 Public',  body: 'Any gym member can find and join from Browse Programs.' },
+              ] as const).map((opt) => {
+                const checked = visibility === opt.value
+                // A gym default must stay PUBLIC so every member can see it.
+                // Force OWNERs to clear the default first instead of silently
+                // un-defaulting the program when they flip to PRIVATE.
+                const lockPrivate = opt.value === 'PRIVATE' && isDefault
+                return (
+                  <label
+                    key={opt.value}
+                    className={[
+                      'flex items-start gap-3 px-3 py-2 rounded border transition-colors',
+                      lockPrivate
+                        ? 'border-gray-800 bg-gray-900/50 cursor-not-allowed opacity-60'
+                        : checked
+                          ? 'border-indigo-500 bg-indigo-500/10 cursor-pointer'
+                          : 'border-gray-700 hover:border-gray-600 cursor-pointer',
+                    ].join(' ')}
+                  >
+                    <input
+                      type="radio"
+                      name="visibility"
+                      value={opt.value}
+                      checked={checked}
+                      disabled={lockPrivate}
+                      onChange={() => setVisibility(opt.value)}
+                      className="mt-1 h-4 w-4 border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm text-white">{opt.label}</span>
+                      <span className="block text-xs text-gray-400 mt-0.5">{opt.body}</span>
+                      {lockPrivate && (
+                        <span className="block text-xs text-amber-300 mt-1">
+                          Uncheck "Set as gym default" first to make this program private.
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          {canSetDefault && (
+            <div>
+              <label className="block text-xs text-gray-400 mb-2">Gym default</label>
+              <label
+                className={[
+                  'flex items-start gap-3 px-3 py-2 rounded border transition-colors',
+                  visibility !== 'PUBLIC'
+                    ? 'border-gray-800 bg-gray-900/50 cursor-not-allowed opacity-60'
+                    : isDefault
+                      ? 'border-amber-500/60 bg-amber-500/10 cursor-pointer'
+                      : 'border-gray-700 hover:border-gray-600 cursor-pointer',
+                ].join(' ')}
+              >
+                <input
+                  type="checkbox"
+                  checked={isDefault}
+                  disabled={visibility !== 'PUBLIC'}
+                  onChange={(e) => setIsDefault(e.target.checked)}
+                  className="mt-1 h-4 w-4 border-gray-600 bg-gray-800 text-amber-500 focus:ring-amber-500 disabled:cursor-not-allowed"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm text-white">⭐ Set as gym default</span>
+                  <span className="block text-xs text-gray-400 mt-0.5">
+                    Every gym member sees the default program in their feed without joining it.
+                    Only one program can be the default at a time.
+                  </span>
+                  {visibility !== 'PUBLIC' && (
+                    <span className="block text-xs text-amber-300 mt-1">
+                      Default programs must be public.
+                    </span>
+                  )}
+                </span>
+              </label>
+            </div>
+          )}
         </div>
 
         <div className="px-5 py-4 border-t border-gray-800 flex gap-2">

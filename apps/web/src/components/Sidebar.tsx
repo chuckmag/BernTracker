@@ -6,13 +6,14 @@ import ProgramFilterPicker from './ProgramFilterPicker.tsx'
 const memberLinks = [
   { to: '/feed',    label: 'Feed'    },
   { to: '/history', label: 'History' },
+  { to: '/browse-programs', label: 'Browse Programs' },
 ]
 
 const staffLinks = [
-  { to: '/calendar', label: 'Calendar' },
-  { to: '/programs', label: 'Programs' },
-  { to: '/members',  label: 'Members'  },
-  { to: '/settings', label: 'Settings' },
+  { to: '/calendar',     label: 'Calendar' },
+  { to: '/programs',     label: 'Programs' },
+  { to: '/members',      label: 'Members'  },
+  { to: '/gym-settings', label: 'Gym Settings' },
 ]
 
 interface SidebarProps {

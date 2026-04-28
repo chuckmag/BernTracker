@@ -4,12 +4,15 @@ const hexColor = z
   .string()
   .regex(/^#[0-9a-fA-F]{6}$/, 'coverColor must be a 6-digit hex like #6366F1')
 
+export const ProgramVisibilitySchema = z.enum(['PUBLIC', 'PRIVATE'])
+
 export const CreateProgramSchema = z.object({
   name: z.string().min(1, 'Name is required').max(120),
   description: z.string().max(2000).optional(),
   startDate: z.string().datetime({ offset: true }).or(z.string().date()),
   endDate: z.string().datetime({ offset: true }).or(z.string().date()).optional(),
   coverColor: hexColor.optional(),
+  visibility: ProgramVisibilitySchema.optional(),
 })
 
 export const UpdateProgramSchema = z
@@ -19,6 +22,7 @@ export const UpdateProgramSchema = z
     startDate: z.string().datetime({ offset: true }).or(z.string().date()).optional(),
     endDate: z.string().datetime({ offset: true }).or(z.string().date()).nullable().optional(),
     coverColor: hexColor.nullable().optional(),
+    visibility: ProgramVisibilitySchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: 'At least one field is required' })
 
@@ -39,3 +43,4 @@ export const InviteProgramMemberSchema = z
 export type CreateProgramInput = z.infer<typeof CreateProgramSchema>
 export type UpdateProgramInput = z.infer<typeof UpdateProgramSchema>
 export type InviteProgramMemberInput = z.infer<typeof InviteProgramMemberSchema>
+export type ProgramVisibility = z.infer<typeof ProgramVisibilitySchema>

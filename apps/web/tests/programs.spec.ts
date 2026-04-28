@@ -115,7 +115,9 @@ test.describe('Programs CRUD E2E', () => {
     await loginAndSelectGym(page, f.member.id, 'MEMBER', f.gymId)
     await page.goto('/feed')
     await expect(page.locator('aside').first()).toBeVisible()
-    await expect(page.locator('aside').first().getByRole('link', { name: 'Programs' })).toHaveCount(0)
+    // exact: true — slice 4 added a "Browse Programs" link visible to all roles,
+    // so the substring-match would falsely succeed.
+    await expect(page.locator('aside').first().getByRole('link', { name: 'Programs', exact: true })).toHaveCount(0)
   })
 
   test('OWNER deletes a program', async ({ page }) => {
@@ -213,9 +215,13 @@ test.describe('Programs CRUD E2E', () => {
     await page.getByRole('button', { name: /^members/i }).click()
     await page.getByRole('button', { name: 'Invite members' }).first().click()
 
-    // Pick the seeded MEMBER user, submit the batch
+    // Pick the seeded MEMBER user, submit the batch.
+    // Scope to the row containing the member's email — the page also renders
+    // the (closed) ProgramFormDrawer, whose disabled "Set as gym default"
+    // checkbox would otherwise be the .first() match.
     await page.getByLabel('Search gym members').fill(f.member.email)
-    await page.getByRole('checkbox').first().check()
+    const memberRow = page.locator('label', { hasText: f.member.email })
+    await memberRow.getByRole('checkbox').check()
     await page.getByRole('button', { name: /Invite 1 member/ }).click()
 
     // Member's row appears in the roster
@@ -263,5 +269,122 @@ test.describe('Programs CRUD E2E', () => {
       }).catch(() => {})
       await prisma.user.delete({ where: { id: coach.id } }).catch(() => {})
     }
+  })
+
+  // ── #87: visibility + Browse + self-subscribe ──────────────────────────────
+  // ────────────────────────────────────────────────────────────────────────────
+
+  test('MEMBER joins a PUBLIC program from Browse and lands on its filtered Feed', async ({ page }) => {
+    const name = `E2E Browse Public ${randomUUID().slice(0, 6)}`
+    const seeded = await prisma.program.create({
+      data: {
+        name,
+        startDate: new Date('2026-06-01'),
+        visibility: 'PUBLIC',
+        coverColor: '#10B981',
+        gyms: { create: { gymId: f.gymId } },
+      },
+    })
+
+    await loginAndSelectGym(page, f.member.id, 'MEMBER', f.gymId)
+    await page.goto('/browse-programs')
+    await expect(page.locator('h1', { hasText: 'Browse programs' })).toBeVisible()
+
+    // The seeded PUBLIC program is on the page; click Join
+    await expect(page.getByText(name)).toBeVisible({ timeout: 5000 })
+    await page.getByRole('button', { name: 'Join' }).click()
+
+    // Lands on /feed (program filter set to the joined program by the page)
+    await page.waitForURL('**/feed**')
+
+    // The UserProgram row should now exist
+    const sub = await prisma.userProgram.findUnique({
+      where: { userId_programId: { userId: f.member.id, programId: seeded.id } },
+    })
+    expect(sub).not.toBeNull()
+  })
+
+  test('Browse hides PRIVATE programs and programs the user already joined', async ({ page }) => {
+    const ts = randomUUID().slice(0, 6)
+    const publicProgram = await prisma.program.create({
+      data: { name: `E2E Public ${ts}`, startDate: new Date('2026-06-01'), visibility: 'PUBLIC', gyms: { create: { gymId: f.gymId } } },
+    })
+    const privateProgram = await prisma.program.create({
+      data: { name: `E2E Private ${ts}`, startDate: new Date('2026-06-01'), visibility: 'PRIVATE', gyms: { create: { gymId: f.gymId } } },
+    })
+    const alreadyJoined = await prisma.program.create({
+      data: { name: `E2E Already Joined ${ts}`, startDate: new Date('2026-06-01'), visibility: 'PUBLIC', gyms: { create: { gymId: f.gymId } } },
+    })
+    await prisma.userProgram.create({ data: { userId: f.member.id, programId: alreadyJoined.id, role: 'MEMBER' } })
+
+    try {
+      await loginAndSelectGym(page, f.member.id, 'MEMBER', f.gymId)
+      await page.goto('/browse-programs')
+      await expect(page.getByText(publicProgram.name)).toBeVisible({ timeout: 5000 })
+      await expect(page.getByText(privateProgram.name)).not.toBeVisible()
+      await expect(page.getByText(alreadyJoined.name)).not.toBeVisible()
+    } finally {
+      await prisma.userProgram.deleteMany({ where: { programId: { in: [publicProgram.id, privateProgram.id, alreadyJoined.id] } } }).catch(() => {})
+    }
+  })
+
+  // ── #88: default program + auto-surface for members ────────────────────────
+  // ────────────────────────────────────────────────────────────────────────────
+
+  test('OWNER marks a PUBLIC program as gym default and the badge appears', async ({ page }) => {
+    const name = `E2E Default ${randomUUID().slice(0, 6)}`
+    const seeded = await prisma.program.create({
+      data: {
+        name,
+        startDate: new Date('2026-07-01'),
+        visibility: 'PUBLIC',
+        gyms: { create: { gymId: f.gymId } },
+      },
+    })
+
+    await loginAndSelectGym(page, f.owner.id, 'OWNER', f.gymId)
+    await page.goto(`/programs/${seeded.id}`)
+    await expect(page.locator('h1', { hasText: name })).toBeVisible()
+
+    // Toggle is enabled (PUBLIC, not yet default)
+    const toggle = page.getByRole('button', { name: /Set as gym default/ })
+    await expect(toggle).toBeEnabled()
+    await toggle.click()
+
+    // After the click the toggle flips to "⭐ Gym default" and the badge renders
+    await expect(page.getByRole('button', { name: /Gym default/ })).toBeDisabled({ timeout: 5000 })
+    await expect(page.getByLabel('Gym default program')).toBeVisible()
+
+    // DB confirms isDefault
+    const row = await prisma.gymProgram.findUnique({
+      where: { gymId_programId: { gymId: f.gymId, programId: seeded.id } },
+    })
+    expect(row?.isDefault).toBe(true)
+  })
+
+  test('MEMBER sees the default program in the sidebar picker without subscribing', async ({ page }) => {
+    const name = `E2E Default For Members ${randomUUID().slice(0, 6)}`
+    const seeded = await prisma.program.create({
+      data: {
+        name,
+        startDate: new Date('2026-07-01'),
+        visibility: 'PUBLIC',
+        gyms: { create: { gymId: f.gymId, isDefault: true } },
+      },
+    })
+
+    await loginAndSelectGym(page, f.member.id, 'MEMBER', f.gymId)
+    await page.goto('/feed')
+
+    // Sidebar picker dropdown — open it and look for the default program entry
+    const picker = page.locator('aside').first().getByRole('button').filter({ hasText: /All programs|Programs/ }).first()
+    await picker.click()
+    await expect(page.getByRole('listbox').getByText(name)).toBeVisible({ timeout: 5000 })
+
+    // Confirm no UserProgram row was created — the default surfaces virtually
+    const sub = await prisma.userProgram.findUnique({
+      where: { userId_programId: { userId: f.member.id, programId: seeded.id } },
+    })
+    expect(sub).toBeNull()
   })
 })

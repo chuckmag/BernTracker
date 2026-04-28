@@ -255,10 +255,10 @@ async function runTests() {
   // Three fresh programs: A1 + A2 linked to `gymId` (caller's gym), B linked to
   // `otherGymId` only. One workout per program, all in the test date range.
   const programA1 = await prisma.program.create({
-    data: { name: `Filter A1 ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId } } },
+    data: { name: `Filter A1 ${TS}`, startDate: new Date('2026-05-01'), visibility: 'PUBLIC', gyms: { create: { gymId } } },
   })
   const programA2 = await prisma.program.create({
-    data: { name: `Filter A2 ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId } } },
+    data: { name: `Filter A2 ${TS}`, startDate: new Date('2026-05-01'), visibility: 'PUBLIC', gyms: { create: { gymId } } },
   })
   const programB = await prisma.program.create({
     data: { name: `Filter B ${TS}`, startDate: new Date('2026-05-01'), gyms: { create: { gymId: otherGymId } } },
@@ -506,6 +506,332 @@ async function runTests() {
   {
     const r = await api('GET', `/me/programs?gymId=${gymId}`)
     check('me/programs without auth → 401', 401, r.status)
+  }
+
+  // ── Slice 4 — visibility, browse, self-subscribe ───────────────────────────
+  console.log('\n=== Slice 4: visibility + browse + self-subscribe ===')
+
+  {
+    // Default visibility on a freshly created program is PRIVATE.
+    const r = await api('POST', `/gyms/${gymId}/programs`, programmerToken, {
+      name: `Visibility default ${TS}`,
+      startDate: '2026-06-01',
+    })
+    check('POST without visibility → 201', 201, r.status)
+    const created = r.body.program as { id: string; visibility: string } | undefined
+    check('POST default visibility = PRIVATE', 'PRIVATE', created?.visibility)
+    if (created?.id) createdProgramIds.push(created.id)
+  }
+
+  // Two slice-4 fixture programs: one PUBLIC, one PRIVATE, both linked to gymId.
+  const publicProgram = await prisma.program.create({
+    data: {
+      name: `Slice4 Public ${TS}`,
+      startDate: new Date('2026-06-01'),
+      visibility: 'PUBLIC',
+      gyms: { create: { gymId } },
+    },
+  })
+  const privateProgram = await prisma.program.create({
+    data: {
+      name: `Slice4 Private ${TS}`,
+      startDate: new Date('2026-06-01'),
+      visibility: 'PRIVATE',
+      gyms: { create: { gymId } },
+    },
+  })
+  createdProgramIds.push(publicProgram.id, privateProgram.id)
+
+  {
+    // PATCH visibility flip
+    const r = await api('PATCH', `/programs/${privateProgram.id}`, programmerToken, { visibility: 'PUBLIC' })
+    check('PATCH visibility=PUBLIC → 200', 200, r.status)
+    check('PATCH visibility persisted', 'PUBLIC', r.body.visibility)
+    // Flip back so subsequent assertions still see it as PRIVATE.
+    await api('PATCH', `/programs/${privateProgram.id}`, programmerToken, { visibility: 'PRIVATE' })
+  }
+
+  {
+    // PATCH visibility as MEMBER → 403
+    const r = await api('PATCH', `/programs/${publicProgram.id}`, memberToken, { visibility: 'PRIVATE' })
+    check('PATCH visibility as MEMBER → 403', 403, r.status)
+  }
+
+  {
+    // Browse: only PUBLIC programs the caller hasn't joined
+    const r = await api('GET', `/gyms/${gymId}/programs/browse`, memberToken)
+    check('GET browse as MEMBER → 200', 200, r.status)
+    const ids = (r.body as unknown as { programId: string }[]).map((g) => g.programId)
+    check('Browse includes PUBLIC program', true, ids.includes(publicProgram.id))
+    check('Browse excludes PRIVATE program', false, ids.includes(privateProgram.id))
+  }
+
+  {
+    // Self-subscribe to PUBLIC → 201, then duplicate → 409
+    const r = await api('POST', `/programs/${publicProgram.id}/subscribe`, memberToken)
+    check('POST subscribe (PUBLIC) → 201', 201, r.status)
+    check('POST subscribe → role=MEMBER', 'MEMBER', r.body.role)
+  }
+
+  {
+    const r = await api('POST', `/programs/${publicProgram.id}/subscribe`, memberToken)
+    check('POST subscribe duplicate → 409', 409, r.status)
+  }
+
+  {
+    // After joining, browse no longer surfaces the same program
+    const r = await api('GET', `/gyms/${gymId}/programs/browse`, memberToken)
+    const ids = (r.body as unknown as { programId: string }[]).map((g) => g.programId)
+    check('Browse drops just-joined program', false, ids.includes(publicProgram.id))
+  }
+
+  {
+    // Self-subscribe to PRIVATE → 403
+    const r = await api('POST', `/programs/${privateProgram.id}/subscribe`, memberToken)
+    check('POST subscribe (PRIVATE) → 403', 403, r.status)
+  }
+
+  {
+    // Outsider (in otherGymId only) → 403, not 404, so we don't leak existence
+    const r = await api('POST', `/programs/${publicProgram.id}/subscribe`, outsiderToken)
+    check('POST subscribe as non-gym user → 403', 403, r.status)
+  }
+
+  {
+    // Self-unsubscribe — leave the program
+    const r = await api('DELETE', `/programs/${publicProgram.id}/subscribe`, memberToken)
+    check('DELETE subscribe (own membership) → 204', 204, r.status)
+  }
+
+  {
+    // Already left → 404 from the same endpoint
+    const r = await api('DELETE', `/programs/${publicProgram.id}/subscribe`, memberToken)
+    check('DELETE subscribe (already left) → 404', 404, r.status)
+  }
+
+  // ── Visibility-aware /workouts?programIds=… (slice 4 tightening) ────────────
+
+  // Seed one PUBLISHED workout in the PRIVATE program.
+  const privateWorkout = await prisma.workout.create({
+    data: {
+      programId: privateProgram.id, title: 'Private workout', description: 'private', type: 'AMRAP',
+      scheduledAt: new Date('2026-06-10T12:00:00Z'), status: 'PUBLISHED',
+    },
+  })
+
+  const range4 = 'from=2026-06-01&to=2026-06-30T23:59:59Z'
+
+  {
+    // MEMBER (no UserProgram row) hitting /workouts?programIds=<private> → 403
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range4}&programIds=${privateProgram.id}`, memberToken)
+    check('GET ?programIds=<private> as MEMBER → 403', 403, r.status)
+  }
+
+  {
+    // Coach (gym staff) gets through despite no UserProgram row
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range4}&programIds=${privateProgram.id}`, coachToken)
+    check('GET ?programIds=<private> as COACH → 200', 200, r.status)
+  }
+
+  {
+    // OWNER bypasses too
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range4}&programIds=${privateProgram.id}`, ownerToken)
+    check('GET ?programIds=<private> as OWNER → 200', 200, r.status)
+  }
+
+  {
+    // Subscribe member directly so they can see PRIVATE workouts they were invited to
+    await prisma.userProgram.create({ data: { userId: memberUserId, programId: privateProgram.id, role: 'MEMBER' } })
+    const r = await api('GET', `/gyms/${gymId}/workouts?${range4}&programIds=${privateProgram.id}`, memberToken)
+    check('GET ?programIds=<private> as subscribed MEMBER → 200', 200, r.status)
+    await prisma.userProgram.delete({
+      where: { userId_programId: { userId: memberUserId, programId: privateProgram.id } },
+    })
+  }
+
+  await prisma.workout.delete({ where: { id: privateWorkout.id } })
+
+  // ── Slice 5 — default program + auto-surfaced for members ──────────────────
+  console.log('\n=== Slice 5: default program ===')
+
+  // Two PUBLIC programs in the same gym + the existing privateProgram from slice 4
+  const defaultA = await prisma.program.create({
+    data: {
+      name: `Slice5 Default A ${TS}`,
+      startDate: new Date('2026-07-01'),
+      visibility: 'PUBLIC',
+      gyms: { create: { gymId } },
+    },
+  })
+  const defaultB = await prisma.program.create({
+    data: {
+      name: `Slice5 Default B ${TS}`,
+      startDate: new Date('2026-07-01'),
+      visibility: 'PUBLIC',
+      gyms: { create: { gymId } },
+    },
+  })
+  createdProgramIds.push(defaultA.id, defaultB.id)
+
+  const setDefaultPath = (pid: string) => `/gyms/${gymId}/programs/${pid}/default`
+
+  {
+    // OWNER marks A as default → 204
+    const r = await api('PATCH', setDefaultPath(defaultA.id), ownerToken)
+    check('PATCH default as OWNER → 204', 204, r.status)
+    const row = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultA.id } } })
+    check('GymProgram.isDefault persisted', true, row?.isDefault)
+  }
+
+  {
+    // PROGRAMMER cannot set default → 403
+    const r = await api('PATCH', setDefaultPath(defaultB.id), programmerToken)
+    check('PATCH default as PROGRAMMER → 403', 403, r.status)
+  }
+
+  {
+    // COACH → 403, MEMBER → 403
+    const r1 = await api('PATCH', setDefaultPath(defaultB.id), coachToken)
+    check('PATCH default as COACH → 403', 403, r1.status)
+    const r2 = await api('PATCH', setDefaultPath(defaultB.id), memberToken)
+    check('PATCH default as MEMBER → 403', 403, r2.status)
+  }
+
+  {
+    // No auth → 401
+    const r = await api('PATCH', setDefaultPath(defaultB.id))
+    check('PATCH default no auth → 401', 401, r.status)
+  }
+
+  {
+    // Atomic swap: marking B as default clears A
+    const r = await api('PATCH', setDefaultPath(defaultB.id), ownerToken)
+    check('PATCH default switches → 204', 204, r.status)
+    const a = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultA.id } } })
+    const b = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultB.id } } })
+    check('Previous default cleared', false, a?.isDefault)
+    check('New default set', true, b?.isDefault)
+  }
+
+  {
+    // PRIVATE program → 400 with explanatory message
+    const r = await api('PATCH', setDefaultPath(privateProgram.id), ownerToken)
+    check('PATCH default on PRIVATE → 400', 400, r.status)
+    check(
+      'PATCH default on PRIVATE error message',
+      true,
+      String(r.body?.error ?? '').toLowerCase().includes('public'),
+    )
+  }
+
+  {
+    // Program not linked to this gym → 404
+    const otherGymProgram = await prisma.program.create({
+      data: {
+        name: `Other Gym Program ${TS}`,
+        startDate: new Date('2026-07-01'),
+        visibility: 'PUBLIC',
+        gyms: { create: { gymId: otherGymId } },
+      },
+    })
+    const r = await api('PATCH', `/gyms/${gymId}/programs/${otherGymProgram.id}/default`, ownerToken)
+    check('PATCH default for unlinked program → 404', 404, r.status)
+    await prisma.program.delete({ where: { id: otherGymProgram.id } })
+  }
+
+  {
+    // GET list response includes isDefault and sorts default first
+    const r = await api('GET', `/gyms/${gymId}/programs`, ownerToken)
+    check('GET list returns isDefault on each row', true, r.body[0]?.isDefault === true || r.body[0]?.isDefault === false)
+    const defaults = (r.body as unknown as { programId: string; isDefault: boolean }[])
+      .filter((g) => g.isDefault)
+      .map((g) => g.programId)
+    check('Exactly one default in list', 1, defaults.length)
+    check('Default is the right program', defaultB.id, defaults[0])
+    check('Default sorted first', defaultB.id, (r.body as unknown as { programId: string }[])[0]?.programId)
+  }
+
+  {
+    // me/programs surfaces the default for a MEMBER even though they have NO
+    // UserProgram row for it (slice 5 / #88 — no auto-subscribe writes).
+    const r = await api('GET', `/me/programs?gymId=${gymId}`, memberToken)
+    check('me/programs as MEMBER → 200', 200, r.status)
+    const ids = (r.body as unknown as { programId: string }[]).map((g) => g.programId)
+    check('me/programs as MEMBER includes default', true, ids.includes(defaultB.id))
+    // No UserProgram row was created — confirm by querying directly
+    const sub = await prisma.userProgram.findUnique({
+      where: { userId_programId: { userId: memberUserId, programId: defaultB.id } },
+    })
+    check('No UserProgram row created for default', null, sub)
+  }
+
+  {
+    // Visibility-flip safeguard: PATCH visibility=PRIVATE on a default program
+    // is rejected so OWNERs can't accidentally orphan the program for every
+    // gym member. They must clear the gym default first.
+    const flip = await api('PATCH', `/programs/${defaultB.id}`, programmerToken, { visibility: 'PRIVATE' })
+    check('PATCH default → PRIVATE rejected with 400', 400, flip.status)
+    check(
+      'PATCH default → PRIVATE error mentions clearing default',
+      true,
+      typeof flip.body?.error === 'string' && /default/i.test(flip.body.error as string),
+    )
+    const row = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultB.id } } })
+    check('Default still set after rejected flip', true, row?.isDefault)
+    check('Visibility unchanged after rejected flip', 'PUBLIC', (await prisma.program.findUnique({ where: { id: defaultB.id } }))?.visibility)
+  }
+
+  {
+    // DELETE /default endpoint — explicit clear (called by the edit drawer
+    // before flipping a default program to PRIVATE).
+    const clearPath = (pid: string) => `/gyms/${gymId}/programs/${pid}/default`
+
+    // PROGRAMMER, COACH, MEMBER all rejected — clearing default is OWNER-only.
+    const rProg = await api('DELETE', clearPath(defaultB.id), programmerToken)
+    check('DELETE default as PROGRAMMER → 403', 403, rProg.status)
+    const rCoach = await api('DELETE', clearPath(defaultB.id), coachToken)
+    check('DELETE default as COACH → 403', 403, rCoach.status)
+    const rMember = await api('DELETE', clearPath(defaultB.id), memberToken)
+    check('DELETE default as MEMBER → 403', 403, rMember.status)
+    const rNoAuth = await api('DELETE', clearPath(defaultB.id))
+    check('DELETE default no auth → 401', 401, rNoAuth.status)
+
+    // OWNER → 204 and the row is cleared.
+    const rOwner = await api('DELETE', clearPath(defaultB.id), ownerToken)
+    check('DELETE default as OWNER → 204', 204, rOwner.status)
+    const cleared = await prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: defaultB.id } } })
+    check('GymProgram.isDefault cleared after DELETE', false, cleared?.isDefault)
+
+    // Idempotent: a second DELETE on a non-default row still returns 204.
+    const rRepeat = await api('DELETE', clearPath(defaultB.id), ownerToken)
+    check('DELETE default repeated → 204 (idempotent)', 204, rRepeat.status)
+
+    // After clearing, OWNER can finally flip visibility to PRIVATE.
+    const flip = await api('PATCH', `/programs/${defaultB.id}`, programmerToken, { visibility: 'PRIVATE' })
+    check('PATCH visibility=PRIVATE after clearing default → 200', 200, flip.status)
+    // Restore for any subsequent assertions / partial-index test below.
+    await api('PATCH', `/programs/${defaultB.id}`, programmerToken, { visibility: 'PUBLIC' })
+  }
+
+  {
+    // Partial unique index belt — try to create a second default row directly
+    // (bypassing the route's clear-and-set transaction) and confirm the DB rejects it.
+    await prisma.gymProgram.update({
+      where: { gymId_programId: { gymId, programId: defaultA.id } },
+      data: { isDefault: true },
+    })
+    let dbCaught = false
+    try {
+      await prisma.gymProgram.update({
+        where: { gymId_programId: { gymId, programId: defaultB.id } },
+        data: { isDefault: true },
+      })
+    } catch {
+      dbCaught = true
+    }
+    check('Partial unique index rejects two defaults', true, dbCaught)
+    // Reset
+    await prisma.gymProgram.updateMany({ where: { gymId }, data: { isDefault: false } })
   }
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { api, type GymProgram, type Program } from '../lib/api'
+import { api, type GymProgram, type Program, type ProgramVisibility } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import Button from '../components/ui/Button'
 import Skeleton from '../components/ui/Skeleton'
@@ -87,7 +87,11 @@ export default function ProgramDetail() {
       <div className="flex items-start gap-4 mb-6">
         <div style={{ backgroundColor: stripe }} className="w-1.5 h-12 rounded-full shrink-0" />
         <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold truncate">{program.name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold truncate">{program.name}</h1>
+            <VisibilityBadge visibility={program.visibility} />
+            {detail.isDefault && <DefaultBadge />}
+          </div>
           {program.description && (
             <p className="mt-1 text-sm text-gray-400">{program.description}</p>
           )}
@@ -133,9 +137,13 @@ export default function ProgramDetail() {
       {tab === 'overview' && (
         <OverviewTab
           program={program}
+          isDefault={detail.isDefault}
           canWrite={canWrite}
+          canSetDefault={gymRole === 'OWNER'}
+          gymId={detail.gymId}
           canSeeMembers={canSeeMembers}
           onOpenMembers={() => setTab('members')}
+          onDefaultChanged={load}
         />
       )}
       {tab === 'members' && canSeeMembers && (
@@ -160,6 +168,8 @@ export default function ProgramDetail() {
       <ProgramFormDrawer
         gymId={detail.gymId}
         program={program}
+        isDefault={detail.isDefault}
+        canSetDefault={gymRole === 'OWNER'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onSaved={handleSaved}
@@ -170,19 +180,53 @@ export default function ProgramDetail() {
 
 function OverviewTab({
   program,
+  isDefault,
   canWrite,
+  canSetDefault,
+  gymId,
   canSeeMembers,
   onOpenMembers,
+  onDefaultChanged,
 }: {
   program: Program
+  isDefault: boolean
   canWrite: boolean
+  canSetDefault: boolean
+  gymId: string
   canSeeMembers: boolean
   onOpenMembers: () => void
+  onDefaultChanged: () => void
 }) {
   const memberCount = program._count?.members ?? 0
   const workoutCount = program._count?.workouts ?? 0
   const fmt = (d: string | null) =>
     d ? new Date(d).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—'
+
+  const [setDefaultLoading, setSetDefaultLoading] = useState(false)
+  const [setDefaultError, setSetDefaultError] = useState<string | null>(null)
+
+  async function handleSetAsDefault() {
+    setSetDefaultLoading(true)
+    setSetDefaultError(null)
+    try {
+      await api.gyms.programs.setDefault(gymId, program.id)
+      onDefaultChanged()
+    } catch (e) {
+      setSetDefaultError((e as Error).message)
+    } finally {
+      setSetDefaultLoading(false)
+    }
+  }
+
+  // Default must be PUBLIC — server enforces this with a 400, but we surface
+  // the rule in the UI so OWNERs don't waste a click.
+  const isPublic = program.visibility === 'PUBLIC'
+  const defaultDisabled = isDefault || !isPublic || setDefaultLoading
+  const defaultTooltip = !isPublic
+    ? 'Default programs must be public. Change visibility first.'
+    : isDefault
+    ? 'Already the gym default'
+    : undefined
 
   return (
     <>
@@ -217,6 +261,23 @@ function OverviewTab({
         </div>
       </dl>
 
+      {canSetDefault && (
+        <div className="mb-6">
+          <Button
+            variant="secondary"
+            onClick={handleSetAsDefault}
+            disabled={defaultDisabled}
+            title={defaultTooltip}
+          >
+            {isDefault ? '⭐ Gym default' : setDefaultLoading ? 'Setting…' : 'Set as gym default'}
+          </Button>
+          {setDefaultError && <p className="text-red-400 text-xs mt-2">{setDefaultError}</p>}
+          {!isPublic && !isDefault && (
+            <p className="text-xs text-gray-400 mt-2">{defaultTooltip}</p>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         <Link to={`/feed?programIds=${program.id}`}>
           <Button variant="secondary">Open in Feed</Button>
@@ -237,5 +298,38 @@ function ComingSoon({ label }: { label: string }) {
       <p className="text-sm text-gray-400">{label}</p>
       <p className="mt-1 text-xs text-gray-400">Coming in a later slice of #82</p>
     </div>
+  )
+}
+
+export function VisibilityBadge({ visibility, className = '' }: { visibility: ProgramVisibility; className?: string }) {
+  const isPublic = visibility === 'PUBLIC'
+  return (
+    <span
+      aria-label={isPublic ? 'Public program' : 'Private program'}
+      className={[
+        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border',
+        isPublic
+          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30'
+          : 'bg-gray-800 text-gray-300 border-gray-700',
+        className,
+      ].filter(Boolean).join(' ')}
+    >
+      {isPublic ? '🌐 Public' : '🔒 Private'}
+    </span>
+  )
+}
+
+export function DefaultBadge({ className = '' }: { className?: string }) {
+  return (
+    <span
+      aria-label="Gym default program"
+      className={[
+        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border',
+        'bg-amber-500/15 text-amber-300 border-amber-400/30',
+        className,
+      ].filter(Boolean).join(' ')}
+    >
+      ⭐ Default
+    </span>
   )
 }

@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useGym } from '../context/GymContext.tsx'
+import { useAuth } from '../context/AuthContext.tsx'
+import AvatarPlaceholder from './AvatarPlaceholder'
 
 interface TopBarProps {
   onMenuClick: () => void
@@ -7,10 +9,13 @@ interface TopBarProps {
 
 export default function TopBar({ onMenuClick }: TopBarProps) {
   const { gyms, gymId, setGymId } = useGym()
+  const { user } = useAuth()
 
   function handleGymChange(e: React.ChangeEvent<HTMLSelectElement>) {
     setGymId(e.target.value)
   }
+
+  const displayName = user?.firstName || user?.name?.split(' ')[0] || user?.email || 'You'
 
   return (
     <header className="h-12 flex items-center px-4 border-b border-gray-800 bg-gray-950 shrink-0">
@@ -26,9 +31,9 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
         </svg>
       </button>
 
-      <div className="flex-1 flex justify-end">
+      <div className="flex-1 flex items-center justify-end gap-3">
         {gyms.length === 0 ? (
-          <Link to="/settings" className="text-sm text-indigo-400 hover:text-indigo-300">
+          <Link to="/gym-settings" className="text-sm text-indigo-400 hover:text-indigo-300">
             Set up a gym →
           </Link>
         ) : gyms.length === 1 ? (
@@ -46,6 +51,18 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
               </option>
             ))}
           </select>
+        )}
+
+        {user && (
+          <Link
+            to="/profile"
+            aria-label="Your profile"
+            title={displayName}
+            className="flex items-center gap-2 rounded-full pl-1 pr-3 py-0.5 hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+          >
+            <AvatarPlaceholder firstName={user.firstName} lastName={user.lastName} email={user.email} size="sm" />
+            <span className="hidden sm:inline text-sm text-gray-300">{displayName}</span>
+          </Link>
         )}
       </div>
     </header>

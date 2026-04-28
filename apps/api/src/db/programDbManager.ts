@@ -1,4 +1,4 @@
-import { prisma } from '@wodalytics/db'
+import { prisma, type ProgramVisibility } from '@wodalytics/db'
 
 interface UpdateProgramData {
   name?: string
@@ -6,6 +6,7 @@ interface UpdateProgramData {
   startDate?: Date
   endDate?: Date | null
   coverColor?: string | null
+  visibility?: ProgramVisibility
 }
 
 export async function findProgramWithGymIds(id: string) {
@@ -13,6 +14,20 @@ export async function findProgramWithGymIds(id: string) {
     where: { id },
     include: { gyms: { select: { gymId: true } } },
   })
+}
+
+/**
+ * Returns true if any GymProgram row for this program has isDefault=true.
+ * Used by the visibility-PATCH guard — making a default program PRIVATE
+ * would orphan it for non-staff members, so we refuse the flip and tell
+ * the user to clear the default first (slice 5 / #88).
+ */
+export async function isProgramDefaultForAnyGym(programId: string): Promise<boolean> {
+  const row = await prisma.gymProgram.findFirst({
+    where: { programId, isDefault: true },
+    select: { gymId: true },
+  })
+  return Boolean(row)
 }
 
 export async function updateProgramById(id: string, data: UpdateProgramData) {
@@ -39,22 +54,41 @@ export async function createProgramByName(name: string, startDate: Date = new Da
 
 export type ProgramGymAccessResult = 'ok' | 'not-found' | 'forbidden'
 
-// Verify the program exists, is linked to the given gym, and the caller is a
-// member of that gym. Used by the workouts list endpoint when a `?programId`
-// query param is present (route-level `requireGymMembership` already vetted
-// caller-vs-gym; this helper just ties program-vs-gym into the picture).
-//
-// Slice 2 deliberately does not enforce visibility (PUBLIC vs PRIVATE) — that
-// arrives in slice 4 (#87) and tightens this same check.
+/**
+ * Visibility-aware access check for the workouts list endpoint
+ * (`GET /workouts?programIds=…`).
+ *
+ *   - Program must be linked to the gym (program-vs-gym vetting).
+ *   - PUBLIC programs are visible to every gym member.
+ *   - PRIVATE programs require either staff role in any linked gym
+ *     (OWNER / PROGRAMMER / COACH) or an existing `UserProgram` row for
+ *     the caller. Members who haven't been invited get a 403 even though
+ *     they're in the gym.
+ *
+ * Caller-vs-gym is checked by the route guard before this is called.
+ */
 export async function findProgramGymAccessForUser(
   programId: string,
   gymId: string,
+  userId: string,
+  callerGymRole: string,
 ): Promise<ProgramGymAccessResult> {
   const program = await prisma.program.findUnique({
     where: { id: programId },
-    select: { gyms: { where: { gymId }, select: { gymId: true } } },
+    select: {
+      visibility: true,
+      gyms: { where: { gymId }, select: { gymId: true } },
+    },
   })
   if (!program) return 'not-found'
   if (program.gyms.length === 0) return 'forbidden'
-  return 'ok'
+  if (program.visibility === 'PUBLIC') return 'ok'
+
+  // PRIVATE: staff bypass + UserProgram subscribers
+  if (callerGymRole === 'OWNER' || callerGymRole === 'PROGRAMMER' || callerGymRole === 'COACH') return 'ok'
+  const sub = await prisma.userProgram.findUnique({
+    where: { userId_programId: { userId, programId } },
+    select: { userId: true },
+  })
+  return sub ? 'ok' : 'forbidden'
 }

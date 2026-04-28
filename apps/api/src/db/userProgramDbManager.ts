@@ -68,10 +68,13 @@ export async function findProgramMembersWithUserInfo(programId: string) {
  * Two roles, two answers:
  *   - Staff (OWNER / PROGRAMMER / COACH) → all programs linked to the gym
  *     so they can pick any program in their picker
- *   - MEMBER → only programs they have a UserProgram row for, so members
- *     don't see programs they were never invited to
+ *   - MEMBER → programs they have a UserProgram row for, **plus** the gym's
+ *     default program (if any). The default surfaces for every gym member
+ *     without needing a UserProgram row, so onboarding doesn't depend on a
+ *     write-side hook (slice 5 / #88).
  *
  * Caller-vs-gym is checked by the route guard before this is called.
+ * Default program is sorted first so the picker pins it visually.
  */
 export async function findProgramsAvailableToUserInGym(
   userId: string,
@@ -81,7 +84,7 @@ export async function findProgramsAvailableToUserInGym(
   if (isStaff) {
     return prisma.gymProgram.findMany({
       where: { gymId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
       include: {
         program: { include: { _count: { select: { members: true, workouts: true } } } },
       },
@@ -90,9 +93,14 @@ export async function findProgramsAvailableToUserInGym(
   return prisma.gymProgram.findMany({
     where: {
       gymId,
-      program: { members: { some: { userId } } },
+      OR: [
+        // Programs the member has a real UserProgram subscription for…
+        { program: { members: { some: { userId } } } },
+        // …plus whichever program is marked default for this gym.
+        { isDefault: true },
+      ],
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
     include: {
       program: { include: { _count: { select: { members: true, workouts: true } } } },
     },

@@ -85,7 +85,7 @@ export default function Members() {
 
   async function handleSubscribe(userId: string, programId: string) {
     try {
-      await api.programs.subscribe(programId, userId)
+      await api.programs.members.invite(programId, { userId })
       await loadData()
     } catch (e) {
       setError((e as Error).message)
@@ -94,7 +94,7 @@ export default function Members() {
 
   async function handleUnsubscribe(userId: string, programId: string) {
     try {
-      await api.programs.unsubscribe(programId, userId)
+      await api.programs.members.remove(programId, userId)
       await loadData()
     } catch (e) {
       setError((e as Error).message)

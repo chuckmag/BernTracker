@@ -17,7 +17,7 @@ const TIMEZONES = [
   'Asia/Tokyo',
 ]
 
-export default function Settings() {
+export default function GymSettings() {
   const { gymId, setGymId } = useGym()
   const { user } = useAuth()
   const allMovements = useMovements()

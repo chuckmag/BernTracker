@@ -6,16 +6,20 @@ import { GymProvider } from './context/GymContext.tsx'
 import { MovementsProvider } from './context/MovementsContext.tsx'
 import { ProgramFilterProvider } from './context/ProgramFilterContext.tsx'
 import RequireAuth from './components/RequireAuth.tsx'
+import RequireOnboarded from './components/RequireOnboarded.tsx'
 import Sidebar from './components/Sidebar.tsx'
 import TopBar from './components/TopBar.tsx'
 import Login from './pages/Login.tsx'
 import Register from './pages/Register.tsx'
+import Onboarding from './pages/Onboarding.tsx'
+import Profile from './pages/Profile.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Calendar from './pages/Calendar.tsx'
 import Members from './pages/Members.tsx'
 import ProgramsIndex from './pages/ProgramsIndex.tsx'
 import ProgramDetail from './pages/ProgramDetail.tsx'
-import Settings from './pages/Settings.tsx'
+import BrowsePrograms from './pages/BrowsePrograms.tsx'
+import GymSettings from './pages/GymSettings.tsx'
 import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
 import History from './pages/History.tsx'
@@ -64,8 +68,12 @@ function AppLayout() {
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/programs" element={<ProgramsIndex />} />
               <Route path="/programs/:id" element={<ProgramDetail />} />
+              <Route path="/browse-programs" element={<BrowsePrograms />} />
               <Route path="/members" element={<Members />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/gym-settings" element={<GymSettings />} />
+              {/* Legacy alias — keep so deep links and bookmarks still resolve */}
+              <Route path="/settings" element={<Navigate to="/gym-settings" replace />} />
             </Routes>
           </ErrorBoundary>
         </main>
@@ -80,17 +88,20 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
         <Route
           path="/*"
           element={
             <RequireAuth>
-              <GymProvider>
-                <MovementsProvider>
-                  <ProgramFilterProvider>
-                    <AppLayout />
-                  </ProgramFilterProvider>
-                </MovementsProvider>
-              </GymProvider>
+              <RequireOnboarded>
+                <GymProvider>
+                  <MovementsProvider>
+                    <ProgramFilterProvider>
+                      <AppLayout />
+                    </ProgramFilterProvider>
+                  </MovementsProvider>
+                </GymProvider>
+              </RequireOnboarded>
             </RequireAuth>
           }
         />

@@ -192,6 +192,8 @@ export interface Member {
   programs: { id: string; name: string }[]
 }
 
+export type ProgramVisibility = 'PUBLIC' | 'PRIVATE'
+
 export interface Program {
   id: string
   name: string
@@ -199,6 +201,7 @@ export interface Program {
   startDate: string
   endDate: string | null
   coverColor: string | null
+  visibility: ProgramVisibility
   createdAt: string
   updatedAt: string
   _count?: { members: number; workouts: number }
@@ -217,6 +220,7 @@ export interface ProgramMember {
 export interface GymProgram {
   gymId: string
   programId: string
+  isDefault: boolean
   createdAt: string
   program: Program
 }
@@ -226,11 +230,47 @@ export type IdentifiedGender = 'FEMALE' | 'MALE' | 'NON_BINARY' | 'PREFER_NOT_TO
 export interface AuthUser {
   id: string
   email: string
-  name: string
+  name: string | null
+  firstName: string | null
+  lastName: string | null
+  birthday: string | null
+  avatarUrl: string | null
+  onboardedAt: string | null
   role: Role
   identifiedGender: IdentifiedGender
   isMovementReviewer: boolean
 }
+
+export interface EmergencyContact {
+  id: string
+  userId: string
+  name: string
+  relationship: string | null
+  phone: string
+  email: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserProfile extends Omit<AuthUser, 'isMovementReviewer'> {
+  emergencyContacts: EmergencyContact[]
+}
+
+export interface UpdateProfilePayload {
+  firstName?: string
+  lastName?: string
+  birthday?: string | null
+  identifiedGender?: IdentifiedGender
+}
+
+export interface CreateEmergencyContactPayload {
+  name: string
+  relationship?: string
+  phone: string
+  email?: string
+}
+
+export type UpdateEmergencyContactPayload = Partial<CreateEmergencyContactPayload>
 
 export interface AuthResponse {
   accessToken: string
@@ -276,6 +316,34 @@ export const api = {
       }
     },
     me: (token: string) => req<AuthUser>('/api/auth/me', { token }),
+  },
+
+  users: {
+    me: {
+      profile: {
+        get: () => req<UserProfile>('/api/users/me/profile'),
+        update: (data: UpdateProfilePayload) =>
+          req<UserProfile>('/api/users/me/profile', {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+          }),
+      },
+      emergencyContacts: {
+        list: () => req<EmergencyContact[]>('/api/users/me/emergency-contacts'),
+        create: (data: CreateEmergencyContactPayload) =>
+          req<EmergencyContact>('/api/users/me/emergency-contacts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+          }),
+        update: (id: string, data: UpdateEmergencyContactPayload) =>
+          req<EmergencyContact>(`/api/users/me/emergency-contacts/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+          }),
+        remove: (id: string) =>
+          req<void>(`/api/users/me/emergency-contacts/${id}`, { method: 'DELETE' }),
+      },
+    },
   },
 
   me: {
@@ -326,7 +394,7 @@ export const api = {
 
       create: (
         gymId: string,
-        data: { name: string; description?: string; startDate: string; endDate?: string; coverColor?: string },
+        data: { name: string; description?: string; startDate: string; endDate?: string; coverColor?: string; visibility?: ProgramVisibility },
         token?: string,
       ) =>
         req<{ program: Program }>(`/api/gyms/${gymId}/programs`, {
@@ -334,6 +402,26 @@ export const api = {
           body: JSON.stringify(data),
           token,
         }),
+
+      browse: (gymId: string, token?: string) =>
+        req<GymProgram[]>(`/api/gyms/${gymId}/programs/browse`, { token }),
+
+      /**
+       * Mark a PUBLIC program as the gym default (slice 5 / #88). OWNER only;
+       * server clears any prior default in the same transaction. Returns 400
+       * if the program is PRIVATE, 404 if not linked to this gym.
+       */
+      setDefault: (gymId: string, programId: string, token?: string) =>
+        req<void>(`/api/gyms/${gymId}/programs/${programId}/default`, { method: 'PATCH', token }),
+
+      /**
+       * Clear the default flag for this program. OWNER only, idempotent.
+       * Required before flipping a default program's visibility to PRIVATE
+       * — the visibility PATCH refuses while the default flag is set, so
+       * the OWNER must run this first.
+       */
+      clearDefault: (gymId: string, programId: string, token?: string) =>
+        req<void>(`/api/gyms/${gymId}/programs/${programId}/default`, { method: 'DELETE', token }),
     },
   },
 
@@ -479,6 +567,7 @@ export const api = {
         startDate?: string
         endDate?: string | null
         coverColor?: string | null
+        visibility?: ProgramVisibility
       },
       token?: string,
     ) =>
@@ -509,18 +598,19 @@ export const api = {
         req<void>(`/api/programs/${programId}/members/${userId}`, { method: 'DELETE', token }),
     },
 
-    subscribe: (id: string, userId: string, token?: string) =>
-      req<unknown>(`/api/programs/${id}/subscribe`, {
-        method: 'POST',
-        body: JSON.stringify({ userId }),
-        token,
-      }),
+    /**
+     * Self-subscribe to a PUBLIC program (slice 4). Server returns 403 on
+     * PRIVATE programs, 409 on duplicate. Drives the Browse page's Join
+     * button.
+     */
+    subscribe: (id: string, token?: string) =>
+      req<{ programId: string; userId: string; role: ProgramRole; joinedAt: string }>(
+        `/api/programs/${id}/subscribe`,
+        { method: 'POST', token },
+      ),
 
-    unsubscribe: (id: string, userId: string, token?: string) =>
-      req<void>(`/api/programs/${id}/subscribe`, {
-        method: 'DELETE',
-        body: JSON.stringify({ userId }),
-        token,
-      }),
+    /** Leave a program — caller's own membership only. */
+    unsubscribe: (id: string, token?: string) =>
+      req<void>(`/api/programs/${id}/subscribe`, { method: 'DELETE', token }),
   },
 }
