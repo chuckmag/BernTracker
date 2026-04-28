@@ -16,6 +16,20 @@ export async function findProgramWithGymIds(id: string) {
   })
 }
 
+/**
+ * Returns true if any GymProgram row for this program has isDefault=true.
+ * Used by the visibility-PATCH guard — making a default program PRIVATE
+ * would orphan it for non-staff members, so we refuse the flip and tell
+ * the user to clear the default first (slice 5 / #88).
+ */
+export async function isProgramDefaultForAnyGym(programId: string): Promise<boolean> {
+  const row = await prisma.gymProgram.findFirst({
+    where: { programId, isDefault: true },
+    select: { gymId: true },
+  })
+  return Boolean(row)
+}
+
 export async function updateProgramById(id: string, data: UpdateProgramData) {
   return prisma.program.update({ where: { id }, data })
 }
