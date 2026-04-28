@@ -20,6 +20,7 @@ import Calendar from './pages/Calendar.tsx'
 import ProgramsIndex from './pages/ProgramsIndex.tsx'
 import ProgramDetail from './pages/ProgramDetail.tsx'
 import BrowsePrograms from './pages/BrowsePrograms.tsx'
+import BrowseGyms from './pages/BrowseGyms.tsx'
 import GymSettings from './pages/GymSettings.tsx'
 import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
@@ -71,6 +72,7 @@ function AppLayout() {
               <Route path="/programs" element={<ProgramsIndex />} />
               <Route path="/programs/:id" element={<ProgramDetail />} />
               <Route path="/browse-programs" element={<BrowsePrograms />} />
+              <Route path="/gyms/browse" element={<BrowseGyms />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/gym-settings" element={<GymSettings />} />
               {/* Legacy aliases — old bookmarks and deep links still resolve. */}

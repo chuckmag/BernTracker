@@ -7,6 +7,7 @@ const memberLinks = [
   { to: '/feed',    label: 'Feed'    },
   { to: '/history', label: 'History' },
   { to: '/browse-programs', label: 'Browse Programs' },
+  { to: '/gyms/browse', label: 'Browse Gyms' },
 ]
 
 // Members consolidated into /gym-settings#members (slice D1) — no standalone link.

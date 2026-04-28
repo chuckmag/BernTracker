@@ -10,6 +10,14 @@ const apiPort = process.env.API_PORT ?? '3000'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // `source` makes Vite resolve workspace packages via their exports.source
+  // condition (./src/*.ts) instead of the prebuilt ./dist/*.js. Without it,
+  // edits in packages/types don't HMR — and a stale Vite prebundle can fail
+  // with "no exported member X" even after a manual `tsc` rebuild.
+  // Lifted from #138/ea8b09c.
+  resolve: {
+    conditions: ['source'],
+  },
   server: {
     port: webPort,
     strictPort: true,

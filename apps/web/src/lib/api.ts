@@ -297,6 +297,37 @@ export interface CreateInvitationPayload {
   roleToGrant?: Role
 }
 
+// User-requested join (slice D2). Same model as GymInvitation but with the
+// invitedBy slot null and a `user` join populated for the staff-side list.
+export interface GymJoinRequest {
+  id: string
+  gymId: string
+  direction: 'USER_REQUESTED'
+  status: MembershipRequestStatus
+  email: string | null
+  userId: string | null
+  roleToGrant: Role
+  invitedById: string | null
+  decidedById: string | null
+  decidedAt: string | null
+  expiresAt: string | null
+  createdAt: string
+  updatedAt: string
+  gym: { id: string; name: string; slug: string }
+  user: { id: string; name: string | null; firstName: string | null; lastName: string | null; email: string } | null
+}
+
+export type GymBrowseStatus = 'NONE' | 'MEMBER' | 'REQUEST_PENDING'
+
+export interface BrowseGym {
+  id: string
+  name: string
+  slug: string
+  timezone: string
+  memberCount: number
+  callerStatus: GymBrowseStatus
+}
+
 export interface AuthResponse {
   accessToken: string
   user: AuthUser
@@ -375,6 +406,9 @@ export const api = {
         decline: (id: string) =>
           req<GymInvitation>(`/api/invitations/${id}/decline`, { method: 'POST' }),
       },
+      joinRequests: {
+        list: () => req<GymJoinRequest[]>('/api/users/me/join-requests'),
+      },
     },
   },
 
@@ -426,6 +460,29 @@ export const api = {
         }),
       revoke: (gymId: string, id: string) =>
         req<GymInvitation>(`/api/gyms/${gymId}/invitations/${id}/revoke`, { method: 'POST' }),
+    },
+
+    browse: (search?: string) => {
+      const qs = search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''
+      return req<BrowseGym[]>(`/api/gyms${qs}`)
+    },
+
+    joinRequest: {
+      // User-side: ask to join / cancel an outgoing request.
+      create: (gymId: string) =>
+        req<GymJoinRequest>(`/api/gyms/${gymId}/join-request`, { method: 'POST' }),
+      cancel: (gymId: string) =>
+        req<GymJoinRequest>(`/api/gyms/${gymId}/join-request`, { method: 'DELETE' }),
+    },
+
+    joinRequests: {
+      // Staff-side inbox.
+      list: (gymId: string) =>
+        req<GymJoinRequest[]>(`/api/gyms/${gymId}/join-requests`),
+      approve: (gymId: string, id: string) =>
+        req<GymJoinRequest>(`/api/gyms/${gymId}/join-requests/${id}/approve`, { method: 'POST' }),
+      decline: (gymId: string, id: string) =>
+        req<GymJoinRequest>(`/api/gyms/${gymId}/join-requests/${id}/decline`, { method: 'POST' }),
     },
 
     programs: {

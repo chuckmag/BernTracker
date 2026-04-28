@@ -47,6 +47,14 @@ vi.mock('../lib/api', () => ({
           accept: vi.fn(),
           decline: vi.fn(),
         },
+        joinRequests: {
+          list: vi.fn().mockResolvedValue([]),
+        },
+      },
+    },
+    gyms: {
+      joinRequest: {
+        cancel: vi.fn(),
       },
     },
     auth: { logout: vi.fn() },

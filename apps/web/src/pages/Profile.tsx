@@ -10,6 +10,7 @@ import Button from '../components/ui/Button'
 import AvatarPlaceholder from '../components/AvatarPlaceholder'
 import EmergencyContactsEditor from '../components/EmergencyContactsEditor'
 import MyInvitationsSection from '../components/MyInvitationsSection'
+import MyJoinRequestsSection from '../components/MyJoinRequestsSection'
 import {
   NameFields,
   BirthdayField,
@@ -78,6 +79,7 @@ export default function Profile() {
       </header>
 
       <MyInvitationsSection />
+      <MyJoinRequestsSection />
 
       <section className="flex items-center gap-4 rounded-xl bg-gray-900 p-4 border border-gray-800">
         <AvatarPlaceholder firstName={firstName} lastName={lastName} email={user?.email ?? ''} size="lg" />
