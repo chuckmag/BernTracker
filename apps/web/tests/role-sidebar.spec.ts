@@ -37,7 +37,7 @@ async function loginAndOpenFeed(page: Page, f: UserGymFixture, role: Role) {
   await page.waitForSelector('h1:has-text("Feed")')
 }
 
-const STAFF_LINKS = ['Calendar', 'Programs', 'Members', 'Settings'] as const
+const STAFF_LINKS = ['Calendar', 'Programs', 'Members', 'Gym Settings'] as const
 const MEMBER_LINKS = ['Feed', 'History'] as const
 
 test.describe('Sidebar role gating E2E', () => {
