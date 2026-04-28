@@ -31,11 +31,16 @@ export type FeedStackParamList = {
   Feed: undefined
 }
 
+export type HistoryStackParamList = {
+  History: undefined
+}
+
 // ── Navigators ───────────────────────────────────────────────────────────────
 
 const RootStack = createStackNavigator<RootStackParamList>()
 const Tab = createBottomTabNavigator<MainTabParamList>()
 const FeedStack = createStackNavigator<FeedStackParamList>()
+const HistoryStack = createStackNavigator<HistoryStackParamList>()
 
 const stackScreenOptions = {
   headerStyle: { backgroundColor: '#111827' },
@@ -52,6 +57,14 @@ function FeedStackNavigator() {
   )
 }
 
+function HistoryStackNavigator() {
+  return (
+    <HistoryStack.Navigator screenOptions={stackScreenOptions}>
+      <HistoryStack.Screen name="History" component={HistoryScreen} options={{ title: 'History' }} />
+    </HistoryStack.Navigator>
+  )
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -63,7 +76,7 @@ function MainTabs() {
       }}
     >
       <Tab.Screen name="FeedTab" component={FeedStackNavigator} options={{ title: 'Feed' }} />
-      <Tab.Screen name="HistoryTab" component={HistoryScreen} options={{ title: 'History' }} />
+      <Tab.Screen name="HistoryTab" component={HistoryStackNavigator} options={{ title: 'History' }} />
     </Tab.Navigator>
   )
 }

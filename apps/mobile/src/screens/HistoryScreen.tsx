@@ -11,13 +11,16 @@ import {
 import { useFocusEffect, useNavigation, type CompositeScreenProps } from '@react-navigation/native'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { StackNavigationProp, StackScreenProps } from '@react-navigation/stack'
-import type { MainTabParamList, RootStackParamList } from '../../App'
+import type { HistoryStackParamList, MainTabParamList, RootStackParamList } from '../../App'
 import { api, type ResultHistoryItem } from '../lib/api'
 import { formatResultValue, monthKey, shortDate, workoutTypeAbbr } from '../lib/format'
 
 type Props = CompositeScreenProps<
-  BottomTabScreenProps<MainTabParamList, 'HistoryTab'>,
-  StackScreenProps<RootStackParamList>
+  StackScreenProps<HistoryStackParamList, 'History'>,
+  CompositeScreenProps<
+    BottomTabScreenProps<MainTabParamList, 'HistoryTab'>,
+    StackScreenProps<RootStackParamList>
+  >
 >
 
 type RootNav = StackNavigationProp<RootStackParamList>
