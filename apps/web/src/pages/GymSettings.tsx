@@ -3,6 +3,7 @@ import { api, type Gym, type GymProgram, type PendingMovement } from '../lib/api
 import { useGym } from '../context/GymContext.tsx'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useMovements } from '../context/MovementsContext.tsx'
+import GymInvitationsPanel from '../components/GymInvitationsPanel'
 
 const TIMEZONES = [
   'UTC',
@@ -226,12 +227,14 @@ export default function GymSettings() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <h1 className="text-2xl font-bold">Gym Settings</h1>
       {error && <p className="text-red-400">{error}</p>}
+
+      <GymInvitationsPanel />
 
       {/* Gym Settings */}
       <section>
-        <h2 className="text-lg font-semibold mb-4">Gym Settings</h2>
+        <h2 className="text-lg font-semibold mb-4">Gym Details</h2>
         <form onSubmit={handleSaveGym} className="space-y-4 max-w-sm">
           <div>
             <label className="block text-sm text-gray-400 mb-1">Gym Name</label>

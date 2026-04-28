@@ -271,6 +271,31 @@ export interface CreateEmergencyContactPayload {
 
 export type UpdateEmergencyContactPayload = Partial<CreateEmergencyContactPayload>
 
+export type MembershipRequestStatus = 'PENDING' | 'APPROVED' | 'DECLINED' | 'REVOKED' | 'EXPIRED'
+
+export interface GymInvitation {
+  id: string
+  gymId: string
+  direction: 'STAFF_INVITED' | 'USER_REQUESTED'
+  status: MembershipRequestStatus
+  email: string | null
+  userId: string | null
+  roleToGrant: Role
+  invitedById: string | null
+  decidedById: string | null
+  decidedAt: string | null
+  expiresAt: string | null
+  createdAt: string
+  updatedAt: string
+  gym: { id: string; name: string; slug: string }
+  invitedBy: { id: string; name: string | null; firstName: string | null; lastName: string | null; email: string } | null
+}
+
+export interface CreateInvitationPayload {
+  email: string
+  roleToGrant?: Role
+}
+
 export interface AuthResponse {
   accessToken: string
   user: AuthUser
@@ -342,6 +367,13 @@ export const api = {
         remove: (id: string) =>
           req<void>(`/api/users/me/emergency-contacts/${id}`, { method: 'DELETE' }),
       },
+      invitations: {
+        list: () => req<GymInvitation[]>('/api/users/me/invitations'),
+        accept: (id: string) =>
+          req<GymInvitation>(`/api/invitations/${id}/accept`, { method: 'POST' }),
+        decline: (id: string) =>
+          req<GymInvitation>(`/api/invitations/${id}/decline`, { method: 'POST' }),
+      },
     },
   },
 
@@ -385,6 +417,18 @@ export const api = {
 
       remove: (gymId: string, userId: string, token?: string) =>
         req<void>(`/api/gyms/${gymId}/members/${userId}`, { method: 'DELETE', token }),
+    },
+
+    invitations: {
+      list: (gymId: string) =>
+        req<GymInvitation[]>(`/api/gyms/${gymId}/invitations`),
+      create: (gymId: string, data: CreateInvitationPayload) =>
+        req<GymInvitation>(`/api/gyms/${gymId}/invitations`, {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+      revoke: (gymId: string, id: string) =>
+        req<GymInvitation>(`/api/gyms/${gymId}/invitations/${id}/revoke`, { method: 'POST' }),
     },
 
     programs: {

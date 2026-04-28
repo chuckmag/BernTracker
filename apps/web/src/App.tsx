@@ -5,10 +5,12 @@ import { AuthProvider } from './context/AuthContext.tsx'
 import { GymProvider } from './context/GymContext.tsx'
 import { MovementsProvider } from './context/MovementsContext.tsx'
 import { ProgramFilterProvider } from './context/ProgramFilterContext.tsx'
+import { InvitationsProvider } from './context/InvitationsContext.tsx'
 import RequireAuth from './components/RequireAuth.tsx'
 import RequireOnboarded from './components/RequireOnboarded.tsx'
 import Sidebar from './components/Sidebar.tsx'
 import TopBar from './components/TopBar.tsx'
+import InvitationsBanner from './components/InvitationsBanner.tsx'
 import Login from './pages/Login.tsx'
 import Register from './pages/Register.tsx'
 import Onboarding from './pages/Onboarding.tsx'
@@ -57,6 +59,7 @@ function AppLayout() {
       <Sidebar isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
         <TopBar onMenuClick={() => setMobileNavOpen(true)} />
+        <InvitationsBanner />
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">
           <ErrorBoundary FallbackComponent={PageErrorFallback} resetKeys={[window.location.pathname]}>
             <Routes>
@@ -94,13 +97,15 @@ export default function App() {
           element={
             <RequireAuth>
               <RequireOnboarded>
-                <GymProvider>
-                  <MovementsProvider>
-                    <ProgramFilterProvider>
-                      <AppLayout />
-                    </ProgramFilterProvider>
-                  </MovementsProvider>
-                </GymProvider>
+                <InvitationsProvider>
+                  <GymProvider>
+                    <MovementsProvider>
+                      <ProgramFilterProvider>
+                        <AppLayout />
+                      </ProgramFilterProvider>
+                    </MovementsProvider>
+                  </GymProvider>
+                </InvitationsProvider>
               </RequireOnboarded>
             </RequireAuth>
           }
