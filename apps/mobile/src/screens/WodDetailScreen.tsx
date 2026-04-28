@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -51,19 +51,27 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       .finally(() => setLoading(false))
   }, [workoutId, navigation])
 
-  // Reload leaderboard when the filter changes AND every time the screen
-  // regains focus — that's how a result that was just created/edited/deleted
-  // on LogResultScreen propagates back here when the user pops back.
+  // Always fetch the unfiltered leaderboard and apply the level filter
+  // client-side. This way the user's "your result" badge keeps showing
+  // their RX entry even when the leaderboard list is filtered to RX+ —
+  // their own state shouldn't depend on which filter chip is active.
+  // useFocusEffect picks up create/edit/delete results on goBack from
+  // LogResultScreen.
   const loadLeaderboard = useCallback(() => {
-    api.workouts.results(workoutId, levelFilter ?? undefined)
+    api.workouts.results(workoutId)
       .then(setLeaderboard)
       .catch(() => {})
-  }, [workoutId, levelFilter])
+  }, [workoutId])
 
   useFocusEffect(useCallback(() => { loadLeaderboard() }, [loadLeaderboard]))
 
   const userResult = leaderboard.find((e) => e.user.id === user?.id)
   const hasLogged = !!userResult
+
+  const visibleLeaderboard = useMemo(
+    () => (levelFilter ? leaderboard.filter((e) => e.level === levelFilter) : leaderboard),
+    [leaderboard, levelFilter],
+  )
 
   if (loading) {
     return (
@@ -158,10 +166,12 @@ export default function WodDetailScreen({ route, navigation }: Props) {
           ))}
         </ScrollView>
 
-        {leaderboard.length === 0 ? (
-          <Text style={styles.emptyLeaderboard}>No results yet.</Text>
+        {visibleLeaderboard.length === 0 ? (
+          <Text style={styles.emptyLeaderboard}>
+            {levelFilter ? `No ${LEVEL_LABELS[levelFilter]} results yet.` : 'No results yet.'}
+          </Text>
         ) : (
-          leaderboard.map((entry, idx) => (
+          visibleLeaderboard.map((entry, idx) => (
             <View
               key={entry.id}
               style={[styles.leaderboardRow, entry.user.id === user?.id && styles.leaderboardRowHighlight]}
