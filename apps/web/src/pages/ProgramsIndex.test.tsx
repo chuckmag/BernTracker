@@ -25,6 +25,7 @@ function makeGymProgram(overrides: Partial<{ id: string; name: string; memberCou
   return {
     gymId: 'gym-1',
     programId: id,
+    isDefault: false,
     createdAt: '2026-03-01T00:00:00.000Z',
     program: {
       id,
