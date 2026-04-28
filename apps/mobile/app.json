@@ -2,7 +2,9 @@
   "expo": {
     "name": "WODalytics",
     "slug": "wodalytics",
+    "owner": "chuckmag",
     "version": "1.0.0",
+    "scheme": "com.wodalytics.app",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

@@ -171,13 +171,19 @@ router.get('/me', requireAuth, async (req, res) => {
 })
 
 // GET /google — redirect to Google consent screen.
-// Accepts ?prompt=select_account (or other Google prompt values) so the sign-up
-// flow can force the account picker instead of silently reusing the last session.
+// Optional query params:
+//   - mobile_redirect=<scheme://...>: when present (mobile clients) the callback
+//     redirects to that scheme with tokens as query params instead of the web
+//     frontend. State carries it through the OAuth round-trip (also CSRF protection).
+//   - prompt=<select_account|...>: forwarded to Google so the sign-up flow can
+//     force the account picker instead of silently reusing the last session.
 router.get('/google', (req, res) => {
+  const mobileRedirect = req.query.mobile_redirect as string | undefined
   const prompt = typeof req.query.prompt === 'string' ? req.query.prompt : undefined
   const url = googleClient().generateAuthUrl({
     access_type: 'offline',
     scope: ['openid', 'email', 'profile'],
+    state: mobileRedirect ? JSON.stringify({ mobileRedirect }) : undefined,
     ...(prompt ? { prompt } : {}),
   })
   res.redirect(url)
@@ -185,9 +191,37 @@ router.get('/google', (req, res) => {
 
 // GET /google/callback — exchange code, findOrCreate user, issue tokens
 router.get('/google/callback', async (req, res) => {
+  // Recover mobile_redirect from state first so we can redirect errors back to
+  // the app instead of leaving the user stuck on a JSON page in the browser.
+  let mobileRedirect: string | undefined
+  const stateStr = req.query.state as string | undefined
+  if (stateStr) {
+    try {
+      mobileRedirect = JSON.parse(stateStr).mobileRedirect
+    } catch (err) {
+      console.log(`[auth] /google/callback: failed to parse state — ${err instanceof Error ? err.message : err}`, { state: stateStr })
+    }
+  }
+
+  function failCallback(status: number, errorCode: string, detail: string, err?: unknown) {
+    console.log(`[auth] /google/callback: ${errorCode} — ${detail}`, err)
+    if (mobileRedirect) {
+      const params = new URLSearchParams({ error: errorCode })
+      res.redirect(`${mobileRedirect}?${params}`)
+    } else {
+      res.status(status).json({ error: detail })
+    }
+  }
+
   const code = req.query.code as string | undefined
   if (!code) {
-    res.status(400).json({ error: 'Missing code' })
+    failCallback(400, 'missing_code', 'Missing code')
+    return
+  }
+
+  // Diagnostic: if env config is missing the exchange will fail; surface it now.
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    failCallback(500, 'oauth_misconfigured', 'GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set on the server')
     return
   }
 
@@ -204,8 +238,8 @@ router.get('/google/callback', async (req, res) => {
     googleId = payload.sub
     email = payload.email!
     name = payload.name ?? email
-  } catch {
-    res.status(401).json({ error: 'Google token verification failed' })
+  } catch (err) {
+    failCallback(401, 'google_exchange_failed', 'Google token verification failed', err)
     return
   }
 
@@ -220,12 +254,21 @@ router.get('/google/callback', async (req, res) => {
   })
 
   res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-  // Redirect to frontend — silent refresh will pick up the cookie and issue accessToken
-  res.redirect(`${FRONTEND_URL}/dashboard`)
+
+  if (mobileRedirect) {
+    // Mobile flow: redirect to the app scheme with tokens as query params so
+    // WebBrowser.openAuthSessionAsync can intercept and return them to the app.
+    // Google only ever sees http://localhost:3000/api/auth/google/callback —
+    // the exp:// or app scheme redirect is entirely server→app, not Google→app.
+    const params = new URLSearchParams({ token: accessToken, refreshToken })
+    res.redirect(`${mobileRedirect}?${params}`)
+  } else {
+    // Web flow: silent refresh picks up the cookie and issues accessToken
+    res.redirect(`${FRONTEND_URL}/dashboard`)
+  }
 })
 
 // POST /google/mobile — verify Google ID token from Expo, issue JWT pair
-// TODO: This is untested and should be seen as stubbed out for now.
 router.post('/google/mobile', async (req, res) => {
   const { idToken } = req.body as { idToken?: string }
   if (!idToken) {
@@ -258,8 +301,10 @@ router.post('/google/mobile', async (req, res) => {
     },
   })
 
+  // refreshToken returned in body (not just cookie) so mobile clients can
+  // persist it in SecureStore — mobile fetch doesn't use httpOnly cookies.
   res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
-  res.json({ accessToken, user: pickAuthUser(user) })
+  res.json({ accessToken, refreshToken, user: pickAuthUser(user) })
 })
 
 type AuthUserRow = {
