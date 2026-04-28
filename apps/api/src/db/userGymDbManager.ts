@@ -30,19 +30,6 @@ export async function findMembersWithProgramSubscriptionsByGymId(gymId: string) 
   }))
 }
 
-export async function inviteUserToGymByEmail(email: string, gymId: string, role: Role) {
-  return prisma.$transaction(async (tx) => {
-    let user = await tx.user.findUnique({ where: { email } })
-    if (!user) user = await tx.user.create({ data: { email } })
-    const membership = await tx.userGym.upsert({
-      where: { userId_gymId: { userId: user.id, gymId } },
-      update: { role },
-      create: { userId: user.id, gymId, role },
-    })
-    return { id: user.id, email: user.email, name: user.name, role: membership.role, joinedAt: membership.joinedAt }
-  })
-}
-
 export async function updateGymMemberRole(userId: string, gymId: string, role: Role) {
   return prisma.userGym.update({
     where: { userId_gymId: { userId, gymId } },

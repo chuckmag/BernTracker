@@ -9,6 +9,7 @@ import {
 import Button from '../components/ui/Button'
 import AvatarPlaceholder from '../components/AvatarPlaceholder'
 import EmergencyContactsEditor from '../components/EmergencyContactsEditor'
+import MyInvitationsSection from '../components/MyInvitationsSection'
 import {
   NameFields,
   BirthdayField,
@@ -75,6 +76,8 @@ export default function Profile() {
         <h1 className="text-2xl font-bold">Your profile</h1>
         <p className="text-sm text-gray-400">Personal information used for results tracking and emergency contact.</p>
       </header>
+
+      <MyInvitationsSection />
 
       <section className="flex items-center gap-4 rounded-xl bg-gray-900 p-4 border border-gray-800">
         <AvatarPlaceholder firstName={firstName} lastName={lastName} email={user?.email ?? ''} size="lg" />

@@ -42,10 +42,25 @@ vi.mock('../lib/api', () => ({
           create: vi.fn(),
           remove: vi.fn(),
         },
+        invitations: {
+          list: vi.fn(),
+          accept: vi.fn(),
+          decline: vi.fn(),
+        },
       },
     },
     auth: { logout: vi.fn() },
   },
+}))
+
+vi.mock('../context/InvitationsContext.tsx', () => ({
+  useInvitations: () => ({
+    invitations: [],
+    loading: false,
+    refresh: vi.fn(),
+    accept: vi.fn(),
+    decline: vi.fn(),
+  }),
 }))
 
 vi.mock('../context/AuthContext.tsx', () => ({
