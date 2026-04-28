@@ -100,8 +100,9 @@ async function testPatchProfile() {
   check('firstName persisted', 'Alice', r1.body.firstName)
   check('lastName persisted', 'Anderson', r1.body.lastName)
   check('identifiedGender persisted', 'FEMALE', r1.body.identifiedGender)
-  // Missing emergency contact → onboardedAt still null
-  check('onboardedAt still null without contact', 'null', JSON.stringify(r1.body.onboardedAt))
+  // Emergency contacts are NOT part of the onboarding floor — onboardedAt
+  // should auto-stamp once the four profile fields are set.
+  check('onboardedAt set after profile fields are complete', 'string', typeof r1.body.onboardedAt)
 
   const rBad = await api('PATCH', '/users/me/profile', aliceToken, { birthday: 'not-a-date' })
   check('400 on invalid birthday format', 400, rBad.status)
@@ -124,10 +125,6 @@ async function testEmergencyContactCrud() {
   const contactId = r1.body.id as string
   createdContactIds.push(contactId)
 
-  // After creating the contact AND the profile from prior test, onboardedAt should be set.
-  const rProfile = await api('GET', '/users/me/profile', aliceToken)
-  check('onboardedAt set after profile + contact', 'string', typeof rProfile.body.onboardedAt)
-
   const rBad = await api('POST', '/users/me/emergency-contacts', aliceToken, {
     name: '',
     phone: '555-1111',
@@ -149,19 +146,13 @@ async function testEmergencyContactCrud() {
   })
   check('PATCH another user\'s contact → 404', 404, rWrongUser.status)
 
-  // Delete-when-only and onboarded → 409
-  const rDelOnly = await api('DELETE', `/users/me/emergency-contacts/${contactId}`, aliceToken)
-  check('DELETE last contact when onboarded → 409', 409, rDelOnly.status)
-
-  // Add a second contact, then deletion is allowed.
-  const r2 = await api('POST', '/users/me/emergency-contacts', aliceToken, {
-    name: 'Backup Contact',
-    phone: '555-2222',
-  })
-  createdContactIds.push(r2.body.id as string)
-
+  // Contacts are optional now — deleting the only contact is allowed even
+  // for an onboarded user.
   const rDel = await api('DELETE', `/users/me/emergency-contacts/${contactId}`, aliceToken)
   check('DELETE returns 204', 204, rDel.status)
+
+  const rDelMissing = await api('DELETE', `/users/me/emergency-contacts/${contactId}`, aliceToken)
+  check('DELETE on already-removed contact → 404', 404, rDelMissing.status)
 }
 
 async function testOnboardedAtIdempotent() {

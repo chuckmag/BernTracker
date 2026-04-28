@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
-import {
-  api,
-  type IdentifiedGender,
-  type EmergencyContact,
-  type CreateEmergencyContactPayload,
-} from '../lib/api'
+import { api, type IdentifiedGender } from '../lib/api'
 import Button from '../components/ui/Button'
 import AvatarPlaceholder from '../components/AvatarPlaceholder'
-import EmergencyContactsEditor from '../components/EmergencyContactsEditor'
 import { NameFields, BirthdayField, GenderField } from '../components/ProfileFields'
 
-const STEPS = ['Your name', 'About you', 'Emergency contacts'] as const
+const STEPS = ['Your name', 'About you'] as const
 
 export default function Onboarding() {
   const { user, login, accessToken } = useAuth()
@@ -22,7 +16,6 @@ export default function Onboarding() {
   const [lastName, setLastName] = useState('')
   const [birthday, setBirthday] = useState('')
   const [gender, setGender] = useState<NonNullable<IdentifiedGender>>('PREFER_NOT_TO_SAY')
-  const [contacts, setContacts] = useState<EmergencyContact[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -43,7 +36,6 @@ export default function Onboarding() {
         if (p.lastName) setLastName(p.lastName)
         if (p.birthday) setBirthday(p.birthday.slice(0, 10))
         if (p.identifiedGender) setGender(p.identifiedGender)
-        setContacts(p.emergencyContacts)
       })
       .catch(() => {})
   }, [navigate])
@@ -54,51 +46,30 @@ export default function Onboarding() {
   function step2Valid() {
     return birthday.length > 0
   }
-  function step3Valid() {
-    return contacts.length > 0
-  }
-
-  async function persistStep1And2() {
-    await api.users.me.profile.update({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      birthday,
-      identifiedGender: gender,
-    })
-  }
 
   async function handleNext() {
     setError(null)
-    if (step === 0 && !step1Valid()) {
-      setError('First and last name are required.')
-      return
-    }
-    if (step === 1 && !step2Valid()) {
-      setError('Birthday is required.')
-      return
-    }
     if (step === 0) {
+      if (!step1Valid()) {
+        setError('First and last name are required.')
+        return
+      }
       setStep(1)
       return
     }
-    if (step === 1) {
-      // Persist what we have so a refresh mid-onboarding keeps progress.
-      try {
-        await persistStep1And2()
-        setStep(2)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to save')
-      }
-      return
-    }
-    // Step 2: finish
-    if (!step3Valid()) {
-      setError('Add at least one emergency contact.')
+    // Step 1: finish — persist and exit onboarding.
+    if (!step2Valid()) {
+      setError('Birthday is required.')
       return
     }
     setSubmitting(true)
     try {
-      await persistStep1And2()
+      await api.users.me.profile.update({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        birthday,
+        identifiedGender: gender,
+      })
       // Refresh AuthUser so RequireOnboarded lets us through.
       if (accessToken) {
         const me = await api.auth.me(accessToken)
@@ -112,23 +83,13 @@ export default function Onboarding() {
     }
   }
 
-  async function handleAddContact(data: CreateEmergencyContactPayload) {
-    const created = await api.users.me.emergencyContacts.create(data)
-    setContacts((cs) => [...cs, created])
-  }
-
-  async function handleRemoveContact(id: string) {
-    await api.users.me.emergencyContacts.remove(id)
-    setContacts((cs) => cs.filter((c) => c.id !== id))
-  }
-
   return (
     <div className="min-h-screen bg-gray-950 text-white flex justify-center p-4 sm:p-8">
       <div className="w-full max-w-xl space-y-6">
         <header className="space-y-2">
           <p className="text-xs text-gray-400 uppercase tracking-widest">Welcome to WODalytics</p>
           <h1 className="text-2xl font-bold">Let's set up your profile</h1>
-          <p className="text-sm text-gray-400">Just a few details so trainers can give you the right standards and reach an emergency contact if needed.</p>
+          <p className="text-sm text-gray-400">Just a few details so trainers can give you the right standards. Emergency contacts and other gym-specific info come when you join a gym.</p>
         </header>
 
         <ol className="flex items-center gap-2 text-xs">
@@ -175,17 +136,6 @@ export default function Onboarding() {
                 value={gender}
                 onChange={setGender}
                 helperText="Self-identified — used for default leaderboard grouping. You can override per result."
-              />
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-300">Who should we contact in an emergency? Add at least one.</p>
-              <EmergencyContactsEditor
-                contacts={contacts}
-                onCreate={handleAddContact}
-                onRemove={handleRemoveContact}
               />
             </div>
           )}

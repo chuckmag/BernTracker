@@ -42,9 +42,15 @@ export async function updateUserProfileById(
   return prisma.user.update({ where: { id: userId }, data, select: PROFILE_SELECT })
 }
 
-// Sets onboardedAt = now() iff the user has all required profile fields and at
-// least one emergency contact, and onboardedAt is currently null. Idempotent —
-// callers can invoke after any profile change without checking themselves.
+// Sets onboardedAt = now() iff the user has all required profile fields and
+// onboardedAt is currently null. Idempotent — callers can invoke after any
+// profile change without checking themselves.
+//
+// Emergency contacts are intentionally NOT part of the onboarding floor:
+// they're optional global bookkeeping today, and gym-specific contact
+// collection is the long-term home for that PII (tracked on the parent
+// issue #120). Forcing a contact at the no-gym onboarding step would leak
+// the wrong contact to whichever gym the user joins later.
 export async function maybeMarkOnboarded(userId: string): Promise<Date | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -59,8 +65,6 @@ export async function maybeMarkOnboarded(userId: string): Promise<Date | null> {
   if (!user) return null
   if (user.onboardedAt) return user.onboardedAt
   if (!user.firstName || !user.lastName || !user.birthday || !user.identifiedGender) return null
-  const contactCount = await prisma.emergencyContact.count({ where: { userId } })
-  if (contactCount === 0) return null
   const updated = await prisma.user.update({
     where: { id: userId },
     data: { onboardedAt: new Date() },

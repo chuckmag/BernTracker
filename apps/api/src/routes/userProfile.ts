@@ -12,7 +12,6 @@ import {
 } from '../db/userProfileDbManager.js'
 import {
   findEmergencyContactsByUserId,
-  findEmergencyContactByIdAndUserId,
   createEmergencyContactForUser,
   updateEmergencyContactByIdAndUserId,
   deleteEmergencyContactByIdAndUserId,
@@ -79,7 +78,6 @@ async function createMyEmergencyContact(req: Request, res: Response) {
   }
   const userId = req.user!.id
   const contact = await createEmergencyContactForUser(userId, parsed.data)
-  await maybeMarkOnboarded(userId)
   res.status(201).json(contact)
 }
 
@@ -102,22 +100,7 @@ async function patchMyEmergencyContact(req: Request, res: Response) {
 }
 
 async function deleteMyEmergencyContact(req: Request, res: Response) {
-  const userId = req.user!.id
-  // Block deleting the last contact for an onboarded user — onboardedAt requires ≥1 contact.
-  const existing = await findEmergencyContactByIdAndUserId(req.params.id as string, userId)
-  if (!existing) {
-    res.status(404).json({ error: 'Emergency contact not found' })
-    return
-  }
-  const all = await findEmergencyContactsByUserId(userId)
-  if (all.length === 1) {
-    const profile = await findUserProfileById(userId)
-    if (profile?.onboardedAt) {
-      res.status(409).json({ error: 'Cannot delete your only emergency contact. Add another first.' })
-      return
-    }
-  }
-  const deleted = await deleteEmergencyContactByIdAndUserId(req.params.id as string, userId)
+  const deleted = await deleteEmergencyContactByIdAndUserId(req.params.id as string, req.user!.id)
   if (!deleted) {
     res.status(404).json({ error: 'Emergency contact not found' })
     return

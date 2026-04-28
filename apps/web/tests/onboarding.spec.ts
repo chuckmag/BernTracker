@@ -51,7 +51,7 @@ test.describe('Onboarding E2E', () => {
     await expect(page.getByRole('heading', { name: /set up your profile/i })).toBeVisible()
   })
 
-  test('full 3-step onboarding sets onboardedAt and lands on /feed', async ({ page }) => {
+  test('full 2-step onboarding sets onboardedAt and lands on /feed', async ({ page }) => {
     await loginAs(page.context(), f.userId, 'MEMBER', { markOnboarded: false })
     await page.goto('/onboarding')
 
@@ -63,17 +63,9 @@ test.describe('Onboarding E2E', () => {
     await page.getByLabel('Last name').fill('Tester')
     await page.getByRole('button', { name: /Continue/ }).click()
 
-    // Step 2 — birthday + gender (PREFER_NOT_TO_SAY pre-selected)
+    // Step 2 — birthday + gender (PREFER_NOT_TO_SAY pre-selected) → Finish.
+    // Emergency contacts are deferred to gym onboarding; no step 3 here.
     await page.getByLabel('Birthday').fill('1992-06-15')
-    await page.getByRole('button', { name: /Continue/ }).click()
-
-    // Step 3 — emergency contact
-    await page.getByLabel('Contact name').fill('Sibling')
-    await page.getByLabel('Phone').fill('555-0101')
-    await page.getByRole('button', { name: 'Add contact' }).click()
-    // Wait for the contact to appear in the list
-    await expect(page.getByText('Sibling')).toBeVisible()
-
     await page.getByRole('button', { name: 'Finish' }).click()
 
     // After finishing we should be on /feed
@@ -99,7 +91,6 @@ test.describe('Onboarding E2E', () => {
         birthday: new Date('1990-01-01'),
         identifiedGender: 'PREFER_NOT_TO_SAY',
         onboardedAt: new Date(),
-        emergencyContacts: { create: { name: 'EC', phone: '555-0000' } },
       },
     })
     await loginAs(page.context(), f.userId, 'MEMBER', { markOnboarded: false })

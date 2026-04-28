@@ -115,6 +115,9 @@ export default function Profile() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Emergency contacts</h2>
+        <p className="text-xs text-gray-400">
+          Optional. Stored on your account today; gym-specific contacts will come with the gym onboarding flow.
+        </p>
         <EmergencyContactsEditor
           contacts={profile.emergencyContacts}
           onCreate={async (data) => {
