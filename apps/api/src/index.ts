@@ -4,7 +4,7 @@ import cookieParser from 'cookie-parser'
 import { prisma } from '@wodalytics/db'
 import { authRouter } from './routes/auth.js'
 import gymsRouter from './routes/gyms'
-import programsRouter from './routes/programs'
+import programsRouter, { isMulterError } from './routes/programs'
 import workoutsRouter from './routes/workouts'
 import resultsRouter from './routes/results'
 import namedWorkoutsRouter from './routes/namedWorkouts'
@@ -64,6 +64,15 @@ const logError = createLogger('error')
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const message = err instanceof Error ? err.message : String(err)
+  // Multer rejects oversized uploads and malformed multipart bodies as
+  // MulterError instances. Surface them as 4xx with the user-readable code
+  // rather than a generic 500.
+  if (isMulterError(err)) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'File too large — uploads are capped at 5 MB' })
+    }
+    return res.status(400).json({ error: `Upload rejected: ${err.code}` })
+  }
   logError.error(req, `${req.method} ${req.path} — ${message}`, err)
   res.status(500).json({ error: 'Internal server error' })
 })
