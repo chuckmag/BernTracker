@@ -3,6 +3,7 @@ import { api, type GymInvitation, type Role } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import Button from './ui/Button'
 import EmptyState from './ui/EmptyState'
+import Skeleton from './ui/Skeleton'
 
 const ROLE_LABEL: Record<Role, string> = {
   OWNER: 'Owner',
@@ -30,7 +31,8 @@ const STATUS_TINT: Record<GymInvitation['status'], string> = {
 export default function GymInvitationsPanel() {
   const { gymId, gymRole } = useGym()
   const [invitations, setInvitations] = useState<GymInvitation[]>([])
-  const [loading, setLoading] = useState(false)
+  // hasLoaded — avoid flashing the EmptyState before the fetch returns.
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [email, setEmail] = useState('')
   const [roleToGrant, setRoleToGrant] = useState<Role>('MEMBER')
   const [submitting, setSubmitting] = useState(false)
@@ -42,11 +44,10 @@ export default function GymInvitationsPanel() {
 
   useEffect(() => {
     if (!gymId) return
-    setLoading(true)
     api.gyms.invitations.list(gymId)
       .then(setInvitations)
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load invitations'))
-      .finally(() => setLoading(false))
+      .finally(() => setHasLoaded(true))
   }, [gymId])
 
   async function handleSend(e: FormEvent) {
@@ -124,8 +125,8 @@ export default function GymInvitationsPanel() {
         </form>
       )}
 
-      {loading ? (
-        <p className="text-sm text-gray-400">Loading invitations…</p>
+      {!hasLoaded ? (
+        <Skeleton variant="history-row" count={2} />
       ) : invitations.length === 0 ? (
         <EmptyState title="No invitations yet" body="Invited members will appear here while they wait to accept." />
       ) : (

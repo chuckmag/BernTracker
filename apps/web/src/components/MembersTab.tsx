@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { api, type Member, type GymProgram, type Role } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import GymInvitationsPanel from './GymInvitationsPanel'
+import Skeleton from './ui/Skeleton'
+import EmptyState from './ui/EmptyState'
 
 const ROLES: Role[] = ['MEMBER', 'COACH', 'PROGRAMMER', 'OWNER']
 const ROLE_LABELS: Record<Role, string> = {
@@ -19,7 +21,10 @@ export default function MembersTab() {
   const { gymId } = useGym()
   const [members, setMembers] = useState<Member[]>([])
   const [programs, setPrograms] = useState<GymProgram[]>([])
-  const [loading, setLoading] = useState(false)
+  // hasLoaded distinguishes "fetch hasn't completed yet" from "fetch returned 0
+  // members". The count chip and EmptyState both gate on this so we never
+  // briefly render a "0" chip or a loaded-empty state during the initial fetch.
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -31,7 +36,6 @@ export default function MembersTab() {
 
   async function loadData(signal?: { cancelled: boolean }) {
     if (!gymId) return
-    setLoading(true)
     setError(null)
     try {
       const [m, p] = await Promise.all([api.gyms.members.list(gymId), api.gyms.programs.list(gymId)])
@@ -39,7 +43,7 @@ export default function MembersTab() {
     } catch (e) {
       if (!signal?.cancelled) setError((e as Error).message)
     } finally {
-      if (!signal?.cancelled) setLoading(false)
+      if (!signal?.cancelled) setHasLoaded(true)
     }
   }
 
@@ -89,19 +93,29 @@ export default function MembersTab() {
       <section>
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-lg font-semibold">Members</h2>
-          <span className="bg-gray-700 text-sm px-2 py-0.5 rounded-full" aria-label={`${members.length} members`}>
-            {members.length}
-          </span>
+          {hasLoaded && members.length > 0 && (
+            <span className="bg-gray-700 text-sm px-2 py-0.5 rounded-full" aria-label={`${members.length} members`}>
+              {members.length}
+            </span>
+          )}
         </div>
 
         {error && <p className="text-red-400 mb-4">{error}</p>}
-        {loading && <p className="text-gray-400">Loading…</p>}
 
-        {!loading && members.length === 0 && (
-          <p className="text-gray-500 text-sm">No members yet. Send an invitation below to get started.</p>
+        {!hasLoaded && (
+          // Match the row height of the table below so the layout doesn't
+          // shift when data lands. 4 rows is a reasonable placeholder height.
+          <Skeleton variant="history-row" count={4} />
         )}
 
-        {members.length > 0 && (
+        {hasLoaded && members.length === 0 && (
+          <EmptyState
+            title="No members yet"
+            body="Send an invitation below — your invitees show up here once they accept."
+          />
+        )}
+
+        {hasLoaded && members.length > 0 && (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-gray-400 border-b border-gray-700">
