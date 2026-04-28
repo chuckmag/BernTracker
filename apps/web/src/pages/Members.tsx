@@ -22,6 +22,7 @@ export default function Members() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<Role>('MEMBER')
   const [inviting, setInviting] = useState(false)
+  const [invitedEmail, setInvitedEmail] = useState<string | null>(null)
 
   useEffect(() => {
     if (!gymId) return
@@ -71,11 +72,14 @@ export default function Members() {
     setInviting(true)
     setError(null)
     try {
-      await api.gyms.members.invite(gymId, { email: inviteEmail, role: inviteRole })
+      // Creates a pending invitation. The invitee accepts (or declines) from
+      // their own /profile, at which point they appear in this members list.
+      // Pending invites are visible to staff on /gym-settings.
+      await api.gyms.invitations.create(gymId, { email: inviteEmail, roleToGrant: inviteRole })
+      setInvitedEmail(inviteEmail)
       setInviteEmail('')
       setInviteRole('MEMBER')
       setShowInviteModal(false)
-      await loadData()
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -105,7 +109,7 @@ export default function Members() {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-2">Members</h1>
-        <p className="text-gray-400">Set up your gym in Settings first.</p>
+        <p className="text-gray-400">Set up your gym in Gym Settings first.</p>
       </div>
     )
   }
@@ -126,6 +130,14 @@ export default function Members() {
       </div>
 
       {error && <p className="text-red-400 mb-4">{error}</p>}
+      {invitedEmail && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 text-sm text-emerald-200">
+          <span>
+            Invitation sent to <span className="font-medium">{invitedEmail}</span>. They'll appear here once they accept.
+          </span>
+          <a href="/gym-settings#invitations" className="text-emerald-300 hover:text-emerald-200 underline">View pending →</a>
+        </div>
+      )}
       {loading && <p className="text-gray-400">Loading…</p>}
 
       {!loading && members.length === 0 && (
@@ -219,7 +231,8 @@ export default function Members() {
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-sm">
-            <h2 className="text-lg font-semibold mb-4">Invite Member</h2>
+            <h2 className="text-lg font-semibold mb-1">Invite Member</h2>
+            <p className="text-xs text-gray-400 mb-4">They'll get a pending invitation and join the gym once they accept.</p>
             {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
             <form onSubmit={handleInvite} className="space-y-3">
               <div>
@@ -250,7 +263,7 @@ export default function Members() {
                   disabled={inviting}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white text-sm"
                 >
-                  {inviting ? 'Inviting…' : 'Invite'}
+                  {inviting ? 'Sending…' : 'Send invitation'}
                 </button>
                 <button
                   type="button"

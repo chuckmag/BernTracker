@@ -401,12 +401,8 @@ export const api = {
       list: (gymId: string, token?: string) =>
         req<Member[]>(`/api/gyms/${gymId}/members`, { token }),
 
-      invite: (gymId: string, data: { email: string; role?: Role }, token?: string) =>
-        req<Member>(`/api/gyms/${gymId}/members/invite`, {
-          method: 'POST',
-          body: JSON.stringify(data),
-          token,
-        }),
+      // Note: legacy `members.invite` removed in slice D1 — see
+      // `api.gyms.invitations.create` for the pending-invitation flow.
 
       updateRole: (gymId: string, userId: string, role: Role, token?: string) =>
         req<unknown>(`/api/gyms/${gymId}/members/${userId}`, {

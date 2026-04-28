@@ -7,7 +7,6 @@ import {
 } from '../db/gymDbManager.js'
 import {
   findMembersWithProgramSubscriptionsByGymId,
-  inviteUserToGymByEmail,
   updateGymMemberRole,
   removeGymMember,
   findGymMembershipsByUserId,
@@ -58,21 +57,9 @@ router.get('/gyms/:gymId/members', async (req, res) => {
   res.json(members)
 })
 
-// POST /api/gyms/:gymId/members/invite
-router.post('/gyms/:gymId/members/invite', async (req, res) => {
-  const { email, role } = req.body as { email: string; role?: string }
-  const gymId = req.params.gymId
-
-  if (!email) return res.status(400).json({ error: 'email is required' })
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email address' })
-
-  const gym = await findGymById(gymId)
-  if (!gym) return res.status(404).json({ error: 'Gym not found' })
-
-  const userRole = (role as 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER') ?? 'MEMBER'
-  const result = await inviteUserToGymByEmail(email, gymId, userRole)
-  res.status(201).json(result)
-})
+// Legacy POST /api/gyms/:gymId/members/invite removed in slice D1 — replaced by
+// the pending-invitation flow at POST /api/gyms/:gymId/invitations. The old path
+// upserted the UserGym row immediately, which bypassed user consent.
 
 // PATCH /api/gyms/:gymId/members/:userId
 router.patch('/gyms/:gymId/members/:userId', async (req, res) => {
