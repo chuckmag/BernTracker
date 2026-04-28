@@ -10,6 +10,16 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 import WodDetailScreen from '../src/screens/WodDetailScreen'
 
+jest.mock('@react-navigation/native', () => {
+  const React = require('react')
+  return {
+    // Keep the cb in the dep array so screens that wrap a useCallback whose
+    // identity changes (e.g. on filter change) see the effect re-run, just
+    // like the real useFocusEffect would on the next focus tick.
+    useFocusEffect: (cb: () => void) => React.useEffect(cb, [cb]),
+  }
+})
+
 jest.mock('../src/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
@@ -20,6 +30,14 @@ jest.mock('../src/lib/api', () => ({
       get: jest.fn(),
       results: jest.fn(),
     },
+  },
+}))
+
+jest.mock('../src/lib/format', () => ({
+  formatResultValue: (v: { type: string; seconds?: number; cappedOut?: boolean; rounds?: number; reps?: number }) => {
+    if (v.type === 'AMRAP') return `${v.rounds} rds + ${v.reps} reps`
+    const s = v.seconds ?? 0
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
   },
 }))
 
@@ -60,7 +78,7 @@ describe('WodDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(useAuth as jest.Mock).mockReturnValue({
-      user: { id: 'me', email: 'me@gym.com', name: 'Me' },
+      user: { id: 'me', email: 'me@gym.com', name: 'Me', identifiedGender: null },
       isLoading: false,
       login: jest.fn(),
       logout: jest.fn(),
@@ -78,36 +96,79 @@ describe('WodDetailScreen', () => {
     await findByText('21-15-9 Thrusters and Pull-ups')
   })
 
-  test('tapping the "RX" filter chip re-fetches leaderboard with level=RX', async () => {
-    const { findByText } = render(
+  test('leaderboard fetch always uses the unfiltered endpoint; filtering is client-side', async () => {
+    const rxEntry = { ...makeEntry('e1', 'alice', 'Alice'), level: 'RX' as const }
+    const scaledEntry = { ...makeEntry('e2', 'bob', 'Bob'), level: 'SCALED' as const }
+    ;(api.workouts.results as jest.Mock).mockResolvedValue([rxEntry, scaledEntry])
+
+    const { findByText, findAllByText, queryByText } = render(
       <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
     )
 
-    // Wait for initial load (called with no level filter = undefined)
     await findByText('Fran')
-    expect(api.workouts.results).toHaveBeenCalledWith('workout-1', undefined)
+    // No level filter passed — the screen pulls every entry once per focus
+    // and applies the chip selection client-side.
+    expect(api.workouts.results).toHaveBeenCalledWith('workout-1')
+    await findByText('Alice')
+    await findByText('Bob')
 
-    fireEvent.press(await findByText('RX'))
+    // First "Scaled" match is the chip; the second is Bob's row level badge.
+    const [scaledChip] = await findAllByText('Scaled')
+    fireEvent.press(scaledChip)
+    await waitFor(() => expect(queryByText('Alice')).toBeNull())
+    await findByText('Bob')
 
-    await waitFor(() => {
-      expect(api.workouts.results).toHaveBeenCalledWith('workout-1', 'RX')
-    })
+    // No second API call — same data, just a different visible slice.
+    expect((api.workouts.results as jest.Mock).mock.calls).toHaveLength(1)
   })
 
-  test('tapping "All" after a level filter clears the filter', async () => {
-    const { findByText } = render(
+  test('user keeps their result badge under a filter that excludes their level', async () => {
+    // Logged at RX, filter to RX+: badge still shows the user's RX entry,
+    // and the leaderboard list is empty (no RX+ entries) — the "Log Result"
+    // CTA must NOT appear.
+    const myRxEntry = { ...makeEntry('e1', 'me', 'Me'), level: 'RX' as const }
+    ;(api.workouts.results as jest.Mock).mockResolvedValue([myRxEntry])
+
+    const { findByText, findByTestId, queryByText } = render(
       <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
     )
 
     await findByText('Fran')
+    await findByTestId('result-badge')
 
-    // Set a filter first
-    fireEvent.press(await findByText('Scaled'))
-    await waitFor(() => expect(api.workouts.results).toHaveBeenCalledWith('workout-1', 'SCALED'))
+    fireEvent.press(await findByText('RX+'))
+    await waitFor(() => expect(queryByText('No RX+ results yet.')).not.toBeNull())
 
-    // Clear it
-    fireEvent.press(await findByText('All'))
-    await waitFor(() => expect(api.workouts.results).toHaveBeenCalledWith('workout-1', undefined))
+    // Badge still rendered, "Log Result" CTA still hidden.
+    await findByTestId('result-badge')
+    expect(queryByText('Log Result')).toBeNull()
+  })
+
+  test('Log Result button navigates to LogResult with workoutId', async () => {
+    const navigation = makeNavigation()
+    const { findByText } = render(
+      <WodDetailScreen navigation={navigation} route={makeRoute()} />,
+    )
+
+    fireEvent.press(await findByText('Log Result'))
+    expect(navigation.navigate).toHaveBeenCalledWith('LogResult', { workoutId: 'workout-1' })
+  })
+
+  test('tapping the user-result badge navigates to LogResult in edit mode', async () => {
+    const myEntry = makeEntry('e2', 'me', 'Me')
+    ;(api.workouts.results as jest.Mock).mockResolvedValue([myEntry])
+
+    const navigation = makeNavigation()
+    const { findByTestId } = render(
+      <WodDetailScreen navigation={navigation} route={makeRoute()} />,
+    )
+
+    fireEvent.press(await findByTestId('result-badge'))
+    expect(navigation.navigate).toHaveBeenCalledWith('LogResult', {
+      workoutId: 'workout-1',
+      resultId: 'e2',
+      existingResult: myEntry,
+    })
   })
 
   test("current user's leaderboard row has highlight background color applied", async () => {

@@ -15,6 +15,17 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ]
 
+// Pin the package.json `exports` conditions Metro reads for workspace packages.
+// `@wodalytics/types` declares `exports.source: ./src/index.ts` (consumed by
+// Vite for HMR-friendly direct-source resolution on the web). Without an
+// explicit list here Metro can pick the `source` branch too, then choke on
+// the NodeNext-style `.js` extensions inside the source files (e.g.
+// `export * from './result.js'`) because those resolve to compiled output
+// that lives in `dist/`, not `src/`. Restricting to `require`/`react-native`
+// makes Metro fall through to `default → ./dist/index.js`, which is the
+// compiled JS Metro can actually bundle.
+config.resolver.unstable_conditionNames = ['require', 'react-native']
+
 // Force React and React Native to always resolve from this workspace.
 //
 // Root cause: Expo Go on the App Store caps at SDK 54, so apps/mobile was

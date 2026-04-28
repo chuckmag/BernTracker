@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -7,12 +7,14 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
-import type { FeedStackParamList } from '../../App'
+import type { RootStackParamList } from '../../App'
 import { api, type Workout, type LeaderboardEntry, type WorkoutLevel } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { formatResultValue } from '../lib/format'
 
-type Props = StackScreenProps<FeedStackParamList, 'WodDetail'>
+type Props = StackScreenProps<RootStackParamList, 'WodDetail'>
 
 const LEVEL_FILTERS: { label: string; value: WorkoutLevel | null }[] = [
   { label: 'All', value: null },
@@ -27,15 +29,6 @@ const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   RX: 'RX',
   SCALED: 'Scaled',
   MODIFIED: 'Modified',
-}
-
-function formatResultValue(entry: LeaderboardEntry): string {
-  const v = entry.value
-  if (v.type === 'AMRAP') return `${v.rounds} rds + ${v.reps} reps`
-  const mins = Math.floor(v.seconds / 60)
-  const secs = v.seconds % 60
-  const time = `${mins}:${String(secs).padStart(2, '0')}`
-  return v.cappedOut ? `${time} (capped)` : time
 }
 
 export default function WodDetailScreen({ route, navigation }: Props) {
@@ -58,17 +51,27 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       .finally(() => setLoading(false))
   }, [workoutId, navigation])
 
-  // Reload leaderboard when filter changes
+  // Always fetch the unfiltered leaderboard and apply the level filter
+  // client-side. This way the user's "your result" badge keeps showing
+  // their RX entry even when the leaderboard list is filtered to RX+ —
+  // their own state shouldn't depend on which filter chip is active.
+  // useFocusEffect picks up create/edit/delete results on goBack from
+  // LogResultScreen.
   const loadLeaderboard = useCallback(() => {
-    api.workouts.results(workoutId, levelFilter ?? undefined)
+    api.workouts.results(workoutId)
       .then(setLeaderboard)
       .catch(() => {})
-  }, [workoutId, levelFilter])
+  }, [workoutId])
 
-  useEffect(() => { loadLeaderboard() }, [loadLeaderboard])
+  useFocusEffect(useCallback(() => { loadLeaderboard() }, [loadLeaderboard]))
 
   const userResult = leaderboard.find((e) => e.user.id === user?.id)
   const hasLogged = !!userResult
+
+  const visibleLeaderboard = useMemo(
+    () => (levelFilter ? leaderboard.filter((e) => e.level === levelFilter) : leaderboard),
+    [leaderboard, levelFilter],
+  )
 
   if (loading) {
     return (
@@ -113,18 +116,26 @@ export default function WodDetailScreen({ route, navigation }: Props) {
 
       {/* Log Result CTA */}
       {hasLogged ? (
-        <View style={styles.resultBadge}>
-          <Text style={styles.resultBadgeLabel}>YOUR RESULT</Text>
-          <Text style={styles.resultBadgeValue}>{formatResultValue(userResult)}</Text>
+        <TouchableOpacity
+          style={styles.resultBadge}
+          onPress={() =>
+            navigation.navigate('LogResult', {
+              workoutId: workout.id,
+              resultId: userResult.id,
+              existingResult: userResult,
+            })
+          }
+          activeOpacity={0.8}
+          testID="result-badge"
+        >
+          <Text style={styles.resultBadgeLabel}>YOUR RESULT — TAP TO EDIT</Text>
+          <Text style={styles.resultBadgeValue}>{formatResultValue(userResult.value)}</Text>
           <Text style={styles.resultBadgeLevel}>{LEVEL_LABELS[userResult.level]}</Text>
-        </View>
+        </TouchableOpacity>
       ) : (
         <TouchableOpacity
           style={styles.logButton}
-          onPress={() => {
-            // LogResultScreen added in Issue #40
-            // navigation.navigate('LogResult', { workoutId: workout.id, workoutType: workout.type })
-          }}
+          onPress={() => navigation.navigate('LogResult', { workoutId: workout.id })}
           activeOpacity={0.8}
         >
           <Text style={styles.logButtonText}>Log Result</Text>
@@ -155,10 +166,12 @@ export default function WodDetailScreen({ route, navigation }: Props) {
           ))}
         </ScrollView>
 
-        {leaderboard.length === 0 ? (
-          <Text style={styles.emptyLeaderboard}>No results yet.</Text>
+        {visibleLeaderboard.length === 0 ? (
+          <Text style={styles.emptyLeaderboard}>
+            {levelFilter ? `No ${LEVEL_LABELS[levelFilter]} results yet.` : 'No results yet.'}
+          </Text>
         ) : (
-          leaderboard.map((entry, idx) => (
+          visibleLeaderboard.map((entry, idx) => (
             <View
               key={entry.id}
               style={[styles.leaderboardRow, entry.user.id === user?.id && styles.leaderboardRowHighlight]}
@@ -166,7 +179,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
               <Text style={styles.rank}>{idx + 1}</Text>
               <View style={styles.leaderboardInfo}>
                 <Text style={styles.leaderboardName}>{entry.user.name}</Text>
-                <Text style={styles.leaderboardValue}>{formatResultValue(entry)}</Text>
+                <Text style={styles.leaderboardValue}>{formatResultValue(entry.value)}</Text>
               </View>
               <Text style={styles.leaderboardLevel}>{LEVEL_LABELS[entry.level]}</Text>
             </View>
