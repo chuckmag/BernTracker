@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "tsc --noEmit",
+    "lint": "tsc -b tsconfig.app.json tsconfig.node.json tsconfig.test.json --noEmit",
     "preview": "vite preview",
     "test": "vitest run && npx dotenv-cli -e ../../.env -- npx playwright test",
     "test:unit": "vitest run",

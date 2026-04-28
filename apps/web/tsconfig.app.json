@@ -12,7 +12,8 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom"]
+    "types": []
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/test"]
 }
