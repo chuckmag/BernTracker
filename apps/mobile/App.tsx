@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createStackNavigator } from '@react-navigation/stack'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { GymProvider } from './src/context/GymContext'
+import { ProgramFilterProvider } from './src/context/ProgramFilterContext'
 import LoginScreen from './src/screens/LoginScreen'
 import FeedScreen from './src/screens/FeedScreen'
 import WodDetailScreen from './src/screens/WodDetailScreen'
@@ -113,10 +114,12 @@ export default function App() {
   return (
     <AuthProvider>
       <GymProvider>
-        <NavigationContainer>
-          <RootNavigator />
-          <StatusBar style="light" />
-        </NavigationContainer>
+        <ProgramFilterProvider>
+          <NavigationContainer>
+            <RootNavigator />
+            <StatusBar style="light" />
+          </NavigationContainer>
+        </ProgramFilterProvider>
       </GymProvider>
     </AuthProvider>
   )
