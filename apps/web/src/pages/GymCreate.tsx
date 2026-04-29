@@ -66,7 +66,7 @@ export default function GymCreate() {
         </label>
 
         <label className="block">
-          <span className="text-xs text-gray-400 mb-1 block" htmlFor="gym-create-timezone">Timezone</span>
+          <span className="text-xs text-gray-400 mb-1 block">Timezone</span>
           <select
             id="gym-create-timezone"
             value={timezone}

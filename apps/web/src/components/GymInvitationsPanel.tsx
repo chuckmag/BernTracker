@@ -105,7 +105,7 @@ export default function GymInvitationsPanel() {
               />
             </label>
             <label className="block">
-              <span className="text-xs text-gray-400 mb-1 block" htmlFor="invite-role">Role</span>
+              <span className="text-xs text-gray-400 mb-1 block">Role</span>
               <select
                 id="invite-role"
                 value={roleToGrant}
