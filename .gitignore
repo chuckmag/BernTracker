@@ -35,6 +35,9 @@ apps/mobile/node_modules/
 apps/web/test-results/
 apps/web/playwright-report/
 
+# Local-fs image storage (dev only — production uses S3 via AWS_S3_BUCKET)
+apps/api/uploads/
+
 # Business plan / strategy docs — local only, not shared with the repo.
 # Remove this line if you decide to commit them later.
 business/

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
-import AvatarPlaceholder from './AvatarPlaceholder'
+import Avatar from './Avatar'
 import GymPicker from './GymPicker'
 
 interface TopBarProps {
@@ -36,7 +36,7 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
             title={displayName}
             className="flex items-center gap-2 rounded-full pl-1 pr-3 py-0.5 hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
           >
-            <AvatarPlaceholder firstName={user.firstName} lastName={user.lastName} email={user.email} size="sm" />
+            <Avatar avatarUrl={user.avatarUrl} firstName={user.firstName} lastName={user.lastName} email={user.email} size="sm" />
             <span className="hidden sm:inline text-sm text-gray-300">{displayName}</span>
           </Link>
         )}

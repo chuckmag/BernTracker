@@ -101,7 +101,7 @@ describe('WodDetailScreen', () => {
     const scaledEntry = { ...makeEntry('e2', 'bob', 'Bob'), level: 'SCALED' as const }
     ;(api.workouts.results as jest.Mock).mockResolvedValue([rxEntry, scaledEntry])
 
-    const { findByText, findAllByText, queryByText } = render(
+    const { findByText, queryByText, getByTestId } = render(
       <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
     )
 
@@ -112,14 +112,92 @@ describe('WodDetailScreen', () => {
     await findByText('Alice')
     await findByText('Bob')
 
-    // First "Scaled" match is the chip; the second is Bob's row level badge.
-    const [scaledChip] = await findAllByText('Scaled')
-    fireEvent.press(scaledChip)
+    fireEvent.press(getByTestId('level-chip-Scaled'))
     await waitFor(() => expect(queryByText('Alice')).toBeNull())
     await findByText('Bob')
 
     // No second API call — same data, just a different visible slice.
     expect((api.workouts.results as jest.Mock).mock.calls).toHaveLength(1)
+  })
+
+  test('gender chip narrows the visible leaderboard client-side', async () => {
+    const womenEntry = {
+      ...makeEntry('e1', 'alice', 'Alice'),
+      workoutGender: 'FEMALE' as const,
+    }
+    const menEntry = {
+      ...makeEntry('e2', 'bob', 'Bob'),
+      workoutGender: 'MALE' as const,
+    }
+    ;(api.workouts.results as jest.Mock).mockResolvedValue([womenEntry, menEntry])
+
+    const { findByText, queryByText, getByTestId } = render(
+      <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
+    )
+
+    await findByText('Alice')
+    await findByText('Bob')
+
+    fireEvent.press(getByTestId('gender-chip-Women'))
+    await waitFor(() => expect(queryByText('Bob')).toBeNull())
+    await findByText('Alice')
+
+    // Same fetch, just narrowed client-side.
+    expect((api.workouts.results as jest.Mock).mock.calls).toHaveLength(1)
+  })
+
+  test('level + gender filters combine; empty-state copy reflects both', async () => {
+    const rxFemale = {
+      ...makeEntry('e1', 'alice', 'Alice'),
+      level: 'RX' as const,
+      workoutGender: 'FEMALE' as const,
+    }
+    const scaledMale = {
+      ...makeEntry('e2', 'bob', 'Bob'),
+      level: 'SCALED' as const,
+      workoutGender: 'MALE' as const,
+    }
+    ;(api.workouts.results as jest.Mock).mockResolvedValue([rxFemale, scaledMale])
+
+    const { findByText, queryByText, getByTestId } = render(
+      <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
+    )
+
+    await findByText('Alice')
+
+    // Filter to RX + Men → no entries match → empty-state copy lists both.
+    fireEvent.press(getByTestId('level-chip-RX'))
+    fireEvent.press(getByTestId('gender-chip-Men'))
+
+    await waitFor(() => expect(queryByText('Alice')).toBeNull())
+    await waitFor(() => expect(queryByText('Bob')).toBeNull())
+    await findByText('No RX / Men results yet.')
+  })
+
+  test('switching the active filter to one that excludes the user keeps the result badge', async () => {
+    // Logged at RX/Female; filter to RX+/Men → leaderboard list empty, but
+    // the "your result" badge still derives from the unfiltered fetch and
+    // stays visible (no spurious "Log Result" CTA, no 409 on retry).
+    const myEntry = {
+      ...makeEntry('e1', 'me', 'Me'),
+      level: 'RX' as const,
+      workoutGender: 'FEMALE' as const,
+    }
+    ;(api.workouts.results as jest.Mock).mockResolvedValue([myEntry])
+
+    const { findByText, findByTestId, queryByText, getByTestId } = render(
+      <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
+    )
+
+    await findByText('Fran')
+    await findByTestId('result-badge')
+
+    fireEvent.press(getByTestId('level-chip-RX+'))
+    fireEvent.press(getByTestId('gender-chip-Men'))
+
+    await findByText('No RX+ / Men results yet.')
+    await findByTestId('result-badge')
+    expect(queryByText('Log Result')).toBeNull()
   })
 
   test('user keeps their result badge under a filter that excludes their level', async () => {

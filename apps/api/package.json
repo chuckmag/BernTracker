@@ -10,6 +10,7 @@
     "test": "NODE_OPTIONS='--conditions=source' npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do npx tsx \"$f\" || exit 1; done'"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1038.0",
     "@wodalytics/db": "*",
     "@wodalytics/types": "*",
     "bcryptjs": "^2.4.3",
@@ -21,6 +22,7 @@
     "google-auth-library": "^10.6.1",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.1.1",
+    "sharp": "^0.34.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {

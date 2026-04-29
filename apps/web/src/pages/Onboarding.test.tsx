@@ -59,8 +59,8 @@ describe('Onboarding page', () => {
     render(<MemoryRouter><Onboarding /></MemoryRouter>)
     expect(await screen.findByRole('heading', { name: /set up your profile/i })).toBeInTheDocument()
     expect(screen.getByText('Your name')).toBeInTheDocument()
-    // Avatar placeholder is visible from the start
-    expect(screen.getByText(/Coming soon/)).toBeInTheDocument()
+    // Avatar uploader is on step 1 — the upload button is the read-from-DOM signal.
+    expect(screen.getByRole('button', { name: /Upload photo/ })).toBeInTheDocument()
   })
 
   it('blocks Continue on step 1 when names are empty', async () => {
