@@ -3,16 +3,17 @@ import { useAuth } from '../context/AuthContext.tsx'
 import { useGym } from '../context/GymContext.tsx'
 import ProgramFilterPicker from './ProgramFilterPicker.tsx'
 
+// Browse Gyms moved into the TopBar gym picker — no standalone sidebar entry.
 const memberLinks = [
   { to: '/feed',    label: 'Feed'    },
   { to: '/history', label: 'History' },
   { to: '/browse-programs', label: 'Browse Programs' },
 ]
 
+// Members consolidated into /gym-settings#members (slice D1) — no standalone link.
 const staffLinks = [
   { to: '/calendar',     label: 'Calendar' },
   { to: '/programs',     label: 'Programs' },
-  { to: '/members',      label: 'Members'  },
   { to: '/gym-settings', label: 'Gym Settings' },
 ]
 

@@ -7,12 +7,14 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test": "NODE_PATH=node_modules:../../node_modules jest"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/native": "^7.1.8",
     "@react-navigation/stack": "^7.8.8",
+    "@wodalytics/types": "*",
     "expo": "~54.0.0",
     "expo-linking": "~8.0.12",
     "expo-secure-store": "~15.0.8",

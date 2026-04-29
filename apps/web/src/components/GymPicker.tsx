@@ -1,0 +1,115 @@
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useGym } from '../context/GymContext.tsx'
+
+// Gym selector dropdown in the TopBar. Exposes:
+//  - the user's current gyms (click to switch active)
+//  - "Browse gyms" — discover other gyms to join (slice D2)
+//  - "Set up a new gym" — always available, even when the user is in a gym
+//
+// Uses a portal-less click-outside dropdown — keeps the surface tiny while
+// still being keyboard-dismissible (Esc + click-outside).
+export default function GymPicker() {
+  const { gyms, gymId, setGymId } = useGym()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  function handleSelectGym(id: string) {
+    setGymId(id)
+    setOpen(false)
+  }
+
+  function handleBrowse() {
+    setOpen(false)
+    navigate('/gyms/browse')
+  }
+
+  function handleCreate() {
+    setOpen(false)
+    navigate('/gyms/new')
+  }
+
+  const activeGym = gyms.find((g) => g.id === gymId)
+  const triggerLabel = activeGym?.name ?? (gyms.length > 0 ? 'Select gym' : 'No gym yet')
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 text-sm bg-gray-800 text-gray-200 border border-gray-700 rounded px-2 py-1 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+      >
+        <span className="max-w-[140px] truncate">{triggerLabel}</span>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
+          <path d="M1 3l4 4 4-4" stroke="currentColor" strokeWidth="1.2" fill="none" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 mt-1 min-w-[220px] rounded-lg bg-gray-900 border border-gray-700 shadow-xl py-1 z-50"
+        >
+          {gyms.length > 0 && (
+            <>
+              <p className="px-3 pt-1 pb-0.5 text-[11px] uppercase tracking-wider text-gray-500">Your gyms</p>
+              {gyms.map((g) => {
+                const active = g.id === gymId
+                return (
+                  <button
+                    key={g.id}
+                    role="menuitemradio"
+                    aria-checked={active}
+                    onClick={() => handleSelectGym(g.id)}
+                    className={[
+                      'w-full text-left px-3 py-1.5 text-sm flex items-center justify-between',
+                      active ? 'text-white bg-gray-800' : 'text-gray-300 hover:bg-gray-800',
+                    ].join(' ')}
+                  >
+                    <span className="truncate">{g.name}</span>
+                    {active && <span className="text-indigo-400 text-xs ml-2" aria-hidden="true">✓</span>}
+                  </button>
+                )
+              })}
+              <div className="my-1 border-t border-gray-800" aria-hidden="true" />
+            </>
+          )}
+          <button
+            role="menuitem"
+            onClick={handleBrowse}
+            className="w-full text-left px-3 py-1.5 text-sm text-indigo-300 hover:bg-gray-800 hover:text-indigo-200"
+          >
+            {gyms.length > 0 ? 'Find another gym to join →' : 'Browse gyms to join →'}
+          </button>
+          <button
+            role="menuitem"
+            onClick={handleCreate}
+            className="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white"
+          >
+            Set up a new gym
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+

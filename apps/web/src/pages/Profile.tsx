@@ -9,12 +9,26 @@ import {
 import Button from '../components/ui/Button'
 import AvatarPlaceholder from '../components/AvatarPlaceholder'
 import EmergencyContactsEditor from '../components/EmergencyContactsEditor'
+import MyInvitationsSection from '../components/MyInvitationsSection'
+import MyJoinRequestsSection from '../components/MyJoinRequestsSection'
+import MyGymsSection from '../components/MyGymsSection'
 import {
   NameFields,
   BirthdayField,
   GenderField,
   GENDER_OPTIONS,
 } from '../components/ProfileFields'
+
+type Tab = 'details' | 'memberships'
+
+// Hash anchors keep the active tab deep-linkable. The InvitationsBanner links
+// to /profile#invitations — that lands on the Memberships tab since that's
+// where invitations live now.
+function readTabFromHash(): Tab {
+  if (typeof window === 'undefined') return 'details'
+  const h = window.location.hash
+  return h === '#memberships' || h === '#invitations' ? 'memberships' : 'details'
+}
 
 export default function Profile() {
   const { user, logout } = useAuth()
@@ -27,6 +41,21 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [tab, setTab] = useState<Tab>(readTabFromHash)
+
+  useEffect(() => {
+    function onHashChange() { setTab(readTabFromHash()) }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  function selectTab(next: Tab) {
+    setTab(next)
+    const hash = next === 'memberships' ? '#memberships' : ''
+    if (hash !== window.location.hash) {
+      window.history.replaceState(null, '', `${window.location.pathname}${hash}`)
+    }
+  }
 
   useEffect(() => {
     api.users.me.profile.get()
@@ -69,73 +98,114 @@ export default function Profile() {
     return <p className="text-gray-400">Loading…</p>
   }
 
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'details', label: 'Details' },
+    { id: 'memberships', label: 'Gym Memberships' },
+  ]
+
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="max-w-2xl space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">Your profile</h1>
         <p className="text-sm text-gray-400">Personal information used for results tracking and emergency contact.</p>
       </header>
 
-      <section className="flex items-center gap-4 rounded-xl bg-gray-900 p-4 border border-gray-800">
-        <AvatarPlaceholder firstName={firstName} lastName={lastName} email={user?.email ?? ''} size="lg" />
-        <div className="space-y-1">
-          <p className="text-sm text-white">Profile photo</p>
-          <p className="text-xs text-gray-400">
-            <span className="inline-block rounded bg-amber-500/20 text-amber-300 px-2 py-0.5 mr-2">Coming soon</span>
-            Avatar uploads will arrive in a follow-up update.
-          </p>
+      <div className="border-b border-gray-800">
+        <nav className="flex gap-1" role="tablist">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => selectTab(t.id)}
+              className={[
+                'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
+                tab === t.id
+                  ? 'border-indigo-500 text-white'
+                  : 'border-transparent text-gray-400 hover:text-white',
+              ].join(' ')}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {tab === 'details' && (
+        <div className="space-y-8">
+          <section className="flex items-center gap-4 rounded-xl bg-gray-900 p-4 border border-gray-800">
+            <AvatarPlaceholder firstName={firstName} lastName={lastName} email={user?.email ?? ''} size="lg" />
+            <div className="space-y-1">
+              <p className="text-sm text-white">Profile photo</p>
+              <p className="text-xs text-gray-400">
+                <span className="inline-block rounded bg-amber-500/20 text-amber-300 px-2 py-0.5 mr-2">Coming soon</span>
+                Avatar uploads will arrive in a follow-up update.
+              </p>
+            </div>
+          </section>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <section className="space-y-4">
+              <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Personal info</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <NameFields
+                  firstName={firstName}
+                  lastName={lastName}
+                  onFirstNameChange={setFirstName}
+                  onLastNameChange={setLastName}
+                />
+                <BirthdayField value={birthday} onChange={setBirthday} />
+                <GenderField
+                  value={(gender as NonNullable<IdentifiedGender>) || GENDER_OPTIONS[0].value}
+                  onChange={setGender}
+                />
+              </div>
+            </section>
+
+            {error && <p className="text-sm text-rose-400">{error}</p>}
+            {savedAt && !error && <p className="text-sm text-emerald-400">Saved.</p>}
+
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </form>
+
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Emergency contacts</h2>
+            <p className="text-xs text-gray-400">
+              Optional. Stored on your account today; gym-specific contacts will come with the gym onboarding flow.
+            </p>
+            <EmergencyContactsEditor
+              contacts={profile.emergencyContacts}
+              onCreate={async (data) => {
+                const created = await api.users.me.emergencyContacts.create(data)
+                setProfile((p) => p ? { ...p, emergencyContacts: [...p.emergencyContacts, created] } : p)
+              }}
+              onRemove={async (id) => {
+                await api.users.me.emergencyContacts.remove(id)
+                setProfile((p) => p ? { ...p, emergencyContacts: p.emergencyContacts.filter((c) => c.id !== id) } : p)
+              }}
+            />
+          </section>
+
+          <section className="pt-6 border-t border-gray-800">
+            <Button variant="secondary" onClick={handleSignOut}>
+              Sign out
+            </Button>
+          </section>
         </div>
-      </section>
+      )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <section className="space-y-4">
-          <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Personal info</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <NameFields
-              firstName={firstName}
-              lastName={lastName}
-              onFirstNameChange={setFirstName}
-              onLastNameChange={setLastName}
-            />
-            <BirthdayField value={birthday} onChange={setBirthday} />
-            <GenderField
-              value={(gender as NonNullable<IdentifiedGender>) || GENDER_OPTIONS[0].value}
-              onChange={setGender}
-            />
-          </div>
-        </section>
-
-        {error && <p className="text-sm text-rose-400">{error}</p>}
-        {savedAt && !error && <p className="text-sm text-emerald-400">Saved.</p>}
-
-        <Button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : 'Save'}
-        </Button>
-      </form>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Emergency contacts</h2>
-        <p className="text-xs text-gray-400">
-          Optional. Stored on your account today; gym-specific contacts will come with the gym onboarding flow.
-        </p>
-        <EmergencyContactsEditor
-          contacts={profile.emergencyContacts}
-          onCreate={async (data) => {
-            const created = await api.users.me.emergencyContacts.create(data)
-            setProfile((p) => p ? { ...p, emergencyContacts: [...p.emergencyContacts, created] } : p)
-          }}
-          onRemove={async (id) => {
-            await api.users.me.emergencyContacts.remove(id)
-            setProfile((p) => p ? { ...p, emergencyContacts: p.emergencyContacts.filter((c) => c.id !== id) } : p)
-          }}
-        />
-      </section>
-
-      <section className="pt-6 border-t border-gray-800">
-        <Button variant="secondary" onClick={handleSignOut}>
-          Sign out
-        </Button>
-      </section>
+      {tab === 'memberships' && (
+        <div className="space-y-8">
+          <MyGymsSection />
+          {/* Both subsections render nothing when empty (per #120 review) — the
+              tab still has Your gyms above, so it never feels barren. */}
+          <MyInvitationsSection />
+          <MyJoinRequestsSection />
+        </div>
+      )}
     </div>
   )
 }

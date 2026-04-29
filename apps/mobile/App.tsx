@@ -5,40 +5,64 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createStackNavigator } from '@react-navigation/stack'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { GymProvider } from './src/context/GymContext'
+import { ProgramFilterProvider } from './src/context/ProgramFilterContext'
 import LoginScreen from './src/screens/LoginScreen'
 import FeedScreen from './src/screens/FeedScreen'
 import WodDetailScreen from './src/screens/WodDetailScreen'
+import HistoryScreen from './src/screens/HistoryScreen'
+import LogResultScreen from './src/screens/LogResultScreen'
+import type { LeaderboardEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
 
-export type FeedStackParamList = {
-  Feed: undefined
-  WodDetail: { workoutId: string }
+// Detail screens (WodDetail, LogResult) live on the root stack so they can be
+// pushed from any tab. Tabs only carry their list screens.
+export type RootStackParamList = {
+  Main: undefined
+  WodDetail: { workoutId: string; from?: 'feed' | 'history' }
+  LogResult: { workoutId: string; resultId?: string; existingResult?: LeaderboardEntry }
 }
 
 export type MainTabParamList = {
   FeedTab: undefined
-  // HistoryTab added in Issue #40
+  HistoryTab: undefined
+}
+
+export type FeedStackParamList = {
+  Feed: undefined
+}
+
+export type HistoryStackParamList = {
+  History: undefined
 }
 
 // ── Navigators ───────────────────────────────────────────────────────────────
 
+const RootStack = createStackNavigator<RootStackParamList>()
 const Tab = createBottomTabNavigator<MainTabParamList>()
 const FeedStack = createStackNavigator<FeedStackParamList>()
+const HistoryStack = createStackNavigator<HistoryStackParamList>()
+
+const stackScreenOptions = {
+  headerStyle: { backgroundColor: '#111827' },
+  headerTintColor: '#ffffff',
+  headerTitleStyle: { fontWeight: '600' as const },
+  cardStyle: { backgroundColor: '#030712' },
+}
 
 function FeedStackNavigator() {
   return (
-    <FeedStack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: '#111827' },
-        headerTintColor: '#ffffff',
-        headerTitleStyle: { fontWeight: '600' },
-        cardStyle: { backgroundColor: '#030712' },
-      }}
-    >
+    <FeedStack.Navigator screenOptions={stackScreenOptions}>
       <FeedStack.Screen name="Feed" component={FeedScreen} options={{ title: 'Workouts' }} />
-      <FeedStack.Screen name="WodDetail" component={WodDetailScreen} options={{ title: '' }} />
     </FeedStack.Navigator>
+  )
+}
+
+function HistoryStackNavigator() {
+  return (
+    <HistoryStack.Navigator screenOptions={stackScreenOptions}>
+      <HistoryStack.Screen name="History" component={HistoryScreen} options={{ title: 'History' }} />
+    </HistoryStack.Navigator>
   )
 }
 
@@ -53,7 +77,18 @@ function MainTabs() {
       }}
     >
       <Tab.Screen name="FeedTab" component={FeedStackNavigator} options={{ title: 'Feed' }} />
+      <Tab.Screen name="HistoryTab" component={HistoryStackNavigator} options={{ title: 'History' }} />
     </Tab.Navigator>
+  )
+}
+
+function RootStackNavigator() {
+  return (
+    <RootStack.Navigator screenOptions={stackScreenOptions}>
+      <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
+      <RootStack.Screen name="WodDetail" component={WodDetailScreen} options={{ title: '' }} />
+      <RootStack.Screen name="LogResult" component={LogResultScreen} options={{ title: 'Log Result' }} />
+    </RootStack.Navigator>
   )
 }
 
@@ -70,7 +105,7 @@ function RootNavigator() {
     )
   }
 
-  return user ? <MainTabs /> : <LoginScreen />
+  return user ? <RootStackNavigator /> : <LoginScreen />
 }
 
 // ── App root ─────────────────────────────────────────────────────────────────
@@ -79,10 +114,12 @@ export default function App() {
   return (
     <AuthProvider>
       <GymProvider>
-        <NavigationContainer>
-          <RootNavigator />
-          <StatusBar style="light" />
-        </NavigationContainer>
+        <ProgramFilterProvider>
+          <NavigationContainer>
+            <RootNavigator />
+            <StatusBar style="light" />
+          </NavigationContainer>
+        </ProgramFilterProvider>
       </GymProvider>
     </AuthProvider>
   )

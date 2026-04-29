@@ -1,4 +1,13 @@
 import * as SecureStore from 'expo-secure-store'
+import type {
+  IdentifiedGender,
+  ResultValue,
+  WorkoutGender,
+  WorkoutLevel,
+} from '@wodalytics/types'
+
+export type { IdentifiedGender, ResultValue, WorkoutGender, WorkoutLevel }
+export { deriveWorkoutGender } from '@wodalytics/types'
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
 const ACCESS_TOKEN_KEY = 'accessToken'
@@ -8,13 +17,12 @@ const REFRESH_TOKEN_KEY = 'refreshToken'
 
 export type WorkoutType = 'STRENGTH' | 'FOR_TIME' | 'EMOM' | 'CARDIO' | 'AMRAP' | 'METCON' | 'WARMUP'
 export type WorkoutStatus = 'DRAFT' | 'PUBLISHED'
-export type WorkoutLevel = 'RX_PLUS' | 'RX' | 'SCALED' | 'MODIFIED'
-export type WorkoutGender = 'MALE' | 'FEMALE' | 'OPEN'
 
 export interface AuthUser {
   id: string
   email: string
   name: string
+  identifiedGender: IdentifiedGender | null
 }
 
 export interface Gym {
@@ -23,6 +31,24 @@ export interface Gym {
   slug: string
   timezone: string
   userRole: string
+}
+
+export interface Program {
+  id: string
+  name: string
+  description: string | null
+  visibility: 'PUBLIC' | 'PRIVATE'
+  coverColor: string | null
+}
+
+// Mirrors the web `GymProgram` shape (apps/web/src/lib/api.ts): the join row
+// carries gym/program IDs and the nested `program` object holds the
+// human-facing fields (name, description, etc.).
+export interface GymProgram {
+  gymId: string
+  programId: string
+  isDefault: boolean
+  program: Program
 }
 
 export interface Workout {
@@ -34,10 +60,6 @@ export interface Workout {
   scheduledAt: string
   programId: string | null
 }
-
-export type ResultValue =
-  | { type: 'AMRAP'; rounds: number; reps: number }
-  | { type: 'FOR_TIME'; seconds: number; cappedOut?: boolean }
 
 export interface LeaderboardEntry {
   id: string
@@ -166,15 +188,28 @@ export const api = {
     gyms: () =>
       request<Gym[]>('/api/me/gyms'),
 
-    results: (page = 1) =>
-      request<{ results: ResultHistoryItem[]; total: number; page: number; totalPages: number }>(
-        `/api/me/results?page=${page}&limit=20`,
-      ),
+    programs: (gymId: string) =>
+      request<GymProgram[]>(`/api/me/programs?gymId=${encodeURIComponent(gymId)}`),
+
+    results: (page = 1, movementIds?: string[]) => {
+      const qs = new URLSearchParams({ page: String(page), limit: '20' })
+      if (movementIds?.length) qs.set('movementIds', movementIds.join(','))
+      return request<{
+        results: ResultHistoryItem[]
+        total: number
+        page: number
+        limit: number
+        pages: number
+      }>(`/api/me/results?${qs}`)
+    },
   },
 
   gyms: {
-    workouts: (gymId: string, from: string, to: string) =>
-      request<Workout[]>(`/api/gyms/${gymId}/workouts?from=${from}&to=${to}`),
+    workouts: (gymId: string, from: string, to: string, programIds?: string[]) => {
+      const qs = new URLSearchParams({ from, to })
+      if (programIds?.length) qs.set('programIds', programIds.join(','))
+      return request<Workout[]>(`/api/gyms/${gymId}/workouts?${qs}`)
+    },
   },
 
   workouts: {
@@ -191,5 +226,19 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+  },
+
+  results: {
+    update: (
+      resultId: string,
+      data: { level?: WorkoutLevel; value?: ResultValue; notes?: string | null },
+    ) =>
+      request<LeaderboardEntry>(`/api/results/${resultId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    delete: (resultId: string) =>
+      request<void>(`/api/results/${resultId}`, { method: 'DELETE' }),
   },
 }
