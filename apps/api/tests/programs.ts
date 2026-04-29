@@ -833,6 +833,53 @@ async function runTests() {
     // Reset
     await prisma.gymProgram.updateMany({ where: { gymId }, data: { isDefault: false } })
   }
+
+  // ── Unaffiliated public catalog (CrossFit Mainsite-style programs) ──────────
+  console.log('\n=== Unaffiliated public catalog ===')
+
+  // Two unaffiliated programs (no GymProgram rows): one PUBLIC, one PRIVATE.
+  const catalogPublic = await prisma.program.create({
+    data: { name: `Catalog Public ${TS}`, startDate: new Date('2026-01-01'), visibility: 'PUBLIC' },
+  })
+  const catalogPrivate = await prisma.program.create({
+    data: { name: `Catalog Private ${TS}`, startDate: new Date('2026-01-01'), visibility: 'PRIVATE' },
+  })
+  createdProgramIds.push(catalogPublic.id, catalogPrivate.id)
+
+  {
+    const r = await api('GET', `/programs/public-catalog`, memberToken)
+    check('GET public-catalog as MEMBER → 200', 200, r.status)
+    const ids = (r.body as unknown as { id: string }[]).map((p) => p.id)
+    check('Catalog includes unaffiliated PUBLIC', true, ids.includes(catalogPublic.id))
+    check('Catalog excludes unaffiliated PRIVATE', false, ids.includes(catalogPrivate.id))
+    check('Catalog excludes gym-affiliated PUBLIC', false, ids.includes(publicProgram.id))
+  }
+
+  {
+    const r = await api('GET', `/programs/public-catalog`)
+    check('GET public-catalog without auth → 401', 401, r.status)
+  }
+
+  {
+    // Outsider (only member of otherGymId) can still subscribe to an
+    // unaffiliated PUBLIC program — auth is the only gate.
+    const r = await api('POST', `/programs/${catalogPublic.id}/subscribe`, outsiderToken)
+    check('POST subscribe (unaffiliated PUBLIC) → 201', 201, r.status)
+    check('POST subscribe role=MEMBER', 'MEMBER', r.body.role)
+  }
+
+  {
+    // After subscribing, the program drops out of the catalog list.
+    const r = await api('GET', `/programs/public-catalog`, outsiderToken)
+    const ids = (r.body as unknown as { id: string }[]).map((p) => p.id)
+    check('Catalog drops just-joined unaffiliated program', false, ids.includes(catalogPublic.id))
+  }
+
+  {
+    // Self-subscribe to unaffiliated PRIVATE → 403, same as gym-scoped PRIVATE.
+    const r = await api('POST', `/programs/${catalogPrivate.id}/subscribe`, memberToken)
+    check('POST subscribe (unaffiliated PRIVATE) → 403', 403, r.status)
+  }
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────

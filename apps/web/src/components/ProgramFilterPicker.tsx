@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 
 /**
@@ -17,6 +18,7 @@ export default function ProgramFilterPicker() {
   const { selected, available, loading, toggle, clear } = useProgramFilter()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
 
   // Close on outside click / Escape.
   useEffect(() => {
@@ -35,10 +37,9 @@ export default function ProgramFilterPicker() {
     }
   }, [open])
 
-  if (!available.length && !loading) {
-    // Hide the picker entirely until at least one program exists, otherwise it
-    // shows a useless empty dropdown for first-run gyms.
-    return null
+  function goToBrowse() {
+    setOpen(false)
+    navigate('/browse-programs')
   }
 
   const selectedPrograms = available
@@ -95,6 +96,10 @@ export default function ProgramFilterPicker() {
             )
           })}
 
+          {available.length === 0 && !loading && (
+            <p className="px-3 py-2 text-xs text-gray-400">No programs yet.</p>
+          )}
+
           {selected.length > 0 && (
             <div className="border-t border-gray-800 px-3 py-2 flex justify-end">
               <button
@@ -106,6 +111,18 @@ export default function ProgramFilterPicker() {
               </button>
             </div>
           )}
+
+          {/* Discovery entry point for the Browse page — primary path now that
+              the standalone sidebar link has been retired. */}
+          <div className="border-t border-gray-800">
+            <button
+              type="button"
+              onClick={goToBrowse}
+              className="w-full px-3 py-2 text-left text-sm text-indigo-400 hover:bg-gray-800 hover:text-indigo-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+            >
+              Browse public programs →
+            </button>
+          </div>
         </div>
       )}
     </div>

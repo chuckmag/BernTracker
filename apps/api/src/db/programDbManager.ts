@@ -48,8 +48,42 @@ export async function findProgramByName(name: string) {
 // Used by the CrossFit Mainsite ingest job to bootstrap the public program on
 // first run. Program.startDate is required by the schema; defaults to today
 // since the program tracks daily WODs going forward from creation.
+// Visibility defaults to PUBLIC so the program shows up in the public-catalog
+// browse endpoint — gym-less programs are only useful when discoverable.
 export async function createProgramByName(name: string, startDate: Date = new Date()) {
-  return prisma.program.create({ data: { name, startDate } })
+  return prisma.program.create({ data: { name, startDate, visibility: 'PUBLIC' } })
+}
+
+// Used by the CrossFit Mainsite ingest job to repair the visibility flag for
+// pre-existing rows that were created before the default flipped to PUBLIC.
+// Safe no-op once the row is already PUBLIC.
+export async function ensureProgramIsPublic(programId: string) {
+  await prisma.program.update({
+    where: { id: programId },
+    data: { visibility: 'PUBLIC' },
+  })
+}
+
+/**
+ * Lists PUBLIC programs that are NOT linked to any gym (e.g. the CrossFit
+ * Mainsite WOD program created by the ingest job) and that the caller has
+ * not already subscribed to. Drives the "Public programs" section of the
+ * Browse page.
+ *
+ * No gym scoping — these programs exist outside the per-gym catalog. The
+ * caller-vs-program access check is intentionally just "must be authenticated"
+ * because the programs are public by definition.
+ */
+export async function findUnaffiliatedPublicProgramsForUser(userId: string) {
+  return prisma.program.findMany({
+    where: {
+      visibility: 'PUBLIC',
+      gyms: { none: {} },
+      members: { none: { userId } },
+    },
+    orderBy: { createdAt: 'desc' },
+    include: { _count: { select: { members: true, workouts: true } } },
+  })
 }
 
 export type ProgramGymAccessResult = 'ok' | 'not-found' | 'forbidden'
