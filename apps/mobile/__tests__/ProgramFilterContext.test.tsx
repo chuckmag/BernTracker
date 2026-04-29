@@ -47,13 +47,16 @@ import { api } from '../src/lib/api'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const PROG = (id: string, name: string) => ({
-  id,
-  programId: `p-${id}`,
   gymId: 'gym-1',
-  name,
-  description: null,
-  visibility: 'PUBLIC' as const,
+  programId: id,
   isDefault: false,
+  program: {
+    id,
+    name,
+    description: null,
+    visibility: 'PUBLIC' as const,
+    coverColor: null,
+  },
 })
 
 function Probe() {
@@ -61,7 +64,7 @@ function Probe() {
   return (
     <>
       <Text testID="selected">{JSON.stringify(selected)}</Text>
-      <Text testID="available">{available.map((p) => p.id).join(',')}</Text>
+      <Text testID="available">{available.map((gp) => gp.program.id).join(',')}</Text>
       <Text testID="loading">{String(loading)}</Text>
       <Text testID="toggle-a" onPress={() => toggle('a')} />
       <Text testID="toggle-b" onPress={() => toggle('b')} />

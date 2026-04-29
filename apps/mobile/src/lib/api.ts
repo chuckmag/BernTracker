@@ -33,14 +33,22 @@ export interface Gym {
   userRole: string
 }
 
-export interface GymProgram {
+export interface Program {
   id: string
-  programId: string
-  gymId: string
   name: string
   description: string | null
   visibility: 'PUBLIC' | 'PRIVATE'
+  coverColor: string | null
+}
+
+// Mirrors the web `GymProgram` shape (apps/web/src/lib/api.ts): the join row
+// carries gym/program IDs and the nested `program` object holds the
+// human-facing fields (name, description, etc.).
+export interface GymProgram {
+  gymId: string
+  programId: string
   isDefault: boolean
+  program: Program
 }
 
 export interface Workout {

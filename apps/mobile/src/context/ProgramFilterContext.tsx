@@ -102,8 +102,9 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
 
       // Drop any persisted IDs that are no longer reachable for this user
       // (program unsubscribed, deleted, visibility changed). Keeps storage
-      // honest with what the picker actually offers.
-      const valid = new Set(programs.map((p) => p.id))
+      // honest with what the picker actually offers. The selected IDs are
+      // the underlying Program IDs (program.id), not the GymProgram join row.
+      const valid = new Set(programs.map((gp) => gp.program.id))
       const before = persisted ?? selected
       const after = before.filter((id) => valid.has(id))
       if (after.length !== before.length) {

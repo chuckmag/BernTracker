@@ -15,13 +15,16 @@ jest.mock('../src/context/ProgramFilterContext', () => ({
 import { useProgramFilter } from '../src/context/ProgramFilterContext'
 
 const PROG = (id: string, name: string) => ({
-  id,
-  programId: `p-${id}`,
   gymId: 'gym-1',
-  name,
-  description: null,
-  visibility: 'PUBLIC' as const,
+  programId: id,
   isDefault: false,
+  program: {
+    id,
+    name,
+    description: null,
+    visibility: 'PUBLIC' as const,
+    coverColor: null,
+  },
 })
 
 function setContext(overrides: Partial<ReturnType<typeof useProgramFilter>>) {

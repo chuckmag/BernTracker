@@ -31,7 +31,7 @@ export default function ProgramFilterPicker() {
   const labelText = (() => {
     if (selected.length === 0) return 'All programs'
     const names = selected
-      .map((id) => available.find((p) => p.id === id)?.name)
+      .map((id) => available.find((gp) => gp.program.id === id)?.program.name)
       .filter((n): n is string => Boolean(n))
     if (names.length === 0) return 'All programs'
     if (names.length === 1) return names[0]
@@ -74,19 +74,19 @@ export default function ProgramFilterPicker() {
                   <ActivityIndicator color="#818cf8" />
                 </View>
               ) : (
-                available.map((p) => {
-                  const isSelected = selected.includes(p.id)
+                available.map(({ program }) => {
+                  const isSelected = selected.includes(program.id)
                   return (
                     <TouchableOpacity
-                      key={p.id}
+                      key={program.id}
                       style={styles.row}
-                      onPress={() => toggle(p.id)}
-                      testID={`program-row-${p.id}`}
+                      onPress={() => toggle(program.id)}
+                      testID={`program-row-${program.id}`}
                     >
                       <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
                         {isSelected && <Text style={styles.checkmark}>✓</Text>}
                       </View>
-                      <Text style={styles.rowLabel} numberOfLines={1}>{p.name}</Text>
+                      <Text style={styles.rowLabel} numberOfLines={1}>{program.name}</Text>
                     </TouchableOpacity>
                   )
                 })
