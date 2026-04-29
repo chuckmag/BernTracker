@@ -5,7 +5,7 @@ import GymLogo from './GymLogo'
 import Button from './ui/Button'
 
 const ACCEPT = 'image/jpeg,image/png,image/webp'
-const MAX_BYTES = 5 * 1024 * 1024
+const MAX_BYTES = 20 * 1024 * 1024
 
 interface GymLogoUploaderProps {
   gymId: string
@@ -19,7 +19,7 @@ interface GymLogoUploaderProps {
 }
 
 // Mirror of AvatarUploader for the gym side. Single-button upload (no
-// preview-confirm hop), Remove visible only when a logo is set, 5MB
+// preview-confirm hop), Remove visible only when a logo is set, 20MB
 // client-side guard matching the server cap. Refreshes GymContext so the
 // TopBar picker thumbnails update without a manual reload.
 export default function GymLogoUploader({ gymId, logoUrl, name, onChange }: GymLogoUploaderProps) {
@@ -33,7 +33,7 @@ export default function GymLogoUploader({ gymId, logoUrl, name, onChange }: GymL
     e.target.value = ''
     if (!file) return
     if (file.size > MAX_BYTES) {
-      setError(`That file is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max is 5MB.`)
+      setError(`That file is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max is 20MB.`)
       return
     }
     setBusy('upload')
@@ -68,7 +68,7 @@ export default function GymLogoUploader({ gymId, logoUrl, name, onChange }: GymL
       <GymLogo logoUrl={logoUrl} name={name} size="lg" />
       <div className="flex-1 space-y-2">
         <p className="text-sm text-white">Gym logo</p>
-        <p className="text-xs text-gray-400">JPEG, PNG, or WebP. Up to 5MB. Resized and cropped to a square.</p>
+        <p className="text-xs text-gray-400">JPEG, PNG, or WebP. Up to 20MB. Resized and cropped to a square.</p>
         <div className="flex flex-wrap gap-2">
           <input
             ref={inputRef}

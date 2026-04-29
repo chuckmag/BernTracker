@@ -59,9 +59,9 @@ describe('GymLogoUploader', () => {
     await waitFor(() => expect(refreshGyms).toHaveBeenCalled())
   })
 
-  it('rejects files larger than 5MB inline (no API call)', async () => {
+  it('rejects files larger than 20MB inline (no API call)', async () => {
     render(<GymLogoUploader gymId="g1" logoUrl={null} name="CrossFit Foo" />)
-    const big = new File([new Uint8Array(6 * 1024 * 1024)], 'big.png', { type: 'image/png' })
+    const big = new File([new Uint8Array(21 * 1024 * 1024)], 'big.png', { type: 'image/png' })
     const input = screen.getByLabelText('Choose a gym logo') as HTMLInputElement
     const user = userEvent.setup()
     await user.upload(input, big)
