@@ -22,6 +22,12 @@ jest.mock('../src/context/GymContext', () => ({
   useGym: jest.fn(),
 }))
 
+jest.mock('../src/context/ProgramFilterContext', () => ({
+  useProgramFilter: jest.fn(),
+}))
+
+jest.mock('../src/components/ProgramFilterPicker', () => () => null)
+
 jest.mock('../src/lib/api', () => ({
   api: {
     gyms: { workouts: jest.fn() },
@@ -29,6 +35,7 @@ jest.mock('../src/lib/api', () => ({
 }))
 
 import { useGym } from '../src/context/GymContext'
+import { useProgramFilter } from '../src/context/ProgramFilterContext'
 import { api } from '../src/lib/api'
 
 const ACTIVE_GYM = { id: 'gym-1', name: 'Test Gym', slug: 'test-gym', timezone: 'UTC', userRole: 'MEMBER' }
@@ -60,6 +67,14 @@ describe('FeedScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(useGym as jest.Mock).mockReturnValue({ activeGym: ACTIVE_GYM, isLoading: false, selectGym: jest.fn() })
+    ;(useProgramFilter as jest.Mock).mockReturnValue({
+      selected: [],
+      available: [],
+      loading: false,
+      setSelected: jest.fn(),
+      toggle: jest.fn(),
+      clear: jest.fn(),
+    })
   })
 
   test('initial load fetches today + previous 29 days, with today as the newest block', async () => {
@@ -136,6 +151,39 @@ describe('FeedScreen', () => {
     await waitFor(() => {
       expect(api.gyms.workouts).toHaveBeenCalledTimes(2)
     })
+  })
+
+  test('passes selected programIds to api.gyms.workouts; empty selection sends none', async () => {
+    ;(useProgramFilter as jest.Mock).mockReturnValue({
+      selected: ['prog-a', 'prog-b'],
+      available: [],
+      loading: false,
+      setSelected: jest.fn(),
+      toggle: jest.fn(),
+      clear: jest.fn(),
+    })
+    ;(api.gyms.workouts as jest.Mock).mockResolvedValue([
+      workout('w1', 'Filtered WOD', daysFromNow(0)),
+    ])
+
+    const { findByText } = render(<FeedScreen navigation={makeNavigation()} route={{} as any} />)
+    await findByText('Filtered WOD')
+
+    const args = (api.gyms.workouts as jest.Mock).mock.calls[0]
+    expect(args[0]).toBe('gym-1')
+    expect(args[3]).toEqual(['prog-a', 'prog-b'])
+  })
+
+  test('empty selection passes undefined for programIds (the "all programs" contract)', async () => {
+    ;(api.gyms.workouts as jest.Mock).mockResolvedValue([
+      workout('w1', 'All WOD', daysFromNow(0)),
+    ])
+
+    const { findByText } = render(<FeedScreen navigation={makeNavigation()} route={{} as any} />)
+    await findByText('All WOD')
+
+    const args = (api.gyms.workouts as jest.Mock).mock.calls[0]
+    expect(args[3]).toBeUndefined()
   })
 
   test('onEndReached fetches the next older page with the prior 30-day window', async () => {
