@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { FeedStackParamList, MainTabParamList, RootStackParamList } from '../../App'
 import { api, type Workout } from '../lib/api'
 import { useGym } from '../context/GymContext'
+import { useProgramFilter } from '../context/ProgramFilterContext'
+import ProgramFilterPicker from '../components/ProgramFilterPicker'
 
 type Props = CompositeScreenProps<
   StackScreenProps<FeedStackParamList, 'Feed'>,
@@ -130,6 +132,7 @@ function DayBlockItem({ block, onWorkoutPress }: { block: DayBlock; onWorkoutPre
 
 export default function FeedScreen({ navigation }: Props) {
   const { activeGym } = useGym()
+  const { selected: selectedProgramIds } = useProgramFilter()
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -139,6 +142,18 @@ export default function FeedScreen({ navigation }: Props) {
   // the PAGE_DAYS days immediately preceding this date.
   const oldestLoadedRef = useRef<Date | null>(null)
 
+  // Empty array → undefined so the API client doesn't append `programIds=`
+  // (the empty-selection contract is "all programs").
+  const programIds = selectedProgramIds.length ? selectedProgramIds : undefined
+
+  // Mount the picker as the right-side header element. Re-running on every
+  // navigation change is fine — setOptions is idempotent.
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => <ProgramFilterPicker />,
+    })
+  }, [navigation])
+
   const loadInitial = useCallback(async (silent = false) => {
     if (!activeGym) return
     if (!silent) setLoading(true)
@@ -146,7 +161,12 @@ export default function FeedScreen({ navigation }: Props) {
     try {
       const end = startOfDay(new Date())
       const start = addDays(end, -(INITIAL_DAYS - 1))
-      const workouts = await api.gyms.workouts(activeGym.id, start.toISOString(), addDays(end, 1).toISOString())
+      const workouts = await api.gyms.workouts(
+        activeGym.id,
+        start.toISOString(),
+        addDays(end, 1).toISOString(),
+        programIds,
+      )
       const blocks = buildDayBlocks(workouts, start, end)
       setDayBlocks(blocks)
       oldestLoadedRef.current = start
@@ -156,7 +176,7 @@ export default function FeedScreen({ navigation }: Props) {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeGym])
+  }, [activeGym, programIds])
 
   const loadMoreOlder = useCallback(async () => {
     if (!activeGym || !oldestLoadedRef.current || loadingMore) return
@@ -164,7 +184,12 @@ export default function FeedScreen({ navigation }: Props) {
     try {
       const end = addDays(oldestLoadedRef.current, -1)
       const start = addDays(end, -(PAGE_DAYS - 1))
-      const workouts = await api.gyms.workouts(activeGym.id, start.toISOString(), addDays(end, 1).toISOString())
+      const workouts = await api.gyms.workouts(
+        activeGym.id,
+        start.toISOString(),
+        addDays(end, 1).toISOString(),
+        programIds,
+      )
       const newBlocks = buildDayBlocks(workouts, start, end)
       setDayBlocks((prev) => [...prev, ...newBlocks])
       oldestLoadedRef.current = start
@@ -174,7 +199,7 @@ export default function FeedScreen({ navigation }: Props) {
     } finally {
       setLoadingMore(false)
     }
-  }, [activeGym, loadingMore])
+  }, [activeGym, loadingMore, programIds])
 
   useFocusEffect(useCallback(() => { loadInitial() }, [loadInitial]))
 

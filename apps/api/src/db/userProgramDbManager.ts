@@ -63,9 +63,13 @@ export async function findProgramMembersWithUserInfo(programId: string) {
 }
 
 /**
- * Returns the GymProgram rows for programs the caller can see in this gym.
+ * Returns the GymProgram rows for programs the caller can see in this gym,
+ * plus any unaffiliated programs the caller subscribes to (e.g. CrossFit
+ * Mainsite WOD). Unaffiliated programs are returned in the same shape with
+ * `gymId = ''` and `isDefault = false` so the picker can render them with
+ * no shape changes on the client.
  *
- * Two roles, two answers:
+ * Two roles, two answers (gym-scoped portion):
  *   - Staff (OWNER / PROGRAMMER / COACH) → all programs linked to the gym
  *     so they can pick any program in their picker
  *   - MEMBER → programs they have a UserProgram row for, **plus** the gym's
@@ -74,35 +78,59 @@ export async function findProgramMembersWithUserInfo(programId: string) {
  *     write-side hook (slice 5 / #88).
  *
  * Caller-vs-gym is checked by the route guard before this is called.
- * Default program is sorted first so the picker pins it visually.
+ * Default program is sorted first so the picker pins it visually; the
+ * unaffiliated subscriptions follow the gym list, sorted by joinedAt asc.
  */
 export async function findProgramsAvailableToUserInGym(
   userId: string,
   gymId: string,
   isStaff: boolean,
 ) {
-  if (isStaff) {
-    return prisma.gymProgram.findMany({
-      where: { gymId },
-      orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
-      include: {
-        program: { include: { _count: { select: { members: true, workouts: true } } } },
-      },
-    })
-  }
-  return prisma.gymProgram.findMany({
+  const gymProgramInclude = {
+    program: { include: { _count: { select: { members: true, workouts: true } } } },
+  } as const
+
+  const gymPrograms = isStaff
+    ? await prisma.gymProgram.findMany({
+        where: { gymId },
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+        include: gymProgramInclude,
+      })
+    : await prisma.gymProgram.findMany({
+        where: {
+          gymId,
+          OR: [
+            // Programs the member has a real UserProgram subscription for…
+            { program: { members: { some: { userId } } } },
+            // …plus whichever program is marked default for this gym.
+            { isDefault: true },
+          ],
+        },
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+        include: gymProgramInclude,
+      })
+
+  // Unaffiliated programs (no GymProgram rows) the caller subscribes to.
+  // They aren't tied to any gym, so they show up regardless of which gym
+  // is selected in the picker.
+  const unaffiliatedSubs = await prisma.userProgram.findMany({
     where: {
-      gymId,
-      OR: [
-        // Programs the member has a real UserProgram subscription for…
-        { program: { members: { some: { userId } } } },
-        // …plus whichever program is marked default for this gym.
-        { isDefault: true },
-      ],
+      userId,
+      program: { gyms: { none: {} } },
     },
-    orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+    orderBy: { joinedAt: 'asc' },
     include: {
       program: { include: { _count: { select: { members: true, workouts: true } } } },
     },
   })
+
+  const unaffiliatedAsGymProgram = unaffiliatedSubs.map((sub) => ({
+    gymId: '',
+    programId: sub.programId,
+    isDefault: false,
+    createdAt: sub.joinedAt,
+    program: sub.program,
+  }))
+
+  return [...gymPrograms, ...unaffiliatedAsGymProgram]
 }

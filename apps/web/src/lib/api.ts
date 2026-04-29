@@ -670,6 +670,14 @@ export const api = {
     get: (id: string, token?: string) =>
       req<GymProgram>(`/api/programs/${id}`, { token }),
 
+    /**
+     * Public programs that aren't tied to any gym (e.g. CrossFit Mainsite WOD)
+     * and that the caller hasn't already joined. Drives the primary section
+     * of the Browse page. Auth-only; no gym context.
+     */
+    publicCatalog: (token?: string) =>
+      req<Program[]>(`/api/programs/public-catalog`, { token }),
+
     update: (
       id: string,
       data: {

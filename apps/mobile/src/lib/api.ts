@@ -33,6 +33,24 @@ export interface Gym {
   userRole: string
 }
 
+export interface Program {
+  id: string
+  name: string
+  description: string | null
+  visibility: 'PUBLIC' | 'PRIVATE'
+  coverColor: string | null
+}
+
+// Mirrors the web `GymProgram` shape (apps/web/src/lib/api.ts): the join row
+// carries gym/program IDs and the nested `program` object holds the
+// human-facing fields (name, description, etc.).
+export interface GymProgram {
+  gymId: string
+  programId: string
+  isDefault: boolean
+  program: Program
+}
+
 export interface Workout {
   id: string
   title: string
@@ -170,6 +188,9 @@ export const api = {
     gyms: () =>
       request<Gym[]>('/api/me/gyms'),
 
+    programs: (gymId: string) =>
+      request<GymProgram[]>(`/api/me/programs?gymId=${encodeURIComponent(gymId)}`),
+
     results: (page = 1, movementIds?: string[]) => {
       const qs = new URLSearchParams({ page: String(page), limit: '20' })
       if (movementIds?.length) qs.set('movementIds', movementIds.join(','))
@@ -184,8 +205,11 @@ export const api = {
   },
 
   gyms: {
-    workouts: (gymId: string, from: string, to: string) =>
-      request<Workout[]>(`/api/gyms/${gymId}/workouts?from=${from}&to=${to}`),
+    workouts: (gymId: string, from: string, to: string, programIds?: string[]) => {
+      const qs = new URLSearchParams({ from, to })
+      if (programIds?.length) qs.set('programIds', programIds.join(','))
+      return request<Workout[]>(`/api/gyms/${gymId}/workouts?${qs}`)
+    },
   },
 
   workouts: {
