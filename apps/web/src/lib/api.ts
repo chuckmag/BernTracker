@@ -46,7 +46,12 @@ export async function apiFetch(
 ): Promise<Response> {
   const { token, ...init } = options
   const headers = new Headers(init.headers)
-  headers.set('Content-Type', 'application/json')
+  // Skip Content-Type for FormData so the browser sets the multipart boundary
+  // automatically. Setting it explicitly to 'multipart/form-data' would clobber
+  // the boundary and break the upload.
+  if (!(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
   const bearer = token ?? _accessToken
   if (bearer) headers.set('Authorization', `Bearer ${bearer}`)
 
@@ -408,6 +413,15 @@ export const api = {
       },
       joinRequests: {
         list: () => req<GymJoinRequest[]>('/api/users/me/join-requests'),
+      },
+      avatar: {
+        upload: (file: File) => {
+          const form = new FormData()
+          form.append('file', file)
+          return req<{ avatarUrl: string }>('/api/users/me/avatar', { method: 'POST', body: form })
+        },
+        remove: () =>
+          req<void>('/api/users/me/avatar', { method: 'DELETE' }),
       },
     },
   },

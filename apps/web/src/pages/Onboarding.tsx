@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { api, type IdentifiedGender } from '../lib/api'
 import Button from '../components/ui/Button'
-import AvatarPlaceholder from '../components/AvatarPlaceholder'
+import AvatarUploader from '../components/AvatarUploader'
 import { NameFields, BirthdayField, GenderField } from '../components/ProfileFields'
 
 const STEPS = ['Your name', 'About you'] as const
 
 export default function Onboarding() {
-  const { user, login, accessToken } = useAuth()
+  const { login, accessToken } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [firstName, setFirstName] = useState('')
@@ -108,13 +108,10 @@ export default function Onboarding() {
         <div className="rounded-xl bg-gray-900 border border-gray-800 p-5 space-y-5">
           {step === 0 && (
             <>
-              <div className="flex items-center gap-3">
-                <AvatarPlaceholder firstName={firstName} lastName={lastName} email={user?.email ?? ''} size="lg" />
-                <div className="text-xs text-gray-400">
-                  <span className="inline-block rounded bg-amber-500/20 text-amber-300 px-2 py-0.5 mr-2">Coming soon</span>
-                  Avatar upload arrives in a follow-up update.
-                </div>
-              </div>
+              <AvatarUploader
+                size="lg"
+                helper={<p className="text-sm text-white">Add a photo (optional)</p>}
+              />
               <NameFields
                 firstName={firstName}
                 lastName={lastName}

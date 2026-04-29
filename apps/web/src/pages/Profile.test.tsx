@@ -97,7 +97,9 @@ describe('Profile page', () => {
     expect(await screen.findByRole('heading', { name: 'Your profile' })).toBeInTheDocument()
     expect(screen.getByDisplayValue('Alice')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Anderson')).toBeInTheDocument()
-    expect(screen.getByText(/Coming soon/)).toBeInTheDocument()
+    // Avatar uploader replaces the old "Coming soon" placeholder. Verify the
+    // upload control is present in the Details tab.
+    expect(screen.getByRole('button', { name: /Upload photo/ })).toBeInTheDocument()
   })
 
   it('lists existing emergency contacts and offers an add form', async () => {

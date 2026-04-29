@@ -1,3 +1,4 @@
+import path from 'node:path'
 import express, { type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
@@ -11,6 +12,7 @@ import namedWorkoutsRouter from './routes/namedWorkouts'
 import movementsRouter from './routes/movements'
 import userProfileRouter from './routes/userProfile'
 import membershipRequestsRouter from './routes/membershipRequests'
+import avatarRouter from './routes/avatar'
 import { createLogger } from './lib/logger.js'
 import { requestLogger } from './middleware/requestLogger.js'
 
@@ -59,6 +61,13 @@ app.use('/api', namedWorkoutsRouter)
 app.use('/api', movementsRouter)
 app.use('/api', userProfileRouter)
 app.use('/api', membershipRequestsRouter)
+app.use('/api', avatarRouter)
+
+// Static-file route for the LocalFsImageStorage backend (dev-only). When
+// AWS_S3_BUCKET is set we never write here; the route is harmless to leave
+// mounted since the directory will be empty in prod.
+const localUploadsRoot = process.env.LOCAL_UPLOADS_ROOT ?? path.resolve(process.cwd(), 'uploads')
+app.use('/uploads', express.static(localUploadsRoot, { maxAge: '1y', immutable: true }))
 
 const logError = createLogger('error')
 
