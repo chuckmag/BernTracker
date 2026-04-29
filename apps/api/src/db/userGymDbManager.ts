@@ -68,12 +68,13 @@ export async function findGymMemberByEmail(email: string, gymId: string) {
 export async function findGymMembershipsByUserId(userId: string) {
   const memberships = await prisma.userGym.findMany({
     where: { userId },
-    include: { gym: { select: { id: true, name: true, slug: true } } },
+    include: { gym: { select: { id: true, name: true, slug: true, logoUrl: true } } },
   })
   return memberships.map((m) => ({
     id: m.gym.id,
     name: m.gym.name,
     slug: m.gym.slug,
+    logoUrl: m.gym.logoUrl,
     role: m.role,
   }))
 }

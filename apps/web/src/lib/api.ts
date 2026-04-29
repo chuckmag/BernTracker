@@ -176,6 +176,7 @@ export interface MyGym {
   id: string
   name: string
   slug: string
+  logoUrl: string | null
   role: Role
 }
 
@@ -184,6 +185,7 @@ export interface Gym {
   name: string
   slug: string
   timezone: string
+  logoUrl: string | null
   createdAt: string
   updatedAt: string
 }
@@ -329,6 +331,7 @@ export interface BrowseGym {
   name: string
   slug: string
   timezone: string
+  logoUrl: string | null
   memberCount: number
   callerStatus: GymBrowseStatus
 }
@@ -474,6 +477,16 @@ export const api = {
         }),
       revoke: (gymId: string, id: string) =>
         req<GymInvitation>(`/api/gyms/${gymId}/invitations/${id}/revoke`, { method: 'POST' }),
+    },
+
+    logo: {
+      upload: (gymId: string, file: File) => {
+        const form = new FormData()
+        form.append('file', file)
+        return req<{ logoUrl: string }>(`/api/gyms/${gymId}/logo`, { method: 'POST', body: form })
+      },
+      remove: (gymId: string) =>
+        req<void>(`/api/gyms/${gymId}/logo`, { method: 'DELETE' }),
     },
 
     browse: (search?: string) => {

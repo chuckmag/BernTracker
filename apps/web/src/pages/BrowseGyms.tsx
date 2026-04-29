@@ -3,6 +3,7 @@ import { api, type BrowseGym, type GymBrowseStatus } from '../lib/api'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
+import GymLogo from '../components/GymLogo'
 
 const STATUS_LABEL: Record<GymBrowseStatus, string> = {
   NONE: '',
@@ -100,11 +101,14 @@ export default function BrowseGyms() {
               key={g.id}
               className="rounded-xl bg-gray-900 border border-gray-800 p-4 flex items-center justify-between gap-3"
             >
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{g.name}</p>
-                <p className="text-xs text-gray-400">
-                  {g.memberCount} member{g.memberCount === 1 ? '' : 's'} · {g.timezone}
-                </p>
+              <div className="min-w-0 flex items-center gap-3">
+                <GymLogo logoUrl={g.logoUrl} name={g.name} size="md" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{g.name}</p>
+                  <p className="text-xs text-gray-400">
+                    {g.memberCount} member{g.memberCount === 1 ? '' : 's'} · {g.timezone}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 {g.callerStatus === 'NONE' && (
