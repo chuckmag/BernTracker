@@ -52,25 +52,39 @@ export interface CrossfitWodJobDeps {
 export async function runCrossfitWodJob(deps: CrossfitWodJobDeps = {}): Promise<void> {
   const fetchWod = deps.fetchWod ?? fetchCrossfitWod
 
+  // Each `step` log marks a milestone the dispatcher's caught-error path can
+  // be cross-referenced against — if the QA logs end after `step: lookup
+  // program` and never hit `step: fetched program`, the failure is in the DB
+  // round-trip rather than the upstream fetch.
+  log.info(`step: lookup program "${PROGRAM_NAME}"`)
   let program = await findProgramByName(PROGRAM_NAME)
   if (!program) {
     log.info(`program "${PROGRAM_NAME}" not found — creating it`)
     program = await createProgramByName(PROGRAM_NAME)
+    log.info(`step: created program id=${program.id}`)
   } else if (program.visibility !== 'PUBLIC') {
     // Pre-existing rows were created before the default flipped to PUBLIC.
     // Bring them in line so the public-catalog endpoint surfaces them.
     log.info(`program "${PROGRAM_NAME}" was ${program.visibility} — flipping to PUBLIC`)
     await ensureProgramIsPublic(program.id)
+    log.info(`step: flipped program ${program.id} to PUBLIC`)
+  } else {
+    log.info(`step: fetched program id=${program.id} visibility=${program.visibility}`)
   }
 
   const today = todayInPacific()
+  log.info(`step: today (PT) resolved to ${today.toISOString().slice(0, 10)}`)
+
   await backfillIfFirstRun(program.id, today, fetchWod)
 
+  log.info(`step: fetching today's wod from upstream`)
   const payload = await fetchWod(today)
   if (!payload) {
     // Client already logged the reason. Nothing to do this tick.
+    log.info(`step: upstream returned no payload — exiting cleanly`)
     return
   }
+  log.info(`step: upstream payload externalId=${payload.externalId} title="${payload.title}"`)
 
   const externalSourceId = `${EXTERNAL_SOURCE_PREFIX}${payload.externalId}`
 
@@ -81,6 +95,7 @@ export async function runCrossfitWodJob(deps: CrossfitWodJobDeps = {}): Promise<
   }
 
   const type = classifyWorkoutType(payload.descriptionRaw)
+  log.info(`step: creating workout type=${type} programId=${program.id}`)
   await createWorkoutForProgram({
     programId: program.id,
     title: payload.title,
@@ -106,6 +121,7 @@ async function backfillIfFirstRun(
   fetchWod: (date: Date) => Promise<NormalizedCrossfitWod | null>,
 ): Promise<void> {
   const existingCount = await countWorkoutsByProgramId(programId)
+  log.info(`step: program ${programId} has ${existingCount} existing workouts`)
   if (existingCount > 0) return
 
   log.info(`first run on empty program — backfilling ${FIRST_RUN_BACKFILL_PRIOR_DAYS} prior days`)
