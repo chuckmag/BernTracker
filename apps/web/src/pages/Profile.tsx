@@ -7,7 +7,7 @@ import {
   type UserProfile,
 } from '../lib/api'
 import Button from '../components/ui/Button'
-import AvatarPlaceholder from '../components/AvatarPlaceholder'
+import AvatarUploader from '../components/AvatarUploader'
 import EmergencyContactsEditor from '../components/EmergencyContactsEditor'
 import MyInvitationsSection from '../components/MyInvitationsSection'
 import MyJoinRequestsSection from '../components/MyJoinRequestsSection'
@@ -134,15 +134,8 @@ export default function Profile() {
 
       {tab === 'details' && (
         <div className="space-y-8">
-          <section className="flex items-center gap-4 rounded-xl bg-gray-900 p-4 border border-gray-800">
-            <AvatarPlaceholder firstName={firstName} lastName={lastName} email={user?.email ?? ''} size="lg" />
-            <div className="space-y-1">
-              <p className="text-sm text-white">Profile photo</p>
-              <p className="text-xs text-gray-400">
-                <span className="inline-block rounded bg-amber-500/20 text-amber-300 px-2 py-0.5 mr-2">Coming soon</span>
-                Avatar uploads will arrive in a follow-up update.
-              </p>
-            </div>
+          <section className="rounded-xl bg-gray-900 p-4 border border-gray-800">
+            <AvatarUploader />
           </section>
 
           <form onSubmit={handleSubmit} className="space-y-6">
