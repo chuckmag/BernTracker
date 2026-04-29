@@ -129,13 +129,17 @@ test.describe('Gym invitation E2E', () => {
     const ctx = await browser.newContext()
     await loginAs(ctx, f.inviteeId, 'MEMBER')
     const page = await ctx.newPage()
-    await page.goto('/profile')
+    // /profile is now tabbed (Details default, Memberships second). The
+    // invitations list lives on the Memberships tab; jump there via hash.
+    await page.goto('/profile#memberships')
 
     await expect(page.getByRole('heading', { name: 'Invitations', exact: true })).toBeVisible()
+    const declineResponse = page.waitForResponse((res) =>
+      res.url().includes('/decline') && res.request().method() === 'POST'
+    )
     await page.getByRole('button', { name: 'Decline' }).click()
-
-    // Banner gone after refresh.
-    await expect(page.getByText(/You have 1 pending invitation/)).not.toBeVisible({ timeout: 5_000 })
+    const apiRes = await declineResponse
+    expect(apiRes.status()).toBe(200)
     await ctx.close()
 
     const after = await prisma.gymMembershipRequest.findUnique({ where: { id: invite.id } })

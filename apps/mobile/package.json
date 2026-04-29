@@ -10,6 +10,7 @@
     "test": "NODE_PATH=node_modules:../../node_modules jest"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/native": "^7.1.8",
     "@react-navigation/stack": "^7.8.8",
