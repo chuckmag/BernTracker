@@ -72,10 +72,19 @@ export async function findWorkoutsByGymAndDateRange(
   to: Date,
   filters: WorkoutDateRangeFilters = {},
 ) {
+  // When the caller pins specific programIds the route layer has already
+  // run visibility-aware access checks per id (including allowing unaffiliated
+  // programs the caller subscribes to). Drop the gym-scoping constraint in
+  // that case so workouts under unaffiliated programs come back instead of
+  // silently filtering to the empty set.
+  const gymScope = filters.programIds?.length
+    ? {}
+    : { program: { gyms: { some: { gymId } } } }
+
   const workouts = await prisma.workout.findMany({
     where: {
       scheduledAt: { gte: from, lte: to },
-      program: { gyms: { some: { gymId } } },
+      ...gymScope,
       ...(filters.publishedOnly ? { status: WorkoutStatus.PUBLISHED } : {}),
       ...(filters.movementIds?.length
         ? { workoutMovements: { some: { movementId: { in: filters.movementIds } } } }

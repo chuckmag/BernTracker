@@ -880,6 +880,60 @@ async function runTests() {
     const r = await api('POST', `/programs/${catalogPrivate.id}/subscribe`, memberToken)
     check('POST subscribe (unaffiliated PRIVATE) → 403', 403, r.status)
   }
+
+  // ── Subscriber visibility into unaffiliated programs (#143 follow-up) ───────
+  console.log('\n=== Unaffiliated subscribers see their programs ===')
+
+  // Seed a workout under the unaffiliated PUBLIC program so the filter has
+  // something to return. outsider just joined catalogPublic above.
+  const catalogWorkout = await prisma.workout.create({
+    data: {
+      programId: catalogPublic.id,
+      title: 'Unaffiliated WOD',
+      description: 'mainsite-style workout',
+      type: 'AMRAP',
+      scheduledAt: new Date('2026-06-15T12:00:00Z'),
+      status: 'PUBLISHED',
+    },
+  })
+
+  {
+    // /me/programs surfaces the outsider's unaffiliated subscription even
+    // though it has no GymProgram row tying it to otherGymId.
+    const r = await api('GET', `/me/programs?gymId=${otherGymId}`, outsiderToken)
+    check('GET me/programs as outsider → 200', 200, r.status)
+    const rows = r.body as unknown as { programId: string; gymId: string }[]
+    const ids = rows.map((row) => row.programId)
+    check('me/programs includes unaffiliated subscription', true, ids.includes(catalogPublic.id))
+    const unaffRow = rows.find((row) => row.programId === catalogPublic.id)
+    check('me/programs unaffiliated row has empty gymId', '', unaffRow?.gymId)
+  }
+
+  {
+    // Filtering /workouts by an unaffiliated program the caller subscribes to
+    // returns those workouts (was a 403 / empty before this fix).
+    const r = await api(
+      'GET',
+      `/gyms/${otherGymId}/workouts?from=2026-06-01&to=2026-06-30T23:59:59Z&programIds=${catalogPublic.id}`,
+      outsiderToken,
+    )
+    check('GET workouts ?programIds=<unaffiliated> as subscriber → 200', 200, r.status)
+    const rows = r.body as unknown as { id: string }[]
+    check('workouts filter returns the unaffiliated workout', true, rows.some((w) => w.id === catalogWorkout.id))
+  }
+
+  {
+    // Non-subscribers still 403 on the same filter — visibility hasn't
+    // collapsed to "any authenticated user".
+    const r = await api(
+      'GET',
+      `/gyms/${gymId}/workouts?from=2026-06-01&to=2026-06-30T23:59:59Z&programIds=${catalogPublic.id}`,
+      memberToken,
+    )
+    check('GET workouts ?programIds=<unaffiliated> as non-subscriber → 403', 403, r.status)
+  }
+
+  await prisma.workout.delete({ where: { id: catalogWorkout.id } })
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────

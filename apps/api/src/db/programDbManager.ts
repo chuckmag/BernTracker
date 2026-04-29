@@ -92,12 +92,14 @@ export type ProgramGymAccessResult = 'ok' | 'not-found' | 'forbidden'
  * Visibility-aware access check for the workouts list endpoint
  * (`GET /workouts?programIds=…`).
  *
- *   - Program must be linked to the gym (program-vs-gym vetting).
- *   - PUBLIC programs are visible to every gym member.
- *   - PRIVATE programs require either staff role in any linked gym
- *     (OWNER / PROGRAMMER / COACH) or an existing `UserProgram` row for
- *     the caller. Members who haven't been invited get a 403 even though
- *     they're in the gym.
+ *   - Gym-affiliated programs:
+ *       - Program must be linked to the gym (program-vs-gym vetting).
+ *       - PUBLIC: visible to every gym member.
+ *       - PRIVATE: staff in any linked gym OR a UserProgram subscriber.
+ *   - Unaffiliated programs (no `GymProgram` rows — e.g. CrossFit Mainsite):
+ *       - Caller must have a `UserProgram` subscription. Visibility is
+ *         irrelevant here because there's no gym whose membership we could
+ *         lean on; the subscription is the only access signal.
  *
  * Caller-vs-gym is checked by the route guard before this is called.
  */
@@ -111,11 +113,24 @@ export async function findProgramGymAccessForUser(
     where: { id: programId },
     select: {
       visibility: true,
-      gyms: { where: { gymId }, select: { gymId: true } },
+      gyms: { select: { gymId: true } },
     },
   })
   if (!program) return 'not-found'
-  if (program.gyms.length === 0) return 'forbidden'
+
+  const linkedGymIds = program.gyms.map((g) => g.gymId)
+
+  if (linkedGymIds.length === 0) {
+    // Unaffiliated — only UserProgram subscribers can see the workouts.
+    const sub = await prisma.userProgram.findUnique({
+      where: { userId_programId: { userId, programId } },
+      select: { userId: true },
+    })
+    return sub ? 'ok' : 'forbidden'
+  }
+
+  if (!linkedGymIds.includes(gymId)) return 'forbidden'
+
   if (program.visibility === 'PUBLIC') return 'ok'
 
   // PRIVATE: staff bypass + UserProgram subscribers
