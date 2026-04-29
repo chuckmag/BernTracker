@@ -1,13 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { useAuth } from '../context/AuthContext.tsx'
+import { useImageUpload, IMAGE_ACCEPT_WITH_HEIC } from '../lib/useImageUpload'
 import Avatar from './Avatar'
 import Button from './ui/Button'
 import AvatarCropper from './AvatarCropper'
 import { heicToJpegBlob, isHeicFile } from '../lib/cropImage'
-
-const ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'
-const MAX_BYTES = 20 * 1024 * 1024
 
 interface AvatarUploaderProps {
   /** Visual size of the avatar. Defaults to lg for /profile placement. */
@@ -25,10 +23,24 @@ interface AvatarUploaderProps {
 // Refreshes /auth/me afterwards so AuthContext.user.avatarUrl propagates.
 export default function AvatarUploader({ size = 'lg', helper }: AvatarUploaderProps) {
   const { user, accessToken, login } = useAuth()
-  const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState<'prepare' | 'upload' | 'remove' | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [previewSrc, setPreviewSrc] = useState<string | null>(null)
+
+  const { inputProps, open, error, setError } = useImageUpload({
+    ariaLabel: 'Choose a profile photo',
+    accept: IMAGE_ACCEPT_WITH_HEIC,
+    onFile: async (file) => {
+      setBusy('prepare')
+      try {
+        const viewableBlob: Blob = isHeicFile(file) ? await heicToJpegBlob(file) : file
+        setPreviewSrc(URL.createObjectURL(viewableBlob))
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not read that file. Try a JPEG, PNG, or WebP.')
+      } finally {
+        setBusy(null)
+      }
+    },
+  })
 
   // Free the ObjectURL when the cropper closes (or the component unmounts) so
   // we don't leak the underlying blob in memory.
@@ -47,32 +59,6 @@ export default function AvatarUploader({ size = 'lg', helper }: AvatarUploaderPr
       login(accessToken, me)
     } catch {
       // best-effort — the next /auth/me roundtrip will pick up the new URL.
-    }
-  }
-
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = '' // allow re-selecting the same file later
-    if (!file) return
-
-    if (file.size > MAX_BYTES) {
-      setError(`That file is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max is 20MB.`)
-      return
-    }
-
-    setError(null)
-    setBusy('prepare')
-    try {
-      let viewableBlob: Blob = file
-      if (isHeicFile(file)) {
-        viewableBlob = await heicToJpegBlob(file)
-      }
-      const url = URL.createObjectURL(viewableBlob)
-      setPreviewSrc(url)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not read that file. Try a JPEG, PNG, or WebP.')
-    } finally {
-      setBusy(null)
     }
   }
 
@@ -123,19 +109,12 @@ export default function AvatarUploader({ size = 'lg', helper }: AvatarUploaderPr
           {helper ?? <p className="text-sm text-white">Profile photo</p>}
           <p className="text-xs text-gray-400">JPEG, PNG, WebP, or HEIC. Up to 20MB. You'll crop it to a square before saving.</p>
           <div className="flex flex-wrap gap-2">
-            <input
-              ref={inputRef}
-              type="file"
-              accept={ACCEPT}
-              className="hidden"
-              onChange={handleFileChange}
-              aria-label="Choose a profile photo"
-            />
+            <input {...inputProps} />
             <Button
               type="button"
               variant="secondary"
               disabled={busy !== null}
-              onClick={() => inputRef.current?.click()}
+              onClick={open}
             >
               {busy === 'prepare' ? 'Preparing…' : busy === 'upload' ? 'Uploading…' : user.avatarUrl ? 'Change photo' : 'Upload photo'}
             </Button>
