@@ -40,7 +40,7 @@ describe('GymPicker', () => {
   })
 
   it('shows the active gym name on the trigger', () => {
-    mockGymCtx.gyms = [{ id: 'g1', name: 'Crossfit Bern', slug: 'bern', role: 'OWNER' }]
+    mockGymCtx.gyms = [{ id: 'g1', name: 'Crossfit Bern', slug: 'bern', role: 'OWNER', logoUrl: null }]
     mockGymCtx.gymId = 'g1'
     renderPicker()
     expect(screen.getByRole('button')).toHaveTextContent('Crossfit Bern')
@@ -57,8 +57,8 @@ describe('GymPicker', () => {
 
   it('lists each gym as a radio menuitem and marks the active one checked', async () => {
     mockGymCtx.gyms = [
-      { id: 'g1', name: 'Gym One', slug: 'one', role: 'OWNER' },
-      { id: 'g2', name: 'Gym Two', slug: 'two', role: 'MEMBER' },
+      { id: 'g1', name: 'Gym One', slug: 'one', role: 'OWNER', logoUrl: null },
+      { id: 'g2', name: 'Gym Two', slug: 'two', role: 'MEMBER', logoUrl: null },
     ]
     mockGymCtx.gymId = 'g2'
     renderPicker()
@@ -73,8 +73,8 @@ describe('GymPicker', () => {
 
   it('clicking a gym row calls setGymId and closes the menu', async () => {
     mockGymCtx.gyms = [
-      { id: 'g1', name: 'Gym One', slug: 'one', role: 'OWNER' },
-      { id: 'g2', name: 'Gym Two', slug: 'two', role: 'MEMBER' },
+      { id: 'g1', name: 'Gym One', slug: 'one', role: 'OWNER', logoUrl: null },
+      { id: 'g2', name: 'Gym Two', slug: 'two', role: 'MEMBER', logoUrl: null },
     ]
     mockGymCtx.gymId = 'g1'
     renderPicker()
@@ -94,7 +94,7 @@ describe('GymPicker', () => {
   })
 
   it('shows "Find another gym to join" copy when the user already has gyms', async () => {
-    mockGymCtx.gyms = [{ id: 'g1', name: 'Gym One', slug: 'one', role: 'OWNER' }]
+    mockGymCtx.gyms = [{ id: 'g1', name: 'Gym One', slug: 'one', role: 'OWNER', logoUrl: null }]
     mockGymCtx.gymId = 'g1'
     renderPicker()
     const user = userEvent.setup()
@@ -103,7 +103,7 @@ describe('GymPicker', () => {
   })
 
   it('"Set up a new gym" navigates to /gyms/new regardless of gym count', async () => {
-    mockGymCtx.gyms = [{ id: 'g1', name: 'Gym One', slug: 'one', role: 'OWNER' }]
+    mockGymCtx.gyms = [{ id: 'g1', name: 'Gym One', slug: 'one', role: 'OWNER', logoUrl: null }]
     mockGymCtx.gymId = 'g1'
     renderPicker()
     const user = userEvent.setup()

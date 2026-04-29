@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGym } from '../context/GymContext.tsx'
+import GymLogo from './GymLogo'
 
 // Gym selector dropdown in the TopBar. Exposes:
 //  - the user's current gyms (click to switch active)
@@ -81,11 +82,12 @@ export default function GymPicker() {
                     aria-checked={active}
                     onClick={() => handleSelectGym(g.id)}
                     className={[
-                      'w-full text-left px-3 py-1.5 text-sm flex items-center justify-between',
+                      'w-full text-left px-3 py-1.5 text-sm flex items-center gap-2',
                       active ? 'text-white bg-gray-800' : 'text-gray-300 hover:bg-gray-800',
                     ].join(' ')}
                   >
-                    <span className="truncate">{g.name}</span>
+                    <GymLogo logoUrl={g.logoUrl} name={g.name} size="sm" />
+                    <span className="flex-1 truncate">{g.name}</span>
                     {active && <span className="text-indigo-400 text-xs ml-2" aria-hidden="true">✓</span>}
                   </button>
                 )

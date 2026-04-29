@@ -6,9 +6,9 @@ import BrowseGyms from './BrowseGyms'
 import type { BrowseGym } from '../lib/api'
 
 const sampleGyms: BrowseGym[] = [
-  { id: 'g1', name: 'Crossfit Alpha', slug: 'alpha', timezone: 'UTC', memberCount: 12, callerStatus: 'NONE' },
-  { id: 'g2', name: 'Crossfit Beta', slug: 'beta', timezone: 'UTC', memberCount: 4, callerStatus: 'REQUEST_PENDING' },
-  { id: 'g3', name: 'Crossfit Gamma', slug: 'gamma', timezone: 'UTC', memberCount: 99, callerStatus: 'MEMBER' },
+  { id: 'g1', name: 'Crossfit Alpha', slug: 'alpha', timezone: 'UTC', memberCount: 12, callerStatus: 'NONE', logoUrl: null },
+  { id: 'g2', name: 'Crossfit Beta', slug: 'beta', timezone: 'UTC', memberCount: 4, callerStatus: 'REQUEST_PENDING', logoUrl: null },
+  { id: 'g3', name: 'Crossfit Gamma', slug: 'gamma', timezone: 'UTC', memberCount: 99, callerStatus: 'MEMBER', logoUrl: null },
 ]
 
 vi.mock('../lib/api', () => ({

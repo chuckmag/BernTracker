@@ -4,6 +4,7 @@ import { useGym } from '../context/GymContext.tsx'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useMovements } from '../context/MovementsContext.tsx'
 import MembersTab from '../components/MembersTab'
+import GymLogoUploader from '../components/GymLogoUploader'
 
 type Tab = 'details' | 'members'
 
@@ -285,39 +286,52 @@ export default function GymSettings() {
       </div>
 
       {tab === 'details' && (
-        <section>
-          <h2 className="text-lg font-semibold mb-4">Gym Details</h2>
-          <form onSubmit={handleSaveGym} className="space-y-4 max-w-sm">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Gym Name</label>
-              <input
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                required
+        <div className="space-y-8">
+          {gym && (
+            <section className="rounded-xl bg-gray-900 p-4 border border-gray-800">
+              <GymLogoUploader
+                gymId={gym.id}
+                logoUrl={gym.logoUrl}
+                name={gym.name}
+                onChange={(logoUrl) => setGym((g) => g ? { ...g, logoUrl } : g)}
               />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Timezone</label>
-              <select
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
-                value={editTz}
-                onChange={(e) => setEditTz(e.target.value)}
+            </section>
+          )}
+
+          <section>
+            <h2 className="text-lg font-semibold mb-4">Gym Details</h2>
+            <form onSubmit={handleSaveGym} className="space-y-4 max-w-sm">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Gym Name</label>
+                <input
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Timezone</label>
+                <select
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                  value={editTz}
+                  onChange={(e) => setEditTz(e.target.value)}
+                >
+                  {TIMEZONES.map((tz) => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white"
               >
-                {TIMEZONES.map((tz) => (
-                  <option key={tz} value={tz}>{tz}</option>
-                ))}
-              </select>
-            </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white"
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-          </form>
-        </section>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            </form>
+          </section>
+        </div>
       )}
 
       {tab === 'members' && <MembersTab />}

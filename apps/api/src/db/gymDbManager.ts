@@ -42,6 +42,7 @@ export async function findGymsForBrowseAndUser(args: { search: string; userId: s
         name: true,
         slug: true,
         timezone: true,
+        logoUrl: true,
         _count: { select: { members: true } },
       },
     }),
@@ -61,6 +62,7 @@ export async function findGymsForBrowseAndUser(args: { search: string; userId: s
     name: g.name,
     slug: g.slug,
     timezone: g.timezone,
+    logoUrl: g.logoUrl,
     memberCount: g._count.members,
     callerStatus: memberGymIds.has(g.id)
       ? ('MEMBER' as const)
