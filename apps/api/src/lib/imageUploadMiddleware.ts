@@ -4,7 +4,13 @@ import { randomUUID } from 'node:crypto'
 import { processAvatarBuffer } from './imageProcessing.js'
 import { getImageStorage } from './imageStorage.js'
 
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+// 20MB raw input cap. Sharp resizes the cropped image to 512×512 WebP for
+// storage (typically <50KB), so the cap is generous to allow phone-camera
+// originals through before the client cropper has a chance to downscale.
+export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+// Server allowlist stays JPEG/PNG/WebP. The client converts HEIC → JPEG
+// before upload (default sharp builds don't ship libheif, so server-side
+// HEIC decoding would fail).
 export const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 // Shared multer instance for any image-upload route. memoryStorage so sharp

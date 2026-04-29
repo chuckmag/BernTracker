@@ -123,7 +123,7 @@ describe('Profile page', () => {
 
   it('switches to Gym Memberships tab and renders the gym list', async () => {
     vi.mocked(api.me.gyms).mockResolvedValue([
-      { id: 'g1', name: 'Crossfit Bern', slug: 'bern', role: 'OWNER' },
+      { id: 'g1', name: 'Crossfit Bern', slug: 'bern', role: 'OWNER', logoUrl: null },
     ])
     render(<MemoryRouter><Profile /></MemoryRouter>)
     await screen.findByRole('heading', { name: 'Your profile' })

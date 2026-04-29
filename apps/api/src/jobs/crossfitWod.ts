@@ -6,7 +6,11 @@ import {
 } from '../lib/crossfitWodClient.js'
 import { classifyWorkoutType } from '../lib/crossfitWodClassifier.js'
 import { todayInPacific } from '../lib/pacificDate.js'
-import { createProgramByName, findProgramByName } from '../db/programDbManager.js'
+import {
+  createProgramByName,
+  ensureProgramIsPublic,
+  findProgramByName,
+} from '../db/programDbManager.js'
 import {
   countWorkoutsByProgramId,
   createWorkoutForProgram,
@@ -52,6 +56,11 @@ export async function runCrossfitWodJob(deps: CrossfitWodJobDeps = {}): Promise<
   if (!program) {
     log.info(`program "${PROGRAM_NAME}" not found — creating it`)
     program = await createProgramByName(PROGRAM_NAME)
+  } else if (program.visibility !== 'PUBLIC') {
+    // Pre-existing rows were created before the default flipped to PUBLIC.
+    // Bring them in line so the public-catalog endpoint surfaces them.
+    log.info(`program "${PROGRAM_NAME}" was ${program.visibility} — flipping to PUBLIC`)
+    await ensureProgramIsPublic(program.id)
   }
 
   const today = todayInPacific()

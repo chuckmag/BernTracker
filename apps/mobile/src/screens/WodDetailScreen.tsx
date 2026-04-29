@@ -10,7 +10,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
-import { api, type Workout, type LeaderboardEntry, type WorkoutLevel } from '../lib/api'
+import { api, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { formatResultValue } from '../lib/format'
 
@@ -31,12 +31,26 @@ const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   MODIFIED: 'Modified',
 }
 
+const GENDER_FILTERS: { label: string; value: WorkoutGender | null }[] = [
+  { label: 'All', value: null },
+  { label: 'Women', value: 'FEMALE' },
+  { label: 'Men', value: 'MALE' },
+  { label: 'Open', value: 'OPEN' },
+]
+
+const GENDER_LABELS: Record<WorkoutGender, string> = {
+  FEMALE: 'Women',
+  MALE: 'Men',
+  OPEN: 'Open',
+}
+
 export default function WodDetailScreen({ route, navigation }: Props) {
   const { workoutId } = route.params
   const { user } = useAuth()
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [levelFilter, setLevelFilter] = useState<WorkoutLevel | null>(null)
+  const [genderFilter, setGenderFilter] = useState<WorkoutGender | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -69,9 +83,20 @@ export default function WodDetailScreen({ route, navigation }: Props) {
   const hasLogged = !!userResult
 
   const visibleLeaderboard = useMemo(
-    () => (levelFilter ? leaderboard.filter((e) => e.level === levelFilter) : leaderboard),
-    [leaderboard, levelFilter],
+    () =>
+      leaderboard
+        .filter((e) => !levelFilter || e.level === levelFilter)
+        .filter((e) => !genderFilter || e.workoutGender === genderFilter),
+    [leaderboard, levelFilter, genderFilter],
   )
+
+  const emptyLeaderboardCopy = useMemo(() => {
+    const parts: string[] = []
+    if (levelFilter) parts.push(LEVEL_LABELS[levelFilter])
+    if (genderFilter) parts.push(GENDER_LABELS[genderFilter])
+    if (parts.length === 0) return 'No results yet.'
+    return `No ${parts.join(' / ')} results yet.`
+  }, [levelFilter, genderFilter])
 
   if (loading) {
     return (
@@ -155,9 +180,10 @@ export default function WodDetailScreen({ route, navigation }: Props) {
         >
           {LEVEL_FILTERS.map((f) => (
             <TouchableOpacity
-              key={f.label}
+              key={`level-${f.label}`}
               style={[styles.chip, levelFilter === f.value && styles.chipActive]}
               onPress={() => setLevelFilter(f.value)}
+              testID={`level-chip-${f.label}`}
             >
               <Text style={[styles.chipText, levelFilter === f.value && styles.chipTextActive]}>
                 {f.label}
@@ -166,10 +192,29 @@ export default function WodDetailScreen({ route, navigation }: Props) {
           ))}
         </ScrollView>
 
+        {/* Gender filter chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterRow}
+          contentContainerStyle={styles.filterContent}
+        >
+          {GENDER_FILTERS.map((f) => (
+            <TouchableOpacity
+              key={`gender-${f.label}`}
+              style={[styles.chip, genderFilter === f.value && styles.chipActive]}
+              onPress={() => setGenderFilter(f.value)}
+              testID={`gender-chip-${f.label}`}
+            >
+              <Text style={[styles.chipText, genderFilter === f.value && styles.chipTextActive]}>
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         {visibleLeaderboard.length === 0 ? (
-          <Text style={styles.emptyLeaderboard}>
-            {levelFilter ? `No ${LEVEL_LABELS[levelFilter]} results yet.` : 'No results yet.'}
-          </Text>
+          <Text style={styles.emptyLeaderboard}>{emptyLeaderboardCopy}</Text>
         ) : (
           visibleLeaderboard.map((entry, idx) => (
             <View

@@ -32,6 +32,7 @@ import {
   updateProgramById,
   deleteProgramById,
   isProgramDefaultForAnyGym,
+  findUnaffiliatedPublicProgramsForUser,
 } from '../db/programDbManager.js'
 import {
   findGymMembershipByUserAndGym,
@@ -62,6 +63,11 @@ router.get('/gyms/:gymId/programs', requireAuth, validateGymExists, requireGymMe
 
 // GET  /api/gyms/:gymId/programs/browse  — PUBLIC programs the caller hasn't joined yet (slice 4)
 router.get('/gyms/:gymId/programs/browse', requireAuth, validateGymExists, requireGymMembership, listBrowseProgramsForGym)
+
+// GET  /api/programs/public-catalog  — PUBLIC programs not linked to any gym
+//        (e.g. CrossFit Mainsite WOD) that the caller hasn't joined yet.
+//        Auth-only — no gym scoping since these programs aren't gym-affiliated.
+router.get('/programs/public-catalog', requireAuth, listPublicCatalogPrograms)
 
 // POST /api/gyms/:gymId/programs
 router.post('/gyms/:gymId/programs', requireAuth, validateGymExists, requireGymWriteAccess, createProgramForGym)
@@ -198,6 +204,12 @@ async function listBrowseProgramsForGym(req: Request, res: Response) {
   res.json(rows)
 }
 
+async function listPublicCatalogPrograms(req: Request, res: Response) {
+  const userId = req.user!.id
+  const rows = await findUnaffiliatedPublicProgramsForUser(userId)
+  res.json(rows)
+}
+
 async function deleteProgram(req: Request, res: Response) {
   await deleteProgramById(req.params.id as string)
   res.status(204).send()
@@ -286,15 +298,19 @@ async function selfSubscribeToProgram(req: Request, res: Response) {
   const programWithGyms = await findProgramWithGymIds(programId)
   if (!programWithGyms) return res.status(404).json({ error: 'Program not found' })
 
-  // Caller must belong to at least one gym linked to the program. Otherwise
-  // they can't even know the program exists, let alone subscribe.
-  const callerInLinkedGym = await isUserMemberOfAnyGym(userId, programWithGyms.gyms.map((g) => g.gymId))
-  if (!callerInLinkedGym) return res.status(403).json({ error: 'Forbidden' })
-
   // Visibility check — PRIVATE programs only accept staff-managed invites.
   const programMeta = await findProgramById(programId)
   if (programMeta?.visibility === 'PRIVATE') {
     return res.status(403).json({ error: 'This program is private. Ask a staff member for an invite.' })
+  }
+
+  // For gym-affiliated programs the caller must belong to at least one of the
+  // linked gyms — otherwise they couldn't know the program existed. Programs
+  // with zero linked gyms (e.g. the CrossFit Mainsite catalog program) are
+  // PUBLIC by definition and any authenticated user may self-subscribe.
+  if (programWithGyms.gyms.length > 0) {
+    const callerInLinkedGym = await isUserMemberOfAnyGym(userId, programWithGyms.gyms.map((g) => g.gymId))
+    if (!callerInLinkedGym) return res.status(403).json({ error: 'Forbidden' })
   }
 
   try {
