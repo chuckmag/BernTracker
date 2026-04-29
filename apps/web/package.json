@@ -13,8 +13,10 @@
     "test:e2e": "npx dotenv-cli -e ../../.env -- npx playwright test"
   },
   "dependencies": {
+    "heic2any": "^0.0.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-easy-crop": "^5.5.7",
     "react-error-boundary": "^6.1.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.3.0",

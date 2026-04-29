@@ -22,7 +22,14 @@ export default defineConfig({
   server: {
     port: webPort,
     strictPort: true,
-    proxy: { '/api': { target: `http://localhost:${apiPort}`, changeOrigin: true } },
+    // `/uploads` is proxied so dev image URLs returned by the local-fs
+    // ImageStorage backend (e.g. `/uploads/avatars/<id>/<file>.webp`) load
+    // through the Vite dev server instead of 404ing — same-origin assumption
+    // that holds in prod via nginx.
+    proxy: {
+      '/api': { target: `http://localhost:${apiPort}`, changeOrigin: true },
+      '/uploads': { target: `http://localhost:${apiPort}`, changeOrigin: true },
+    },
   },
   test: {
     environment: 'jsdom',
