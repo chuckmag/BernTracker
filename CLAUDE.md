@@ -6,6 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 WODalytics is a CrossFit workout tracking tool for gym members and trainers.
 
+## Where guidance lives
+
+This file covers cross-cutting topics — anything that spans the monorepo or applies to all apps. App-specific patterns (design systems, DB conventions, route handler style, mobile testing, etc.) live in per-app `CLAUDE.md` files and load automatically when you work in that subtree:
+
+- `apps/api/CLAUDE.md` — DB manager pattern, route handler style, error logging, background jobs, API integration tests.
+- `apps/web/CLAUDE.md` — design system (primitives, tokens, a11y, ARIA), unit + E2E testing patterns.
+- `apps/mobile/CLAUDE.md` — mobile-only conventions; design system to be added when established.
+
+**When adding new guidance:** put it in the most specific `CLAUDE.md` that owns it. If a rule only applies to web, it belongs in `apps/web/CLAUDE.md`. Promote to root only when the rule genuinely spans apps. Keeping per-app rules out of the root file keeps it short enough to actually be read.
+
+## If you only read one section
+
+- **Working in a worktree?** Read *Worktree development* below — port collisions will bite you otherwise.
+- **Touching the schema?** Read *Schema migrations* below — every schema PR must commit its migration file.
+- **Opening a PR?** Read *Pull requests* below — the Tests section format is required.
+- **Web work?** `apps/web/CLAUDE.md` — primitives before custom Tailwind.
+- **API work?** `apps/api/CLAUDE.md` — DB manager pattern is mandatory.
+
 ## Tech stack
 
 | Layer | Choice |
@@ -16,7 +34,7 @@ WODalytics is a CrossFit workout tracking tool for gym members and trainers.
 | Database | PostgreSQL via Prisma ORM |
 | Auth | Custom JWT + Google OAuth |
 | Monorepo | npm workspaces + Turborepo |
-| Hosting | TBD (Railway or Render) |
+| Hosting | Railway |
 
 ## Monorepo structure
 
@@ -33,11 +51,12 @@ WODalytics/
 └── turbo.json
 ```
 
-## Commands
+## Top-level commands
 
 ```bash
 turbo dev             # start all apps concurrently (default ports: 3000 / 5173)
 npm run dev:worktree  # worktree-aware dev — picks free ports, prints URLs, writes .dev-ports.local
+npm run dev:jobs -- <name>            # run a single API background job locally
 npm run test:worktree -- api          # API integration tests against the worktree's dev stack
 npm run test:worktree -- e2e [args]   # Playwright E2E against the worktree's dev stack
 turbo build           # build all apps
@@ -50,6 +69,8 @@ npm run db:studio     # open Prisma Studio
 > is a base config (Node.js settings, no JSX) extended by each workspace. Running it
 > at root will either error or apply the wrong settings to React files.
 > Use `turbo lint` for all workspaces, or `npm run lint --workspace=<name>` for one.
+
+App-specific test commands (single test, filter by name, etc.) live in each app's `CLAUDE.md`.
 
 ## Worktree development — running dev + tests in parallel
 
@@ -110,198 +131,17 @@ Engineers (or Claude sessions) can run `npm run dev:worktree` in two separate wo
 
 ## Developer onboarding
 
-When an engineer asks for help setting up the project, use the README Getting Started section as the guide. Some steps can be run automatically via tools; others require manual action from the engineer.
+For first-time setup, follow `README.md` → *Getting started*. It covers Docker Desktop, the Postgres container, `.env` creation, `/etc/hosts` entries, Expo Go on a phone, and the common-error table.
 
-### Steps Claude CAN run automatically
-- `npm install` — install all workspace dependencies
-- `npm run db:migrate` — run migrations (once Docker + DB are running)
-- `npx prisma generate` — regenerate the Prisma client after schema changes
-- `npx tsc --noEmit` — typecheck any package
-- `git` operations, file creation, edits
+Steps Claude can run automatically: `npm install`, `npm run db:migrate`, `npx prisma generate`, file edits, git operations. Steps that require the engineer: installing system tools (Homebrew, Docker Desktop, Node), copying `.env.example` → `.env`, editing `/etc/hosts` (needs sudo), installing Expo Go on a device.
 
-### Steps that require manual action from the engineer
-- Installing Homebrew, Node.js, Git, or Docker Desktop — requires system-level install
-- **Starting Docker Desktop** — must be opened as a GUI app before any `docker` commands work; if the engineer sees `dial unix /var/run/docker.sock: no such file or directory`, Docker Desktop is not running
-- **Running `docker run --name wodalytics-db ...`** — creates the Postgres container; only needed once. On subsequent sessions: `docker start wodalytics-db`
-- **Copying `.env.example` → `.env`** — file contains secrets and must be created manually
-- **Adding local DNS entries** — append to `/etc/hosts` so browser requests to the containerised stack resolve to the local nginx proxy. Requires `sudo`:
-  ```bash
-  echo "127.0.0.1 local.wodalytics.com db-studio.local.wodalytics.com" | sudo tee -a /etc/hosts
-  ```
-  Once set, `docker compose up --build` exposes:
-  - Web: `http://local.wodalytics.com`
-  - API: `http://local.wodalytics.com/api/*` (same origin as web, no CORS)
-  - Prisma Studio: `http://db-studio.local.wodalytics.com`
-- Installing Expo Go on a physical device
+## Architecture pointers
 
-### Common setup errors and fixes
-| Error | Cause | Fix |
-|---|---|---|
-| `dial unix /var/run/docker.sock: no such file or directory` | Docker Desktop not running | Open Docker Desktop and wait for it to start |
-| `Unable to find image 'wodalytics-db:latest'` | Ran `docker run wodalytics-db` instead of the full command | Run the full `docker run` command with `postgres:16` as the image |
-| `P1001: Can't reach database server at localhost:5432` | Postgres container not running | `docker start wodalytics-db` |
-| `Environment variable not found: DATABASE_URL` | `.env` file missing | `cp .env.example .env` from repo root |
-| `command not found: turbo` | Dependencies not installed | `npm install` from repo root |
-| `ConfigError: The expected package.json path: .../apps/mobile/package.json does not exist` | `expo start` run from repo root, or `npm install` not run after adding mobile workspace | Run from `apps/mobile`: `cd apps/mobile && npx expo start`. If new workspace was added, run `npm install` from root first to register the symlink. |
-| `DNS_PROBE_FINISHED_NXDOMAIN` / `This site can't be reached` for `local.wodalytics.com` | `/etc/hosts` entries missing | Add the `127.0.0.1 local.wodalytics.com db-studio.local.wodalytics.com` entry to `/etc/hosts` (see manual steps above) |
-| `Bind for 0.0.0.0:80 failed: port is already allocated` | Port 80 in use by another process | Stop the conflicting process, or change the proxy `ports:` in `docker-compose.yml` from `80:80` to `8080:80` (URLs become `local.wodalytics.com:8080`) |
-
-## Architecture
-
-- API style: REST (see #8 for REST vs GraphQL analysis)
-- Auth middleware: `apps/api/src/middleware/auth.ts` — single verification point for all routes
-- Data model source of truth: `packages/db/prisma/schema.prisma`
-- Shared result value types: `packages/types/src/result.ts`
-
-### DB manager pattern
-
-All Prisma queries must live in model-specific manager files under `apps/api/src/db/`, not inline in route handlers. One file per Prisma model (or logical model group):
-
-```
-apps/api/src/db/
-  gymDbManager.ts          # prisma.gym.*
-  userGymDbManager.ts      # prisma.userGym.* (memberships)
-  gymProgramDbManager.ts   # prisma.gymProgram.* + prisma.program.create
-  userProgramDbManager.ts  # prisma.userProgram.* (subscriptions)
-```
-
-**Naming rules:**
-- File: `<model>DbManager.ts` (camelCase, matches the Prisma model name)
-- Functions: verbose and descriptive — name what the query does, not just what it calls
-  - ✅ `findMembersWithProgramSubscriptionsByGymId(gymId)`
-  - ✅ `createGymAndAddOwnerMember(data, ownerId)`
-  - ❌ `getMembers(gymId)` — too vague
-  - ❌ `userGymFindMany(gymId)` — just restates the Prisma call
-
-Route handlers should read like high-level orchestration — guard clauses, call managers, return responses — with no raw `prisma.*` calls.
-
-### API error logging conventions
-
-Use `console.log("")` (not `console.error`) to log diagnostic information. Log at every auth/authorization failure point and whenever catching an unexpected exception, so that issues are easy to trace in the server output.
-
-**Auth failures** — include the HTTP method, path, and relevant context:
-```typescript
-console.log(`[auth] requireAuth: missing or malformed Authorization header — ${req.method} ${req.path}`)
-console.log(`[auth] requireRole: access denied — ${req.method} ${req.path} — userId=${req.user?.id} role=${req.user?.role} required=${roles.join('|')}`)
-```
-
-**Unexpected exceptions in route handlers** — include the path and the error:
-```typescript
-console.log(`[error] ${req.method} ${req.path} — ${err instanceof Error ? err.message : err}`, err)
-```
-
-The global error-handling middleware in `apps/api/src/index.ts` automatically logs and returns 500 for any uncaught exception thrown from a route handler — route handlers should `throw` rather than swallow errors they cannot handle.
-
-### Route handler style
-
-Route handlers must be extracted into **named async functions** — do not pass inline lambdas directly to `router.get/post/patch/delete`. Named handlers make the router registration self-documenting.
-
-```typescript
-// ✅ Good — router reads like a table of contents
-async function getWorkoutsByGymAndDateRange(req: Request, res: Response) { ... }
-router.get('/gyms/:gymId/workouts', requireAuth, requireGymMembership, getWorkoutsByGymAndDateRange)
-
-// ❌ Avoid — logic buried in registration call
-router.get('/gyms/:gymId/workouts', requireAuth, async (req, res) => { ... })
-```
-
-### Background jobs
-
-One-shot scripts triggered on a schedule live under `apps/api/src/jobs/`. The dispatcher at `apps/api/src/jobs/index.ts` is the CLI entrypoint — it takes the job name as `argv[2]`, looks it up in the `JOBS` map, runs the matching handler, disconnects Prisma, and exits (`0` on success, `1` on handler error, `2` on unknown / missing job name).
-
-Each job is its own Railway service: same image (`apps/api/Dockerfile.jobs`), different `startCommand` (the job name), different `cronSchedule`. The image's `ENTRYPOINT` runs the dispatcher, so Railway only needs to override the argument.
-
-**Adding a new job:**
-1. Create `apps/api/src/jobs/<name>.ts` exporting an async handler.
-2. Register it in the dispatcher's `JOBS` map in `src/jobs/index.ts`.
-3. Add a `railway.<name>.toml` (or update `railway.jobs.toml`) with the desired `startCommand` and `cronSchedule`.
-
-**Local invocation:** `npm run build --workspace=@wodalytics/api && npm run job --workspace=@wodalytics/api -- <name>`.
-
-The Express API service does **not** import job code at runtime — the two services share modules under `src/lib/` and `src/db/`, but have separate entrypoints and separate Railway deployments. A job failure cannot affect the user-facing API.
-## Design system (web)
-
-Established by #81. **Always use existing primitives before writing custom Tailwind for the same pattern.** Look here first; only inline styles when the primitive genuinely doesn't fit.
-
-### Primitives — `apps/web/src/components/ui/`
-
-| Primitive | When to use | Notes |
-|---|---|---|
-| `Button` | Every clickable action button | Variants: `primary` (indigo, the default CTA), `secondary` (gray, less weight), `tertiary` (text-only, e.g. pagination/back-arrows), `destructive` (rose, delete actions). Includes the shared focus ring — never bake your own focus styles on top. |
-| `Chip` | Tags, status pills, toggle filter pills | Variants: `neutral`, `accent`, `status-published`, `status-draft`, `status-rejected`. Pass `onToggle` for toggle-pill behavior (auto-adds `aria-pressed`); pass `onDismiss` for an `×` close affordance. |
-| `ChipGroup` | Row of toggle chips | Handles horizontal-scroll overflow and exposes a trailing "Clear" chip via `onClear`. Use in any filter strip. |
-| `SegmentedControl` | Mutually-exclusive selection within a single context | The level filter on `WodDetail` is the canonical example. Use this for radio-group-like UIs with 2–5 options. **Not** for page-level tab navigation (those are still custom — see "Patterns to extract" below). |
-| `Badge` | Small numeric count next to a nav item or icon | 10px font, `min-w-5`. **Not** for big heading-counts — those use a separate `text-sm` chip pattern shared between `Members` and `ProgramsIndex`. |
-| `EmptyState` | Empty list/page with title, body, optional CTA | Use whenever a data fetch returns zero results. Don't render a bare paragraph like "No X yet". |
-| `Skeleton` | Loading state placeholder | Variants: `feed-row`, `history-row`, `calendar-cell`. Pass `count` to repeat. **Always** use this instead of a "Loading…" string. |
-
-### Token modules — `apps/web/src/lib/`
-
-- **`workoutTypeStyles.ts`** — `WORKOUT_TYPE_STYLES[type]` returns `{ abbr, label, category, tint, bg, accentBar }` for every `WorkoutType`. Any surface that renders a workout type **must** pull from this map. The deprecated `TYPE_ABBR` shim in `lib/api.ts` re-exports `.abbr` only; new code should reach for `WORKOUT_TYPE_STYLES` directly.
-- **`workoutTypeStyles.WORKOUT_CATEGORIES`** — display order for category groupings in pickers/lists.
-
-### Dark-theme palette conventions
-
-- Page background: `bg-gray-950`. Cards/drawers: `bg-gray-900`. Inputs: `bg-gray-800`.
-- Borders: `border-gray-800` (subtle), `border-gray-700` (interactive).
-- Primary accent: `indigo-600` (Buttons), `indigo-500` (focus rings, tab underlines).
-- Destructive: `rose-600` / `rose-700`.
-- Status colors (translucent fills): emerald = published/success, amber = draft/warning, rose = rejected/error.
-
-### A11y baseline (#81 PR 5)
-
-Every interactive element must satisfy these. The primitives above already do — only worry about it when you're writing a one-off control.
-
-- **Contrast:** text under 14px (`text-xs`, `text-[10px]`, `text-[11px]`) uses `text-gray-400` or lighter. `text-gray-500` passes contrast only at `text-sm` (14px) and larger — fine for de-emphasized secondary copy. Reserve `text-gray-600` for invisible / disabled / decorative-only states (e.g. `·` separators marked `aria-hidden="true"`); never put it on visible user-facing copy. Lighthouse will flag any of these.
-- **Touch targets:** the WCAG 2.5.8 AA bar is **24×24** (Lighthouse uses this); aim for **28×28** as the team default. Audit candidate: `grep -rE "w-[0-5]\b|h-[0-5]\b" apps/web/src` — every match should be non-interactive. When you need a bigger hit area without growing the surrounding layout, pair the size bump with a margin clawback: `className="-my-1 -mr-1.5 w-7 h-7 inline-flex items-center justify-center …"`. For checkbox + label pairs, `min-h-7` on the wrapping `<label>` clears the hit area without enlarging the visible checkbox.
-- **Focus rings:** always `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950` (offset color matches the parent surface — use `ring-offset-gray-900` inside a drawer). Use the primitive instead of duplicating this string.
-- **`title`** attribute on truncated text for hover reveal (e.g. workout pills in calendar cells).
-
-### ARIA patterns (lessons-learned)
-
-- **Toggle button** (`Chip` with `onToggle`, color-swatch pickers, etc.): `role="button"` (the default for `<button>`) + `aria-pressed={selected}`.
-- **Radio group** (`SegmentedControl`-style mutually-exclusive selection): container is `role="radiogroup"`; each segment is `role="radio"` with `aria-checked={selected}`. **Do NOT also set `aria-pressed`** — axe's `aria-allowed-attr` rule rejects `aria-pressed` on `radio`. Pair this with **roving tabindex**: only the selected segment has `tabIndex={0}`, others `tabIndex={-1}`. Arrow keys move selection (and focus follows).
-- **Form selects:** pair `<label htmlFor="x">` with `<select id="x">`. Sibling proximity is **not** enough — both axe and screen readers require the explicit association. When there's no visible label (e.g., a single-purpose toolbar select), use `aria-label` instead.
-- **Decorative-only icons / separators:** add `aria-hidden="true"` so axe's contrast rule skips them.
-
-### When to extract a new primitive
-
-Extract when **the same pattern appears in 3+ places** (or 2 with strong likelihood of a third). Don't pre-extract. Two more checks before committing to it:
-
-1. There's interactive behavior worth encapsulating: keyboard handling, ARIA state, focus management, or a non-trivial style permutation (variants).
-2. Pulling it out makes consumer code visibly tighter — the consumer reads as intent, not as a styling recipe.
-
-If only the visual is shared but the behavior is trivial (e.g., a one-line styled `<div>`), inline the markup. If the behavior is shared but the visual differs heavily across uses, prefer a hook/utility over a primitive. If the same enum value drives styling across multiple surfaces, that's a **token map** under `lib/<domain>Styles.ts`, not a primitive.
-
-**Process for adding one:**
-
-1. Identify the two real call sites and sketch the prop API on paper. Variants belong as discriminated string unions, not boolean props (`variant: 'primary' | 'secondary'`, never `isPrimary` + `isSecondary`). Default the most-used variant in the prop signature so consumers can pass nothing for the common case.
-2. Add the file under `apps/web/src/components/ui/<Name>.tsx`. Include the shared `FOCUS_RING` constant if interactive. Mirror the existing primitives' shape — generic over the value type when relevant (see `SegmentedControl<T extends string>`).
-3. Co-locate `<Name>.test.tsx` covering: each variant renders, click / keyboard fires the right handlers, `disabled` blocks both, and `aria-*` attributes reflect state. Follow the existing primitive tests for shape.
-4. Migrate **at least one** real call site in the same PR — never ship an unconsumed primitive. If it's worth pulling out, it's worth proving the pull-out fits at a real call site.
-5. Add a row to the *Primitives* table above and remove the entry from *Patterns to extract* if it was flagged.
-6. Run `npx vitest run` — including the page-level `apps/web/src/test/a11y.test.tsx` axe check — before opening the PR.
-
-**Patterns to extract** (flagged but not yet primitive):
-- **Drawer** — slide-from-right + overlay + Escape-to-close. Currently re-implemented in `WorkoutDrawer`, `LogResultDrawer`, `ProgramFormDrawer`. Worth extracting next time someone touches them.
-- **Tabs** — page-section navigation with underline indicator. Currently custom in `ProgramDetail`; will repeat in slice 4 of #82 (Browse + Members tabs).
-- **FormField + TextInput / Textarea / DatePicker** — every form repeats `<label class="text-xs text-gray-400">` + styled input. Extract when a third form joins (slice 3 of #82 likely is it).
-- **HeadingCount** — the `text-sm` count chip next to page headings (Members, ProgramsIndex use the same `<span class="bg-gray-700 text-sm px-2 py-0.5 rounded-full">{N}</span>` literal twice). Extract to ui/HeadingCount.tsx if a third caller appears.
-- **ConfirmDialog** — currently using `window.confirm` for delete confirmations. Replace with a primitive when we want consistent in-app styling.
-
-### Cross-app contracts (mobile parity)
-
-Patterns we want the React Native client to mirror when it lands. Each entry pins a localStorage key shape + the request/response contract, so the mobile app stores per-user state in a shape the web already understands.
-
-- **Program filter** (`apps/web/src/context/ProgramFilterContext.tsx`)
-  - Storage: `localStorage["programFilter:<gymId>"]` → JSON `string[]` of program IDs (empty = "all programs")
-  - URL: `?programIds=id1,id2` on `/feed` and `/calendar`
-  - API: `GET /api/gyms/:gymId/workouts?programIds=id1,id2` (each ID independently access-checked; first failure → 403/404)
-  - Mobile: read/write the same storage key (via `AsyncStorage`) and call the same endpoint with the same CSV shape.
-
-### Reference
-
-Visual guide with before/after mockups: `resources/design-guide.html`. Issue #81 has the full implementation plan in 5 PRs.
+- **Source of truth for the data model:** `packages/db/prisma/schema.prisma`.
+- **Shared result value types:** `packages/types/src/result.ts`.
+- **Auth verification:** `apps/api/src/middleware/auth.ts` — single point for all routes.
+- **API REST conventions, DB managers, route handlers, jobs:** see `apps/api/CLAUDE.md`.
+- **Web design system, primitives, a11y:** see `apps/web/CLAUDE.md`.
 
 ## Key enums
 
@@ -313,88 +153,6 @@ enum WorkoutStatus { DRAFT, PUBLISHED }
 enum Gender        { WOMAN, MAN, NON_BINARY, PREFER_NOT_TO_SAY }  // User.identifiedGender — nullable, self-identified
 enum WorkoutGender { MALE, FEMALE, OPEN }                          // Result.workoutGender — required, leaderboard grouping
 ```
-
-## Testing
-
-### API integration tests
-
-Located in `apps/api/tests/`. Each file is a self-contained TypeScript script that:
-- Seeds all fixtures directly via Prisma (no HTTP for setup)
-- Signs JWT tokens in-process via `signTokenPair` from `../src/lib/jwt.js`
-- Drives assertions through the live API using `fetch()`
-- Cleans up all created data in a `finally` block
-
-**Run:**
-```bash
-npm run test --workspace=@wodalytics/api
-# or from apps/api:
-cd apps/api && npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do npx tsx "$f" || exit 1; done'
-```
-
-**Requires:** API running on `localhost:3000`, DB accessible via `DATABASE_URL`.
-
-**Test files:** `apps/api/tests/` — one `.ts` file per domain.
-
-**Adding a new test file:** Follow the pattern in any existing file. Add the new script to the `test` command in `apps/api/package.json`.
-
----
-
-### Web unit tests (Vitest + React Testing Library)
-
-Located in `apps/web/src/**/*.test.tsx`. Each test file lives next to the component it covers.
-
-**Run:**
-```bash
-npm run test:unit --workspace=@wodalytics/web
-# or from apps/web:
-cd apps/web && npx vitest run
-```
-
-**Requires:** nothing running — fully in-process, no server or DB needed.
-
-**Setup:** Vitest is configured in `vite.config.ts` (`test.environment: 'jsdom'`). The global setup file `src/test/setup.ts` imports `@testing-library/jest-dom` matchers. Vitest globals (`describe`, `it`, `expect`, `vi`) are enabled so no imports are needed in test files.
-
-**When to write unit tests vs E2E:**
-- Unit tests cover **component rendering and logic**: does the page render without crashing? Are the right elements shown given a mocked API response? Use `vi.mock('../lib/api')` to control API responses.
-- E2E tests (Playwright) cover **user flows end-to-end**: navigation, real API calls, DB state. Use E2E when the correctness depends on the full stack.
-- **Every page must have at least one render test** that asserts it mounts without throwing. This catches crashes from type mismatches, missing fields, or bad assumptions about API shape — bugs that would otherwise only surface in the browser.
-
-**Test files:** `apps/web/src/` — co-located with the component as `*.test.tsx`.
-
-**Patterns to follow:**
-- Wrap the component in `<MemoryRouter>` with `<Routes>` matching the real URL pattern so `useParams` works.
-- Mock `../lib/api` fully — every `api.*` call used by the component must be mocked or the test will hang.
-- Mock `../context/AuthContext` to return a minimal `{ user: { id, name } }`.
-- Use `screen.findBy*` (async) for elements that appear after a resolved promise.
-
----
-
-### Web E2E tests (Playwright)
-
-Located in `apps/web/tests/`. Each spec file uses Playwright and seeds DB fixtures directly via `PrismaClient` (imported via `createRequire` to bypass ESM/CJS issues).
-
-**Run:**
-```bash
-npm run test --workspace=@wodalytics/web   # runs unit tests first, then E2E
-npm run test:e2e --workspace=@wodalytics/web  # E2E only
-# or from apps/web:
-cd apps/web && npx dotenv-cli -e ../../.env -- npx playwright test
-```
-
-**Requires:** `turbo dev` running (API on `:3000`, web on `:5173`).
-
-**Test files:** `apps/web/tests/` — one `.spec.ts` file per user flow.
-
-**Patterns to follow:**
-- Tests are independent. Seed all fixtures in `test.beforeEach` (or inline at the top of the test) and tear down in `test.afterEach`. **Do not** use `test.describe.configure({ mode: 'serial' })` or shared `test.beforeAll` fixtures — `playwright.config.ts` runs the suite in parallel (`fullyParallel: true`).
-- **Auth via JWT cookie injection** — never drive the `/login` form. Use `loginAs(context, userId, role)` from `tests/lib/auth.ts`, which signs a refresh token, persists a `RefreshToken` row, and adds the cookie. AuthProvider's mount-time refresh consumes it on the next `page.goto`. The dedicated login-form spec is the only exception.
-- Seed directly via Prisma (not via API) to keep setup fast and independent of API state.
-- Use unique nonces for fixture rows (`randomUUID().slice(0, 8)`) so parallel workers can't collide on names/slugs.
-- `gymId` belongs in `localStorage` before any gym-scoped navigation: `await page.addInitScript((id) => localStorage.setItem('gymId', id), gymId)`.
-- Import PrismaClient via `createRequire(import.meta.url)` — do not use ESM named imports from `@prisma/client`.
-- Keep the surface tight (~5 specs covering true cross-stack flows). Anything that's "does this page render the right text" belongs in `apps/web/src/**/*.test.tsx` with mocked `api`. See #111 for the rationale.
-
----
 
 ## Pull requests
 
@@ -464,30 +222,4 @@ When breaking a large feature issue into sub-issues for implementation:
 - **One PR per sub-issue:** Each sub-issue should map to exactly one pull request.
 - **Declare dependencies explicitly:** Note which sub-issues must land first. Safe parallel starting points should be identified so multiple engineers (or AI slices) can work concurrently.
 - **Reuse before building:** Before proposing new utilities or abstractions, search for existing patterns (DB managers, middleware, Zod schemas, API client methods) that can be extended.
-- **Schema migrations travel with their PR:** Any sub-issue that modifies the Prisma schema must commit the generated migration file as part of that PR (see Schema migrations section above).
-
-## Issue index
-
-See the comment on #1 for the full navigation hub.
-
-| # | Purpose |
-|---|---|
-| #1 | Parent issue |
-| #2 | Competitor research |
-| #7 | Wireframes |
-| #8 | Architecture & data model |
-| #9 | Google OAuth setup |
-| #10 | Slice 1 — Foundation |
-| #11 | Slice 2 — Auth |
-| #12 | Slice 3 — Gyms + users |
-| #13 | Slice 4 — Workout publishing |
-| #14 | Slice 5 — Member mobile |
-| #35 | #13-A — Workout CRUD & Publish API |
-| #36 | #13-B — Result & Leaderboard API |
-| #37 | #13-C — Trainer Web: Calendar Page |
-| #38 | #13-D — Trainer Web: Workout Drawer |
-| #39 | #13-E — Member Mobile: Navigation + Feed + WOD Detail |
-| #40 | #13-F — Member Mobile: Result Logging + History |
-| #46 | #13-G — Trainer Web: Multiple Workouts on a Single Day |
-| #48 | #13-H — Member Web: Feed + WOD Detail |
-| #49 | #13-I — Member Web: Result Logging + History |
+- **Schema migrations travel with their PR:** Any sub-issue that modifies the Prisma schema must commit the generated migration file as part of that PR (see *Schema migrations* above).
