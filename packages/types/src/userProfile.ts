@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { LoadUnitSchema, DistanceUnitSchema } from './result.js'
 
 export const IdentifiedGenderSchema = z.enum(['FEMALE', 'MALE', 'NON_BINARY', 'PREFER_NOT_TO_SAY'])
 export type IdentifiedGender = z.infer<typeof IdentifiedGenderSchema>
@@ -17,6 +18,8 @@ export const UpdateProfileSchema = z
     lastName: z.string().trim().min(1).max(80).optional(),
     birthday: BirthdaySchema.nullable().optional(),
     identifiedGender: GenderSchema.nullable().optional(),
+    preferredLoadUnit: LoadUnitSchema.optional(),
+    preferredDistanceUnit: DistanceUnitSchema.optional(),
   })
   .strict()
 

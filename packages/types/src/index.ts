@@ -1,4 +1,5 @@
 export * from './result.js'
+export * from './primaryScore.js'
 export * from './auth.js'
 export * from './workout.js'
 export * from './movement.js'

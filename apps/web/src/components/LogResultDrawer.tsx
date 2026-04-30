@@ -22,19 +22,25 @@ const SUPPORTED_TYPES = new Set(['AMRAP', 'FOR_TIME'])
 
 function initialAmrap(r?: WorkoutResult) {
   if (!r) return { rounds: '', reps: '' }
-  const v = r.value as { rounds?: number; reps?: number }
-  return { rounds: String(v.rounds ?? ''), reps: String(v.reps ?? '') }
+  const score = (r.value as { score?: { kind?: string; rounds?: number; reps?: number } }).score
+  if (score?.kind === 'ROUNDS_REPS') {
+    return { rounds: String(score.rounds ?? ''), reps: String(score.reps ?? '') }
+  }
+  return { rounds: '', reps: '' }
 }
 
 function initialForTime(r?: WorkoutResult) {
   if (!r) return { minutes: '', seconds: '', cappedOut: false }
-  const v = r.value as { seconds?: number; cappedOut?: boolean }
-  const totalSec = v.seconds ?? 0
-  return {
-    minutes: String(Math.floor(totalSec / 60)),
-    seconds: String(totalSec % 60),
-    cappedOut: v.cappedOut ?? false,
+  const score = (r.value as { score?: { kind?: string; seconds?: number; cappedOut?: boolean } }).score
+  if (score?.kind === 'TIME') {
+    const totalSec = score.seconds ?? 0
+    return {
+      minutes: String(Math.floor(totalSec / 60)),
+      seconds: String(totalSec % 60),
+      cappedOut: score.cappedOut ?? false,
+    }
   }
+  return { minutes: '', seconds: '', cappedOut: false }
 }
 
 export default function LogResultDrawer({ workout, existingResult, onClose, onSaved, onDeleted }: LogResultDrawerProps) {
@@ -68,13 +74,19 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
       const rp = parseInt(reps, 10)
       if (isNaN(r) || r < 0) { setError('Rounds must be a non-negative number.'); return null }
       if (isNaN(rp) || rp < 0) { setError('Reps must be a non-negative number.'); return null }
-      return { type: 'AMRAP', rounds: r, reps: rp }
+      return {
+        score: { kind: 'ROUNDS_REPS', rounds: r, reps: rp, cappedOut: false },
+        movementResults: [],
+      }
     }
     const m = parseInt(minutes || '0', 10)
     const s = parseInt(seconds || '0', 10)
     if (isNaN(m) || m < 0) { setError('Minutes must be a non-negative number.'); return null }
     if (isNaN(s) || s < 0 || s > 59) { setError('Seconds must be 0–59.'); return null }
-    return { type: 'FOR_TIME', seconds: m * 60 + s, cappedOut }
+    return {
+      score: { kind: 'TIME', seconds: m * 60 + s, cappedOut },
+      movementResults: [],
+    }
   }
 
   async function handleSubmit() {

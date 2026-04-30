@@ -130,6 +130,24 @@ enum WorkoutCategory {
   BENCHMARK // other common benchmarks (Fight Gone Bad, etc.)
 }
 
+// Unit a load (weight) is logged or prescribed in. Locked per `WorkoutMovement`
+// — every set within a movement uses the same unit. User defaults live on
+// `User.preferredLoadUnit`.
+enum LoadUnit {
+  LB
+  KG
+}
+
+// Unit a distance is logged or prescribed in. Locked per `WorkoutMovement`.
+// User defaults live on `User.preferredDistanceUnit`.
+enum DistanceUnit {
+  M
+  KM
+  MI
+  FT
+  YD
+}
+
 // Lifecycle of a bulk-upload `WorkoutImport` row (slice 6 / #89):
 //   PENDING   → file uploaded + parsed, awaiting user confirmation in the modal.
 //               No Workout rows exist yet.
@@ -150,19 +168,23 @@ enum WorkoutImportStatus {
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  name             String?
-  firstName        String?
-  lastName         String?
-  birthday         DateTime? @db.Date
-  avatarUrl        String?
-  onboardedAt      DateTime?
-  role             Role      @default(MEMBER)
-  identifiedGender Gender?
-  passwordHash     String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                    String       @id @default(cuid())
+  email                 String       @unique
+  name                  String?
+  firstName             String?
+  lastName              String?
+  birthday              DateTime?    @db.Date
+  avatarUrl             String?
+  onboardedAt           DateTime?
+  role                  Role         @default(MEMBER)
+  identifiedGender      Gender?
+  passwordHash          String?
+  // Default units used when prescribing or logging results. Editable in the
+  // user's profile; per-movement overrides still win at log time.
+  preferredLoadUnit     LoadUnit     @default(LB)
+  preferredDistanceUnit DistanceUnit @default(MI)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 
   oauthAccounts         OAuthAccount[]
   refreshTokens         RefreshToken[]
@@ -344,6 +366,12 @@ model Workout {
   // Set when this workout was created from a bulk CSV/XLSX upload (slice 6 / #89).
   // Lets the bulk-publish action scope precisely to drafts from a specific import.
   importId         String?
+  // Workout-level time cap for FOR_TIME / EMOM / TABATA / INTERVALS / CHIPPER
+  // / LADDER / DEATH_BY pieces, and the AMRAP window. Null = no cap declared.
+  timeCapSeconds   Int?
+  // AMRAP-only: when true the result form surfaces a `rounds` input alongside
+  // reps. Default false — many AMRAPs are scored by total reps only.
+  tracksRounds     Boolean       @default(false)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
@@ -385,19 +413,27 @@ model WorkoutImport {
 }
 
 model Result {
-  id            String        @id @default(cuid())
-  userId        String
-  workoutId     String
-  level         WorkoutLevel
-  workoutGender WorkoutGender
-  value         Json
-  notes         String?
-  createdAt     DateTime      @default(now())
+  id                String        @id @default(cuid())
+  userId            String
+  workoutId         String
+  level             WorkoutLevel
+  workoutGender     WorkoutGender
+  value             Json
+  notes             String?
+  // Derived from `value` at write time so leaderboards can sort cheaply.
+  // `primaryScoreKind` is one of: LOAD | TIME | ROUNDS_REPS | DISTANCE |
+  // CALORIES | REPS. `primaryScoreValue` is a single scalar — for
+  // ROUNDS_REPS the encoding is `rounds * 1000 + reps`. Capped for-time
+  // results sort last via a large addend at write time.
+  primaryScoreKind  String?
+  primaryScoreValue Float?
+  createdAt         DateTime      @default(now())
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
 
   @@unique([userId, workoutId])
+  @@index([workoutId, primaryScoreKind, primaryScoreValue])
 }
 
 model Movement {
@@ -414,12 +450,30 @@ model Movement {
   @@index([parentId])
 }
 
+// Junction row + per-movement prescription. The programmer fills only the
+// fields relevant to the workout — strength gets sets/reps/load/tempo,
+// MonoStructural gets distance/calories/seconds, etc. All prescription
+// fields are nullable: every combination is legal. `displayOrder` controls
+// the tab/section order in the log-result UI.
 model WorkoutMovement {
-  workoutId  String
-  movementId String
-  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  movement   Movement @relation(fields: [movementId], references: [id], onDelete: Restrict)
+  workoutId    String
+  movementId   String
+  displayOrder Int           @default(0)
+  sets         Int?
+  // Reps as a string so cluster notation ("1.1.1") is a first-class value.
+  reps         String?
+  load         Float?
+  loadUnit     LoadUnit?
+  // Tempo notation ("3.1.1.0", "x.0.x.0"). Validated at the API layer.
+  tempo        String?
+  distance     Float?
+  distanceUnit DistanceUnit?
+  calories     Int?
+  seconds      Int?
+  workout      Workout       @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  movement     Movement      @relation(fields: [movementId], references: [id], onDelete: Restrict)
 
   @@id([workoutId, movementId])
   @@index([movementId])
+  @@index([workoutId, displayOrder])
 }

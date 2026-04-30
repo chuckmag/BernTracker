@@ -1,4 +1,4 @@
-import { prisma, type Gender } from '@wodalytics/db'
+import { prisma, type Gender, type LoadUnit, type DistanceUnit } from '@wodalytics/db'
 
 export const PROFILE_SELECT = {
   id: true,
@@ -11,6 +11,8 @@ export const PROFILE_SELECT = {
   avatarUrl: true,
   onboardedAt: true,
   role: true,
+  preferredLoadUnit: true,
+  preferredDistanceUnit: true,
 } as const
 
 export type UserProfile = {
@@ -24,6 +26,8 @@ export type UserProfile = {
   avatarUrl: string | null
   onboardedAt: Date | null
   role: string
+  preferredLoadUnit: LoadUnit
+  preferredDistanceUnit: DistanceUnit
 }
 
 export async function findUserProfileById(userId: string) {
@@ -37,6 +41,8 @@ export async function updateUserProfileById(
     lastName?: string
     birthday?: Date | null
     identifiedGender?: Gender | null
+    preferredLoadUnit?: LoadUnit
+    preferredDistanceUnit?: DistanceUnit
   },
 ) {
   return prisma.user.update({ where: { id: userId }, data, select: PROFILE_SELECT })

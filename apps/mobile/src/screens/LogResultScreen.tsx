@@ -73,7 +73,13 @@ export default function LogResultScreen({ route, navigation }: Props) {
       const p = Number(reps)
       if (!Number.isInteger(r) || r < 0) return { ok: false, error: 'Rounds must be a non-negative whole number.' }
       if (!Number.isInteger(p) || p < 0) return { ok: false, error: 'Reps must be a non-negative whole number.' }
-      return { ok: true, value: { type: 'AMRAP', rounds: r, reps: p } }
+      return {
+        ok: true,
+        value: {
+          score: { kind: 'ROUNDS_REPS', rounds: r, reps: p, cappedOut: false },
+          movementResults: [],
+        },
+      }
     }
     if (workout.type === 'FOR_TIME') {
       const m = Number(minutes || '0')
@@ -82,7 +88,13 @@ export default function LogResultScreen({ route, navigation }: Props) {
       if (!Number.isInteger(s) || s < 0 || s > 59) return { ok: false, error: 'Seconds must be 0–59.' }
       const total = m * 60 + s
       if (total <= 0 && !cappedOut) return { ok: false, error: 'Enter a time, or mark the result as capped.' }
-      return { ok: true, value: { type: 'FOR_TIME', seconds: total, cappedOut } }
+      return {
+        ok: true,
+        value: {
+          score: { kind: 'TIME', seconds: total, cappedOut },
+          movementResults: [],
+        },
+      }
     }
     return { ok: false, error: 'Result logging is not yet supported for this workout type.' }
   }
@@ -321,16 +333,18 @@ export default function LogResultScreen({ route, navigation }: Props) {
 }
 
 function initialAmrap(v: ResultValue | undefined) {
-  if (v?.type === 'AMRAP') return { rounds: String(v.rounds), reps: String(v.reps) }
+  if (v?.score?.kind === 'ROUNDS_REPS') {
+    return { rounds: String(v.score.rounds ?? ''), reps: String(v.score.reps) }
+  }
   return { rounds: '', reps: '' }
 }
 
-function initialForTime(v: ResultValue | undefined) {
-  if (v?.type === 'FOR_TIME') {
+function initialForTime(v: ResultValue | undefined): { minutes: string; seconds: string; cappedOut: boolean } {
+  if (v?.score?.kind === 'TIME') {
     return {
-      minutes: String(Math.floor(v.seconds / 60)),
-      seconds: String(v.seconds % 60),
-      cappedOut: v.cappedOut,
+      minutes: String(Math.floor(v.score.seconds / 60)),
+      seconds: String(v.score.seconds % 60),
+      cappedOut: v.score.cappedOut ?? false,
     }
   }
   return { minutes: '', seconds: '', cappedOut: false }

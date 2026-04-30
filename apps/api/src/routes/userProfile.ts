@@ -55,6 +55,8 @@ async function patchMyProfile(req: Request, res: Response) {
     data.birthday = parsed.data.birthday === null ? null : new Date(`${parsed.data.birthday}T00:00:00Z`)
   }
   if (parsed.data.identifiedGender !== undefined) data.identifiedGender = parsed.data.identifiedGender
+  if (parsed.data.preferredLoadUnit !== undefined) data.preferredLoadUnit = parsed.data.preferredLoadUnit
+  if (parsed.data.preferredDistanceUnit !== undefined) data.preferredDistanceUnit = parsed.data.preferredDistanceUnit
 
   await updateUserProfileById(userId, data)
   await maybeMarkOnboarded(userId)
