@@ -3,7 +3,7 @@ import type { Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { createResult, findLeaderboardByWorkout, findResultHistoryByUser, updateResultByOwner, deleteResultByOwner } from '../db/resultDbManager.js'
 import { expandMovementIdsWithVariations } from '../db/movementDbManager.js'
-import { CreateResultSchema, UpdateResultSchema } from '@wodalytics/types'
+import { CreateResultSchema, UpdateResultSchema, derivePrimaryScore } from '@wodalytics/types'
 import type { WorkoutLevel, WorkoutGender } from '@wodalytics/db'
 
 const router = Router()
@@ -36,6 +36,7 @@ async function logResult(req: Request, res: Response) {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
   const { level, workoutGender, value, notes } = parsed.data
+  const score = derivePrimaryScore(value)
 
   try {
     const result = await createResult({
@@ -45,6 +46,8 @@ async function logResult(req: Request, res: Response) {
       workoutGender,
       value,
       notes,
+      primaryScoreKind: score?.kind ?? null,
+      primaryScoreValue: score?.value ?? null,
     })
     res.status(201).json(result)
   } catch (err: unknown) {
@@ -70,8 +73,23 @@ async function updateResult(req: Request, res: Response) {
   const parsed = UpdateResultSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
+  // When the value changes, recompute the primary score and update both the
+  // JSON value and the derived columns atomically. When `value` is absent
+  // (e.g. the caller is only editing `level` or `notes`) the primary-score
+  // columns are left as-is.
+  const dataWithScore = parsed.data.value !== undefined
+    ? (() => {
+        const score = derivePrimaryScore(parsed.data.value!)
+        return {
+          ...parsed.data,
+          primaryScoreKind: score?.kind ?? null,
+          primaryScoreValue: score?.value ?? null,
+        }
+      })()
+    : parsed.data
+
   try {
-    const updated = await updateResultByOwner(resultId, req.user!.id, parsed.data)
+    const updated = await updateResultByOwner(resultId, req.user!.id, dataWithScore)
     res.json(updated)
   } catch (err: unknown) {
     const statusCode = (err as Error & { statusCode?: number }).statusCode

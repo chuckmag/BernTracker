@@ -109,6 +109,19 @@ async function testPatchProfile() {
 
   const rUnknown = await api('PATCH', '/users/me/profile', aliceToken, { foo: 'bar' })
   check('400 on unknown field (strict schema)', 400, rUnknown.status)
+
+  // Unit preferences (slice 1 of #3) — drive default load/distance units in
+  // the prescription form and the result drawer.
+  const rUnits = await api('PATCH', '/users/me/profile', aliceToken, {
+    preferredLoadUnit: 'KG',
+    preferredDistanceUnit: 'M',
+  })
+  check('200 on unit prefs update', 200, rUnits.status)
+  check('preferredLoadUnit persisted', 'KG', rUnits.body.preferredLoadUnit)
+  check('preferredDistanceUnit persisted', 'M', rUnits.body.preferredDistanceUnit)
+
+  const rBadUnit = await api('PATCH', '/users/me/profile', aliceToken, { preferredLoadUnit: 'TONS' })
+  check('400 on invalid load unit', 400, rBadUnit.status)
 }
 
 async function testEmergencyContactCrud() {
