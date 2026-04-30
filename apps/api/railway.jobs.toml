@@ -13,7 +13,4 @@ dockerfilePath = "apps/api/Dockerfile.jobs"
 buildCommand = ""
 
 [deploy]
-# Railway cron syntax — every 15 minutes. Cadence lives in this file; changing
-# it is a config edit, not a code change.
-cronSchedule = "*/15 * * * *"
-startCommand = "crossfit-wod"
+startCommand = ""
