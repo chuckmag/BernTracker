@@ -21,7 +21,8 @@ interface GymLogoUploaderProps {
 // GymContext so the TopBar picker thumbnails update without a manual reload.
 export default function GymLogoUploader({ gymId, logoUrl, name, onChange }: GymLogoUploaderProps) {
   const { refreshGyms } = useGym()
-  const [busy, setBusy] = useState<'upload' | 'remove' | null>(null)
+  const [busy, setBusy] = useState<'upload' | 'remove' | 'link' | null>(null)
+  const [linkUrl, setLinkUrl] = useState('')
 
   const { inputProps, open, error, setError } = useImageUpload({
     ariaLabel: 'Choose a gym logo',
@@ -48,6 +49,24 @@ export default function GymLogoUploader({ gymId, logoUrl, name, onChange }: GymL
       await refreshGyms()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to remove logo')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function handleUseLink(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const trimmed = linkUrl.trim()
+    if (!trimmed) return
+    setBusy('link')
+    setError(null)
+    try {
+      const { logoUrl: nextUrl } = await api.gyms.logo.setUrl(gymId, trimmed)
+      onChange?.(nextUrl)
+      setLinkUrl('')
+      await refreshGyms()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not use that link')
     } finally {
       setBusy(null)
     }
@@ -80,6 +99,28 @@ export default function GymLogoUploader({ gymId, logoUrl, name, onChange }: GymL
             </Button>
           )}
         </div>
+        <form onSubmit={handleUseLink} className="flex flex-wrap items-center gap-2 pt-1">
+          <label htmlFor={`gym-logo-url-${gymId}`} className="text-xs text-gray-400">
+            Or paste a link:
+          </label>
+          <input
+            id={`gym-logo-url-${gymId}`}
+            type="url"
+            inputMode="url"
+            placeholder="https://…"
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            disabled={busy !== null}
+            className="flex-1 min-w-[12rem] rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+          />
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={busy !== null || linkUrl.trim().length === 0}
+          >
+            {busy === 'link' ? 'Saving…' : 'Use link'}
+          </Button>
+        </form>
         {error && <p className="text-sm text-rose-400">{error}</p>}
       </div>
     </div>

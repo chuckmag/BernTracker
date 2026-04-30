@@ -485,6 +485,12 @@ export const api = {
         form.append('file', file)
         return req<{ logoUrl: string }>(`/api/gyms/${gymId}/logo`, { method: 'POST', body: form })
       },
+      setUrl: (gymId: string, logoUrl: string) =>
+        req<{ logoUrl: string }>(`/api/gyms/${gymId}/logo`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logoUrl }),
+        }),
       remove: (gymId: string) =>
         req<void>(`/api/gyms/${gymId}/logo`, { method: 'DELETE' }),
     },
