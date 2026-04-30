@@ -1,0 +1,15 @@
+date,order,title,type,description,named_workout,source
+2026-05-04,1,Back Squat 5x5,STRENGTH,"5 sets of 5 reps of Back Squat. Increase load each set.",,
+2026-05-04,2,Diane,FOR_TIME,"21-15-9 reps for time:
+Deadlifts (225/155 lb)
+Handstand Push-ups",Diane,
+2026-05-05,1,Mobility 15min,WARMUP,"15 minutes:
+- Couch stretch (2 min/side)
+- Thoracic spine extensions (2 min)
+- Hip 90/90 (3 min/side)
+- Pigeon (2 min/side)",,
+2026-05-05,2,Run 5K,RUNNING,"Run 5,000m at conversational pace. Note time and heart rate.",,
+2026-05-06,1,Cindy,AMRAP,"AMRAP in 20 minutes:
+5 Pull-ups
+10 Push-ups
+15 Air Squats",Cindy,

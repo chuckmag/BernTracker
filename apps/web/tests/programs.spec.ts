@@ -290,9 +290,15 @@ test.describe('Programs CRUD E2E', () => {
     await page.goto('/browse-programs')
     await expect(page.locator('h1', { hasText: 'Browse programs' })).toBeVisible()
 
-    // The seeded PUBLIC program is on the page; click Join
+    // The seeded PUBLIC program is gym-affiliated, so it shows in the
+    // "From your gym" section. Scope the Join click there — the unaffiliated
+    // "Public programs" section above also renders Join buttons.
     await expect(page.getByText(name)).toBeVisible({ timeout: 5000 })
-    await page.getByRole('button', { name: 'Join' }).click()
+    await page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { level: 2, name: 'From your gym' }) })
+      .getByRole('button', { name: 'Join' })
+      .click()
 
     // Lands on /feed (program filter set to the joined program by the page)
     await page.waitForURL('**/feed**')

@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { api, type GymProgram, type Program, type ProgramVisibility } from '../lib/api'
+import {
+  api,
+  type GymProgram,
+  type Program,
+  type ProgramVisibility,
+  type WorkoutImportSummary,
+} from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import Button from '../components/ui/Button'
 import Skeleton from '../components/ui/Skeleton'
 import ProgramFormDrawer from '../components/ProgramFormDrawer'
 import ProgramMembersTab from '../components/ProgramMembersTab'
+import BulkUploadDrawer from '../components/BulkUploadDrawer'
 
 type Tab = 'overview' | 'members' | 'workouts'
 
@@ -154,7 +161,15 @@ export default function ProgramDetail() {
           onMembershipChanged={load}
         />
       )}
-      {tab === 'workouts' && <ComingSoon label="Program-filtered workout list and bulk upload" />}
+      {tab === 'workouts' && (
+        <WorkoutsTab
+          programId={program.id}
+          startDate={program.startDate}
+          endDate={program.endDate}
+          workoutCount={program._count?.workouts ?? 0}
+          canManage={canWrite}
+        />
+      )}
 
       {canDelete && tab === 'overview' && (
         <div className="mt-10 pt-6 border-t border-gray-800">
@@ -298,6 +313,205 @@ function ComingSoon({ label }: { label: string }) {
       <p className="text-sm text-gray-400">{label}</p>
       <p className="mt-1 text-xs text-gray-400">Coming in a later slice of #82</p>
     </div>
+  )
+}
+
+// Workouts tab: counts, filtered-calendar link, bulk upload trigger, and the
+// import history. Slice 6 / #89.
+function WorkoutsTab({
+  programId,
+  startDate,
+  endDate,
+  workoutCount,
+  canManage,
+}: {
+  programId: string
+  startDate: string
+  endDate: string | null
+  workoutCount: number
+  canManage: boolean
+}) {
+  const [imports, setImports] = useState<WorkoutImportSummary[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  useEffect(() => {
+    if (!canManage) return
+    const signal = { cancelled: false }
+    void load(signal)
+    return () => { signal.cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [programId, canManage])
+
+  async function load(signal?: { cancelled: boolean }) {
+    setLoading(true)
+    setError(null)
+    try {
+      const list = await api.programs.imports.list(programId)
+      if (!signal?.cancelled) setImports(list)
+    } catch (e) {
+      if (!signal?.cancelled) setError((e as Error).message)
+    } finally {
+      if (!signal?.cancelled) setLoading(false)
+    }
+  }
+
+  const fmt = (d: string) =>
+    new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+
+  const range = endDate ? `${fmt(startDate)} – ${fmt(endDate)}` : `from ${fmt(startDate)}`
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-sm text-white">
+            {workoutCount} workout{workoutCount === 1 ? '' : 's'} scheduled
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">{range}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link to={`/calendar?programIds=${programId}`}>
+            <Button variant="secondary">Open in Calendar</Button>
+          </Link>
+          {canManage && (
+            <Button variant="primary" onClick={() => setDrawerOpen(true)}>
+              Bulk Upload
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {canManage && (
+        <div>
+          <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-2">Imports</h3>
+          {error && <p className="text-red-400 text-sm mb-2">{error}</p>}
+          {loading && <p className="text-xs text-gray-500">Loading…</p>}
+          {!loading && imports.length === 0 && (
+            <p className="text-xs text-gray-500">
+              No imports yet. Use the <strong>Bulk Upload</strong> button to import workouts from a CSV or XLSX.
+            </p>
+          )}
+          <ul className="space-y-2">
+            {imports.map((imp) => (
+              <ImportRow
+                key={imp.id}
+                programId={programId}
+                imp={imp}
+                onChanged={() => load()}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {canManage && (
+        <BulkUploadDrawer
+          open={drawerOpen}
+          programId={programId}
+          onClose={() => { setDrawerOpen(false); void load() }}
+          onCreated={() => { void load() }}
+        />
+      )}
+    </div>
+  )
+}
+
+function ImportRow({
+  programId,
+  imp,
+  onChanged,
+}: {
+  programId: string
+  imp: WorkoutImportSummary
+  onChanged: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handlePublish() {
+    if (!window.confirm(
+      `Publish ${imp.createdCount} draft workout${imp.createdCount === 1 ? '' : 's'} from "${imp.filename}"? Members in your gym will see them in their feed immediately.`,
+    )) return
+    setBusy(true)
+    setError(null)
+    try {
+      await api.programs.imports.publish(programId, imp.id)
+      onChanged()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <li className="border border-gray-800 rounded p-3 text-sm">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <p className="text-white truncate">{imp.filename}</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {new Date(imp.createdAt).toLocaleString(undefined, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })}
+            {' · '}
+            {imp.status === 'PUBLISHED'
+              ? `${imp.createdCount} published`
+              : imp.status === 'DRAFT'
+                ? `${imp.createdCount} draft${imp.createdCount === 1 ? '' : 's'}`
+                : `${imp.rowCount} row${imp.rowCount === 1 ? '' : 's'}`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <ImportStatusBadge status={imp.status} />
+          {imp.status === 'DRAFT' && (
+            <Button variant="primary" onClick={handlePublish} disabled={busy}>
+              {busy ? 'Publishing…' : `Publish ${imp.createdCount}`}
+            </Button>
+          )}
+          {imp.status === 'DRAFT' && (
+            <Link to={`/calendar?programIds=${programId}`}>
+              <Button variant="tertiary">Review on calendar</Button>
+            </Link>
+          )}
+        </div>
+      </div>
+      {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+      {imp.status === 'FAILED' && imp.errorJson && imp.errorJson.length > 0 && (
+        <details className="mt-2 text-xs text-rose-300">
+          <summary className="cursor-pointer">{imp.errorJson.length} error{imp.errorJson.length === 1 ? '' : 's'}</summary>
+          <ul className="mt-1 ml-4 list-disc space-y-0.5">
+            {imp.errorJson.slice(0, 8).map((iss, idx) => (
+              <li key={idx}>
+                {iss.rowIndex != null && <span className="font-mono">row {iss.rowIndex} </span>}
+                {iss.message}
+              </li>
+            ))}
+            {imp.errorJson.length > 8 && (
+              <li className="text-gray-400">…and {imp.errorJson.length - 8} more</li>
+            )}
+          </ul>
+        </details>
+      )}
+    </li>
+  )
+}
+
+function ImportStatusBadge({ status }: { status: WorkoutImportSummary['status'] }) {
+  const tint =
+    status === 'PUBLISHED'
+      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30'
+      : status === 'DRAFT'
+        ? 'bg-amber-500/15 text-amber-300 border-amber-400/30'
+        : status === 'PENDING'
+          ? 'bg-indigo-500/15 text-indigo-300 border-indigo-400/30'
+          : 'bg-rose-500/15 text-rose-300 border-rose-400/30'
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${tint}`}>
+      {status}
+    </span>
   )
 }
 
