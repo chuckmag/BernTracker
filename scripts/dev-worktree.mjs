@@ -2,22 +2,44 @@
 /**
  * Worktree-aware `npm run dev` replacement.
  *
- * 1. Picks free API + web ports (via scripts/find-free-ports.mjs) and writes
- *    them to .dev-ports.local at the worktree root.
+ * This script is the canonical reference for how `npm run dev:worktree` works
+ * — the root CLAUDE.md points here for details rather than duplicating them.
+ *
+ * Behavior:
+ * 1. Picks free API + web ports via scripts/find-free-ports.mjs and writes
+ *    them to .dev-ports.local at the worktree root. Random port within
+ *    API [3001, 5000) and web [5174, 7000); defaults 3000 / 5173 are reserved
+ *    for non-worktree `turbo dev`.
  * 2. Spawns `npm run dev:api` with API_PORT set, and `npm run dev:web` with
  *    WEB_PORT set. Vite's proxy reads API_PORT to forward `/api/*` to the
  *    correct backend port.
  * 3. Forwards stdout / stderr from both children with a [api] / [web] prefix
  *    so the engineer can see both streams in one terminal.
- * 4. If a child crashes early with EADDRINUSE — i.e. its randomly-picked port
- *    collided with a sibling worktree starting at the same instant — re-pick
- *    just that role's port (via `find-free-ports --repick=<role>`) and respawn
- *    that child. Capped at MAX_PORT_RETRIES per role.
- * 5. On Ctrl-C, sends SIGTERM to both children and waits for them to exit
+ * 4. **Self-healing on collision.** If a child crashes within the first
+ *    COLLISION_WINDOW_MS with an EADDRINUSE-shaped error (Node's native
+ *    string OR Vite's "Port N is (already) in use" wording), it means the
+ *    randomly-picked port collided with a sibling worktree starting at the
+ *    same instant. The orchestrator re-picks just that role's port (via
+ *    `find-free-ports --repick=<role>`), updates .dev-ports.local, and
+ *    respawns that child. Capped at MAX_PORT_RETRIES per role with a clear
+ *    `[dev:worktree] <role> hit EADDRINUSE on N — retrying on M` log line.
+ * 5. Non-collision exits (or exhausted retries) take the surviving sibling
+ *    down so the orchestrator never outlives a half-broken pair.
+ * 6. On Ctrl-C, sends SIGTERM to both children and waits for them to exit
  *    cleanly before quitting.
  *
  * After a successful run, downstream tooling (npm run test:worktree, the
  * test:e2e command) reads .dev-ports.local to know where the live stack is.
+ *
+ * Troubleshooting:
+ * - "API URL printed but `curl` 404s" — proxy target wasn't set; confirm
+ *   API_PORT made it into the web child's env (printed `[web]` lines log
+ *   the resolved proxy target on Vite startup).
+ * - "Both children keep crashing on the same port" — the retry cap was hit;
+ *   shut everything down with Ctrl-C, check `lsof -i :<port>` for a stale
+ *   process, then restart.
+ * - "I want a fixed port" — skip this script and use `npm run dev:api` /
+ *   `npm run dev:web` directly with explicit `API_PORT=` / `WEB_PORT=` env.
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'

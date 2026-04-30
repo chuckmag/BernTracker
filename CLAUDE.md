@@ -91,10 +91,7 @@ When working in a `git worktree` (e.g. `.claude/worktrees/<branch>`), the defaul
    ```bash
    npm run dev:worktree
    ```
-   - Picks a random free port for the API (in `3001–4999`) and the web (in `5174–6999`) — defaults `3000` / `5173` stay reserved for non-worktree `turbo dev`. Logs the chosen ports and writes `.dev-ports.local` (gitignored) at the worktree root.
-   - Spawns `dev:api` with `API_PORT=<api>` and `dev:web` with `WEB_PORT=<web>`. Vite's proxy reads `API_PORT` so the browser hits the right backend.
-   - **Self-healing on collision.** If two parallel worktrees happen to pick the same random port and a child crashes with `EADDRINUSE` within the first ~10s, the orchestrator re-picks just that role's port (via `find-free-ports.mjs --repick=<role>`), updates `.dev-ports.local`, and respawns the affected child. Cap is 3 retries per role; you'll see a `[dev:worktree] api hit EADDRINUSE on N — retrying on M` line if it triggers. Random selection across ~2000 ports per range makes coincidental collision rare in the first place; the retry is the safety net.
-   - Output is interleaved with `[api]` / `[web]` prefixes. Ctrl-C tears both down cleanly.
+   Picks random free API + web ports, writes `.dev-ports.local`, spawns `dev:api` and `dev:web` with the right env, and self-heals if a parallel worktree collides on the same port. Full behavior, port ranges, and troubleshooting live in the script header — see `scripts/dev-worktree.mjs`. Ctrl-C tears both servers down cleanly.
 
 2. **Run tests against that stack:**
    ```bash
