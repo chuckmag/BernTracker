@@ -93,7 +93,7 @@ function makeResult(overrides: Record<string, unknown> = {}) {
   return {
     id: 'r-1',
     userId: 'u-1',
-    user: { id: 'u-1', name: 'Athlete A' },
+    user: { id: 'u-1', name: 'Athlete A', firstName: 'Athlete', lastName: 'A', email: 'athlete-a@test.com', avatarUrl: null },
     level: 'RX' as const,
     workoutGender: 'OPEN' as const,
     value: { seconds: 300, cappedOut: false },

@@ -61,7 +61,14 @@ async function setup() {
   console.log('\n=== Setup ===')
 
   const [userA, userB] = await Promise.all([
-    prisma.user.create({ data: { email: `at-result-a-${TS}@test.com` } }),
+    prisma.user.create({
+      data: {
+        email: `at-result-a-${TS}@test.com`,
+        firstName: 'Anna',
+        lastName: 'Avatar',
+        avatarUrl: `https://example.test/avatars/${TS}-a.png`,
+      },
+    }),
     prisma.user.create({ data: { email: `at-result-b-${TS}@test.com` } }),
   ])
   userAId = userA.id
@@ -172,6 +179,16 @@ async function runTests() {
     // FOR_TIME sorted ascending by seconds — userB (240s) beats userA (300s)
     const first = (entries[0] as Record<string, unknown>).user as Record<string, unknown>
     check('FOR_TIME leaderboard → fastest first (userB)', userBId, first.id)
+
+    // Avatar fields are required so the web Avatar primitive can render.
+    const userAEntry = entries.find(
+      (e) => ((e as Record<string, unknown>).user as Record<string, unknown>).id === userAId,
+    ) as Record<string, unknown>
+    const userAUser = userAEntry.user as Record<string, unknown>
+    check('leaderboard user → exposes avatarUrl', `https://example.test/avatars/${TS}-a.png`, userAUser.avatarUrl)
+    check('leaderboard user → exposes firstName', 'Anna', userAUser.firstName)
+    check('leaderboard user → exposes lastName', 'Avatar', userAUser.lastName)
+    check('leaderboard user → exposes email', `at-result-a-${TS}@test.com`, userAUser.email)
   }
 
   {

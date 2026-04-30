@@ -116,6 +116,30 @@ test.describe('Member result-logging E2E', () => {
     await expect(page.getByRole('cell', { name: /4:30/ })).toBeVisible()
   })
 
+  test('Leaderboard: row click opens read-only result detail with the owner\'s name in the title', async ({ page }) => {
+    // Seed a result so the leaderboard has an entry to click.
+    await prisma.result.create({
+      data: {
+        workoutId: f.amrapWorkoutId, userId: f.memberUserId, level: 'RX',
+        workoutGender: 'OPEN',
+        value: { type: 'AMRAP', rounds: 5, reps: 10 },
+        notes: 'Felt fast on round 4.',
+      },
+    })
+    await loginMember(page, f)
+    await page.goto(`/workouts/${f.amrapWorkoutId}`)
+    await page.waitForSelector('h1')
+
+    // Click the row whose athlete cell contains "(you)" — the seeded result is the
+    // current user's, so the title becomes "Your Result" rather than the name.
+    await page.getByRole('button', { name: /View your result/i }).click()
+    await page.waitForURL(`**/workouts/${f.amrapWorkoutId}/results/**`)
+
+    await expect(page.getByRole('heading', { name: 'Your Result' })).toBeVisible()
+    await expect(page.getByText('Felt fast on round 4.')).toBeVisible()
+    await expect(page.getByText(/5 rounds \+ 10 reps/)).toBeVisible()
+  })
+
   test('History: a logged result appears on /history and links back to the WOD', async ({ page }) => {
     // Seed a result directly so this test isn't dependent on the AMRAP drawer flow.
     await prisma.result.create({

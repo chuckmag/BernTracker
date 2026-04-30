@@ -156,7 +156,14 @@ export interface WorkoutResult {
   value: Record<string, unknown>
   notes: string | null
   createdAt: string
-  user: { id: string; name: string | null }
+  user: {
+    id: string
+    name: string | null
+    firstName: string | null
+    lastName: string | null
+    email: string
+    avatarUrl: string | null
+  }
   workout: { type: WorkoutType }
 }
 
