@@ -16,6 +16,7 @@ const mockAuth = {
     role: 'MEMBER' as const,
     identifiedGender: null,
     isMovementReviewer: false,
+    isWodalyticsAdmin: false,
   },
   accessToken: 'tok',
   isLoading: false,
