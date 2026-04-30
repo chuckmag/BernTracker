@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
-import { requireAuth, requireMovementReviewer } from '../middleware/auth.js'
+import { requireAuth, requireWodalyticsAdmin } from '../middleware/auth.js'
 import {
   findAllActiveMovements,
   createPendingMovement,
@@ -18,9 +18,9 @@ const router = Router()
 // /pending must be registered before /:id to avoid Express treating "pending" as an ID
 router.get('/movements', requireAuth, getMovements)
 router.post('/movements/suggest', requireAuth, suggestMovement)
-router.get('/movements/pending', requireAuth, requireMovementReviewer, getPendingMovements)
-router.patch('/movements/:id/review', requireAuth, requireMovementReviewer, reviewMovement)
-router.patch('/movements/:id', requireAuth, requireMovementReviewer, updatePendingMovement)
+router.get('/movements/pending', requireAuth, requireWodalyticsAdmin, getPendingMovements)
+router.patch('/movements/:id/review', requireAuth, requireWodalyticsAdmin, reviewMovement)
+router.patch('/movements/:id', requireAuth, requireWodalyticsAdmin, updatePendingMovement)
 router.post('/movements/detect', requireAuth, detectMovements)
 
 export default router

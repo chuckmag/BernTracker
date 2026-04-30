@@ -64,13 +64,13 @@ export default function GymSettings() {
   const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => {
-    if (!user?.isMovementReviewer) return
+    if (!user?.isWodalyticsAdmin) return
     setPendingLoading(true)
     api.movements.pending()
       .then(setPendingMovements)
       .catch(() => {})
       .finally(() => setPendingLoading(false))
-  }, [user?.isMovementReviewer])
+  }, [user?.isWodalyticsAdmin])
 
   function startEditing(m: PendingMovement) {
     setEditingId(m.id)
@@ -427,7 +427,7 @@ export default function GymSettings() {
       </section>
 
       {/* Pending Movement Review — reviewer only */}
-      {user?.isMovementReviewer && (
+      {user?.isWodalyticsAdmin && (
         <section>
           <h2 className="text-lg font-semibold mb-4">
             Pending Movements

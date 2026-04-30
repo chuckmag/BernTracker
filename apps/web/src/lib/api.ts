@@ -252,7 +252,7 @@ export interface AuthUser {
   onboardedAt: string | null
   role: Role
   identifiedGender: IdentifiedGender
-  isMovementReviewer: boolean
+  isWodalyticsAdmin: boolean
 }
 
 export interface EmergencyContact {
@@ -266,7 +266,7 @@ export interface EmergencyContact {
   updatedAt: string
 }
 
-export interface UserProfile extends Omit<AuthUser, 'isMovementReviewer'> {
+export interface UserProfile extends Omit<AuthUser, 'isWodalyticsAdmin'> {
   emergencyContacts: EmergencyContact[]
 }
 
