@@ -35,22 +35,6 @@ export function requireRole(...roles: Role[]) {
   }
 }
 
-export async function requireMovementReviewer(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const reviewerEmail = process.env.MOVEMENT_REVIEWER_EMAIL
-  if (!reviewerEmail) {
-    log.warning(req, `requireMovementReviewer: MOVEMENT_REVIEWER_EMAIL not set — ${req.method} ${req.path}`)
-    res.status(403).json({ error: 'Forbidden' })
-    return
-  }
-  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { email: true } })
-  if (user?.email !== reviewerEmail) {
-    log.warning(req, `requireMovementReviewer: access denied — ${req.method} ${req.path} — userId=${req.user?.id}`)
-    res.status(403).json({ error: 'Forbidden' })
-    return
-  }
-  next()
-}
-
 // Parses WODALYTICS_ADMIN_EMAILS (comma-separated) into a Set of trimmed,
 // lower-cased emails. Empty / unset env → empty Set, which makes every
 // requireWodalyticsAdmin call deny by default (intended).

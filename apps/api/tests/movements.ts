@@ -2,12 +2,15 @@
  * Integration tests for movement endpoints.
  *
  * Requires: API running on localhost:3000, DB accessible via DATABASE_URL.
- * Requires: MOVEMENT_REVIEWER_EMAIL set in .env (the API server reads it at request time).
+ * Requires: WODALYTICS_ADMIN_EMAILS set in .env (the API server reads it at
+ * request time). Pending movement review is gated by the same admin
+ * allowlist as the rest of the WODalytics admin surface.
  * Run: cd apps/api && npx tsx tests/movements.ts
  */
 
 import { prisma, ProgramRole } from '@wodalytics/db'
 import { signTokenPair } from '../src/lib/jwt.js'
+import { parseAdminEmails } from '../src/middleware/auth.js'
 
 const BASE = process.env.API_URL ?? 'http://localhost:3000/api'
 let pass = 0
@@ -64,12 +67,13 @@ let pendingEditMovementId = ''
 async function setup() {
   console.log('\n=== Setup ===')
 
-  // The API server reads MOVEMENT_REVIEWER_EMAIL from its own env at request time.
-  // The test must use the same email so the API's check passes.
-  const reviewerEmail = process.env.MOVEMENT_REVIEWER_EMAIL
-  if (!reviewerEmail) {
-    throw new Error('MOVEMENT_REVIEWER_EMAIL must be set in .env to run movements tests')
+  // The API server reads WODALYTICS_ADMIN_EMAILS from its own env at request
+  // time. The test must use one of those emails so the API's check passes.
+  const allowed = [...parseAdminEmails(process.env.WODALYTICS_ADMIN_EMAILS)]
+  if (allowed.length === 0) {
+    throw new Error('WODALYTICS_ADMIN_EMAILS must be set in .env to run movements tests')
   }
+  const reviewerEmail = allowed[0]
 
   // Use existing reviewer account if present (e.g. ccmagrane@gmail.com in prod env);
   // otherwise create a temporary test user and clean it up in teardown.

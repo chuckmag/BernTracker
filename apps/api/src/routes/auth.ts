@@ -166,7 +166,6 @@ router.get('/me', requireAuth, async (req, res) => {
   }
   res.json({
     ...pickAuthUser(user),
-    isMovementReviewer: user.email === (process.env.MOVEMENT_REVIEWER_EMAIL ?? ''),
     isWodalyticsAdmin: isAdminEmail(user.email),
   })
 })
