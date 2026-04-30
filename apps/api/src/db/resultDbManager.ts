@@ -31,7 +31,7 @@ async function fetchLeaderboardRows(workoutId: string, filters: LeaderboardFilte
       ...(filters.workoutGender ? { workoutGender: filters.workoutGender } : {}),
     },
     include: {
-      user: { select: { id: true, name: true } },
+      user: { select: { id: true, name: true, firstName: true, lastName: true, email: true, avatarUrl: true } },
       workout: { select: { type: true } },
     },
   })

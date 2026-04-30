@@ -25,6 +25,7 @@ import GymCreate from './pages/GymCreate.tsx'
 import GymSettings from './pages/GymSettings.tsx'
 import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
+import WodResultDetail from './pages/WodResultDetail.tsx'
 import History from './pages/History.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
@@ -67,6 +68,7 @@ function AppLayout() {
               <Route path="/" element={<Navigate to="/feed" replace />} />
               <Route path="/feed" element={<Feed />} />
               <Route path="/workouts/:id" element={<WodDetail />} />
+              <Route path="/workouts/:id/results/:resultId" element={<WodResultDetail />} />
               <Route path="/history" element={<History />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/calendar" element={<Calendar />} />

@@ -1,8 +1,14 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import WodDetail from './WodDetail'
+
+// Renders the current pathname so navigation assertions can read it.
+function RouteSpy() {
+  const loc = useLocation()
+  return <div data-testid="current-route">{loc.pathname}</div>
+}
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -45,8 +51,10 @@ function makeWorkout(overrides = {}) {
 function renderPage(workoutId = 'workout-1') {
   return render(
     <MemoryRouter initialEntries={[`/workouts/${workoutId}`]}>
+      <RouteSpy />
       <Routes>
         <Route path="/workouts/:id" element={<WodDetail />} />
+        <Route path="/workouts/:id/results/:resultId" element={<div>result detail stub</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -119,11 +127,19 @@ describe('WodDetail', () => {
 
 // ─── Level filter (segmented control + Show all) ─────────────────────────────
 
-function makeResult(overrides: { id: string; userId: string; name: string; level: 'RX_PLUS' | 'RX' | 'SCALED' | 'MODIFIED'; seconds: number }) {
+function makeResult(overrides: { id: string; userId: string; name: string; level: 'RX_PLUS' | 'RX' | 'SCALED' | 'MODIFIED'; seconds: number; avatarUrl?: string | null }) {
+  const [first, ...rest] = overrides.name.split(' ')
   return {
     id: overrides.id,
     userId: overrides.userId,
-    user: { id: overrides.userId, name: overrides.name },
+    user: {
+      id: overrides.userId,
+      name: overrides.name,
+      firstName: first ?? null,
+      lastName: rest.join(' ') || null,
+      email: `${overrides.userId}@test.com`,
+      avatarUrl: overrides.avatarUrl ?? null,
+    },
     level: overrides.level,
     workoutGender: 'OPEN' as const,
     value: { seconds: overrides.seconds, cappedOut: false },
@@ -145,7 +161,13 @@ const MIXED_LEADERBOARD = [
 function visibleAthleteOrder(): string[] {
   const cells = Array.from(document.querySelectorAll('tbody tr td:nth-child(2)'))
   return cells
-    .map((td) => td.textContent ?? '')
+    .map((td) => {
+      // Strip the avatar fallback (an aria-hidden initials div) so its
+      // text doesn't pollute the cell's textContent.
+      const clone = td.cloneNode(true) as HTMLElement
+      clone.querySelectorAll('[aria-hidden="true"]').forEach((el) => el.remove())
+      return clone.textContent ?? ''
+    })
     // Strip the "(you)" suffix added next to the viewer's row.
     .map((s) => s.replace(/\s*\(you\)\s*$/, '').trim())
     .filter((s) => s.length > 0)
@@ -201,6 +223,25 @@ describe('WodDetail level filter — graded inclusion + ordering', () => {
     for (const label of ['RX+', 'RX', 'Scaled', 'Modified']) {
       expect(screen.getByRole('radio', { name: label })).toBeDisabled()
     }
+  })
+
+  it('renders an avatar next to each athlete and navigates to the result detail when a row is clicked', async () => {
+    const userEv = userEvent.setup()
+    renderPage()
+    await screen.findByText('Rx User')
+
+    // Each visible row exposes a "View …'s result" button label, so the avatar
+    // + name area is reachable by keyboard and the row is clickable.
+    const buttons = screen.getAllByRole('button', { name: /View .+ result/i })
+    expect(buttons.length).toBeGreaterThan(0)
+
+    // Avatar fallback for "Rx User" → initials "RU" rendered in the cell.
+    expect(screen.getByText('RU')).toBeInTheDocument()
+
+    await userEv.click(screen.getByRole('button', { name: /View Rx User's result/i }))
+    expect(await screen.findByTestId('current-route')).toHaveTextContent(
+      '/workouts/workout-1/results/r-2',
+    )
   })
 
   it("auto-selects the viewer's own logged level when the leaderboard contains it", async () => {
