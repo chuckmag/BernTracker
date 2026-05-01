@@ -140,6 +140,12 @@ export interface Workout {
   namedWorkoutId: string | null
   namedWorkout: { id: string; name: string; category: WorkoutCategory } | null
   _count: { results: number }
+  /**
+   * Viewer's own result on this workout, or null if they haven't logged one.
+   * Surfaced by the feed list endpoint (`GET /api/gyms/:gymId/workouts`); the
+   * single-workout `GET /api/workouts/:id` endpoint does not populate it.
+   */
+  myResultId?: string | null
   createdAt: string
   updatedAt: string
 }
