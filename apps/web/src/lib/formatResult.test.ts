@@ -34,8 +34,60 @@ describe('formatResultValue', () => {
     expect(formatResultValue({ score: { kind: 'CALORIES', calories: 30 } })).toBe('30 cal')
   })
 
-  test('movementResults only → "N sets logged"', () => {
-    expect(formatResultValue({ movementResults: [{ sets: [{}, {}, {}] }, { sets: [{}, {}] }] })).toBe('5 sets logged')
+  test('movementResults — picks the heaviest set across movements', () => {
+    // 5×225, 5×235, 6×255 — third set wins on raw load.
+    expect(formatResultValue({
+      movementResults: [{
+        loadUnit: 'LB',
+        sets: [
+          { reps: '5', load: 225 },
+          { reps: '5', load: 235 },
+          { reps: '6', load: 255 },
+        ],
+      }],
+    })).toBe('6 x 255 lb')
+  })
+
+  test('movementResults — heaviest wins across multiple movements', () => {
+    expect(formatResultValue({
+      movementResults: [
+        { loadUnit: 'LB', sets: [{ reps: '5', load: 225 }] },
+        { loadUnit: 'LB', sets: [{ reps: '10', load: 135 }] },
+      ],
+    })).toBe('5 x 225 lb')
+  })
+
+  test('movementResults — ties on load break by max-rep-chunk', () => {
+    expect(formatResultValue({
+      movementResults: [{
+        loadUnit: 'LB',
+        sets: [
+          { reps: '1', load: 225 },
+          { reps: '5', load: 225 },
+        ],
+      }],
+    })).toBe('5 x 225 lb')
+  })
+
+  test('movementResults — cluster reps "1.1.1" display verbatim', () => {
+    expect(formatResultValue({
+      movementResults: [{
+        loadUnit: 'LB',
+        sets: [{ reps: '1.1.1', load: 245 }],
+      }],
+    })).toBe('1.1.1 x 245 lb')
+  })
+
+  test('movementResults — KG unit lowercases', () => {
+    expect(formatResultValue({
+      movementResults: [{ loadUnit: 'KG', sets: [{ reps: '5', load: 100 }] }],
+    })).toBe('5 x 100 kg')
+  })
+
+  test('movementResults — no loads recorded falls back to "N sets logged"', () => {
+    expect(formatResultValue({
+      movementResults: [{ sets: [{ reps: '10' }, { reps: '8' }] }],
+    })).toBe('2 sets logged')
     expect(formatResultValue({ movementResults: [{ sets: [{}] }] })).toBe('1 set logged')
   })
 
