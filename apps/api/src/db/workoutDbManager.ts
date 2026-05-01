@@ -1,6 +1,23 @@
 import { prisma } from '@wodalytics/db'
 import { WorkoutStatus } from '@wodalytics/db'
-import type { WorkoutType } from '@wodalytics/db'
+import type { WorkoutType, LoadUnit, DistanceUnit } from '@wodalytics/db'
+
+// Per-movement prescription. Only `movementId` is required; every other
+// column is optional and only filled in when the programmer wants to track
+// that axis. `displayOrder` defaults to the index in the array when omitted.
+export interface MovementPrescriptionInput {
+  movementId: string
+  displayOrder?: number
+  sets?: number
+  reps?: string
+  load?: number
+  loadUnit?: LoadUnit
+  tempo?: string
+  distance?: number
+  distanceUnit?: DistanceUnit
+  calories?: number
+  seconds?: number
+}
 
 interface CreateWorkoutData {
   programId?: string
@@ -10,7 +27,10 @@ interface CreateWorkoutData {
   scheduledAt: Date
   dayOrder?: number
   movementIds?: string[]
+  movements?: MovementPrescriptionInput[]
   namedWorkoutId?: string
+  timeCapSeconds?: number | null
+  tracksRounds?: boolean
   // External ingest jobs (e.g. CrossFit Mainsite cron) set these. The unique
   // constraint on externalSourceId makes the upsert path idempotent.
   externalSourceId?: string
@@ -24,7 +44,37 @@ interface UpdateWorkoutData {
   scheduledAt?: Date
   dayOrder?: number
   movementIds?: string[]
+  movements?: MovementPrescriptionInput[]
   namedWorkoutId?: string | null
+  timeCapSeconds?: number | null
+  tracksRounds?: boolean
+}
+
+// Bare-id legacy callers upcast to a prescription with only `movementId`
+// populated. New callers pass `movements` directly.
+function toPrescriptionList(
+  movementIds: string[] | undefined,
+  movements: MovementPrescriptionInput[] | undefined,
+): MovementPrescriptionInput[] | undefined {
+  if (movements !== undefined) return movements
+  if (movementIds !== undefined) return movementIds.map((id) => ({ movementId: id }))
+  return undefined
+}
+
+function prescriptionToCreateRow(p: MovementPrescriptionInput, fallbackOrder: number) {
+  return {
+    movementId:   p.movementId,
+    displayOrder: p.displayOrder ?? fallbackOrder,
+    sets:         p.sets ?? null,
+    reps:         p.reps ?? null,
+    load:         p.load ?? null,
+    loadUnit:     p.loadUnit ?? null,
+    tempo:        p.tempo ?? null,
+    distance:     p.distance ?? null,
+    distanceUnit: p.distanceUnit ?? null,
+    calories:     p.calories ?? null,
+    seconds:      p.seconds ?? null,
+  }
 }
 
 interface WorkoutDateRangeFilters {
@@ -54,12 +104,13 @@ export async function countWorkoutsOnSameDay(gymId: string, scheduledAt: Date): 
 }
 
 export async function createWorkoutForProgram(data: CreateWorkoutData) {
-  const { movementIds, ...rest } = data
+  const { movementIds, movements, ...rest } = data
+  const prescriptions = toPrescriptionList(movementIds, movements)
   return prisma.workout.create({
     data: {
       ...rest,
-      ...(movementIds?.length
-        ? { workoutMovements: { create: movementIds.map((id) => ({ movementId: id })) } }
+      ...(prescriptions?.length
+        ? { workoutMovements: { create: prescriptions.map((p, i) => prescriptionToCreateRow(p, i)) } }
         : {}),
     },
     include: { program: programSelect, namedWorkout: namedWorkoutSelect, ...workoutMovementsInclude },
@@ -164,9 +215,10 @@ export async function countWorkoutsByProgramId(programId: string): Promise<numbe
 }
 
 export async function updateWorkout(id: string, data: UpdateWorkoutData) {
-  const { movementIds, ...rest } = data
+  const { movementIds, movements, ...rest } = data
+  const prescriptions = toPrescriptionList(movementIds, movements)
 
-  if (movementIds === undefined) {
+  if (prescriptions === undefined) {
     return prisma.workout.update({
       where: { id },
       data: rest,
@@ -176,9 +228,9 @@ export async function updateWorkout(id: string, data: UpdateWorkoutData) {
 
   return prisma.$transaction(async (tx) => {
     await tx.workoutMovement.deleteMany({ where: { workoutId: id } })
-    if (movementIds.length > 0) {
+    if (prescriptions.length > 0) {
       await tx.workoutMovement.createMany({
-        data: movementIds.map((movementId) => ({ workoutId: id, movementId })),
+        data: prescriptions.map((p, i) => ({ workoutId: id, ...prescriptionToCreateRow(p, i) })),
       })
     }
     return tx.workout.update({

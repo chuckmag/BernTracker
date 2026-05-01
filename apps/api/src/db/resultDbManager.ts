@@ -1,5 +1,5 @@
 import { prisma } from '@wodalytics/db'
-import type { WorkoutLevel, WorkoutGender, WorkoutType, Prisma } from '@wodalytics/db'
+import type { WorkoutLevel, WorkoutGender, Prisma } from '@wodalytics/db'
 
 interface CreateResultData {
   userId: string
@@ -8,6 +8,16 @@ interface CreateResultData {
   workoutGender: WorkoutGender
   value: Prisma.InputJsonValue
   notes?: string
+  primaryScoreKind?: string | null
+  primaryScoreValue?: number | null
+}
+
+interface UpdateResultData {
+  level?: WorkoutLevel
+  value?: Prisma.InputJsonValue
+  notes?: string | null
+  primaryScoreKind?: string | null
+  primaryScoreValue?: number | null
 }
 
 interface LeaderboardFilters {
@@ -37,22 +47,22 @@ async function fetchLeaderboardRows(workoutId: string, filters: LeaderboardFilte
   })
 }
 
-function sortLeaderboard(results: LeaderboardEntry[], workoutType: WorkoutType) {
+// `TIME` is the only ascending kind — every other primary-score kind ranks
+// "more is better". Capped TIME results carry a large penalty addend so they
+// sort after every finisher even on ascending order. Results with no primary
+// score fall to the end (createdAt-stable).
+function sortLeaderboard(results: LeaderboardEntry[]) {
   return [...results].sort((a, b) => {
-    const av = a.value as Record<string, number | boolean>
-    const bv = b.value as Record<string, number | boolean>
-
-    if (workoutType === 'AMRAP') {
-      if (av.rounds !== bv.rounds) return (bv.rounds as number) - (av.rounds as number)
-      return (bv.reps as number) - (av.reps as number)
+    if (a.primaryScoreKind && b.primaryScoreKind && a.primaryScoreKind === b.primaryScoreKind) {
+      const av = a.primaryScoreValue ?? 0
+      const bv = b.primaryScoreValue ?? 0
+      const ascending = a.primaryScoreKind === 'TIME'
+      if (av !== bv) return ascending ? av - bv : bv - av
+    } else if (a.primaryScoreKind && !b.primaryScoreKind) {
+      return -1
+    } else if (!a.primaryScoreKind && b.primaryScoreKind) {
+      return 1
     }
-
-    if (workoutType === 'FOR_TIME') {
-      // non-capped finishers beat capped-out
-      if (av.cappedOut !== bv.cappedOut) return av.cappedOut ? 1 : -1
-      return (av.seconds as number) - (bv.seconds as number)
-    }
-
     return a.createdAt.getTime() - b.createdAt.getTime()
   })
 }
@@ -77,14 +87,13 @@ export async function createResult(data: CreateResultData) {
 export async function findLeaderboardByWorkout(workoutId: string, filters: LeaderboardFilters) {
   const rows = await fetchLeaderboardRows(workoutId, filters)
   if (rows.length === 0) return []
-  const workoutType = rows[0].workout.type
-  return sortLeaderboard(rows, workoutType)
+  return sortLeaderboard(rows)
 }
 
 export async function updateResultByOwner(
   resultId: string,
   userId: string,
-  data: { level?: WorkoutLevel; value?: Prisma.InputJsonValue; notes?: string | null },
+  data: UpdateResultData,
 ) {
   const existing = await prisma.result.findUnique({ where: { id: resultId } })
   if (!existing) {

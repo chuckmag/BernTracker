@@ -115,7 +115,7 @@ async function createWorkoutForProgram(req: Request, res: Response) {
     return res.status(400).json({ error: `${field}: ${message}` })
   }
 
-  const { programId, title, description, type, scheduledAt, dayOrder, movementIds } = parsed.data
+  const { programId, title, description, type, scheduledAt, dayOrder, movementIds, movements, timeCapSeconds, tracksRounds } = parsed.data
   const gymId = req.params.gymId as string
   const scheduledAtDate = new Date(scheduledAt)
   const resolvedDayOrder = dayOrder ?? await countWorkoutsOnSameDay(gymId, scheduledAtDate)
@@ -127,6 +127,9 @@ async function createWorkoutForProgram(req: Request, res: Response) {
     scheduledAt: scheduledAtDate,
     dayOrder: resolvedDayOrder,
     movementIds,
+    movements,
+    timeCapSeconds,
+    tracksRounds,
   })
   res.status(201).json(workout)
 }
@@ -166,7 +169,7 @@ async function patchWorkout(req: Request, res: Response) {
     return res.status(400).json({ error: `${field}: ${message}` })
   }
 
-  const { title, description, type, scheduledAt, dayOrder, movementIds, namedWorkoutId } = parsed.data
+  const { title, description, type, scheduledAt, dayOrder, movementIds, movements, namedWorkoutId, timeCapSeconds, tracksRounds } = parsed.data
   const workout = await updateWorkout(id, {
     title,
     description,
@@ -174,7 +177,10 @@ async function patchWorkout(req: Request, res: Response) {
     scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
     dayOrder,
     movementIds,
+    movements,
     namedWorkoutId,
+    timeCapSeconds,
+    tracksRounds,
   })
   res.json(workout)
 }

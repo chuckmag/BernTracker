@@ -213,12 +213,12 @@ async function runTests() {
   await api('POST', `/workouts/${publishedWorkoutId}/results`, memberToken, {
     level: 'RX',
     workoutGender: 'OPEN',
-    value: { type: 'FOR_TIME', seconds: 185, cappedOut: false },
+    value: { score: { kind: 'TIME', seconds: 185, cappedOut: false } },
   })
   await api('POST', `/workouts/${publishedWorkoutId}/results`, programmerToken, {
     level: 'SCALED',
     workoutGender: 'OPEN',
-    value: { type: 'FOR_TIME', seconds: 240, cappedOut: false },
+    value: { score: { kind: 'TIME', seconds: 240, cappedOut: false } },
   })
 
   {

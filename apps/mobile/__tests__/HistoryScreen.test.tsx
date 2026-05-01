@@ -69,9 +69,9 @@ describe('HistoryScreen', () => {
   test('groups results into month blocks ordered by occurrence', async () => {
     ;(api.me.results as jest.Mock).mockResolvedValue({
       results: [
-        makeResult('1', '2026-04-15T12:00:00.000Z', 'AMRAP', { type: 'AMRAP', rounds: 5, reps: 12 }),
-        makeResult('2', '2026-04-02T12:00:00.000Z', 'AMRAP', { type: 'AMRAP', rounds: 4, reps: 0 }),
-        makeResult('3', '2026-03-22T12:00:00.000Z', 'FOR_TIME', { type: 'FOR_TIME', seconds: 525, cappedOut: false }),
+        makeResult('1', '2026-04-15T12:00:00.000Z', 'AMRAP', { score: { kind: 'ROUNDS_REPS', rounds: 5, reps: 12, cappedOut: false }, movementResults: [] }),
+        makeResult('2', '2026-04-02T12:00:00.000Z', 'AMRAP', { score: { kind: 'ROUNDS_REPS', rounds: 4, reps: 0, cappedOut: false }, movementResults: [] }),
+        makeResult('3', '2026-03-22T12:00:00.000Z', 'FOR_TIME', { score: { kind: 'TIME', seconds: 525, cappedOut: false }, movementResults: [] }),
       ],
       total: 3,
       page: 1,
@@ -88,8 +88,8 @@ describe('HistoryScreen', () => {
   test('formats AMRAP as "X rds + Y reps" and FOR_TIME as "M:SS"', async () => {
     ;(api.me.results as jest.Mock).mockResolvedValue({
       results: [
-        makeResult('1', '2026-04-15T12:00:00.000Z', 'AMRAP', { type: 'AMRAP', rounds: 3, reps: 12 }),
-        makeResult('2', '2026-04-15T12:00:00.000Z', 'FOR_TIME', { type: 'FOR_TIME', seconds: 525, cappedOut: false }),
+        makeResult('1', '2026-04-15T12:00:00.000Z', 'AMRAP', { score: { kind: 'ROUNDS_REPS', rounds: 3, reps: 12, cappedOut: false }, movementResults: [] }),
+        makeResult('2', '2026-04-15T12:00:00.000Z', 'FOR_TIME', { score: { kind: 'TIME', seconds: 525, cappedOut: false }, movementResults: [] }),
       ],
       total: 2,
       page: 1,
@@ -105,7 +105,7 @@ describe('HistoryScreen', () => {
   test('FOR_TIME with cappedOut renders as "(capped)"', async () => {
     ;(api.me.results as jest.Mock).mockResolvedValue({
       results: [
-        makeResult('1', '2026-04-15T12:00:00.000Z', 'FOR_TIME', { type: 'FOR_TIME', seconds: 600, cappedOut: true }),
+        makeResult('1', '2026-04-15T12:00:00.000Z', 'FOR_TIME', { score: { kind: 'TIME', seconds: 600, cappedOut: true }, movementResults: [] }),
       ],
       total: 1,
       page: 1,
@@ -120,7 +120,7 @@ describe('HistoryScreen', () => {
   test('tapping a row navigates to WodDetail with from=history', async () => {
     ;(api.me.results as jest.Mock).mockResolvedValue({
       results: [
-        makeResult('1', '2026-04-15T12:00:00.000Z', 'AMRAP', { type: 'AMRAP', rounds: 3, reps: 12 }),
+        makeResult('1', '2026-04-15T12:00:00.000Z', 'AMRAP', { score: { kind: 'ROUNDS_REPS', rounds: 3, reps: 12, cappedOut: false }, movementResults: [] }),
       ],
       total: 1,
       page: 1,
@@ -137,14 +137,14 @@ describe('HistoryScreen', () => {
   test('paginates: Next click reloads with page+1; reads the `pages` field, not `totalPages`', async () => {
     ;(api.me.results as jest.Mock)
       .mockResolvedValueOnce({
-        results: [makeResult('1', '2026-04-15T12:00:00.000Z', 'AMRAP', { type: 'AMRAP', rounds: 1, reps: 0 })],
+        results: [makeResult('1', '2026-04-15T12:00:00.000Z', 'AMRAP', { score: { kind: 'ROUNDS_REPS', rounds: 1, reps: 0, cappedOut: false }, movementResults: [] })],
         total: 25,
         page: 1,
         limit: 20,
         pages: 2,
       })
       .mockResolvedValueOnce({
-        results: [makeResult('2', '2026-03-15T12:00:00.000Z', 'AMRAP', { type: 'AMRAP', rounds: 2, reps: 0 })],
+        results: [makeResult('2', '2026-03-15T12:00:00.000Z', 'AMRAP', { score: { kind: 'ROUNDS_REPS', rounds: 2, reps: 0, cappedOut: false }, movementResults: [] })],
         total: 25,
         page: 2,
         limit: 20,

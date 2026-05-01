@@ -92,7 +92,7 @@ describe('LogResultScreen', () => {
       expect(api.workouts.logResult).toHaveBeenCalledWith('w-1', {
         level: 'RX',
         workoutGender: 'MALE',
-        value: { type: 'AMRAP', rounds: 5, reps: 12 },
+        value: { score: { kind: 'ROUNDS_REPS', rounds: 5, reps: 12, cappedOut: false }, movementResults: [] },
         notes: undefined,
       })
     })
@@ -115,7 +115,7 @@ describe('LogResultScreen', () => {
 
     await waitFor(() => {
       expect(api.workouts.logResult).toHaveBeenCalledWith('w-2', expect.objectContaining({
-        value: { type: 'FOR_TIME', seconds: 525, cappedOut: false },
+        value: { score: { kind: 'TIME', seconds: 525, cappedOut: false }, movementResults: [] },
       }))
     })
   })
@@ -135,7 +135,7 @@ describe('LogResultScreen', () => {
 
     await waitFor(() => {
       expect(api.workouts.logResult).toHaveBeenCalledWith('w-2', expect.objectContaining({
-        value: { type: 'FOR_TIME', seconds: 0, cappedOut: true },
+        value: { score: { kind: 'TIME', seconds: 0, cappedOut: true }, movementResults: [] },
       }))
     })
   })
@@ -195,7 +195,7 @@ describe('LogResultScreen', () => {
       user: { id: 'me', name: 'Me' },
       level: 'SCALED',
       workoutGender: 'OPEN',
-      value: { type: 'AMRAP', rounds: 4, reps: 8 },
+      value: { score: { kind: 'ROUNDS_REPS', rounds: 4, reps: 8, cappedOut: false }, movementResults: [] },
       notes: null,
       createdAt: '2026-04-15T13:00:00.000Z',
     }
@@ -218,7 +218,7 @@ describe('LogResultScreen', () => {
 
     await waitFor(() => {
       expect(api.results.update).toHaveBeenCalledWith('r-1', expect.objectContaining({
-        value: { type: 'AMRAP', rounds: 4, reps: 9 },
+        value: { score: { kind: 'ROUNDS_REPS', rounds: 4, reps: 9, cappedOut: false }, movementResults: [] },
         level: 'SCALED',
       }))
     })
@@ -240,7 +240,7 @@ describe('LogResultScreen', () => {
       user: { id: 'me', name: 'Me' },
       level: 'RX',
       workoutGender: 'OPEN',
-      value: { type: 'AMRAP', rounds: 1, reps: 1 },
+      value: { score: { kind: 'ROUNDS_REPS', rounds: 1, reps: 1, cappedOut: false }, movementResults: [] },
       notes: null,
       createdAt: '2026-04-15T13:00:00.000Z',
     }
