@@ -289,6 +289,43 @@ describe('WorkoutDrawer prescription editor', () => {
       tracksRounds: true,
     })
   })
+
+  it('Track-load toggle flips tracksLoad on the saved movements payload', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.workouts.update).mockResolvedValue({} as never)
+
+    const props = defaultProps({
+      workout: {
+        id: 'wod-1', title: 'Squat + Box Jump', description: 'superset',
+        type: 'POWER_LIFTING' as const, status: 'DRAFT' as const,
+        scheduledAt: '2026-04-21T12:00:00.000Z', dayOrder: 0,
+        workoutMovements: [{
+          movement: { id: 'mv-1', name: 'Box Jump', parentId: null },
+          displayOrder: 0, sets: 5, reps: '5',
+          load: null, loadUnit: null, tracksLoad: true,
+          tempo: null, distance: null, distanceUnit: null,
+          calories: null, seconds: null,
+        }],
+        programId: 'prog-1', program: { id: 'prog-1', name: 'General' },
+        namedWorkoutId: null, namedWorkout: null,
+        timeCapSeconds: null, tracksRounds: false,
+      } as never,
+    })
+    render(<WorkoutDrawer {...props} />)
+    await waitFor(() => expect(screen.getByText('Box Jump')).toBeInTheDocument())
+
+    const toggle = screen.getByLabelText(/Track load on results/) as HTMLInputElement
+    expect(toggle.checked).toBe(true)
+    await user.click(toggle)
+    expect(toggle.checked).toBe(false)
+
+    await user.click(screen.getByText('Save as Draft'))
+    await waitFor(() => expect(api.workouts.update).toHaveBeenCalled())
+    const [, payload] = vi.mocked(api.workouts.update).mock.calls[0]
+    expect(payload).toMatchObject({
+      movements: [{ movementId: 'mv-1', tracksLoad: false }],
+    })
+  })
 })
 
 describe('WorkoutDrawer markdown paste', () => {

@@ -457,9 +457,10 @@ function SetsTable({
   // The columns to surface come from whichever fields the programmer
   // prescribed — anything they didn't prescribe is hidden by default. Members
   // can show extras via the "Add column" buttons below the table.
-  // Strength is special: programmers intentionally don't prescribe load
-  // (slice 2B) but the load column still auto-shows because that's what
-  // the member came to record.
+  // The Load column auto-shows when `prescription.tracksLoad` is true, even
+  // when no specific load value was prescribed (most strength workouts hit
+  // this path — programmers leave the actual weight to the member).
+  const tracksLoad = prescription?.tracksLoad ?? true
   const prescribed = useMemo(() => {
     const cols = new Set<keyof SetRow>()
     if (prescription) {
@@ -470,20 +471,28 @@ function SetsTable({
       if (prescription.calories !== null) cols.add('calories')
       if (prescription.seconds !== null)  cols.add('seconds')
     }
-    if (category === 'Strength') { cols.add('reps'); cols.add('load') }
-    if (cols.size === 0) { cols.add('reps'); cols.add('load') }
+    // Strength still defaults to showing reps as a useful baseline. Load
+    // surfaces only when the programmer left tracksLoad on (the default).
+    if (category === 'Strength') cols.add('reps')
+    if (tracksLoad && (category === 'Strength' || cols.size === 0)) cols.add('load')
+    if (cols.size === 0) cols.add('reps')
     return cols
-  }, [prescription, category])
+  }, [prescription, category, tracksLoad])
 
   // Columns reachable for this workout's category. Strength is barbell
   // work — distance / cals / seconds aren't relevant. MonoStructural is
   // timed cardio — sets / reps / load aren't. Metcon / Skill / Warmup keep
   // every column on the table since their movement mix varies.
+  // Load is suppressed entirely when the programmer flipped tracksLoad
+  // off — no header, no "+ Load" button.
   const availableColumns = useMemo<Set<keyof SetRow>>(() => {
-    if (category === 'Strength') return new Set(['reps', 'load', 'tempo'])
-    if (category === 'MonoStructural') return new Set(['distance', 'calories', 'seconds'])
-    return new Set(['reps', 'load', 'tempo', 'distance', 'calories', 'seconds'])
-  }, [category])
+    let cols: Set<keyof SetRow>
+    if (category === 'Strength') cols = new Set(['reps', 'load', 'tempo'])
+    else if (category === 'MonoStructural') cols = new Set(['distance', 'calories', 'seconds'])
+    else cols = new Set(['reps', 'load', 'tempo', 'distance', 'calories', 'seconds'])
+    if (!tracksLoad) cols.delete('load')
+    return cols
+  }, [category, tracksLoad])
 
   // Auto-show a column if the user has typed into any cell of it (unless
   // it's not even reachable for this category).

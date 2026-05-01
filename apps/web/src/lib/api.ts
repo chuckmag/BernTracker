@@ -138,6 +138,10 @@ export interface WorkoutMovementInput {
   reps?: string
   load?: number
   loadUnit?: LoadUnit
+  // Whether the result form should surface a Load column for this movement.
+  // Defaults true at the API boundary — programmer flips off for plyometric
+  // supersets and other no-load pieces.
+  tracksLoad?: boolean
   tempo?: string
   distance?: number
   distanceUnit?: DistanceUnit
@@ -147,6 +151,8 @@ export interface WorkoutMovementInput {
 
 // Per-movement prescription on a workout. All prescription fields are
 // nullable — programmer fills only the columns relevant to the workout.
+// `tracksLoad` is always populated on read since the Prisma column has
+// `@default(true)`.
 export interface WorkoutMovementWithPrescription {
   movement: Movement
   displayOrder: number
@@ -154,6 +160,7 @@ export interface WorkoutMovementWithPrescription {
   reps: string | null
   load: number | null
   loadUnit: LoadUnit | null
+  tracksLoad: boolean
   tempo: string | null
   distance: number | null
   distanceUnit: DistanceUnit | null

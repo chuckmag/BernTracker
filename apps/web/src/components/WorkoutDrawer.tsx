@@ -13,6 +13,10 @@ interface PrescriptionForm {
   reps:         string
   load:         string
   loadUnit:     LoadUnit
+  // Whether the result form should surface a Load column for this movement.
+  // Defaults true — programmer flips off for plyometric supersets and other
+  // pieces where Load would be noise on the result form.
+  tracksLoad:   boolean
   tempo:        string
   distance:     string
   distanceUnit: DistanceUnit
@@ -21,7 +25,7 @@ interface PrescriptionForm {
 }
 
 const EMPTY_PRESCRIPTION: PrescriptionForm = {
-  sets: '', reps: '', load: '', loadUnit: 'LB', tempo: '',
+  sets: '', reps: '', load: '', loadUnit: 'LB', tracksLoad: true, tempo: '',
   distance: '', distanceUnit: 'M', calories: '', seconds: '',
 }
 
@@ -110,6 +114,7 @@ function buildMovementsPayload(
       reps:     p.reps  ? p.reps  : undefined,
       load:     Number.isFinite(load)     && load     > 0 ? load : undefined,
       loadUnit: p.load  ? p.loadUnit : undefined,
+      tracksLoad: p.tracksLoad,
       tempo:    p.tempo ? p.tempo : undefined,
       distance:     Number.isFinite(distance) && distance > 0 ? distance : undefined,
       distanceUnit: p.distance ? p.distanceUnit : undefined,
@@ -259,6 +264,9 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
         reps:         wm.reps         ?? '',
         load:         wm.load         !== null && wm.load         !== undefined ? String(wm.load) : '',
         loadUnit:     wm.loadUnit     ?? 'LB',
+        // tracksLoad is always populated on read (Prisma column has @default(true)).
+        // The `?? true` covers tests/fixtures that omit the field.
+        tracksLoad:   wm.tracksLoad   ?? true,
         tempo:        wm.tempo        ?? '',
         distance:     wm.distance     !== null && wm.distance     !== undefined ? String(wm.distance) : '',
         distanceUnit: wm.distanceUnit ?? 'M',
@@ -1103,6 +1111,12 @@ function PrescriptionRow({ movement, type, prescription, showAllColumns, onChang
     available.has(c.key) && (showAllColumns || defaults.has(c.key) || prescription[c.key] !== ''),
   )
 
+  // The Load tracking toggle is meaningful only for categories where the
+  // result form surfaces a Load column. MonoStructural doesn't, so the
+  // toggle would be a no-op there; hide it.
+  const category = WORKOUT_TYPE_STYLES[type].category
+  const showLoadToggle = category !== 'MonoStructural'
+
   function update<K extends keyof PrescriptionForm>(key: K, value: PrescriptionForm[K]) {
     onChange({ ...prescription, [key]: value })
   }
@@ -1134,6 +1148,21 @@ function PrescriptionRow({ movement, type, prescription, showAllColumns, onChang
           />
         ))}
       </div>
+      {showLoadToggle && (
+        <label
+          htmlFor={`pr-${movement.id}-tracksLoad`}
+          className="flex items-center gap-2 mt-2 text-xs text-gray-400 cursor-pointer min-h-7 select-none"
+        >
+          <input
+            id={`pr-${movement.id}-tracksLoad`}
+            type="checkbox"
+            checked={prescription.tracksLoad}
+            onChange={(e) => update('tracksLoad', e.target.checked)}
+            className="w-4 h-4 rounded accent-indigo-500"
+          />
+          <span>Track load on results</span>
+        </label>
+      )}
     </div>
   )
 }

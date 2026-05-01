@@ -30,7 +30,11 @@ function makeMovement(id: string, name: string, prescription: Partial<Workout['w
   return {
     movement: { id, name, parentId: null },
     displayOrder: 0,
-    sets: null, reps: null, load: null, loadUnit: null, tempo: null,
+    sets: null, reps: null, load: null, loadUnit: null,
+    // Mirrors the API default (Prisma column has @default(true)). Tests
+    // override to false explicitly to suppress the Load column.
+    tracksLoad: true,
+    tempo: null,
     distance: null, distanceUnit: null, calories: null, seconds: null,
     ...prescription,
   }
@@ -104,6 +108,19 @@ describe('LogResultDrawer — strength sets table', () => {
     expect(screen.queryByRole('button', { name: '+ Distance' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '+ Cals' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '+ Seconds' })).not.toBeInTheDocument()
+  })
+
+  test('movement with tracksLoad=false hides the Load column entirely', () => {
+    const w = makeWorkout({
+      type: 'POWER_LIFTING',
+      // Plyometric piece — Box Jump 5×5, no load tracked.
+      workoutMovements: [makeMovement('m-1', 'Box Jump', { sets: 5, reps: '5', tracksLoad: false })],
+    })
+    render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.getAllByLabelText(/Set \d Reps/i)).toHaveLength(5)
+    // No Load column header / inputs, and no "+ Load" button to surface one.
+    expect(screen.queryAllByLabelText(/Set \d Load/i)).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: '+ Load' })).not.toBeInTheDocument()
   })
 
   test('+ Add set appends a row and × removes one', () => {
