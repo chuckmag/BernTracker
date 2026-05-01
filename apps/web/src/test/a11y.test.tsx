@@ -96,7 +96,7 @@ function makeResult(overrides: Record<string, unknown> = {}) {
     user: { id: 'u-1', name: 'Athlete A', firstName: 'Athlete', lastName: 'A', email: 'athlete-a@test.com', avatarUrl: null },
     level: 'RX' as const,
     workoutGender: 'OPEN' as const,
-    value: { seconds: 300, cappedOut: false },
+    value: { score: { kind: 'TIME', seconds: 300, cappedOut: false }, movementResults: [] },
     notes: null,
     createdAt: '2026-04-01T00:00:00.000Z',
     workout: { id: 'workout-1', type: 'FOR_TIME' as const, scheduledAt: '2026-04-15T12:00:00.000Z', title: 'Test Workout' },

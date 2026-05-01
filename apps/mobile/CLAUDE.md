@@ -41,7 +41,9 @@ npx jest -t "renders feed rows"
 
 ## Cross-app contracts (web parity)
 
-Mobile must mirror the per-user state shapes the web already uses, so a member can switch between web and mobile without losing context. When adding a new piece of persisted state, check `apps/web/CLAUDE.md` → *Cross-app contracts* first and match the storage key + API shape.
+Mobile must mirror the per-user state shapes the web already uses, so a user can switch between web and mobile without losing context. When adding a new piece of persisted state, check `apps/web/CLAUDE.md` → *Cross-app contracts* first and match the storage key + API shape. The active mobile-parity backlog lives at #130; see the root CLAUDE.md → *Parity-first feature design* for the planning rule that governs how mobile and web stay in sync.
+
+When mobile lacks a screen that web has *and the underlying task is phone-suitable* (quick / on-the-go / often used away from a desk), that's a parity gap — file it against #130 (or whichever issue is the active mobile-parity tracker) so it stays visible. Web-only is appropriate for desk-suitable tasks (heavy authoring, multi-step planning); see the root CLAUDE.md for the boundary.
 
 - **Program filter:** `AsyncStorage["programFilter:<gymId>"]` → JSON `string[]`. Same `?programIds=id1,id2` query shape on `GET /api/gyms/:gymId/workouts` as the web.
 

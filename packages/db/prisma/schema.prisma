@@ -464,6 +464,14 @@ model WorkoutMovement {
   reps         String?
   load         Float?
   loadUnit     LoadUnit?
+  // Whether the result form should surface a Load column for this movement.
+  // Defaults true since most prescribed movements involve a weight; the
+  // programmer flips this off for plyometric supersets, bodyweight-only
+  // gymnastics complexes, and similar pieces where load isn't tracked.
+  // Independent of `load` (the prescribed weight) — programmers leave the
+  // strength load to the member at log-time, but still want the Load column
+  // available for them to record what they hit.
+  tracksLoad   Boolean       @default(true)
   // Tempo notation ("3.1.1.0", "x.0.x.0"). Validated at the API layer.
   tempo        String?
   distance     Float?

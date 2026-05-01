@@ -21,6 +21,8 @@ interface MemberFixture {
   memberUserId: string
   amrapWorkoutId: string
   forTimeWorkoutId: string
+  strengthWorkoutId: string
+  backSquatId: string
 }
 
 async function seedMemberFixture(): Promise<MemberFixture> {
@@ -46,7 +48,10 @@ async function seedMemberFixture(): Promise<MemberFixture> {
     data: {
       title: `E2E AMRAP ${ts}`,
       description: 'AMRAP 20: 5 Pull-ups, 10 Push-ups, 15 Squats',
-      type: 'AMRAP', status: 'PUBLISHED', scheduledAt: day, programId: program.id, dayOrder: 0,
+      // tracksRounds=true exposes the rounds input in the drawer; without it
+      // the form only renders a reps input and the test below would fail.
+      type: 'AMRAP', status: 'PUBLISHED', tracksRounds: true,
+      scheduledAt: day, programId: program.id, dayOrder: 0,
     },
   })
   const forTime = await prisma.workout.create({
@@ -56,18 +61,38 @@ async function seedMemberFixture(): Promise<MemberFixture> {
       type: 'FOR_TIME', status: 'PUBLISHED', scheduledAt: dayPlus1, programId: program.id, dayOrder: 0,
     },
   })
+  // Strength workout with a Back Squat 3x5 prescription so the drawer
+  // renders the sets-table flow.
+  const backSquat = await prisma.movement.upsert({
+    where: { name: 'Back Squat' },
+    create: { name: 'Back Squat', status: 'ACTIVE' },
+    update: {},
+  })
+  const dayPlus2 = new Date(day); dayPlus2.setUTCDate(day.getUTCDate() + 2)
+  const strength = await prisma.workout.create({
+    data: {
+      title: `E2E Strength ${ts}`,
+      description: 'Back Squat — work up to a heavy triple',
+      type: 'POWER_LIFTING', status: 'PUBLISHED', scheduledAt: dayPlus2, programId: program.id, dayOrder: 0,
+      workoutMovements: {
+        create: [{ movementId: backSquat.id, displayOrder: 0, sets: 3, reps: '5', load: 225, loadUnit: 'LB' }],
+      },
+    },
+  })
   return {
     gymId: gym.id, programId: program.id, memberUserId: member.id,
     amrapWorkoutId: amrap.id, forTimeWorkoutId: forTime.id,
+    strengthWorkoutId: strength.id, backSquatId: backSquat.id,
   }
 }
 
 async function teardown(f: MemberFixture) {
-  await prisma.result.deleteMany({ where: { workoutId: { in: [f.amrapWorkoutId, f.forTimeWorkoutId] } } }).catch(() => {})
+  await prisma.result.deleteMany({ where: { workoutId: { in: [f.amrapWorkoutId, f.forTimeWorkoutId, f.strengthWorkoutId] } } }).catch(() => {})
   await prisma.workout.deleteMany({ where: { programId: f.programId } }).catch(() => {})
   await prisma.program.delete({ where: { id: f.programId } }).catch(() => {})
   await prisma.user.delete({ where: { id: f.memberUserId } }).catch(() => {})
   await prisma.gym.delete({ where: { id: f.gymId } }).catch(() => {})
+  // Movement is shared; intentionally not deleted (other parallel tests may use it).
 }
 
 async function loginMember(page: Page, f: MemberFixture) {
@@ -97,6 +122,36 @@ test.describe('Member result-logging E2E', () => {
     await expect(page.getByRole('button', { name: 'Log Result' })).not.toBeVisible()
     await expect(page.getByRole('cell', { name: /7 rounds \+ 4 reps/ })).toBeVisible()
     await expect(page.getByText('(you)')).toBeVisible()
+  })
+
+  test('Strength: drawer renders prescribed sets table; submitting writes per-movement sets', async ({ page }) => {
+    await loginMember(page, f)
+    await page.goto(`/workouts/${f.strengthWorkoutId}`)
+    await page.waitForSelector('h1')
+
+    await page.getByRole('button', { name: 'Log Result' }).click()
+
+    // Three set rows pre-filled from the 3×5 @ 225 lb prescription.
+    await expect(page.getByLabel('Set 1 Reps')).toHaveValue('5')
+    await expect(page.getByLabel('Set 1 Load')).toHaveValue('225')
+    await expect(page.getByLabel('Set 3 Load')).toHaveValue('225')
+
+    // Bump set 3 to 245 and add a 4th set the prescription didn't ask for.
+    await page.getByLabel('Set 3 Load').fill('245')
+    await page.getByRole('button', { name: '+ Add set' }).click()
+    await page.getByLabel('Set 4 Load').fill('245')
+
+    await page.getByRole('button', { name: 'Save Result' }).click()
+    await expect(page.getByText('Your Result')).toBeVisible({ timeout: 5000 })
+
+    // Verify what landed in the DB — primary score derived in kg.
+    const stored = await prisma.result.findFirst({
+      where: { workoutId: f.strengthWorkoutId, userId: f.memberUserId },
+    })
+    expect(stored?.primaryScoreKind).toBe('LOAD')
+    // 245 lb × 5 reps = 1225 lb → 1225 × 0.453592 ≈ 555.65 kg
+    expect(stored?.primaryScoreValue ?? 0).toBeGreaterThan(555)
+    expect(stored?.primaryScoreValue ?? 0).toBeLessThan(556)
   })
 
   test('FOR_TIME: leaderboard shows the formatted time after submit', async ({ page }) => {
@@ -183,7 +238,9 @@ test.describe('Member result-logging E2E', () => {
       data: {
         workoutId: f.amrapWorkoutId, userId: f.memberUserId, level: 'RX',
         workoutGender: 'OPEN',
-        value: { type: 'AMRAP', rounds: 5, reps: 10 },
+        value: { score: { kind: 'ROUNDS_REPS', rounds: 5, reps: 10, cappedOut: false }, movementResults: [] },
+        primaryScoreKind: 'ROUNDS_REPS',
+        primaryScoreValue: 5010,
         notes: 'Felt fast on round 4.',
       },
     })
@@ -207,7 +264,9 @@ test.describe('Member result-logging E2E', () => {
       data: {
         workoutId: f.amrapWorkoutId, userId: f.memberUserId, level: 'RX',
         workoutGender: 'OPEN',
-        value: { type: 'AMRAP', rounds: 5, extraReps: 0 },
+        value: { score: { kind: 'ROUNDS_REPS', rounds: 5, reps: 0, cappedOut: false }, movementResults: [] },
+        primaryScoreKind: 'ROUNDS_REPS',
+        primaryScoreValue: 5000,
       },
     })
     await loginMember(page, f)
