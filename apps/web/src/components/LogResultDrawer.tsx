@@ -12,7 +12,7 @@ import {
   type WorkoutMovementWithPrescription,
   type WorkoutResult,
 } from '../lib/api.ts'
-import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles'
+import { WORKOUT_TYPE_STYLES, type WorkoutCategory } from '../lib/workoutTypeStyles'
 
 interface LogResultDrawerProps {
   workout: Workout
@@ -351,6 +351,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
               <SetsTable
                 movement={active}
                 movementIdx={activeMovement}
+                category={WORKOUT_TYPE_STYLES[workout.type].category}
                 prescription={activePrescription}
                 onUpdate={updateSet}
                 onAddSet={addSet}
@@ -437,6 +438,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
 function SetsTable({
   movement,
   movementIdx,
+  category,
   prescription,
   onUpdate,
   onAddSet,
@@ -445,6 +447,7 @@ function SetsTable({
 }: {
   movement: MovementSection
   movementIdx: number
+  category: WorkoutCategory
   prescription: WorkoutMovementWithPrescription | null
   onUpdate: (mIdx: number, sIdx: number, field: keyof SetRow, value: string) => void
   onAddSet: (mIdx: number) => void
@@ -454,20 +457,45 @@ function SetsTable({
   // The columns to surface come from whichever fields the programmer
   // prescribed — anything they didn't prescribe is hidden by default. Members
   // can show extras via the "Add column" buttons below the table.
+  // The Load column auto-shows when `prescription.tracksLoad` is true, even
+  // when no specific load value was prescribed (most strength workouts hit
+  // this path — programmers leave the actual weight to the member).
+  const tracksLoad = prescription?.tracksLoad ?? true
   const prescribed = useMemo(() => {
-    if (!prescription) return new Set<keyof SetRow>(['reps', 'load'])
     const cols = new Set<keyof SetRow>()
-    if (prescription.reps !== null)     cols.add('reps')
-    if (prescription.load !== null)     cols.add('load')
-    if (prescription.tempo !== null)    cols.add('tempo')
-    if (prescription.distance !== null) cols.add('distance')
-    if (prescription.calories !== null) cols.add('calories')
-    if (prescription.seconds !== null)  cols.add('seconds')
-    if (cols.size === 0) cols.add('reps').add('load')
+    if (prescription) {
+      if (prescription.reps !== null)     cols.add('reps')
+      if (prescription.load !== null)     cols.add('load')
+      if (prescription.tempo !== null)    cols.add('tempo')
+      if (prescription.distance !== null) cols.add('distance')
+      if (prescription.calories !== null) cols.add('calories')
+      if (prescription.seconds !== null)  cols.add('seconds')
+    }
+    // Strength still defaults to showing reps as a useful baseline. Load
+    // surfaces only when the programmer left tracksLoad on (the default).
+    if (category === 'Strength') cols.add('reps')
+    if (tracksLoad && (category === 'Strength' || cols.size === 0)) cols.add('load')
+    if (cols.size === 0) cols.add('reps')
     return cols
-  }, [prescription])
+  }, [prescription, category, tracksLoad])
 
-  // Auto-show a column if the user has typed into any cell of it.
+  // Columns reachable for this workout's category. Strength is barbell
+  // work — distance / cals / seconds aren't relevant. MonoStructural is
+  // timed cardio — sets / reps / load aren't. Metcon / Skill / Warmup keep
+  // every column on the table since their movement mix varies.
+  // Load is suppressed entirely when the programmer flipped tracksLoad
+  // off — no header, no "+ Load" button.
+  const availableColumns = useMemo<Set<keyof SetRow>>(() => {
+    let cols: Set<keyof SetRow>
+    if (category === 'Strength') cols = new Set(['reps', 'load', 'tempo'])
+    else if (category === 'MonoStructural') cols = new Set(['distance', 'calories', 'seconds'])
+    else cols = new Set(['reps', 'load', 'tempo', 'distance', 'calories', 'seconds'])
+    if (!tracksLoad) cols.delete('load')
+    return cols
+  }, [category, tracksLoad])
+
+  // Auto-show a column if the user has typed into any cell of it (unless
+  // it's not even reachable for this category).
   const visible = useMemo(() => {
     const cols = new Set(prescribed)
     for (const s of movement.sets) {
@@ -475,8 +503,9 @@ function SetsTable({
         if (s[c] !== '') cols.add(c)
       })
     }
-    return cols
-  }, [prescribed, movement.sets])
+    // Filter to only category-available columns.
+    return new Set([...cols].filter((c) => availableColumns.has(c)))
+  }, [prescribed, movement.sets, availableColumns])
 
   const allColumns: { key: keyof SetRow; label: string; placeholder: string }[] = [
     { key: 'reps',     label: 'Reps',     placeholder: '5 or 1.1.1' },
@@ -487,7 +516,8 @@ function SetsTable({
     { key: 'seconds',  label: 'Seconds',  placeholder: '60' },
   ]
   const showColumns = allColumns.filter((c) => visible.has(c.key))
-  const hiddenColumns = allColumns.filter((c) => !visible.has(c.key))
+  // Only offer "+ Column" buttons for axes that make sense for this category.
+  const hiddenColumns = allColumns.filter((c) => !visible.has(c.key) && availableColumns.has(c.key))
 
   return (
     <div className="space-y-2">
