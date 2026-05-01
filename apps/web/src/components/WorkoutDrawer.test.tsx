@@ -161,6 +161,137 @@ describe('WorkoutDrawer autosave', () => {
   })
 })
 
+describe('WorkoutDrawer prescription editor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    seedApi()
+  })
+
+  it('shows time-cap input for Metcon types and tracksRounds toggle only for AMRAP', async () => {
+    const user = userEvent.setup()
+    const props = defaultProps()
+    render(<WorkoutDrawer {...props} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'General' })).toBeInTheDocument())
+
+    // AMRAP is the default type — both inputs are visible
+    expect(screen.getByLabelText(/Time cap/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Track rounds/)).toBeInTheDocument()
+
+    // Switch to FOR_TIME — time cap stays, tracks-rounds disappears
+    await user.selectOptions(screen.getByLabelText('Type'), 'FOR_TIME')
+    expect(screen.getByLabelText(/Time cap/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Track rounds/)).not.toBeInTheDocument()
+
+    // Switch to a Strength type — both disappear
+    await user.selectOptions(screen.getByLabelText('Type'), 'POWER_LIFTING')
+    expect(screen.queryByLabelText(/Time cap/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Track rounds/)).not.toBeInTheDocument()
+  })
+
+  it('renders Sets/Reps/Load/Tempo defaults for a Strength workout movement', async () => {
+    const user = userEvent.setup()
+    const props = defaultProps({
+      workout: {
+        id: 'wod-1', title: 'Back Squat 5x5', description: 'Heavy day',
+        type: 'POWER_LIFTING' as const, status: 'DRAFT' as const,
+        scheduledAt: '2026-04-21T12:00:00.000Z', dayOrder: 0,
+        workoutMovements: [{
+          movement: { id: 'mv-1', name: 'Back Squat', parentId: null },
+          displayOrder: 0,
+          sets: 5, reps: '5', load: 225, loadUnit: 'LB' as const,
+          tempo: '3.1.1.0', distance: null, distanceUnit: null,
+          calories: null, seconds: null,
+        }],
+        programId: 'prog-1', program: { id: 'prog-1', name: 'General' },
+        namedWorkoutId: null, namedWorkout: null,
+        timeCapSeconds: null, tracksRounds: false,
+      } as never,
+    })
+    render(<WorkoutDrawer {...props} />)
+
+    await waitFor(() => expect(screen.getByText('Back Squat')).toBeInTheDocument())
+
+    // Prescription columns surface for the strength category
+    expect((screen.getByLabelText('Sets') as HTMLInputElement).value).toBe('5')
+    expect((screen.getByLabelText('Reps') as HTMLInputElement).value).toBe('5')
+    expect((screen.getByLabelText('Load') as HTMLInputElement).value).toBe('225')
+    expect((screen.getByLabelText('Tempo') as HTMLInputElement).value).toBe('3.1.1.0')
+
+    // Distance/Cals/Seconds are hidden by default for strength — flip the disclosure
+    expect(screen.queryByLabelText('Distance')).not.toBeInTheDocument()
+    await user.click(screen.getByText('+ Show all columns'))
+    expect(screen.getByLabelText('Distance')).toBeInTheDocument()
+    expect(screen.getByLabelText('Cals')).toBeInTheDocument()
+  })
+
+  it('saves edited prescription via api.workouts.update with the movements payload', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.workouts.update).mockResolvedValue({} as never)
+
+    const props = defaultProps({
+      workout: {
+        id: 'wod-1', title: 'Back Squat', description: 'Heavy day',
+        type: 'POWER_LIFTING' as const, status: 'DRAFT' as const,
+        scheduledAt: '2026-04-21T12:00:00.000Z', dayOrder: 0,
+        workoutMovements: [{
+          movement: { id: 'mv-1', name: 'Back Squat', parentId: null },
+          displayOrder: 0, sets: 5, reps: '5', load: 225, loadUnit: 'LB' as const,
+          tempo: null, distance: null, distanceUnit: null, calories: null, seconds: null,
+        }],
+        programId: 'prog-1', program: { id: 'prog-1', name: 'General' },
+        namedWorkoutId: null, namedWorkout: null,
+        timeCapSeconds: null, tracksRounds: false,
+      } as never,
+    })
+    render(<WorkoutDrawer {...props} />)
+    await waitFor(() => expect(screen.getByText('Back Squat')).toBeInTheDocument())
+
+    const loadInput = screen.getByLabelText('Load') as HTMLInputElement
+    await user.clear(loadInput)
+    await user.type(loadInput, '275')
+
+    await user.click(screen.getByText('Save as Draft'))
+
+    await waitFor(() => expect(api.workouts.update).toHaveBeenCalled())
+    const [, payload] = vi.mocked(api.workouts.update).mock.calls[0]
+    expect(payload).toMatchObject({
+      movements: [{
+        movementId: 'mv-1',
+        displayOrder: 0,
+        sets: 5,
+        reps: '5',
+        load: 275,
+        loadUnit: 'LB',
+      }],
+    })
+  })
+
+  it('parses M:SS time-cap input and forwards tracksRounds for AMRAP', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.workouts.create).mockResolvedValue({ id: 'new-1', status: 'DRAFT' } as never)
+
+    const props = defaultProps()
+    render(<WorkoutDrawer {...props} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'General' })).toBeInTheDocument())
+
+    await user.type(screen.getByPlaceholderText('e.g. Fran'), 'Cindy')
+    await user.type(screen.getByPlaceholderText(/Workout details/), '20-min AMRAP of …')
+    await user.type(screen.getByLabelText(/Time cap/), '20:00')
+    await user.click(screen.getByLabelText(/Track rounds/))
+
+    await user.click(screen.getByText('Save as Draft'))
+
+    await waitFor(() => expect(api.workouts.create).toHaveBeenCalled())
+    const [, payload] = vi.mocked(api.workouts.create).mock.calls[0]
+    expect(payload).toMatchObject({
+      title: 'Cindy',
+      type: 'AMRAP',
+      timeCapSeconds: 1200,
+      tracksRounds: true,
+    })
+  })
+})
+
 describe('WorkoutDrawer markdown paste', () => {
   beforeEach(() => {
     vi.clearAllMocks()
