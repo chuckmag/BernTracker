@@ -20,7 +20,7 @@ This file covers cross-cutting topics — anything that spans the monorepo or ap
 
 - **Default to a worktree.** Each Claude session should start by creating a `git worktree` off `main` and working there, unless the user explicitly says to stay in the main checkout. See *Default workflow* below.
 - **Open PRs without asking.** When work is shippable, push the branch and run `gh pr create` directly — share the URL for review rather than asking for permission first.
-- **Member-facing feature? Plan web + mobile together.** See *Parity-first feature design* below. Mobile parity is not a follow-up — it's part of scope. Active mobile-parity backlog: #130.
+- **Phone-suitable feature? Plan web + mobile together.** See *Parity-first feature design* below — surface choice follows task ergonomics (quick on-the-go vs heavy desk authoring), not user role. Mobile parity is not a follow-up; it's part of scope. Active mobile-parity backlog: #130.
 - **Working in a worktree?** Read *Worktree development* below — `npm run dev:worktree` is collision-resistant but the workflow has details worth knowing.
 - **Touching the schema?** Read *Schema migrations* below — every schema PR must commit its migration file.
 - **Opening a PR?** Read *Pull requests* below — the Tests section format is required.
@@ -36,22 +36,26 @@ These two defaults exist because the user runs N parallel Claude sessions and th
 
 ## Parity-first feature design
 
-Web has historically run ahead of mobile, leaving the member-side phone experience perpetually behind. The fix is process: every member-facing feature gets planned for web *and* mobile from the moment the issue is filed, not as a "we'll catch mobile up later" follow-up. The two surfaces ship as siblings.
+Web has historically run ahead of mobile, leaving the phone experience perpetually behind for every role — members, coaches, owners. The fix is process: every feature gets planned for both surfaces from the moment the issue is filed. The right question is not "who uses this?" but **"in what context will they use it?"** Roles cut across both surfaces — a coach making a last-minute workout fix on the class floor needs mobile too, not just members logging results.
 
-**Audience determines scope:**
+**Surface choice follows task ergonomics, not user role:**
 
-- **Member-facing features** (anything a gym member uses on their phone): web + mobile siblings, both planned up front. Examples: feed, workout detail, log result, history, profile, browse programs, browse gyms, register/onboarding, leaderboard filters, result detail.
-- **Trainer/owner-only features**: web-only is acceptable and expected. Examples: gym settings, member admin, programs CRUD, calendar/programmer view, gym creation. The mobile app is member-only by design (#14, #130).
+- **Phone-suitable tasks** — quick, in-the-moment, often hands-on while moving. Plan web + mobile siblings up front; both must ship to call the feature done. Examples: viewing today's WOD, logging a result, browsing the leaderboard, jotting a coach note on a member, fixing a typo or movement substitution on a workout 5 minutes before class, marking attendance, glancing at a member's recent results, editing your own profile.
+- **Desk-suitable tasks** — heavy authoring, multi-step planning, dense data entry that benefits from a keyboard, mouse, and a larger screen. Web-first or web-only is fine. Examples: programming a full week of WODs from scratch, bulk CSV upload, the full-month calendar view, multi-row gym/member admin, gym branding setup, billing/Stripe configuration (when added), CSV exports.
+
+The rule of thumb: if the task lives in someone's "I need this in the next 30 seconds" workflow, it belongs on mobile too — regardless of role. If it's a "block out an hour to plan" workflow, web-first or web-only is fine.
+
+When in doubt, lean toward "phone-suitable." Being too aggressive about web-only is what produced the current parity drift. Some features have *both* shapes — e.g., editing a single workout's text is phone-suitable; authoring a brand-new workout with 8 movements from scratch is desk-suitable. Split them into separate sub-issues if the ergonomics differ that much.
 
 If you can't decide which bucket a feature is in, ask the user before opening sub-issues.
 
 **When opening a new feature issue / planning work:**
 
-1. **Sub-issues mirror across surfaces.** A member-facing feature should produce: an API sub-issue (if needed), a web sub-issue, and a mobile sub-issue — all linked to the parent. Web and mobile can ship in parallel or staggered, but both must exist as tracked work before the feature is "in flight." Don't file the web issue alone and trust that someone will remember mobile.
-2. **Cross-app contracts go in `apps/web/CLAUDE.md` → *Cross-app contracts*** the moment a new persisted-state shape (localStorage key, query string, request/response field) is introduced on web, so the mobile sibling can mirror it without re-deriving. The Program filter contract is the template.
-3. **Web PR descriptions for member-facing changes must include a "Mobile parity" line** in the Tests section — either pointing at the sibling mobile issue/PR, or stating "trainer/owner-only — N/A on mobile." This makes the parity expectation visible at review time, not at launch.
+1. **Sub-issues mirror across surfaces for phone-suitable tasks.** A phone-suitable feature should produce: an API sub-issue (if needed), a web sub-issue, and a mobile sub-issue — all linked to the parent. Web and mobile can ship in parallel or staggered, but both must exist as tracked work before the feature is "in flight." Don't file the web issue alone and trust that someone will remember mobile.
+2. **Cross-app contracts go in `apps/web/CLAUDE.md` → *Cross-app contracts*** the moment a new persisted-state shape (localStorage key, query string, request/response field) is introduced on web for a phone-suitable feature, so the mobile sibling can mirror it without re-deriving. The Program filter contract is the template.
+3. **Web PR descriptions for phone-suitable changes must include a "Mobile parity" line** in the Tests section — either pointing at the sibling mobile issue/PR, or stating "desk-suitable only — N/A on mobile" with a one-line rationale. This makes the parity expectation visible at review time, not at launch.
 
-**Before starting any new web member-facing work:**
+**Before starting any new web phone-suitable work:**
 
 Scan #130 (the active mobile-parity backlog). If a parity gap there has been open for more than ~2 weeks and you're about to widen it with another web slice, surface it to the user before proceeding — the answer may be to close existing gaps first. Don't silently ship more drift.
 
@@ -217,7 +221,7 @@ Every PR must include a **Tests** section that describes what was tested and how
 - If a behaviour is tested by an existing test suite (not new to this PR), note which file covers it rather than leaving it as an unchecked box.
 - The manual checklist should be short. If it's more than 3–4 items, that is a sign more automation is needed.
 - For PRs touching auth, role gates, or visibility rules: always call out which roles were tested and how.
-- **For web PRs that add a member-facing surface:** include a `**Mobile parity:**` line in the body — either link the sibling mobile issue/PR (`#NNN`), or state "trainer/owner-only — no mobile counterpart." This makes the parity expectation visible at review time, not at launch.
+- **For web PRs that add a phone-suitable surface:** include a `**Mobile parity:**` line in the body — either link the sibling mobile issue/PR (`#NNN`), or state "desk-suitable only — no mobile counterpart" with a one-line rationale (e.g. "month-grid calendar relies on a wide viewport"). This makes the parity expectation visible at review time, not at launch.
 
 ### Schema migrations — required pre-merge checklist item
 
@@ -249,7 +253,7 @@ When breaking a large feature issue into sub-issues for implementation:
 
 - **PR size target:** 250–500 lines of production code per PR. Unit tests may push a PR over this limit — that is acceptable.
 - **Break by domain:** Each sub-issue covers one domain (e.g., backend API, web UI, mobile UI). Do not mix backend and frontend changes in the same PR unless trivially small.
-- **Member-facing features need a mobile sub-issue, period.** When breaking down a member-facing feature, file the mobile sub-issue at the same time as the web sub-issue, even if mobile will land weeks later. See *Parity-first feature design* above. Trainer/owner-only features are exempt.
+- **Phone-suitable features need a mobile sub-issue, period.** When breaking down a feature whose primary use cases are quick / in-the-moment, file the mobile sub-issue at the same time as the web sub-issue, even if mobile will land weeks later. Desk-suitable features (heavy authoring, dense admin) can be web-only. See *Parity-first feature design* above for the boundary.
 - **One PR per sub-issue:** Each sub-issue should map to exactly one pull request.
 - **Declare dependencies explicitly:** Note which sub-issues must land first. Safe parallel starting points should be identified so multiple engineers (or AI slices) can work concurrently.
 - **Reuse before building:** Before proposing new utilities or abstractions, search for existing patterns (DB managers, middleware, Zod schemas, API client methods) that can be extended.

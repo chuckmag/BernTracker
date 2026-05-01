@@ -76,9 +76,9 @@ If only the visual is shared but the behavior is trivial (e.g., a one-line style
 
 ### Cross-app contracts (mobile parity)
 
-> **Required, not aspirational.** Every member-facing feature ships on web *and* mobile — see the root CLAUDE.md → *Parity-first feature design*. The contracts below pin the persisted-state shapes that both surfaces must agree on, so mobile can mirror web without re-deriving.
+> **Required, not aspirational.** Every phone-suitable feature ships on web *and* mobile — see the root CLAUDE.md → *Parity-first feature design* (the rule is task-ergonomics-driven, not role-driven; trainers and owners use mobile too). The contracts below pin the persisted-state shapes that both surfaces must agree on, so mobile can mirror web without re-deriving.
 
-When you add a new piece of persisted user state (localStorage / query string / cookie) on web for a member-facing feature, **add an entry here in the same PR**. That's the mechanism by which mobile knows what to mirror — skipping this step is how parity drift starts. Active parity backlog: #130.
+When you add a new piece of persisted user state (localStorage / query string / cookie) on web for a phone-suitable feature, **add an entry here in the same PR**. That's the mechanism by which mobile knows what to mirror — skipping this step is how parity drift starts. Active parity backlog: #130.
 
 - **Program filter** (`src/context/ProgramFilterContext.tsx`)
   - Storage: `localStorage["programFilter:<gymId>"]` → JSON `string[]` of program IDs (empty = "all programs")
