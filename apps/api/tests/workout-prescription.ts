@@ -118,8 +118,50 @@ async function runTests() {
     check('BackSquat loadUnit=LB', 'LB', bs.loadUnit)
     check('BackSquat tempo=3.1.1.0', '3.1.1.0', bs.tempo)
     check('BackSquat displayOrder defaults to array index 0', 0, bs.displayOrder)
+    check('BackSquat tracksLoad defaults to true', true, bs.tracksLoad)
     const rdl = wms.find((w) => w.movementId === rdlId)!
     check('RDL displayOrder defaults to array index 1', 1, rdl.displayOrder)
+    check('RDL tracksLoad defaults to true', true, rdl.tracksLoad)
+  }
+
+  console.log('\n=== tracksLoad flag round-trips ===')
+
+  {
+    // Create a workout where one movement explicitly opts out of load
+    // (e.g. a plyometric superset).
+    const r = await api('POST', `/gyms/${gymId}/workouts`, programmerToken, {
+      programId,
+      title: `AT WP TracksLoad ${TS}`,
+      description: 'Squat + Box Jump superset',
+      type: 'POWER_LIFTING',
+      scheduledAt: '2026-03-18T10:00:00Z',
+      movements: [
+        { movementId: backSquatId, sets: 5, reps: '5', tracksLoad: true },
+        { movementId: rdlId,       sets: 5, reps: '10', tracksLoad: false },
+      ],
+    })
+    check('POST with explicit tracksLoad → 201', 201, r.status)
+    const body = r.body as Record<string, unknown>
+    const wms = body.workoutMovements as Array<Record<string, unknown>>
+    const bs = wms.find((w) => w.movementId === backSquatId)!
+    const rdl = wms.find((w) => w.movementId === rdlId)!
+    check('BackSquat tracksLoad=true persisted', true, bs.tracksLoad)
+    check('RDL tracksLoad=false persisted', false, rdl.tracksLoad)
+
+    // Round-trip via PATCH — flip Back Squat off, RDL on.
+    const wodId = body.id as string
+    const r2 = await api('PATCH', `/workouts/${wodId}`, programmerToken, {
+      movements: [
+        { movementId: backSquatId, sets: 5, reps: '5', tracksLoad: false },
+        { movementId: rdlId,       sets: 5, reps: '10', tracksLoad: true },
+      ],
+    })
+    const body2 = r2.body as Record<string, unknown>
+    const wms2 = body2.workoutMovements as Array<Record<string, unknown>>
+    const bs2 = wms2.find((w) => w.movementId === backSquatId)!
+    const rdl2 = wms2.find((w) => w.movementId === rdlId)!
+    check('PATCH BackSquat tracksLoad=false persisted', false, bs2.tracksLoad)
+    check('PATCH RDL tracksLoad=true persisted', true, rdl2.tracksLoad)
   }
 
   {
