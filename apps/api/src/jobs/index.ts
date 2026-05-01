@@ -17,34 +17,9 @@ const JOBS: Record<string, JobHandler> = {
   'crossfit-wod': () => runCrossfitWodJob(),
 }
 
-// Env vars the API codebase reads. Logged (presence only, never values) at
-// dispatch start so a Railway run with missing wiring reveals it in the first
-// few lines rather than as a silent downstream failure.
-const TRACKED_ENV_VARS = [
-  'DATABASE_URL',
-  'NODE_ENV',
-  'TZ',
-  'PORT',
-  'API_PORT',
-  'ALLOWED_ORIGINS',
-  'FRONTEND_URL',
-  'GOOGLE_CLIENT_ID',
-  'GOOGLE_CLIENT_SECRET',
-  'GOOGLE_REDIRECT_URI',
-  'JWT_ACCESS_SECRET',
-  'JWT_REFRESH_SECRET',
-  'WODALYTICS_ADMIN_EMAILS',
-  'AWS_S3_BUCKET',
-  'AWS_REGION',
-  'AWS_ACCESS_KEY_ID',
-  'AWS_SECRET_ACCESS_KEY',
-  'AWS_S3_PUBLIC_URL_BASE',
-  'LOCAL_UPLOADS_ROOT',
-] as const
-
-// Returns the host (and optionally db name) from a postgres URL without
-// exposing credentials. Useful for confirming the cron is pointed at the
-// expected Railway DB without leaking the password into logs.
+// Returns the host (and db name) from a postgres URL without exposing
+// credentials. Useful for confirming a cron run is pointed at the expected
+// Railway DB without leaking the password into logs.
 function summarizeDatabaseUrl(url: string | undefined): string {
   if (!url) return '(unset)'
   try {
@@ -58,26 +33,19 @@ function summarizeDatabaseUrl(url: string | undefined): string {
 
 function logStartupDiagnostics(jobName: string): void {
   log.info(`dispatcher boot — job=${jobName} pid=${process.pid}`)
-  log.info(`runtime — node=${process.version} platform=${process.platform} arch=${process.arch} cwd=${process.cwd()}`)
+  log.info(`runtime — node=${process.version} platform=${process.platform} arch=${process.arch}`)
   log.info(`database — ${summarizeDatabaseUrl(process.env.DATABASE_URL)}`)
-  const envSummary = TRACKED_ENV_VARS.map((k) => `${k}=${process.env[k] ? 'set' : 'missing'}`).join(' ')
-  log.info(`env — ${envSummary}`)
-  // ICU/tz sanity — todayInPacific() depends on Intl.DateTimeFormat being able
-  // to resolve America/Los_Angeles. Alpine images historically ship with
-  // small-icu, which can cause silent fallback to UTC.
-  try {
-    const sample = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles' }).format(new Date())
-    log.info(`intl — America/Los_Angeles resolved to "${sample}"`)
-  } catch (err) {
-    log.error(`intl — America/Los_Angeles lookup failed: ${err instanceof Error ? err.message : err}`)
-  }
 }
 
 async function main(): Promise<number> {
-  const jobName = process.argv[2]
+  // The container Dockerfile expands $JOB_NAME into argv before exec'ing
+  // node, so argv[2] is the canonical path in prod. Falling back to the
+  // env var directly keeps the dispatcher convenient to invoke ad-hoc
+  // (`JOB_NAME=foo node dist/jobs/index.js`) without changing the wrapper.
+  const jobName = process.argv[2] ?? process.env.JOB_NAME
 
   if (!jobName) {
-    log.error('no job name provided. usage: node dist/jobs/index.js <jobName>')
+    log.error('no job name provided. set JOB_NAME or pass as argv[2]')
     return 2
   }
 
