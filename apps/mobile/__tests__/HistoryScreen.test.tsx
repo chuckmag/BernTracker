@@ -102,6 +102,70 @@ describe('HistoryScreen', () => {
     await findByText('8:45')
   })
 
+  test('strength results render heaviest set as "{reps} x {load} {unit}"', async () => {
+    ;(api.me.results as jest.Mock).mockResolvedValue({
+      results: [
+        {
+          id: '1',
+          workout: { id: 'w-1', title: 'Back Squat 5x5', type: 'POWER_LIFTING', scheduledAt: '2026-04-15T12:00:00.000Z' },
+          level: 'RX' as const,
+          workoutGender: 'MALE' as const,
+          value: {
+            movementResults: [{
+              workoutMovementId: 'm-1',
+              loadUnit: 'LB',
+              sets: [
+                { reps: '5', load: 225 },
+                // Heaviest single set — 6 x 255 lb. Ties on load break by
+                // maxRepChunk(reps), so a 5-rep set still beats a 1-rep set
+                // at the same load.
+                { reps: '6', load: 255 },
+                { reps: '3', load: 245 },
+              ],
+            }],
+          },
+          notes: null,
+          createdAt: '2026-04-15T12:00:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+      pages: 1,
+    })
+
+    const { findByText } = render(<HistoryScreen navigation={navigation} route={{ params: {} } as any} />)
+    await findByText('6 x 255 lb')
+  })
+
+  test('strength results with no load fall back to set-count summary', async () => {
+    ;(api.me.results as jest.Mock).mockResolvedValue({
+      results: [
+        {
+          id: '1',
+          workout: { id: 'w-1', title: 'Bodyweight', type: 'GYMNASTICS', scheduledAt: '2026-04-15T12:00:00.000Z' },
+          level: 'RX' as const,
+          workoutGender: 'MALE' as const,
+          value: {
+            movementResults: [{
+              workoutMovementId: 'm-1',
+              sets: [{ reps: '10' }, { reps: '8' }, { reps: '6' }],
+            }],
+          },
+          notes: null,
+          createdAt: '2026-04-15T12:00:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+      pages: 1,
+    })
+
+    const { findByText } = render(<HistoryScreen navigation={navigation} route={{ params: {} } as any} />)
+    await findByText('3 sets logged')
+  })
+
   test('FOR_TIME with cappedOut renders as "(capped)"', async () => {
     ;(api.me.results as jest.Mock).mockResolvedValue({
       results: [
