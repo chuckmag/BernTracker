@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
-import { ProgramRole, Prisma } from '@wodalytics/db'
+import multer from 'multer'
+import { ProgramRole, Prisma, WorkoutImportStatus } from '@wodalytics/db'
 import {
   CreateProgramSchema,
   UpdateProgramSchema,
@@ -45,8 +46,31 @@ import {
   findProgramMembersWithUserInfo,
   findProgramsAvailableToUserInGym,
 } from '../db/userProgramDbManager.js'
+import {
+  createWorkoutImport,
+  findWorkoutImportByIdAndProgramId,
+  findWorkoutImportsByProgramId,
+  markWorkoutImportFailed,
+  createDraftWorkoutsFromImport,
+  publishDraftWorkoutsForImport,
+  findCollisionsForProgram,
+} from '../db/workoutImportDbManager.js'
+import { findAllActiveNamedWorkouts } from '../db/namedWorkoutDbManager.js'
+import {
+  parseWorkoutImportFile,
+  ParseFatalError,
+  type ParsedRow,
+  type ParseIssue,
+} from '../lib/workoutImportParser.js'
 
 const STAFF_ROLES = ['OWNER', 'PROGRAMMER', 'COACH'] as const
+
+// Slice 6 / #89 — multipart upload limits. 5 MB cap matches the issue spec.
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
+})
 
 const router = Router()
 
@@ -118,6 +142,52 @@ router.delete(
   validateGymExists,
   requireGymOwner,
   clearProgramAsGymDefault,
+)
+
+// ─── Slice 6: bulk CSV/XLSX workout import (#89) ──────────────────────────────
+// All five endpoints gated by requireProgramGymManager (OWNER + PROGRAMMER).
+// COACH and MEMBER receive 403 — only programmers should be touching the
+// program's workout list.
+
+// POST /api/programs/:id/imports — upload + parse + persist preview (PENDING)
+router.post(
+  '/programs/:id/imports',
+  requireAuth,
+  requireProgramGymManager,
+  upload.single('file'),
+  uploadProgramImport,
+)
+
+// GET  /api/programs/:id/imports — list import history for the program
+router.get(
+  '/programs/:id/imports',
+  requireAuth,
+  requireProgramGymManager,
+  listProgramImports,
+)
+
+// GET  /api/programs/:id/imports/:importId — re-fetch a parsed preview
+router.get(
+  '/programs/:id/imports/:importId',
+  requireAuth,
+  requireProgramGymManager,
+  getProgramImport,
+)
+
+// POST /api/programs/:id/imports/:importId/draft — confirm preview → create DRAFT workouts
+router.post(
+  '/programs/:id/imports/:importId/draft',
+  requireAuth,
+  requireProgramGymManager,
+  draftProgramImport,
+)
+
+// POST /api/programs/:id/imports/:importId/publish — bulk-publish the import's drafts
+router.post(
+  '/programs/:id/imports/:importId/publish',
+  requireAuth,
+  requireProgramGymManager,
+  publishProgramImport,
 )
 
 export default router
@@ -407,4 +477,230 @@ async function isUserMemberOfAnyGym(userId: string, gymIds: string[]): Promise<b
     if (m) return true
   }
   return false
+}
+
+// ─── Slice 6: bulk import handlers ────────────────────────────────────────────
+
+interface PreviewRow extends ParsedRow {
+  // Set in the preview response when an existing Workout already occupies
+  // (programId, scheduledAt, dayOrder). Surfaces in the UI as a "Replace
+  // existing" toggle. v1 only flags collisions, doesn't honor a replace flag —
+  // the user is expected to delete the old workout via the calendar instead.
+  collision: boolean
+  // Set in the preview response when `namedWorkout` could be matched against
+  // a NamedWorkout (by name or alias, case-insensitive). null otherwise.
+  namedWorkoutId: string | null
+}
+
+interface PreviewPayload {
+  rows: PreviewRow[]
+  warnings: ParseIssue[]
+  errors: ParseIssue[]
+}
+
+async function uploadProgramImport(req: Request, res: Response) {
+  const programId = req.params.id as string
+  const file = req.file
+  if (!file) return res.status(400).json({ error: 'No file uploaded — expected multipart field "file"' })
+
+  const filename = file.originalname || 'upload'
+  // Multer's fileSize limit already errors at MAX_UPLOAD_BYTES; this branch
+  // covers the unlikely path where the limit was raised but a stale request
+  // sneaks through. Keep the explicit bound check so the error message is ours.
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return res.status(413).json({ error: `File exceeds ${MAX_UPLOAD_BYTES / 1024 / 1024} MB limit` })
+  }
+
+  let parsed
+  try {
+    parsed = await parseWorkoutImportFile(file.buffer, filename)
+  } catch (err) {
+    if (err instanceof ParseFatalError) {
+      // File-level fatal (missing header, unsupported type, empty file) —
+      // record the import as FAILED for audit and return 400 with details.
+      const failed = await createWorkoutImport({
+        programId,
+        uploadedBy: req.user!.id,
+        filename,
+        rowCount: 0,
+        parsedJson: null,
+        errorJson: err.issues as unknown as Prisma.InputJsonValue,
+        status: WorkoutImportStatus.FAILED,
+      })
+      return res.status(400).json({
+        importId: failed.id,
+        errors: err.issues,
+      })
+    }
+    throw err
+  }
+
+  // Resolve named_workout strings against active NamedWorkouts (case-insensitive,
+  // checks aliases too). Bounded set (~100 rows) — load once and match in JS.
+  const named = await findAllActiveNamedWorkouts()
+  const nameLookup = new Map<string, string>()
+  for (const nw of named) {
+    nameLookup.set(nw.name.toLowerCase(), nw.id)
+    for (const alias of nw.aliases) nameLookup.set(alias.toLowerCase(), nw.id)
+  }
+
+  const collisionKeys = await findCollisionsForProgram(
+    programId,
+    parsed.rows.map((r, idx) => ({
+      scheduledAt: new Date(`${r.date}T00:00:00.000Z`),
+      dayOrder: r.dayOrder ?? idx,
+    })),
+  )
+
+  const previewRows: PreviewRow[] = parsed.rows.map((r, idx) => {
+    const scheduledIso = new Date(`${r.date}T00:00:00.000Z`).toISOString()
+    const dayOrder = r.dayOrder ?? idx
+    const collision = collisionKeys.has(`${scheduledIso}|${dayOrder}`)
+    const namedWorkoutId = r.namedWorkout ? nameLookup.get(r.namedWorkout.toLowerCase()) ?? null : null
+    if (r.namedWorkout && !namedWorkoutId) {
+      parsed.warnings.push({
+        rowIndex: r.rowIndex,
+        column: 'named_workout',
+        level: 'warning',
+        message: `Unknown named workout "${r.namedWorkout}" — will save as a plain workout`,
+      })
+    }
+    return { ...r, collision, namedWorkoutId }
+  })
+
+  const payload: PreviewPayload = {
+    rows: previewRows,
+    warnings: parsed.warnings,
+    errors: parsed.errors,
+  }
+
+  const created = await createWorkoutImport({
+    programId,
+    uploadedBy: req.user!.id,
+    filename,
+    rowCount: parsed.rowCount,
+    parsedJson: payload as unknown as Prisma.InputJsonValue,
+    errorJson: parsed.errors.length > 0 ? (parsed.errors as unknown as Prisma.InputJsonValue) : null,
+    status: WorkoutImportStatus.PENDING,
+  })
+
+  res.status(201).json({
+    importId: created.id,
+    status: created.status,
+    rowCount: created.rowCount,
+    filename: created.filename,
+    preview: payload,
+  })
+}
+
+async function listProgramImports(req: Request, res: Response) {
+  const programId = req.params.id as string
+  const imports = await findWorkoutImportsByProgramId(programId)
+  res.json(
+    imports.map((i) => ({
+      id: i.id,
+      filename: i.filename,
+      rowCount: i.rowCount,
+      createdCount: i.createdCount,
+      skippedCount: i.skippedCount,
+      status: i.status,
+      uploadedBy: i.uploadedBy,
+      createdAt: i.createdAt,
+      updatedAt: i.updatedAt,
+      // The full parsedJson can be megabytes — only ship error summaries here.
+      // Callers that need the preview rows go through GET /imports/:importId.
+      errorJson: i.errorJson,
+    })),
+  )
+}
+
+async function getProgramImport(req: Request, res: Response) {
+  const programId = req.params.id as string
+  const importId = req.params.importId as string
+  const row = await findWorkoutImportByIdAndProgramId(importId, programId)
+  if (!row) return res.status(404).json({ error: 'Import not found' })
+  res.json({
+    id: row.id,
+    filename: row.filename,
+    rowCount: row.rowCount,
+    createdCount: row.createdCount,
+    skippedCount: row.skippedCount,
+    status: row.status,
+    uploadedBy: row.uploadedBy,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    preview: row.parsedJson,
+    errorJson: row.errorJson,
+  })
+}
+
+async function draftProgramImport(req: Request, res: Response) {
+  const programId = req.params.id as string
+  const importId = req.params.importId as string
+  const row = await findWorkoutImportByIdAndProgramId(importId, programId)
+  if (!row) return res.status(404).json({ error: 'Import not found' })
+  if (row.status !== WorkoutImportStatus.PENDING) {
+    return res.status(409).json({ error: `Cannot create drafts — import is ${row.status}` })
+  }
+
+  const preview = row.parsedJson as unknown as PreviewPayload | null
+  if (!preview) return res.status(409).json({ error: 'Import has no parsed preview' })
+  if (preview.errors.length > 0) {
+    return res.status(400).json({ error: 'Cannot create drafts while blocking errors are present', errors: preview.errors })
+  }
+
+  // Skip rows the user opted to leave as collisions (default: skip every collision).
+  // Replace-existing behavior is out of scope for v1; the user can delete the
+  // old workout via the calendar, then re-upload to bring the new draft in.
+  const toCreate = preview.rows.filter((r) => !r.collision)
+  const skipped = preview.rows.length - toCreate.length
+
+  const result = await createDraftWorkoutsFromImport(
+    programId,
+    importId,
+    toCreate.map((r, idx) => ({
+      title: r.title,
+      description: r.description,
+      type: r.type,
+      scheduledAt: new Date(`${r.date}T00:00:00.000Z`),
+      dayOrder: r.dayOrder ?? idx,
+      namedWorkoutId: r.namedWorkoutId,
+    })),
+  )
+
+  res.json({
+    status: 'DRAFT',
+    createdCount: result.createdCount,
+    skippedCount: skipped,
+    workoutIds: result.workoutIds,
+  })
+}
+
+async function publishProgramImport(req: Request, res: Response) {
+  const programId = req.params.id as string
+  const importId = req.params.importId as string
+  const row = await findWorkoutImportByIdAndProgramId(importId, programId)
+  if (!row) return res.status(404).json({ error: 'Import not found' })
+  if (row.status === WorkoutImportStatus.PUBLISHED) {
+    // Idempotent — a duplicate POST shouldn't error.
+    return res.json({ status: 'PUBLISHED', publishedCount: 0, skippedCount: 0 })
+  }
+  if (row.status !== WorkoutImportStatus.DRAFT) {
+    return res.status(409).json({ error: `Cannot publish — import is ${row.status}` })
+  }
+
+  const result = await publishDraftWorkoutsForImport(importId)
+  res.json({
+    status: 'PUBLISHED',
+    publishedCount: result.publishedCount,
+    skippedCount: result.skippedCount,
+  })
+}
+
+// Multer error → JSON 4xx mapping. Mounted by index.ts via the global error
+// handler when a multer-thrown error reaches it (e.g. file too large, too
+// many files). Lives here so the route file owns the import-related error
+// shape without leaking multer types into the global handler.
+export function isMulterError(err: unknown): err is multer.MulterError {
+  return err instanceof multer.MulterError
 }

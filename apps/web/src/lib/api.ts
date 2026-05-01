@@ -241,6 +241,74 @@ export interface GymProgram {
 
 export type IdentifiedGender = 'FEMALE' | 'MALE' | 'NON_BINARY' | 'PREFER_NOT_TO_SAY' | null
 
+// ─── Slice 6: bulk workout import ────────────────────────────────────────────
+
+export type WorkoutImportStatus = 'PENDING' | 'DRAFT' | 'PUBLISHED' | 'FAILED'
+
+export interface ParseIssue {
+  rowIndex: number | null
+  column: string | null
+  level: 'warning' | 'error'
+  message: string
+}
+
+export interface PreviewRow {
+  rowIndex: number
+  date: string
+  dayOrder: number | null
+  title: string
+  type: WorkoutType
+  description: string
+  namedWorkout: string | null
+  namedWorkoutId: string | null
+  source: string | null
+  collision: boolean
+}
+
+export interface ImportPreview {
+  rows: PreviewRow[]
+  warnings: ParseIssue[]
+  errors: ParseIssue[]
+}
+
+export interface WorkoutImportSummary {
+  id: string
+  filename: string
+  rowCount: number
+  createdCount: number
+  skippedCount: number
+  status: WorkoutImportStatus
+  uploadedBy: string
+  createdAt: string
+  updatedAt: string
+  errorJson: ParseIssue[] | null
+}
+
+export interface WorkoutImportDetail extends WorkoutImportSummary {
+  preview: ImportPreview | null
+}
+
+export interface UploadImportResponse {
+  importId: string
+  status: WorkoutImportStatus
+  rowCount: number
+  filename: string
+  preview: ImportPreview
+}
+
+export interface DraftImportResponse {
+  status: 'DRAFT'
+  createdCount: number
+  skippedCount: number
+  workoutIds: string[]
+}
+
+export interface PublishImportResponse {
+  status: 'PUBLISHED'
+  publishedCount: number
+  skippedCount: number
+}
+
 export interface AuthUser {
   id: string
   email: string
@@ -757,5 +825,37 @@ export const api = {
     /** Leave a program — caller's own membership only. */
     unsubscribe: (id: string, token?: string) =>
       req<void>(`/api/programs/${id}/subscribe`, { method: 'DELETE', token }),
+
+    // Slice 6: bulk CSV/XLSX workout upload (#89). Five endpoints driving the
+    // PENDING → DRAFT → PUBLISHED lifecycle. All gated to OWNER + PROGRAMMER.
+    imports: {
+      upload: (programId: string, file: File, token?: string) => {
+        const fd = new FormData()
+        fd.append('file', file)
+        return req<UploadImportResponse>(`/api/programs/${programId}/imports`, {
+          method: 'POST',
+          body: fd,
+          token,
+        })
+      },
+
+      list: (programId: string, token?: string) =>
+        req<WorkoutImportSummary[]>(`/api/programs/${programId}/imports`, { token }),
+
+      get: (programId: string, importId: string, token?: string) =>
+        req<WorkoutImportDetail>(`/api/programs/${programId}/imports/${importId}`, { token }),
+
+      draft: (programId: string, importId: string, token?: string) =>
+        req<DraftImportResponse>(
+          `/api/programs/${programId}/imports/${importId}/draft`,
+          { method: 'POST', token },
+        ),
+
+      publish: (programId: string, importId: string, token?: string) =>
+        req<PublishImportResponse>(
+          `/api/programs/${programId}/imports/${importId}/publish`,
+          { method: 'POST', token },
+        ),
+    },
   },
 }
