@@ -12,6 +12,7 @@ export interface MovementPrescriptionInput {
   reps?: string
   load?: number
   loadUnit?: LoadUnit
+  tracksLoad?: boolean
   tempo?: string
   distance?: number
   distanceUnit?: DistanceUnit
@@ -69,6 +70,9 @@ function prescriptionToCreateRow(p: MovementPrescriptionInput, fallbackOrder: nu
     reps:         p.reps ?? null,
     load:         p.load ?? null,
     loadUnit:     p.loadUnit ?? null,
+    // Default true at the API boundary so legacy clients that don't yet
+    // send the field land in the most-common-case state.
+    tracksLoad:   p.tracksLoad ?? true,
     tempo:        p.tempo ?? null,
     distance:     p.distance ?? null,
     distanceUnit: p.distanceUnit ?? null,
