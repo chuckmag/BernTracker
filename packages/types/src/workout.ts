@@ -32,6 +32,10 @@ export const WorkoutMovementPrescriptionSchema = z.object({
   reps:         RepsFieldSchema.optional(),
   load:         z.number().positive().optional(),
   loadUnit:     LoadUnitSchema.optional(),
+  // Whether the result form surfaces a Load column for this movement.
+  // Defaults true on the server; programmer flips off for plyometric
+  // supersets and other no-load movements where the column would be noise.
+  tracksLoad:   z.boolean().optional(),
   tempo:        TempoFieldSchema.optional(),
   distance:     z.number().positive().optional(),
   distanceUnit: DistanceUnitSchema.optional(),
