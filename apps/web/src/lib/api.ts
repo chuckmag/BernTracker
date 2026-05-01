@@ -126,6 +126,25 @@ export interface NamedWorkout {
   templateWorkout: { id: string; type: WorkoutType; description: string; workoutMovements: { movement: Movement }[] } | null
 }
 
+export type LoadUnit = 'LB' | 'KG'
+export type DistanceUnit = 'M' | 'KM' | 'MI' | 'FT' | 'YD'
+
+// Per-movement prescription on a workout. All prescription fields are
+// nullable — programmer fills only the columns relevant to the workout.
+export interface WorkoutMovementWithPrescription {
+  movement: Movement
+  displayOrder: number
+  sets: number | null
+  reps: string | null
+  load: number | null
+  loadUnit: LoadUnit | null
+  tempo: string | null
+  distance: number | null
+  distanceUnit: DistanceUnit | null
+  calories: number | null
+  seconds: number | null
+}
+
 export interface Workout {
   id: string
   title: string
@@ -134,11 +153,13 @@ export interface Workout {
   status: WorkoutStatus
   scheduledAt: string
   dayOrder: number
-  workoutMovements: { movement: Movement }[]
+  workoutMovements: WorkoutMovementWithPrescription[]
   programId: string | null
   program: { id: string; name: string } | null
   namedWorkoutId: string | null
   namedWorkout: { id: string; name: string; category: WorkoutCategory } | null
+  timeCapSeconds: number | null
+  tracksRounds: boolean
   _count: { results: number }
   createdAt: string
   updatedAt: string
