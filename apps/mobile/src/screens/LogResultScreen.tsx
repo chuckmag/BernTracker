@@ -627,10 +627,13 @@ function SetsTableRN({
   // The columns to surface come from whichever fields the programmer
   // prescribed — anything they didn't prescribe is hidden by default.
   // Members can show extras via the "+ Column" buttons below the table.
-  // Strength is special: load is intentionally not prescribed (programmers
-  // leave the actual weight to the member, who knows their training history),
-  // but the load column still auto-shows on the result side because that's
-  // the headline number the member came to record.
+  // Load is special: programmers usually don't prescribe an exact weight
+  // (they leave that to the member's training history), so we surface a Load
+  // column whenever the prescription's `tracksLoad` flag is true. The flag
+  // defaults to true on the API side, so missing-prescription fallbacks also
+  // get a Load column. Programmers flip it off for plyometric / no-load
+  // movements where the column would just be noise.
+  const tracksLoad = prescription ? prescription.tracksLoad : true
   const prescribed = useMemo(() => {
     const cols = new Set<keyof SetRow>()
     if (prescription) {
@@ -641,21 +644,30 @@ function SetsTableRN({
       if (prescription.calories !== null) cols.add('calories')
       if (prescription.seconds !== null)  cols.add('seconds')
     }
-    if (category === 'Strength') { cols.add('reps'); cols.add('load') }
-    if (cols.size === 0) { cols.add('reps'); cols.add('load') }
+    if (tracksLoad) cols.add('load')
+    // Strength still defaults to showing reps as a useful baseline.
+    if (category === 'Strength') cols.add('reps')
+    if (cols.size === 0) { cols.add('reps') }
     return cols
-  }, [prescription, category])
+  }, [prescription, category, tracksLoad])
 
   // Auto-show a column if the user has typed into any cell of it.
   // Columns reachable for this workout's category. Strength is barbell
-  // work — distance / cals / seconds aren't relevant. MonoStructural is
-  // timed cardio — sets / reps / load aren't. Metcon / Skill / Warmup keep
-  // every axis since their movement mix varies.
+  // work — distance / cals / seconds aren't relevant; load is reachable iff
+  // the prescription opts in. MonoStructural is timed cardio — sets / reps /
+  // load aren't. Metcon / Skill / Warmup keep every axis since their movement
+  // mix varies, but still respect tracksLoad for the Load column.
   const availableColumns = useMemo<Set<keyof SetRow>>(() => {
-    if (category === 'Strength') return new Set(['reps', 'load', 'tempo'])
+    if (category === 'Strength') {
+      const cols = new Set<keyof SetRow>(['reps', 'tempo'])
+      if (tracksLoad) cols.add('load')
+      return cols
+    }
     if (category === 'MonoStructural') return new Set(['distance', 'calories', 'seconds'])
-    return new Set(['reps', 'load', 'tempo', 'distance', 'calories', 'seconds'])
-  }, [category])
+    const cols = new Set<keyof SetRow>(['reps', 'tempo', 'distance', 'calories', 'seconds'])
+    if (tracksLoad) cols.add('load')
+    return cols
+  }, [category, tracksLoad])
 
   const visible = useMemo(() => {
     const cols = new Set(prescribed)

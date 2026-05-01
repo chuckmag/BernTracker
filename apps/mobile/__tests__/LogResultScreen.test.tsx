@@ -50,6 +50,10 @@ function makeMovement(id: string, name: string, prescription: any = {}) {
     displayOrder: 0,
     sets: null, reps: null, load: null, loadUnit: null, tempo: null,
     distance: null, distanceUnit: null, calories: null, seconds: null,
+    // Mirrors the API default — Prisma column has @default(true), so reads
+    // always carry a populated tracksLoad. Tests that need to suppress the
+    // Load column override this to false explicitly.
+    tracksLoad: true,
     ...prescription,
   }
 }
@@ -75,18 +79,30 @@ const STRENGTH_WORKOUT = makeWorkout({
   title: 'Back Squat 5x5',
   type: 'POWER_LIFTING',
   workoutMovements: [
-    makeMovement('m-1', 'Back Squat', { displayOrder: 0, sets: 5, reps: '5', load: 225, loadUnit: 'LB', tempo: '3.1.1.0' }),
+    makeMovement('m-1', 'Back Squat', { displayOrder: 0, sets: 5, reps: '5', load: 225, loadUnit: 'LB', tempo: '3.1.1.0', tracksLoad: true }),
   ],
 })
 
 // Strength prescription with no load prescribed — programmers leave the
-// actual weight to the member. The Load column should still auto-show.
+// actual weight to the member. tracksLoad still defaults to true on the API
+// side, so the Load column should auto-show.
 const STRENGTH_WORKOUT_NO_LOAD = makeWorkout({
   id: 'w-4',
   title: 'Back Squat — heavy triple',
   type: 'POWER_LIFTING',
   workoutMovements: [
-    makeMovement('m-1', 'Back Squat', { displayOrder: 0, sets: 3, reps: '3' }),
+    makeMovement('m-1', 'Back Squat', { displayOrder: 0, sets: 3, reps: '3', tracksLoad: true }),
+  ],
+})
+
+// Strength prescription with tracksLoad explicitly off — e.g. plyometric box
+// jumps where load isn't relevant. The Load column should NOT render.
+const STRENGTH_WORKOUT_NO_LOAD_TRACKING = makeWorkout({
+  id: 'w-5',
+  title: 'Box Jumps 5x5',
+  type: 'POWER_LIFTING',
+  workoutMovements: [
+    makeMovement('m-1', 'Box Jump', { displayOrder: 0, sets: 5, reps: '5', tracksLoad: false }),
   ],
 })
 
@@ -147,9 +163,28 @@ describe('LogResultScreen — strength sets table', () => {
     await findByText('Back Squat — heavy triple')
 
     // Three rows from `sets: 3`, each carrying both Reps and Load even though
-    // the programmer only prescribed reps.
+    // the programmer only prescribed reps. tracksLoad defaults to true on the
+    // server, so the Load column auto-shows.
     expect(getAllByLabelText(/Set \d Reps/i)).toHaveLength(3)
     expect(getAllByLabelText(/Set \d Load/i)).toHaveLength(3)
+  })
+
+  test('strength workout with tracksLoad=false hides the Load column entirely', async () => {
+    ;(api.workouts.get as jest.Mock).mockResolvedValue(STRENGTH_WORKOUT_NO_LOAD_TRACKING)
+
+    const { findByText, getAllByLabelText, queryAllByLabelText, queryByLabelText } = render(
+      <LogResultScreen navigation={makeNavigation()} route={makeRoute({ workoutId: 'w-5' })} />,
+    )
+
+    await findByText('Box Jumps 5x5')
+
+    // Reps column still renders (strength baseline). Load column must be
+    // suppressed because tracksLoad=false on the prescription.
+    expect(getAllByLabelText(/Set \d Reps/i)).toHaveLength(5)
+    expect(queryAllByLabelText(/Set \d Load/i)).toHaveLength(0)
+    // The "+ Load" reachable column button must not appear either, since
+    // tracksLoad=false makes Load unreachable for this movement.
+    expect(queryByLabelText(/Add Load column/i)).toBeNull()
   })
 
   test('+ Add set appends a row and × removes one', async () => {

@@ -47,6 +47,11 @@ export interface WorkoutMovementWithPrescription {
   reps: string | null
   load: number | null
   loadUnit: LoadUnit | null
+  // Whether the result form should surface a Load column for this movement.
+  // Always populated on read — the Prisma column has `@default(true)`. Programmer
+  // flips this off for plyometric supersets and other no-load movements where a
+  // Load column would just be noise.
+  tracksLoad: boolean
   tempo: string | null
   distance: number | null
   distanceUnit: DistanceUnit | null
