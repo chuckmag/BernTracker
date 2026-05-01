@@ -156,7 +156,14 @@ export interface WorkoutResult {
   value: Record<string, unknown>
   notes: string | null
   createdAt: string
-  user: { id: string; name: string | null }
+  user: {
+    id: string
+    name: string | null
+    firstName: string | null
+    lastName: string | null
+    email: string
+    avatarUrl: string | null
+  }
   workout: { type: WorkoutType }
 }
 
@@ -245,7 +252,7 @@ export interface AuthUser {
   onboardedAt: string | null
   role: Role
   identifiedGender: IdentifiedGender
-  isMovementReviewer: boolean
+  isWodalyticsAdmin: boolean
 }
 
 export interface EmergencyContact {
@@ -259,7 +266,7 @@ export interface EmergencyContact {
   updatedAt: string
 }
 
-export interface UserProfile extends Omit<AuthUser, 'isMovementReviewer'> {
+export interface UserProfile extends Omit<AuthUser, 'isWodalyticsAdmin'> {
   emergencyContacts: EmergencyContact[]
 }
 
@@ -485,6 +492,12 @@ export const api = {
         form.append('file', file)
         return req<{ logoUrl: string }>(`/api/gyms/${gymId}/logo`, { method: 'POST', body: form })
       },
+      setUrl: (gymId: string, logoUrl: string) =>
+        req<{ logoUrl: string }>(`/api/gyms/${gymId}/logo`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logoUrl }),
+        }),
       remove: (gymId: string) =>
         req<void>(`/api/gyms/${gymId}/logo`, { method: 'DELETE' }),
     },

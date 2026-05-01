@@ -4,9 +4,10 @@
  * Each test is independent — it seeds its own pending movement (and parent,
  * where needed) and tears down after itself. No describe.serial.
  *
- * Auth uses JWT cookie injection via tests/lib/auth.ts. The reviewer is the
- * env-configured `MOVEMENT_REVIEWER_EMAIL` user (the API checks email, not a
- * role, so any token signed for that user passes the reviewer guard).
+ * Auth uses JWT cookie injection via tests/lib/auth.ts. The reviewer is one
+ * of the env-configured `WODALYTICS_ADMIN_EMAILS` users (the API checks email
+ * against the admin allowlist, not a role, so any token signed for that user
+ * passes the reviewer guard).
  *
  * Run via the worktree:
  *   npm run test:worktree -- e2e tests/pending-movement-review.spec.ts
@@ -22,8 +23,10 @@ interface ReviewerFixture {
 }
 
 async function seedReviewerAndGym(): Promise<ReviewerFixture> {
-  const reviewerEmail = process.env.MOVEMENT_REVIEWER_EMAIL
-  if (!reviewerEmail) throw new Error('MOVEMENT_REVIEWER_EMAIL must be set in .env')
+  const raw = process.env.WODALYTICS_ADMIN_EMAILS
+  if (!raw) throw new Error('WODALYTICS_ADMIN_EMAILS must be set in .env')
+  const reviewerEmail = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)[0]
+  if (!reviewerEmail) throw new Error('WODALYTICS_ADMIN_EMAILS parsed to empty list')
 
   const reviewer = await prisma.user.findUnique({ where: { email: reviewerEmail } })
   if (!reviewer) throw new Error(`Reviewer user not found: ${reviewerEmail}`)

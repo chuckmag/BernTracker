@@ -4,7 +4,7 @@ import { OAuth2Client } from 'google-auth-library'
 import { prisma } from '@wodalytics/db'
 import { LoginSchema, RegisterSchema } from '@wodalytics/types'
 import { signTokenPair, verifyRefreshToken } from '../lib/jwt.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, isAdminEmail } from '../middleware/auth.js'
 
 function googleClient() {
   return new OAuth2Client(
@@ -166,7 +166,7 @@ router.get('/me', requireAuth, async (req, res) => {
   }
   res.json({
     ...pickAuthUser(user),
-    isMovementReviewer: user.email === (process.env.MOVEMENT_REVIEWER_EMAIL ?? ''),
+    isWodalyticsAdmin: isAdminEmail(user.email),
   })
 })
 

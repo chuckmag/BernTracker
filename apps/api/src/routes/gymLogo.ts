@@ -45,6 +45,14 @@ router.post(
   uploadGymLogo,
   imageUploadErrorHandler,
 )
+router.put(
+  '/gyms/:gymId/logo',
+  requireAuth,
+  validateGymExists,
+  requireGymWriteAccess,
+  requireOwnerOrProgrammer,
+  setGymLogoUrl,
+)
 router.delete(
   '/gyms/:gymId/logo',
   requireAuth,
@@ -55,6 +63,24 @@ router.delete(
 )
 
 export default router
+
+// Cap on what we'll persist into Gym.logoUrl. Hosted URLs are tiny (<1KB);
+// data: URLs balloon — this keeps a single PNG under ~750KB raw and protects
+// the column from runaway pastes. Server allowlist is http(s) and image
+// data: URLs only.
+const MAX_LOGO_URL_LENGTH = 1_000_000
+function isAllowedLogoUrl(value: unknown): value is string {
+  if (typeof value !== 'string') return false
+  const trimmed = value.trim()
+  if (trimmed.length === 0 || trimmed.length > MAX_LOGO_URL_LENGTH) return false
+  if (/^data:image\/(png|jpeg|jpg|webp|gif|svg\+xml);/i.test(trimmed)) return true
+  try {
+    const u = new URL(trimmed)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
 
 async function uploadGymLogo(req: Request, res: Response) {
   const file = req.file
@@ -75,6 +101,29 @@ async function uploadGymLogo(req: Request, res: Response) {
 
   await prisma.gym.update({ where: { id: gymId }, data: { logoUrl: url } })
   res.json({ logoUrl: url })
+}
+
+async function setGymLogoUrl(req: Request, res: Response) {
+  const gymId = req.params.gymId as string
+  const { logoUrl } = (req.body ?? {}) as { logoUrl?: unknown }
+  if (!isAllowedLogoUrl(logoUrl)) {
+    res.status(400).json({
+      error: 'Invalid logoUrl. Use an http(s) URL or an image data: URL up to 1MB.',
+    })
+    return
+  }
+  const trimmed = logoUrl.trim()
+
+  // If the gym was previously using one of our own S3 objects, free it now —
+  // the Gym row will no longer reference it after the update below.
+  const existing = await prisma.gym.findUnique({ where: { id: gymId }, select: { logoUrl: true } })
+  if (existing?.logoUrl) {
+    const key = deriveKeyFromUrl(existing.logoUrl, 'gyms')
+    if (key) await getImageStorage().delete(key).catch(() => {})
+  }
+
+  await prisma.gym.update({ where: { id: gymId }, data: { logoUrl: trimmed } })
+  res.json({ logoUrl: trimmed })
 }
 
 async function deleteGymLogo(req: Request, res: Response) {

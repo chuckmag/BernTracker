@@ -45,6 +45,20 @@ async function postLogo(gymId: string, token: string, body: Buffer | string, con
   return api('POST', `/gyms/${gymId}/logo`, token, form)
 }
 
+async function putLogoUrl(gymId: string, token: string, logoUrl: unknown) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(`${BASE}/gyms/${gymId}/logo`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ logoUrl }),
+  })
+  const text = await res.text()
+  let json: unknown
+  try { json = JSON.parse(text) } catch { json = text }
+  return { status: res.status, body: json as Record<string, unknown> }
+}
+
 async function makeJpegBuffer(width = 200, height = 200): Promise<Buffer> {
   return sharp({
     create: { width, height, channels: 3, background: { r: 200, g: 100, b: 50 } },
@@ -175,6 +189,52 @@ async function testValidation() {
   check('corrupt image bytes → 400', 400, garbage.status)
 }
 
+async function testSetUrl() {
+  console.log('\n=== Set logoUrl by link (PUT) ===')
+
+  // Auth + role
+  check('PUT without token → 401',
+    401, (await putLogoUrl(gymId, '', 'https://example.com/logo.png')).status)
+  check('PUT as MEMBER → 403',
+    403, (await putLogoUrl(gymId, memberToken, 'https://example.com/logo.png')).status)
+  check('PUT as COACH → 403 (branding is owner-level)',
+    403, (await putLogoUrl(gymId, coachToken, 'https://example.com/logo.png')).status)
+
+  // Validation
+  check('empty string → 400',
+    400, (await putLogoUrl(gymId, ownerToken, '')).status)
+  check('non-string → 400',
+    400, (await putLogoUrl(gymId, ownerToken, 42)).status)
+  check('javascript: URL → 400',
+    400, (await putLogoUrl(gymId, ownerToken, 'javascript:alert(1)')).status)
+  check('non-image data: URL → 400',
+    400, (await putLogoUrl(gymId, ownerToken, 'data:text/html,<script>')).status)
+
+  // First, seed an S3-style upload so we can verify the PUT cleans it up.
+  const seeded = await postLogo(gymId, ownerToken, await makeJpegBuffer())
+  check('precondition: seeded an uploaded logo', 200, seeded.status)
+
+  // OWNER sets a hosted URL
+  const hosted = 'https://cdn.example.com/some-logo.png'
+  const r = await putLogoUrl(gymId, ownerToken, hosted)
+  check('OWNER PUT hosted URL → 200', 200, r.status)
+  check('response echoes the URL', hosted, r.body.logoUrl)
+  const after1 = await prisma.gym.findUnique({ where: { id: gymId }, select: { logoUrl: true } })
+  check('Gym.logoUrl persisted as hosted URL', hosted, after1?.logoUrl)
+
+  // PROGRAMMER replaces with a small image data: URL
+  const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+  const r2 = await putLogoUrl(gymId, programmerToken, tinyPng)
+  check('PROGRAMMER PUT data: URL → 200', 200, r2.status)
+  const after2 = await prisma.gym.findUnique({ where: { id: gymId }, select: { logoUrl: true } })
+  check('Gym.logoUrl persisted as data: URL', tinyPng, after2?.logoUrl)
+
+  // Trims surrounding whitespace
+  const padded = `   ${hosted}   `
+  const r3 = await putLogoUrl(gymId, ownerToken, padded)
+  check('whitespace trimmed before persist', hosted, r3.body.logoUrl)
+}
+
 async function testDelete() {
   console.log('\n=== Delete ===')
   const before = await prisma.gym.findUnique({ where: { id: gymId }, select: { logoUrl: true } })
@@ -217,6 +277,7 @@ async function main() {
     await testAuthGuards()
     await testHappyPath()
     await testValidation()
+    await testSetUrl()
     await testDelete()
     await testScoping()
   } catch (err) {

@@ -21,6 +21,7 @@ vi.mock('../lib/api', () => ({
     gyms: {
       logo: {
         upload: vi.fn(),
+        setUrl: vi.fn(),
         remove: vi.fn(),
       },
     },
@@ -67,6 +68,27 @@ describe('GymLogoUploader', () => {
     await user.upload(input, big)
     expect(await screen.findByText(/too large/i)).toBeInTheDocument()
     expect(api.gyms.logo.upload).not.toHaveBeenCalled()
+  })
+
+  it('"Use link" submits the pasted URL, fires onChange, refreshes, and clears the field', async () => {
+    vi.mocked(api.gyms.logo.setUrl).mockResolvedValue({ logoUrl: 'https://cdn.example.com/x.png' })
+    const onChange = vi.fn()
+    render(<GymLogoUploader gymId="g1" logoUrl={null} name="CrossFit Foo" onChange={onChange} />)
+    const user = userEvent.setup()
+    const input = screen.getByLabelText(/paste a link/i) as HTMLInputElement
+    await user.type(input, 'https://cdn.example.com/x.png')
+    await user.click(screen.getByRole('button', { name: /Use link/ }))
+    await waitFor(() =>
+      expect(api.gyms.logo.setUrl).toHaveBeenCalledWith('g1', 'https://cdn.example.com/x.png'),
+    )
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith('https://cdn.example.com/x.png'))
+    await waitFor(() => expect(refreshGyms).toHaveBeenCalled())
+    expect(input.value).toBe('')
+  })
+
+  it('"Use link" is disabled while the input is empty', () => {
+    render(<GymLogoUploader gymId="g1" logoUrl={null} name="CrossFit Foo" />)
+    expect(screen.getByRole('button', { name: /Use link/ })).toBeDisabled()
   })
 
   it('Remove button calls the delete endpoint, fires onChange(null), and refreshes', async () => {

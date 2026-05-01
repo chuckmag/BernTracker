@@ -18,11 +18,20 @@ This file covers cross-cutting topics — anything that spans the monorepo or ap
 
 ## If you only read one section
 
-- **Working in a worktree?** Read *Worktree development* below — port collisions will bite you otherwise.
+- **Default to a worktree.** Each Claude session should start by creating a `git worktree` off `main` and working there, unless the user explicitly says to stay in the main checkout. See *Default workflow* below.
+- **Open PRs without asking.** When work is shippable, push the branch and run `gh pr create` directly — share the URL for review rather than asking for permission first.
+- **Working in a worktree?** Read *Worktree development* below — `npm run dev:worktree` is collision-resistant but the workflow has details worth knowing.
 - **Touching the schema?** Read *Schema migrations* below — every schema PR must commit its migration file.
 - **Opening a PR?** Read *Pull requests* below — the Tests section format is required.
 - **Web work?** `apps/web/CLAUDE.md` — primitives before custom Tailwind.
 - **API work?** `apps/api/CLAUDE.md` — DB manager pattern is mandatory.
+
+## Default workflow
+
+These two defaults exist because the user runs N parallel Claude sessions and the friction of asking permission for routine actions adds up.
+
+1. **Start in a worktree.** First action of any non-trivial task: `git worktree add .claude/worktrees/<branch> -b <branch> main` (or `git worktree add /tmp/<descriptive-name> -b <branch> main` if `.claude/worktrees/` isn't suitable). Do *not* work directly in the primary checkout. Reasons: parallel sessions don't step on each other's branches, the dev-stack ports auto-allocate per worktree (see below), and `git worktree remove` is the safe cleanup. Only stay in the primary checkout if the user explicitly says so.
+2. **Open PRs without asking.** Once the branch is in a shippable state (tests pass, scope is complete), push it and call `gh pr create` directly. Share the resulting URL. The user reviews on GitHub, not in chat. This *does not* extend to destructive actions — force-push, branch deletion, merge — those still need explicit confirmation.
 
 ## Tech stack
 
@@ -82,9 +91,7 @@ When working in a `git worktree` (e.g. `.claude/worktrees/<branch>`), the defaul
    ```bash
    npm run dev:worktree
    ```
-   - Picks two free ports (one in the 3001–3100 range, one in 5174–5273 — defaults 3000 / 5173 are reserved for non-worktree `turbo dev`), logs them, and writes `.dev-ports.local` (gitignored) at the worktree root.
-   - Spawns `dev:api` with `API_PORT=<api>` and `dev:web` with `WEB_PORT=<web>`. Vite's proxy reads `API_PORT` so the browser hits the right backend.
-   - Output is interleaved with `[api]` / `[web]` prefixes. Ctrl-C tears both down cleanly.
+   Picks random free API + web ports, writes `.dev-ports.local`, spawns `dev:api` and `dev:web` with the right env, and self-heals if a parallel worktree collides on the same port. Full behavior, port ranges, and troubleshooting live in the script header — see `scripts/dev-worktree.mjs`. Ctrl-C tears both servers down cleanly.
 
 2. **Run tests against that stack:**
    ```bash
@@ -125,9 +132,9 @@ Skipping the live test runs and falling back to "static checks only" — like th
 
 All defaults preserve historical single-stack behavior — running `npm run dev` (or `dev:api` / `dev:web` standalone) without these vars still binds to 3000 / 5173.
 
-### Two worktrees in parallel
+### N worktrees in parallel
 
-Engineers (or Claude sessions) can run `npm run dev:worktree` in two separate worktrees concurrently. Each picks its own pair of free ports — no collision. **The DB is still shared**, so be mindful of fixture-naming collisions in tests (#101 tracks the auth-state leak this can cause; #74 tracks per-worktree DB isolation).
+Engineers (or Claude sessions) can run `npm run dev:worktree` in any number of worktrees concurrently — random port selection plus EADDRINUSE retry means collisions are rare and self-healing when they do happen. **The DB is still shared**, so be mindful of fixture-naming collisions in tests (#101 tracks the auth-state leak this can cause; #74 tracks per-worktree DB isolation).
 
 ## Developer onboarding
 

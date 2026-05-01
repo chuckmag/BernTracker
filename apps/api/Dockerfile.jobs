@@ -36,4 +36,4 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 # ENTRYPOINT runs the dispatcher; CMD provides the default job name and is
 # overridden per-service in railway.jobs.toml via startCommand.
 ENTRYPOINT ["node", "apps/api/dist/jobs/index.js"]
-CMD ["noop"]
+CMD ["crossfit-wod"]

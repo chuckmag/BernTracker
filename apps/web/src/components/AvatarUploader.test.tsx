@@ -15,7 +15,7 @@ const mockAuth = {
     onboardedAt: '2026-01-01T00:00:00.000Z',
     role: 'MEMBER' as const,
     identifiedGender: null,
-    isMovementReviewer: false,
+    isWodalyticsAdmin: false,
   },
   accessToken: 'tok',
   isLoading: false,

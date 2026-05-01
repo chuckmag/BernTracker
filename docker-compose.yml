@@ -56,5 +56,33 @@ services:
       - postgres
       - api
 
+  # One-shot cron-job runner — mirrors the Railway service that runs the
+  # `crossfit-wod` job on a 15-min cadence. Behind the `jobs` profile so it
+  # does not auto-start with `docker compose up`. Env vars intentionally
+  # mirror what's set on Railway QA (only DATABASE_URL + NODE_ENV) so this
+  # is a faithful local repro for "no deploy logs" debugging.
+  #
+  # Run a single tick:
+  #   docker compose --profile jobs run --rm jobs
+  # Run a different job (override the default crossfit-wod):
+  #   docker compose --profile jobs run --rm jobs noop
+  # Force a rebuild of the jobs image first:
+  #   docker compose --profile jobs build jobs
+  jobs:
+    image: wodalytics-jobs:local
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.jobs
+    container_name: wodalytics-jobs
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/wodalytics
+      NODE_ENV: production
+    command: ["crossfit-wod"]
+    depends_on:
+      - postgres
+    restart: "no"
+    profiles:
+      - jobs
+
 volumes:
   postgres_data:

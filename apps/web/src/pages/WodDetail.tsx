@@ -5,6 +5,7 @@ import { api, type Workout, type WorkoutCategory, type WorkoutResult, type Worko
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
 import MarkdownDescription from '../components/MarkdownDescription.tsx'
+import Avatar from '../components/Avatar.tsx'
 import Button from '../components/ui/Button.tsx'
 import SegmentedControl from '../components/ui/SegmentedControl.tsx'
 
@@ -279,18 +280,40 @@ export default function WodDetail() {
               <tbody>
                 {filteredResults.map((result, index) => {
                   const isMe = result.userId === user?.id
+                  const displayName = result.user.name ?? 'Unknown'
+                  const goToDetail = () => navigate(`/workouts/${workout.id}/results/${result.id}`)
                   return (
                     <Fragment key={result.id}>
                       <tr
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`View ${isMe ? 'your' : `${displayName}'s`} result`}
+                        onClick={goToDetail}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            goToDetail()
+                          }
+                        }}
                         className={[
                           result.notes ? '' : 'border-b border-gray-900',
                           isMe ? 'text-indigo-300' : 'text-gray-300',
+                          'cursor-pointer hover:bg-gray-900/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
                         ].join(' ')}
                       >
                         <td className="py-2.5 pr-4 text-gray-500">{index + 1}</td>
                         <td className="py-2.5 pr-4 font-medium">
-                          {result.user.name ?? 'Unknown'}
-                          {isMe && <span className="ml-1.5 text-xs text-indigo-400">(you)</span>}
+                          <span className="flex items-center gap-2">
+                            <Avatar
+                              avatarUrl={result.user.avatarUrl}
+                              firstName={result.user.firstName}
+                              lastName={result.user.lastName}
+                              email={result.user.email}
+                              size="sm"
+                            />
+                            <span>{displayName}</span>
+                            {isMe && <span className="text-xs text-indigo-400">(you)</span>}
+                          </span>
                         </td>
                         <td className="py-2.5 pr-4 text-gray-400">{LEVEL_LABELS[result.level]}</td>
                         <td className="py-2.5 font-mono">{formatResultValue(result)}</td>
