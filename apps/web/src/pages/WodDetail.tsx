@@ -8,6 +8,7 @@ import MarkdownDescription from '../components/MarkdownDescription.tsx'
 import Avatar from '../components/Avatar.tsx'
 import Button from '../components/ui/Button.tsx'
 import SegmentedControl from '../components/ui/SegmentedControl.tsx'
+import { formatResultValue as formatValue } from '../lib/formatResult.ts'
 
 const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
   GIRL_WOD: 'Girl WOD',
@@ -48,28 +49,8 @@ const GENDER_OPTIONS: { value: GenderFilter; label: string }[] = [
   { value: 'FEMALE', label: 'Female' },
 ]
 
-function formatSeconds(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${String(s).padStart(2, '0')}`
-}
-
 function formatResultValue(result: WorkoutResult): string {
-  const v = result.value
-  const type = result.workout.type
-
-  if (type === 'AMRAP') {
-    const rounds = v.rounds as number
-    const reps = v.reps as number
-    return `${rounds} rounds + ${reps} reps`
-  }
-
-  if (type === 'FOR_TIME') {
-    if (v.cappedOut) return 'CAPPED'
-    return formatSeconds(v.seconds as number)
-  }
-
-  return '—'
+  return formatValue(result.value)
 }
 
 export default function WodDetail() {

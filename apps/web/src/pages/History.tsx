@@ -6,6 +6,7 @@ import { useMovements } from '../context/MovementsContext.tsx'
 import MovementFilterInput from '../components/MovementFilterInput.tsx'
 import Button from '../components/ui/Button.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
+import { formatResultValue as formatValue } from '../lib/formatResult.ts'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   RX_PLUS: 'RX+',
@@ -14,24 +15,8 @@ const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   MODIFIED: 'Modified',
 }
 
-function formatSeconds(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${String(s).padStart(2, '0')}`
-}
-
 function formatResultValue(result: HistoryResult): string {
-  const v = result.value
-  const type = result.workout.type as WorkoutType
-
-  if (type === 'AMRAP') {
-    return `${v.rounds as number} rounds + ${v.reps as number} reps`
-  }
-  if (type === 'FOR_TIME') {
-    if (v.cappedOut) return 'CAPPED'
-    return formatSeconds(v.seconds as number)
-  }
-  return '—'
+  return formatValue(result.value)
 }
 
 function monthKey(dateStr: string): string {

@@ -142,7 +142,7 @@ function makeResult(overrides: { id: string; userId: string; name: string; level
     },
     level: overrides.level,
     workoutGender: 'OPEN' as const,
-    value: { seconds: overrides.seconds, cappedOut: false },
+    value: { score: { kind: 'TIME', seconds: overrides.seconds, cappedOut: false }, movementResults: [] },
     notes: null,
     createdAt: '2026-04-01T00:00:00.000Z',
     workout: { id: 'workout-1', type: 'FOR_TIME' as const, scheduledAt: '2026-07-15T12:00:00.000Z', title: 'Test Workout' },
