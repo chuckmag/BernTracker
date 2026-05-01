@@ -81,6 +81,31 @@ describe('LogResultDrawer — strength sets table', () => {
     expect((screen.getByLabelText(/Set 5 Tempo/i) as HTMLInputElement).value).toBe('3.1.1.0')
   })
 
+  test('Strength workout without prescribed load still surfaces a Load column on the result form', () => {
+    // Programmers don't prescribe load on strength workouts (slice 2B), but
+    // Load is the headline number a member came to record.
+    const w = makeWorkout({
+      type: 'POWER_LIFTING',
+      workoutMovements: [makeMovement('m-1', 'Back Squat', { sets: 3, reps: '3' })],
+    })
+    render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.getAllByLabelText(/Set \d Reps/i)).toHaveLength(3)
+    expect(screen.getAllByLabelText(/Set \d Load/i)).toHaveLength(3)
+  })
+
+  test('Strength result form hides distance / cals / seconds add-column buttons', () => {
+    const w = makeWorkout({
+      type: 'POWER_LIFTING',
+      workoutMovements: [makeMovement('m-1', 'Back Squat', { sets: 1, reps: '5' })],
+    })
+    render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)
+    // Tempo is reachable for strength; distance / cals / seconds aren't.
+    expect(screen.getByRole('button', { name: '+ Tempo' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '+ Distance' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '+ Cals' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '+ Seconds' })).not.toBeInTheDocument()
+  })
+
   test('+ Add set appends a row and × removes one', () => {
     const w = makeWorkout({
       type: 'POWER_LIFTING',

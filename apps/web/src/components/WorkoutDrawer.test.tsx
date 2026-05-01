@@ -188,8 +188,7 @@ describe('WorkoutDrawer prescription editor', () => {
     expect(screen.queryByLabelText(/Track rounds/)).not.toBeInTheDocument()
   })
 
-  it('renders Sets/Reps/Load/Tempo defaults for a Strength workout movement', async () => {
-    const user = userEvent.setup()
+  it('renders Sets/Reps/Tempo defaults (no load) for a Strength workout movement', async () => {
     const props = defaultProps({
       workout: {
         id: 'wod-1', title: 'Back Squat 5x5', description: 'Heavy day',
@@ -198,7 +197,7 @@ describe('WorkoutDrawer prescription editor', () => {
         workoutMovements: [{
           movement: { id: 'mv-1', name: 'Back Squat', parentId: null },
           displayOrder: 0,
-          sets: 5, reps: '5', load: 225, loadUnit: 'LB' as const,
+          sets: 5, reps: '5', load: null, loadUnit: null,
           tempo: '3.1.1.0', distance: null, distanceUnit: null,
           calories: null, seconds: null,
         }],
@@ -211,31 +210,31 @@ describe('WorkoutDrawer prescription editor', () => {
 
     await waitFor(() => expect(screen.getByText('Back Squat')).toBeInTheDocument())
 
-    // Prescription columns surface for the strength category
+    // Strength prescription surfaces sets/reps/tempo only — `load` is
+    // intentionally omitted (slice 2B feedback: weights are too individual
+    // to prescribe usefully). Distance/Cals/Seconds also hidden — barbell
+    // work doesn't have those axes.
     expect((screen.getByLabelText('Sets') as HTMLInputElement).value).toBe('5')
     expect((screen.getByLabelText('Reps') as HTMLInputElement).value).toBe('5')
-    expect((screen.getByLabelText('Load') as HTMLInputElement).value).toBe('225')
     expect((screen.getByLabelText('Tempo') as HTMLInputElement).value).toBe('3.1.1.0')
-
-    // Distance/Cals/Seconds are hidden by default for strength — flip the disclosure
+    expect(screen.queryByLabelText('Load')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Distance')).not.toBeInTheDocument()
-    await user.click(screen.getByText('+ Show all columns'))
-    expect(screen.getByLabelText('Distance')).toBeInTheDocument()
-    expect(screen.getByLabelText('Cals')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Cals')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Seconds')).not.toBeInTheDocument()
   })
 
-  it('saves edited prescription via api.workouts.update with the movements payload', async () => {
+  it('Metcon prescription surfaces Load (Fran-style 95 lb thrusters) and saves it through', async () => {
     const user = userEvent.setup()
     vi.mocked(api.workouts.update).mockResolvedValue({} as never)
 
     const props = defaultProps({
       workout: {
-        id: 'wod-1', title: 'Back Squat', description: 'Heavy day',
-        type: 'POWER_LIFTING' as const, status: 'DRAFT' as const,
+        id: 'wod-1', title: 'Fran', description: '21-15-9',
+        type: 'FOR_TIME' as const, status: 'DRAFT' as const,
         scheduledAt: '2026-04-21T12:00:00.000Z', dayOrder: 0,
         workoutMovements: [{
-          movement: { id: 'mv-1', name: 'Back Squat', parentId: null },
-          displayOrder: 0, sets: 5, reps: '5', load: 225, loadUnit: 'LB' as const,
+          movement: { id: 'mv-1', name: 'Thrusters', parentId: null },
+          displayOrder: 0, sets: 3, reps: '21', load: 95, loadUnit: 'LB' as const,
           tempo: null, distance: null, distanceUnit: null, calories: null, seconds: null,
         }],
         programId: 'prog-1', program: { id: 'prog-1', name: 'General' },
@@ -244,12 +243,12 @@ describe('WorkoutDrawer prescription editor', () => {
       } as never,
     })
     render(<WorkoutDrawer {...props} />)
-    await waitFor(() => expect(screen.getByText('Back Squat')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Thrusters')).toBeInTheDocument())
 
     const loadInput = screen.getByLabelText('Load') as HTMLInputElement
+    expect(loadInput.value).toBe('95')
     await user.clear(loadInput)
-    await user.type(loadInput, '275')
-
+    await user.type(loadInput, '105')
     await user.click(screen.getByText('Save as Draft'))
 
     await waitFor(() => expect(api.workouts.update).toHaveBeenCalled())
@@ -258,9 +257,9 @@ describe('WorkoutDrawer prescription editor', () => {
       movements: [{
         movementId: 'mv-1',
         displayOrder: 0,
-        sets: 5,
-        reps: '5',
-        load: 275,
+        sets: 3,
+        reps: '21',
+        load: 105,
         loadUnit: 'LB',
       }],
     })

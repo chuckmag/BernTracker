@@ -39,12 +39,32 @@ const TIME_CAP_TYPES = new Set<WorkoutType>([
 // Hidden columns are still legal — programmer can flip the disclosure to
 // reveal everything — but the default keeps the UI uncluttered for the most
 // common case per category.
+//
+// Strength is intentionally absent of `load`: weight prescriptions for
+// strength work are too individualized to express usefully here. A future
+// iteration will suggest loads from the member's training history; until
+// then, programmers leave load to the member at log-time.
 function defaultPrescriptionColumns(type: WorkoutType): Set<keyof PrescriptionForm> {
   const category = WORKOUT_TYPE_STYLES[type].category
-  if (category === 'Strength') return new Set(['sets', 'reps', 'load', 'tempo'])
+  if (category === 'Strength') return new Set(['sets', 'reps', 'tempo'])
   if (category === 'MonoStructural') return new Set(['distance', 'calories', 'seconds'])
-  // Metcon, Skill Work, Warmup/Recovery — light defaults
+  if (category === 'Metcon') return new Set(['sets', 'reps', 'load'])
   return new Set(['sets', 'reps'])
+}
+
+// Columns the programmer can ever reach for this workout type. Tightening
+// is two-fold:
+// - Strength hides `load` (intentional — slice 2B feedback) and also drops
+//   distance/calories/seconds since barbell work doesn't have those axes.
+// - MonoStructural drops sets/reps/load/tempo — rowing/biking/swimming are
+//   timed cardio, not lift work.
+// - Metcon / Skill Work / Warmup keep every axis available; their movement
+//   mix is too varied to constrain at the workout level.
+function availablePrescriptionColumns(type: WorkoutType): Set<keyof PrescriptionForm> {
+  const category = WORKOUT_TYPE_STYLES[type].category
+  if (category === 'Strength') return new Set(['sets', 'reps', 'tempo'])
+  if (category === 'MonoStructural') return new Set(['distance', 'distanceUnit', 'calories', 'seconds'])
+  return new Set(['sets', 'reps', 'load', 'loadUnit', 'tempo', 'distance', 'distanceUnit', 'calories', 'seconds'])
 }
 
 function parseMmss(input: string): number | null {
@@ -1074,10 +1094,13 @@ const COLUMN_DEFS: { key: keyof PrescriptionForm; label: string; placeholder: st
 
 function PrescriptionRow({ movement, type, prescription, showAllColumns, onChange, onRemove }: PrescriptionRowProps) {
   const defaults = defaultPrescriptionColumns(type)
-  // Surface a column when (a) the type's defaults include it, (b) the user
-  // typed a value into it, or (c) the global "show all" toggle is on.
+  const available = availablePrescriptionColumns(type)
+  // Surface a column when (a) it's reachable for this type AND (b) the
+  // type's defaults include it, the user typed a value into it, or the
+  // global "show all" toggle is on. Strength's `available` excludes `load`
+  // so the column never appears regardless of the toggle.
   const visible = COLUMN_DEFS.filter((c) =>
-    showAllColumns || defaults.has(c.key) || prescription[c.key] !== '',
+    available.has(c.key) && (showAllColumns || defaults.has(c.key) || prescription[c.key] !== ''),
   )
 
   function update<K extends keyof PrescriptionForm>(key: K, value: PrescriptionForm[K]) {
