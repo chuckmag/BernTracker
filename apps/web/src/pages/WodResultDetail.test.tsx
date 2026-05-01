@@ -64,7 +64,7 @@ function makeResult(overrides: {
     },
     level: 'RX' as const,
     workoutGender: 'OPEN' as const,
-    value: { seconds: 305, cappedOut: false },
+    value: { score: { kind: 'TIME', seconds: 305, cappedOut: false }, movementResults: [] },
     notes: overrides.notes ?? null,
     createdAt: '2026-04-01T00:00:00.000Z',
     workout: { type: 'FOR_TIME' as const },
