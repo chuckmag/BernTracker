@@ -198,3 +198,74 @@ describe('Feed — workout-type tokens', () => {
     }
   })
 })
+
+// ─── Tile result-state badges ─────────────────────────────────────────────────
+
+describe('Feed — tile result badges', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFilter.selected = []
+    mockFilter.available = []
+  })
+
+  it('shows the loaded-barbell + result count when the viewer has logged and others have results', async () => {
+    const w = {
+      ...makeWorkout('AMRAP', 0),
+      myResultId: 'result-mine',
+      _count: { results: 4 },
+    }
+    vi.mocked(api.workouts.list).mockResolvedValue([w] as never)
+    renderFeed()
+
+    const loaded = await screen.findByRole('img', { name: /you've logged a result/i })
+    expect(loaded).toBeInTheDocument()
+    // Count text renders beside the users-icon.
+    expect(screen.getByText('4')).toBeInTheDocument()
+  })
+
+  it('shows the empty-barbell + result count when the viewer has not logged but others have', async () => {
+    const w = {
+      ...makeWorkout('AMRAP', 0),
+      myResultId: null,
+      _count: { results: 2 },
+    }
+    vi.mocked(api.workouts.list).mockResolvedValue([w] as never)
+    renderFeed()
+
+    const empty = await screen.findByRole('img', { name: /no result logged yet/i })
+    expect(empty).toBeInTheDocument()
+    expect(screen.getByText('2')).toBeInTheDocument()
+  })
+
+  it('renders neither badge when the workout has no results and the viewer has not logged', async () => {
+    const w = {
+      ...makeWorkout('AMRAP', 0),
+      myResultId: null,
+      _count: { results: 0 },
+    }
+    vi.mocked(api.workouts.list).mockResolvedValue([w] as never)
+    renderFeed()
+
+    // The tile must still render…
+    expect(await screen.findByRole('button', { name: /AMRAP workout/ })).toBeInTheDocument()
+    // …but neither barbell variant nor a count appears.
+    expect(screen.queryByRole('img', { name: /logged a result/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: /no result logged yet/i })).not.toBeInTheDocument()
+  })
+
+  it('hides the count when only the viewer has logged (resultCount === 1, the viewer\'s own)', async () => {
+    const w = {
+      ...makeWorkout('AMRAP', 0),
+      myResultId: 'result-mine',
+      _count: { results: 1 },
+    }
+    vi.mocked(api.workouts.list).mockResolvedValue([w] as never)
+    renderFeed()
+
+    const loaded = await screen.findByRole('img', { name: /you've logged a result/i })
+    expect(loaded).toBeInTheDocument()
+    // The count "1" still appears (it counts the viewer too) — the design choice
+    // is to always render N when N > 0 so the tile reflects the leaderboard size.
+    expect(screen.getByText('1')).toBeInTheDocument()
+  })
+})

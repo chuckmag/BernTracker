@@ -6,6 +6,8 @@ import { useGym } from '../context/GymContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
+import BarbellIcon from '../components/icons/BarbellIcon.tsx'
+import UsersIcon from '../components/icons/UsersIcon.tsx'
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -167,6 +169,10 @@ export default function Feed() {
                     {workout.namedWorkout && (
                       <span className="text-xs text-indigo-400">● {workout.namedWorkout.name}</span>
                     )}
+                    <FeedTileBadgeRow
+                      logged={Boolean(workout.myResultId)}
+                      resultCount={workout._count.results}
+                    />
                   </span>
                   <span className="shrink-0 mt-0.5 text-gray-400 group-hover:text-white transition-colors">›</span>
                 </button>
@@ -177,5 +183,29 @@ export default function Feed() {
         ))}
       </div>
     </div>
+  )
+}
+
+// Meta-row beneath each feed tile's title. Renders the loaded/empty barbell
+// (which encodes "you have logged a result here") and a `<users-icon> N`
+// total-result count when at least one result exists.
+function FeedTileBadgeRow({ logged, resultCount }: { logged: boolean; resultCount: number }) {
+  if (!logged && resultCount === 0) return null
+  return (
+    <span className="mt-1.5 flex items-center gap-3 text-xs">
+      <span className={logged ? 'text-indigo-400' : 'text-gray-500'}>
+        <BarbellIcon
+          loaded={logged}
+          size={24}
+          title={logged ? "You've logged a result" : 'No result logged yet'}
+        />
+      </span>
+      {resultCount > 0 && (
+        <span className="inline-flex items-center gap-1.5 text-gray-400" title={`${resultCount} result${resultCount === 1 ? '' : 's'} on the leaderboard`}>
+          <UsersIcon size={16} />
+          <span>{resultCount}</span>
+        </span>
+      )}
+    </span>
   )
 }

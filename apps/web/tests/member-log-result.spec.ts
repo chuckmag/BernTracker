@@ -171,6 +171,67 @@ test.describe('Member result-logging E2E', () => {
     await expect(page.getByRole('cell', { name: /4:30/ })).toBeVisible()
   })
 
+  test('Feed tile: badge row appears with loaded barbell + count "1" after the viewer logs', async ({ page }) => {
+    await loginMember(page, f)
+    await page.goto('/feed')
+    await page.waitForSelector('h1')
+
+    const tile = page.getByRole('button', { name: /E2E AMRAP/i })
+    await expect(tile).toBeVisible()
+
+    // Before logging: 0 total results AND the viewer hasn't logged, so the
+    // entire badge row is hidden by design — neither barbell variant renders.
+    await expect(tile.getByRole('img', { name: /no result logged yet/i })).toHaveCount(0)
+    await expect(tile.getByRole('img', { name: /you've logged a result/i })).toHaveCount(0)
+
+    // Open the WOD and log a result via the drawer.
+    await tile.click()
+    await page.waitForURL(`**/workouts/${f.amrapWorkoutId}`)
+    await page.getByRole('button', { name: 'Log Result' }).click()
+    await page.getByRole('button', { name: 'Scaled', exact: true }).click()
+    const inputs = page.locator('input[placeholder="0"]')
+    await inputs.nth(0).fill('3')
+    await inputs.nth(1).fill('1')
+    await page.getByRole('button', { name: 'Save Result' }).click()
+    await expect(page.getByText('Your Result')).toBeVisible({ timeout: 5000 })
+
+    // Back on the feed: the same tile now shows the loaded barbell + count "1".
+    await page.goto('/feed')
+    const tileAfter = page.getByRole('button', { name: /E2E AMRAP/i })
+    await expect(tileAfter.getByRole('img', { name: /you've logged a result/i })).toBeVisible()
+    // exact:true avoids matching the workout title's nonce (e.g. "c11353b7"), which contains digits.
+    await expect(tileAfter.getByText('1', { exact: true })).toBeVisible()
+  })
+
+  test('Feed tile: empty-barbell + count appear when others have results but the viewer has not logged', async ({ page }) => {
+    // Seed a result from a different user so the workout has _count.results > 0
+    // but the viewer's myResultId is null — the canonical "empty barbell" state.
+    const ghost = await prisma.user.create({
+      data: { email: `e2e-ghost-${randomUUID().slice(0, 8)}@test.com`, name: 'Ghost' },
+    })
+    await prisma.userGym.create({ data: { userId: ghost.id, gymId: f.gymId, role: 'MEMBER' } })
+    await prisma.result.create({
+      data: {
+        workoutId: f.amrapWorkoutId, userId: ghost.id, level: 'RX',
+        workoutGender: 'OPEN',
+        value: { type: 'AMRAP', rounds: 4, extraReps: 0 },
+      },
+    })
+
+    await loginMember(page, f)
+    await page.goto('/feed')
+    await page.waitForSelector('h1')
+
+    const tile = page.getByRole('button', { name: /E2E AMRAP/i })
+    await expect(tile.getByRole('img', { name: /no result logged yet/i })).toBeVisible()
+    await expect(tile.getByRole('img', { name: /you've logged a result/i })).toHaveCount(0)
+    await expect(tile.getByText('1', { exact: true })).toBeVisible()
+
+    // Cleanup the seeded ghost user/result (workout cleanup is handled by teardown).
+    await prisma.result.deleteMany({ where: { userId: ghost.id } }).catch(() => {})
+    await prisma.user.delete({ where: { id: ghost.id } }).catch(() => {})
+  })
+
   test('Leaderboard: row click opens read-only result detail with the owner\'s name in the title', async ({ page }) => {
     // Seed a result so the leaderboard has an entry to click.
     await prisma.result.create({
