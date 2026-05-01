@@ -7,7 +7,7 @@ interface UsersIconProps {
 // Two overlapping head+shoulders silhouettes. Used inline next to a numeric
 // "N results" label on the feed tile and elsewhere where a small "people"
 // affordance is needed.
-export default function UsersIcon({ size = 14, className, title }: UsersIconProps) {
+export default function UsersIcon({ size = 16, className, title }: UsersIconProps) {
   const decorative = !title
   return (
     <svg

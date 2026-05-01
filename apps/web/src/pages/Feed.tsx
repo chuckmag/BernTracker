@@ -192,17 +192,17 @@ export default function Feed() {
 function FeedTileBadgeRow({ logged, resultCount }: { logged: boolean; resultCount: number }) {
   if (!logged && resultCount === 0) return null
   return (
-    <span className="mt-1 flex items-center gap-3 text-[11px]">
+    <span className="mt-1.5 flex items-center gap-3 text-xs">
       <span className={logged ? 'text-indigo-400' : 'text-gray-500'}>
         <BarbellIcon
           loaded={logged}
-          size={18}
+          size={24}
           title={logged ? "You've logged a result" : 'No result logged yet'}
         />
       </span>
       {resultCount > 0 && (
-        <span className="inline-flex items-center gap-1 text-gray-400" title={`${resultCount} result${resultCount === 1 ? '' : 's'} on the leaderboard`}>
-          <UsersIcon size={13} />
+        <span className="inline-flex items-center gap-1.5 text-gray-400" title={`${resultCount} result${resultCount === 1 ? '' : 's'} on the leaderboard`}>
+          <UsersIcon size={16} />
           <span>{resultCount}</span>
         </span>
       )}

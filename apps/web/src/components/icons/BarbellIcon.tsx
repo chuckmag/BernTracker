@@ -1,7 +1,7 @@
 interface BarbellIconProps {
   /** Loaded shows weight plates on each end of the bar; empty shows just the bar + sleeves. */
   loaded: boolean
-  /** Width/height in px. Square. Defaults to 18. */
+  /** Width/height in px. Square. Defaults to 24. */
   size?: number
   className?: string
   /**
@@ -14,7 +14,7 @@ interface BarbellIconProps {
 // Inline SVG. The geometry is symmetric around x=12 with the bar drawn first
 // and plates layered on top — sized so two plates per side fit cleanly inside
 // a 24×24 viewBox at 18–24px render sizes (the feed tile size).
-export default function BarbellIcon({ loaded, size = 18, className, title }: BarbellIconProps) {
+export default function BarbellIcon({ loaded, size = 24, className, title }: BarbellIconProps) {
   const decorative = !title
   return (
     <svg
