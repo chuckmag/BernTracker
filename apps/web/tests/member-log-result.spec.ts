@@ -46,7 +46,10 @@ async function seedMemberFixture(): Promise<MemberFixture> {
     data: {
       title: `E2E AMRAP ${ts}`,
       description: 'AMRAP 20: 5 Pull-ups, 10 Push-ups, 15 Squats',
-      type: 'AMRAP', status: 'PUBLISHED', scheduledAt: day, programId: program.id, dayOrder: 0,
+      // tracksRounds=true exposes the rounds input in the drawer; without it
+      // the form only renders a reps input and the test below would fail.
+      type: 'AMRAP', status: 'PUBLISHED', tracksRounds: true,
+      scheduledAt: day, programId: program.id, dayOrder: 0,
     },
   })
   const forTime = await prisma.workout.create({
@@ -122,7 +125,9 @@ test.describe('Member result-logging E2E', () => {
       data: {
         workoutId: f.amrapWorkoutId, userId: f.memberUserId, level: 'RX',
         workoutGender: 'OPEN',
-        value: { type: 'AMRAP', rounds: 5, reps: 10 },
+        value: { score: { kind: 'ROUNDS_REPS', rounds: 5, reps: 10, cappedOut: false }, movementResults: [] },
+        primaryScoreKind: 'ROUNDS_REPS',
+        primaryScoreValue: 5010,
         notes: 'Felt fast on round 4.',
       },
     })
@@ -146,7 +151,9 @@ test.describe('Member result-logging E2E', () => {
       data: {
         workoutId: f.amrapWorkoutId, userId: f.memberUserId, level: 'RX',
         workoutGender: 'OPEN',
-        value: { type: 'AMRAP', rounds: 5, extraReps: 0 },
+        value: { score: { kind: 'ROUNDS_REPS', rounds: 5, reps: 0, cappedOut: false }, movementResults: [] },
+        primaryScoreKind: 'ROUNDS_REPS',
+        primaryScoreValue: 5000,
       },
     })
     await loginMember(page, f)
