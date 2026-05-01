@@ -33,7 +33,13 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 
 # This is a one-shot job runner, not a server — no EXPOSE.
 # Migrations are owned by the API service; jobs assume the schema is already migrated.
-# ENTRYPOINT runs the dispatcher; CMD provides the default job name and is
-# overridden per-service in railway.jobs.toml via startCommand.
-ENTRYPOINT ["node", "apps/api/dist/jobs/index.js"]
-CMD ["crossfit-wod"]
+#
+# One image, many jobs: each Railway service sets `JOB_NAME` to the registry
+# key it wants to run (see `src/jobs/index.ts`). The `sh -c` form expands the
+# env var into argv before exec'ing node. Driving the dispatcher via Railway
+# `startCommand` proved unreliable on QA — the cron container produced no
+# logs at all — so we read the name from the environment instead.
+#
+# Defaults to `noop` if `JOB_NAME` is unset so a misconfigured service runs
+# the smoke-test handler rather than silently doing nothing.
+CMD ["sh", "-c", "exec node apps/api/dist/jobs/index.js \"${JOB_NAME:-noop}\""]

@@ -1,16 +1,14 @@
-# Railway service config for the CrossFit Mainsite WOD ingest cron.
+# Railway service config for jobs that share the Dockerfile.jobs image.
 #
-# One image (Dockerfile.jobs) backs many Railway services — each service
-# overrides startCommand with a different job name. Add a new service per job;
-# all of them share the same image and dispatcher.
+# One image, many services: every cron service points at this Dockerfile and
+# selects which job to run by setting the `JOB_NAME` service variable in the
+# Railway dashboard (e.g. JOB_NAME=crossfit-wod). The Dockerfile's CMD reads
+# that env var and dispatches the matching handler in `src/jobs/index.ts`.
 #
-# Prerequisite: a Program named "CrossFit Mainsite WOD" must exist in the DB
-# before this service does anything useful. Until then the job logs a warning
-# and exits 0 each tick.
+# We do **not** set `startCommand` here — using it to pass the job name was
+# the source of the silent-failure deploys on QA. Cron schedule is also set
+# per-service in the Railway UI so the same TOML can be reused for every job.
 
 [build]
 dockerfilePath = "apps/api/Dockerfile.jobs"
 buildCommand = ""
-
-[deploy]
-startCommand = ""
