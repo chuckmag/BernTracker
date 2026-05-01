@@ -506,6 +506,7 @@ export default function LogResultScreen({ route, navigation }: Props) {
             <SetsTableRN
               movement={movements[activeMovement]}
               movementIdx={activeMovement}
+              category={TYPE_CATEGORY[workout.type]}
               prescription={
                 workout.workoutMovements.find((wm) => wm.movement.id === movements[activeMovement].workoutMovementId) ?? null
               }
@@ -607,6 +608,7 @@ const DISTANCE_UNITS: { value: DistanceUnit; label: string }[] = [
 function SetsTableRN({
   movement,
   movementIdx,
+  category,
   prescription,
   onUpdate,
   onAddSet,
@@ -615,6 +617,7 @@ function SetsTableRN({
 }: {
   movement: MovementSection
   movementIdx: number
+  category: WorkoutCategory
   prescription: WorkoutMovementWithPrescription | null
   onUpdate: (mIdx: number, sIdx: number, field: keyof SetRow, value: string) => void
   onAddSet: (mIdx: number) => void
@@ -624,20 +627,36 @@ function SetsTableRN({
   // The columns to surface come from whichever fields the programmer
   // prescribed — anything they didn't prescribe is hidden by default.
   // Members can show extras via the "+ Column" buttons below the table.
+  // Strength is special: load is intentionally not prescribed (programmers
+  // leave the actual weight to the member, who knows their training history),
+  // but the load column still auto-shows on the result side because that's
+  // the headline number the member came to record.
   const prescribed = useMemo(() => {
-    if (!prescription) return new Set<keyof SetRow>(['reps', 'load'])
     const cols = new Set<keyof SetRow>()
-    if (prescription.reps !== null)     cols.add('reps')
-    if (prescription.load !== null)     cols.add('load')
-    if (prescription.tempo !== null)    cols.add('tempo')
-    if (prescription.distance !== null) cols.add('distance')
-    if (prescription.calories !== null) cols.add('calories')
-    if (prescription.seconds !== null)  cols.add('seconds')
-    if (cols.size === 0) cols.add('reps').add('load')
+    if (prescription) {
+      if (prescription.reps !== null)     cols.add('reps')
+      if (prescription.load !== null)     cols.add('load')
+      if (prescription.tempo !== null)    cols.add('tempo')
+      if (prescription.distance !== null) cols.add('distance')
+      if (prescription.calories !== null) cols.add('calories')
+      if (prescription.seconds !== null)  cols.add('seconds')
+    }
+    if (category === 'Strength') { cols.add('reps'); cols.add('load') }
+    if (cols.size === 0) { cols.add('reps'); cols.add('load') }
     return cols
-  }, [prescription])
+  }, [prescription, category])
 
   // Auto-show a column if the user has typed into any cell of it.
+  // Columns reachable for this workout's category. Strength is barbell
+  // work — distance / cals / seconds aren't relevant. MonoStructural is
+  // timed cardio — sets / reps / load aren't. Metcon / Skill / Warmup keep
+  // every axis since their movement mix varies.
+  const availableColumns = useMemo<Set<keyof SetRow>>(() => {
+    if (category === 'Strength') return new Set(['reps', 'load', 'tempo'])
+    if (category === 'MonoStructural') return new Set(['distance', 'calories', 'seconds'])
+    return new Set(['reps', 'load', 'tempo', 'distance', 'calories', 'seconds'])
+  }, [category])
+
   const visible = useMemo(() => {
     const cols = new Set(prescribed)
     for (const s of movement.sets) {
@@ -645,11 +664,11 @@ function SetsTableRN({
         if (s[c] !== '') cols.add(c)
       })
     }
-    return cols
-  }, [prescribed, movement.sets])
+    return new Set([...cols].filter((c) => availableColumns.has(c)))
+  }, [prescribed, movement.sets, availableColumns])
 
   const showColumns = ALL_COLUMNS.filter((c) => visible.has(c.key))
-  const hiddenColumns = ALL_COLUMNS.filter((c) => !visible.has(c.key))
+  const hiddenColumns = ALL_COLUMNS.filter((c) => !visible.has(c.key) && availableColumns.has(c.key))
 
   return (
     <View>

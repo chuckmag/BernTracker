@@ -79,6 +79,17 @@ const STRENGTH_WORKOUT = makeWorkout({
   ],
 })
 
+// Strength prescription with no load prescribed — programmers leave the
+// actual weight to the member. The Load column should still auto-show.
+const STRENGTH_WORKOUT_NO_LOAD = makeWorkout({
+  id: 'w-4',
+  title: 'Back Squat — heavy triple',
+  type: 'POWER_LIFTING',
+  workoutMovements: [
+    makeMovement('m-1', 'Back Squat', { displayOrder: 0, sets: 3, reps: '3' }),
+  ],
+})
+
 const FOR_TIME_WORKOUT = makeWorkout({ id: 'w-2', title: 'Fran', type: 'FOR_TIME', tracksRounds: false })
 
 function makeNavigation() {
@@ -124,6 +135,21 @@ describe('LogResultScreen — strength sets table', () => {
     expect(getByLabelText(/Set 1 Reps/i).props.value).toBe('5')
     expect(getByLabelText(/Set 3 Load/i).props.value).toBe('225')
     expect(getByLabelText(/Set 5 Tempo/i).props.value).toBe('3.1.1.0')
+  })
+
+  test('strength workout without prescribed load still surfaces a Load column', async () => {
+    ;(api.workouts.get as jest.Mock).mockResolvedValue(STRENGTH_WORKOUT_NO_LOAD)
+
+    const { findByText, getAllByLabelText } = render(
+      <LogResultScreen navigation={makeNavigation()} route={makeRoute({ workoutId: 'w-4' })} />,
+    )
+
+    await findByText('Back Squat — heavy triple')
+
+    // Three rows from `sets: 3`, each carrying both Reps and Load even though
+    // the programmer only prescribed reps.
+    expect(getAllByLabelText(/Set \d Reps/i)).toHaveLength(3)
+    expect(getAllByLabelText(/Set \d Load/i)).toHaveLength(3)
   })
 
   test('+ Add set appends a row and × removes one', async () => {
