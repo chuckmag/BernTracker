@@ -15,8 +15,49 @@ const REFRESH_TOKEN_KEY = 'refreshToken'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type WorkoutType = 'STRENGTH' | 'FOR_TIME' | 'EMOM' | 'CARDIO' | 'AMRAP' | 'METCON' | 'WARMUP'
+export type WorkoutType =
+  // Strength
+  | 'STRENGTH' | 'POWER_LIFTING' | 'WEIGHT_LIFTING' | 'BODY_BUILDING' | 'MAX_EFFORT'
+  // Metcon
+  | 'AMRAP' | 'FOR_TIME' | 'EMOM' | 'METCON' | 'TABATA' | 'INTERVALS' | 'CHIPPER' | 'LADDER' | 'DEATH_BY'
+  // MonoStructural
+  | 'CARDIO' | 'RUNNING' | 'ROWING' | 'BIKING' | 'SWIMMING' | 'SKI_ERG' | 'MIXED_MONO'
+  // Skill Work
+  | 'GYMNASTICS' | 'WEIGHTLIFTING_TECHNIQUE'
+  // Warmup / Recovery
+  | 'WARMUP' | 'MOBILITY' | 'COOLDOWN'
 export type WorkoutStatus = 'DRAFT' | 'PUBLISHED'
+
+// Per-movement prescription on a workout. All prescription fields are
+// nullable — programmer fills only the columns relevant to the workout.
+// Mirrors the web's `WorkoutMovementWithPrescription`.
+export type LoadUnit = 'LB' | 'KG'
+export type DistanceUnit = 'M' | 'KM' | 'MI' | 'FT' | 'YD'
+
+export interface Movement {
+  id: string
+  name: string
+  parentId: string | null
+}
+
+export interface WorkoutMovementWithPrescription {
+  movement: Movement
+  displayOrder: number
+  sets: number | null
+  reps: string | null
+  load: number | null
+  loadUnit: LoadUnit | null
+  // Whether the result form should surface a Load column for this movement.
+  // Always populated on read — the Prisma column has `@default(true)`. Programmer
+  // flips this off for plyometric supersets and other no-load movements where a
+  // Load column would just be noise.
+  tracksLoad: boolean
+  tempo: string | null
+  distance: number | null
+  distanceUnit: DistanceUnit | null
+  calories: number | null
+  seconds: number | null
+}
 
 export interface AuthUser {
   id: string
@@ -59,6 +100,9 @@ export interface Workout {
   status: WorkoutStatus
   scheduledAt: string
   programId: string | null
+  workoutMovements: WorkoutMovementWithPrescription[]
+  timeCapSeconds: number | null
+  tracksRounds: boolean
 }
 
 export interface LeaderboardEntry {
