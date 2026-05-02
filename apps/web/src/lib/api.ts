@@ -129,8 +129,30 @@ export interface NamedWorkout {
 export type LoadUnit = 'LB' | 'KG'
 export type DistanceUnit = 'M' | 'KM' | 'MI' | 'FT' | 'YD'
 
+// Per-movement prescription as it goes over the wire on workout create/update.
+// Only `movementId` is required; everything else is optional.
+export interface WorkoutMovementInput {
+  movementId: string
+  displayOrder?: number
+  sets?: number
+  reps?: string
+  load?: number
+  loadUnit?: LoadUnit
+  // Whether the result form should surface a Load column for this movement.
+  // Defaults true at the API boundary — programmer flips off for plyometric
+  // supersets and other no-load pieces.
+  tracksLoad?: boolean
+  tempo?: string
+  distance?: number
+  distanceUnit?: DistanceUnit
+  calories?: number
+  seconds?: number
+}
+
 // Per-movement prescription on a workout. All prescription fields are
 // nullable — programmer fills only the columns relevant to the workout.
+// `tracksLoad` is always populated on read since the Prisma column has
+// `@default(true)`.
 export interface WorkoutMovementWithPrescription {
   movement: Movement
   displayOrder: number
@@ -138,6 +160,7 @@ export interface WorkoutMovementWithPrescription {
   reps: string | null
   load: number | null
   loadUnit: LoadUnit | null
+  tracksLoad: boolean
   tempo: string | null
   distance: number | null
   distanceUnit: DistanceUnit | null
@@ -161,6 +184,12 @@ export interface Workout {
   timeCapSeconds: number | null
   tracksRounds: boolean
   _count: { results: number }
+  /**
+   * Viewer's own result on this workout, or null if they haven't logged one.
+   * Surfaced by the feed list endpoint (`GET /api/gyms/:gymId/workouts`); the
+   * single-workout `GET /api/workouts/:id` endpoint does not populate it.
+   */
+  myResultId?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -604,14 +633,36 @@ export const api = {
 
     create: (
       gymId: string,
-      data: { programId?: string; title: string; description: string; type: WorkoutType; scheduledAt: string; movementIds?: string[]; namedWorkoutId?: string },
+      data: {
+        programId?: string
+        title: string
+        description: string
+        type: WorkoutType
+        scheduledAt: string
+        movementIds?: string[]
+        movements?: WorkoutMovementInput[]
+        namedWorkoutId?: string
+        timeCapSeconds?: number | null
+        tracksRounds?: boolean
+      },
       token?: string,
     ) =>
       req<Workout>(`/api/gyms/${gymId}/workouts`, { method: 'POST', body: JSON.stringify(data), token }),
 
     update: (
       id: string,
-      data: { title?: string; description?: string; type?: WorkoutType; scheduledAt?: string; dayOrder?: number; movementIds?: string[]; namedWorkoutId?: string | null },
+      data: {
+        title?: string
+        description?: string
+        type?: WorkoutType
+        scheduledAt?: string
+        dayOrder?: number
+        movementIds?: string[]
+        movements?: WorkoutMovementInput[]
+        namedWorkoutId?: string | null
+        timeCapSeconds?: number | null
+        tracksRounds?: boolean
+      },
       token?: string,
     ) =>
       req<Workout>(`/api/workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),

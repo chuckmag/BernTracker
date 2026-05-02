@@ -102,7 +102,7 @@ async function getWorkoutsByGymAndDateRange(req: Request, res: Response) {
   }
   const programIds = programIdList.length > 0 ? programIdList : undefined
 
-  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, { publishedOnly, movementIds, programIds })
+  const workouts = await findWorkoutsByGymAndDateRange(gymId, fromDate, toDate, req.user!.id, { publishedOnly, movementIds, programIds })
   res.json(workouts)
 }
 

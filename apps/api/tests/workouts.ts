@@ -146,6 +146,70 @@ async function runTests() {
     check('GET /gyms/:gymId/workouts → array', true, Array.isArray(r.body))
   }
 
+  // ── Feed list: myResultId surfaces only for the viewer ────────────────────
+  console.log('\n=== Feed list: myResultId field ===')
+
+  {
+    // Use a dedicated PUBLISHED workout on a date outside the primary range so
+    // this block doesn't interfere with the publish/already-published tests
+    // below that still expect the primary workout to be DRAFT.
+    const feedWorkout = await prisma.workout.create({
+      data: {
+        title: `AT Feed Workout ${TS}`,
+        description: 'feed-tile-myResultId',
+        type: 'AMRAP',
+        status: 'PUBLISHED',
+        scheduledAt: new Date('2026-03-25T10:00:00Z'),
+        programId,
+      },
+    })
+
+    // Programmer logs a result on this workout; member does not.
+    const programmerResult = await prisma.result.create({
+      data: {
+        workoutId: feedWorkout.id,
+        userId: programmerUserId,
+        level: 'RX',
+        workoutGender: 'OPEN',
+        value: { type: 'AMRAP', rounds: 3, reps: 5 },
+      },
+    })
+
+    // Subscribe the member so the published workout is visible to them.
+    await prisma.userProgram.upsert({
+      where: { userId_programId: { userId: memberUserId, programId } },
+      create: { userId: memberUserId, programId, role: ProgramRole.MEMBER },
+      update: { role: ProgramRole.MEMBER },
+    })
+    await prisma.userGym.upsert({
+      where: { userId_gymId: { userId: memberUserId, gymId } },
+      create: { userId: memberUserId, gymId, role: 'MEMBER' },
+      update: { role: 'MEMBER' },
+    })
+
+    // Programmer's view: myResultId points at their own result, _count.results = 1.
+    const asProgrammer = await api('GET', `/gyms/${gymId}/workouts?from=2026-03-20&to=2026-03-31`, programmerToken)
+    const list = asProgrammer.body as unknown as Array<Record<string, unknown>>
+    const tile = list.find((w) => w.id === feedWorkout.id) as Record<string, unknown>
+    check('feed: programmer sees myResultId on logged tile', programmerResult.id, tile?.myResultId)
+    const count = tile?._count as Record<string, unknown> | undefined
+    check('feed: _count.results includes the seeded result', 1, count?.results)
+
+    const asMember = await api('GET', `/gyms/${gymId}/workouts?from=2026-03-20&to=2026-03-31`, memberToken)
+    const memberList = asMember.body as unknown as Array<Record<string, unknown>>
+    const memberTile = memberList.find((w) => w.id === feedWorkout.id) as Record<string, unknown>
+    check('feed: member who has not logged sees myResultId=null', null, memberTile?.myResultId ?? null)
+    const memberCount = memberTile?._count as Record<string, unknown> | undefined
+    check('feed: _count.results still reflects programmer\'s result for the member viewer', 1, memberCount?.results)
+
+    // The internal `results` array used to compute myResultId must NOT leak.
+    check('feed: raw results array is not exposed to the client', undefined, (memberTile as Record<string, unknown>)?.results)
+
+    // Cleanup the seeded result + workout.
+    await prisma.result.delete({ where: { id: programmerResult.id } })
+    await prisma.workout.delete({ where: { id: feedWorkout.id } })
+  }
+
   // ── Program-scoped read access ─────────────────────────────────────────────
   console.log('\n=== Program-scoped read access ===')
 

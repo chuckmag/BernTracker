@@ -2,9 +2,127 @@ import { useState, useEffect, useRef } from 'react'
 import TurndownService from 'turndown'
 // @ts-expect-error — turndown-plugin-gfm ships no types
 import { gfm } from 'turndown-plugin-gfm'
-import { api, TYPE_ABBR, type GymProgram, type Movement, type NamedWorkout, type Role, type Workout, type WorkoutStatus, type WorkoutType } from '../lib/api'
+import { api, TYPE_ABBR, type DistanceUnit, type GymProgram, type LoadUnit, type Movement, type NamedWorkout, type Role, type Workout, type WorkoutStatus, type WorkoutType } from '../lib/api'
 import { WORKOUT_CATEGORIES, WORKOUT_TYPE_STYLES, typesInCategory } from '../lib/workoutTypeStyles'
 import { useMovements } from '../context/MovementsContext.tsx'
+
+// Per-movement prescription as form state — strings everywhere so empty
+// inputs are first-class. Coerced to numbers/units at submit time.
+interface PrescriptionForm {
+  sets:         string
+  reps:         string
+  load:         string
+  loadUnit:     LoadUnit
+  // Whether the result form should surface a Load column for this movement.
+  // Defaults true — programmer flips off for plyometric supersets and other
+  // pieces where Load would be noise on the result form.
+  tracksLoad:   boolean
+  tempo:        string
+  distance:     string
+  distanceUnit: DistanceUnit
+  calories:     string
+  seconds:      string
+}
+
+const EMPTY_PRESCRIPTION: PrescriptionForm = {
+  sets: '', reps: '', load: '', loadUnit: 'LB', tracksLoad: true, tempo: '',
+  distance: '', distanceUnit: 'M', calories: '', seconds: '',
+}
+
+function blankPrescription(): PrescriptionForm {
+  return { ...EMPTY_PRESCRIPTION }
+}
+
+// Categories that surface a workout-level time cap input. AMRAP additionally
+// gets the `tracksRounds` toggle. Strength + Skill + Warmup hide both.
+const TIME_CAP_TYPES = new Set<WorkoutType>([
+  'AMRAP', 'FOR_TIME', 'EMOM', 'METCON', 'TABATA', 'INTERVALS', 'CHIPPER', 'LADDER', 'DEATH_BY',
+])
+
+// Type-driven default for which prescription columns to surface in the form.
+// Hidden columns are still legal — programmer can flip the disclosure to
+// reveal everything — but the default keeps the UI uncluttered for the most
+// common case per category.
+//
+// Strength is intentionally absent of `load`: weight prescriptions for
+// strength work are too individualized to express usefully here. A future
+// iteration will suggest loads from the member's training history; until
+// then, programmers leave load to the member at log-time.
+function defaultPrescriptionColumns(type: WorkoutType): Set<keyof PrescriptionForm> {
+  const category = WORKOUT_TYPE_STYLES[type].category
+  if (category === 'Strength') return new Set(['sets', 'reps', 'tempo'])
+  if (category === 'MonoStructural') return new Set(['distance', 'calories', 'seconds'])
+  if (category === 'Metcon') return new Set(['sets', 'reps', 'load'])
+  return new Set(['sets', 'reps'])
+}
+
+// Columns the programmer can ever reach for this workout type. Tightening
+// is two-fold:
+// - Strength hides `load` (intentional — slice 2B feedback) and also drops
+//   distance/calories/seconds since barbell work doesn't have those axes.
+// - MonoStructural drops sets/reps/load/tempo — rowing/biking/swimming are
+//   timed cardio, not lift work.
+// - Metcon / Skill Work / Warmup keep every axis available; their movement
+//   mix is too varied to constrain at the workout level.
+function availablePrescriptionColumns(type: WorkoutType): Set<keyof PrescriptionForm> {
+  const category = WORKOUT_TYPE_STYLES[type].category
+  if (category === 'Strength') return new Set(['sets', 'reps', 'tempo'])
+  if (category === 'MonoStructural') return new Set(['distance', 'distanceUnit', 'calories', 'seconds'])
+  return new Set(['sets', 'reps', 'load', 'loadUnit', 'tempo', 'distance', 'distanceUnit', 'calories', 'seconds'])
+}
+
+function parseMmss(input: string): number | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+  // "20" → 20s; "20:00" → 20 minutes
+  if (!trimmed.includes(':')) {
+    const n = parseInt(trimmed, 10)
+    return Number.isInteger(n) && n >= 0 ? n : null
+  }
+  const [m, s] = trimmed.split(':')
+  const mi = parseInt(m, 10)
+  const si = parseInt(s, 10)
+  if (!Number.isInteger(mi) || mi < 0 || !Number.isInteger(si) || si < 0 || si > 59) return null
+  return mi * 60 + si
+}
+
+function formatMmss(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined) return ''
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+// Project the per-movement form state into the API payload shape, using the
+// current `selectedMovements` order to assign `displayOrder`. Empty strings
+// drop out of the payload (sent as undefined → the API persists null).
+function buildMovementsPayload(
+  selected: Movement[],
+  prescriptions: Record<string, PrescriptionForm>,
+) {
+  return selected.map((m, i) => {
+    const p = prescriptions[m.id] ?? EMPTY_PRESCRIPTION
+    const sets     = parseInt(p.sets,     10)
+    const load     = parseFloat(p.load)
+    const distance = parseFloat(p.distance)
+    const calories = parseInt(p.calories, 10)
+    const seconds  = parseInt(p.seconds,  10)
+    return {
+      movementId:   m.id,
+      displayOrder: i,
+      sets:     Number.isFinite(sets)     && sets     > 0 ? sets : undefined,
+      reps:     p.reps  ? p.reps  : undefined,
+      load:     Number.isFinite(load)     && load     > 0 ? load : undefined,
+      loadUnit: p.load  ? p.loadUnit : undefined,
+      tracksLoad: p.tracksLoad,
+      tempo:    p.tempo ? p.tempo : undefined,
+      distance:     Number.isFinite(distance) && distance > 0 ? distance : undefined,
+      distanceUnit: p.distance ? p.distanceUnit : undefined,
+      calories: Number.isFinite(calories) && calories >= 0 ? calories : undefined,
+      seconds:  Number.isFinite(seconds)  && seconds  >= 0 ? seconds  : undefined,
+    }
+  })
+}
 
 // Single Turndown instance handles HTML→Markdown conversion when the user pastes
 // rich content (e.g., tables copied from a web page) into the description.
@@ -48,7 +166,12 @@ function buildSnapshot(args: {
   namedWorkoutId: string | null
   movementIds: string[]
   programId: string | null
+  prescriptions: Record<string, PrescriptionForm>
+  timeCapSeconds: string
+  tracksRounds: boolean
 }): string {
+  // Project prescriptions in movement-id order so equal sets compare equal.
+  const prescriptionsCanonical = args.movementIds.map((id) => [id, args.prescriptions[id] ?? EMPTY_PRESCRIPTION])
   return JSON.stringify({
     title: args.title.trim(),
     description: args.description,
@@ -56,6 +179,9 @@ function buildSnapshot(args: {
     namedWorkoutId: args.namedWorkoutId,
     movementIds: args.movementIds,
     programId: args.programId,
+    prescriptions: prescriptionsCanonical,
+    timeCapSeconds: args.timeCapSeconds.trim(),
+    tracksRounds: args.tracksRounds,
   })
 }
 
@@ -72,6 +198,10 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const [namedWorkouts, setNamedWorkouts] = useState<NamedWorkout[]>([])
   const [namedWorkoutId, setNamedWorkoutId] = useState<string | null>(null)
   const [selectedMovements, setSelectedMovements] = useState<Movement[]>([])
+  const [prescriptions, setPrescriptions] = useState<Record<string, PrescriptionForm>>({})
+  const [timeCapInput, setTimeCapInput] = useState<string>('')
+  const [tracksRounds, setTracksRounds] = useState<boolean>(false)
+  const [showAllColumns, setShowAllColumns] = useState<boolean>(false)
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [movementSearch, setMovementSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -125,6 +255,29 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setProgramId(workout?.programId ?? defaultProgramId ?? '')
     setNamedWorkoutId(workout?.namedWorkoutId ?? null)
     setSelectedMovements(workout?.workoutMovements?.map((wm) => wm.movement) ?? [])
+    // Seed prescriptions from the workout's existing per-movement rows. Empty
+    // strings (rather than undefined) so the inputs render controlled.
+    const seededPrescriptions: Record<string, PrescriptionForm> = {}
+    for (const wm of workout?.workoutMovements ?? []) {
+      seededPrescriptions[wm.movement.id] = {
+        sets:         wm.sets         !== null && wm.sets         !== undefined ? String(wm.sets) : '',
+        reps:         wm.reps         ?? '',
+        load:         wm.load         !== null && wm.load         !== undefined ? String(wm.load) : '',
+        loadUnit:     wm.loadUnit     ?? 'LB',
+        // tracksLoad is always populated on read (Prisma column has @default(true)).
+        // The `?? true` covers tests/fixtures that omit the field.
+        tracksLoad:   wm.tracksLoad   ?? true,
+        tempo:        wm.tempo        ?? '',
+        distance:     wm.distance     !== null && wm.distance     !== undefined ? String(wm.distance) : '',
+        distanceUnit: wm.distanceUnit ?? 'M',
+        calories:     wm.calories     !== null && wm.calories     !== undefined ? String(wm.calories) : '',
+        seconds:      wm.seconds      !== null && wm.seconds      !== undefined ? String(wm.seconds) : '',
+      }
+    }
+    setPrescriptions(seededPrescriptions)
+    setTimeCapInput(formatMmss(workout?.timeCapSeconds ?? null))
+    setTracksRounds(workout?.tracksRounds ?? false)
+    setShowAllColumns(false)
     setDismissedIds(new Set())
     setMovementSearch('')
     setSearchOpen(false)
@@ -144,6 +297,9 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       namedWorkoutId: workout?.namedWorkoutId ?? null,
       movementIds: workout?.workoutMovements?.map((wm) => wm.movement.id) ?? [],
       programId: workout?.id ? null : (workout?.programId ?? defaultProgramId ?? ''),
+      prescriptions: seededPrescriptions,
+      timeCapSeconds: formatMmss(workout?.timeCapSeconds ?? null),
+      tracksRounds: workout?.tracksRounds ?? false,
     })
   }, [isOpen, workout?.id, defaultProgramId])
 
@@ -157,6 +313,9 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     namedWorkoutId,
     movementIds: selectedMovements.map((m) => m.id),
     programId: localWorkoutId ? null : programId,
+    prescriptions,
+    timeCapSeconds: timeCapInput,
+    tracksRounds,
   })
 
   const canAutosave =
@@ -174,7 +333,13 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     if (lastAutosaveSnapshotRef.current === snapshot) return
 
     const snapshotAtSave = snapshot
-    const movementIds = selectedMovements.map((m) => m.id)
+    const movements = buildMovementsPayload(selectedMovements, prescriptions)
+    const timeCapSeconds = parseMmss(timeCapInput)
+    const tracksRoundsForType = type === 'AMRAP' ? tracksRounds : false
+    // `CreateWorkoutSchema.timeCapSeconds` is `z.number().int().positive()` —
+    // not nullable. Omit the field on create when there's no cap; on update
+    // we always pass the value (the API schema accepts null there to clear).
+    const timeCapForCreate = timeCapSeconds !== null ? { timeCapSeconds } : {}
 
     const task = (async () => {
       setAutosaving(true)
@@ -184,8 +349,10 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
             title: title.trim(),
             description,
             type,
-            movementIds,
+            movements,
             namedWorkoutId,
+            timeCapSeconds,
+            tracksRounds: tracksRoundsForType,
           })
           lastAutosaveSnapshotRef.current = snapshotAtSave
         } else {
@@ -196,8 +363,10 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
             description,
             type,
             scheduledAt,
-            movementIds,
+            movements,
             namedWorkoutId: namedWorkoutId ?? undefined,
+            ...timeCapForCreate,
+            tracksRounds: tracksRoundsForType,
           })
           setLocalWorkoutId(created.id)
           setLocalStatus(created.status)
@@ -208,8 +377,11 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
             description,
             type,
             namedWorkoutId,
-            movementIds,
+            movementIds: selectedMovements.map((m) => m.id),
             programId: null,
+            prescriptions,
+            timeCapSeconds: timeCapInput,
+            tracksRounds,
           })
         }
         setAutosavedAt(new Date())
@@ -332,12 +504,15 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setSaving(true)
     setError(null)
     try {
-      const movementIds = selectedMovements.map((m) => m.id)
+      const movements = buildMovementsPayload(selectedMovements, prescriptions)
+      const timeCapSeconds = parseMmss(timeCapInput)
+      const tracksRoundsForType = type === 'AMRAP' ? tracksRounds : false
+      const timeCapForCreate = timeCapSeconds !== null ? { timeCapSeconds } : {}
       if (localWorkoutId) {
-        await api.workouts.update(localWorkoutId, { title: title.trim(), description, type, movementIds, namedWorkoutId })
+        await api.workouts.update(localWorkoutId, { title: title.trim(), description, type, movements, namedWorkoutId, timeCapSeconds, tracksRounds: tracksRoundsForType })
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-        await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movementIds, namedWorkoutId: namedWorkoutId ?? undefined })
+        await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
       }
       onSaved()
       setSaving(false)
@@ -354,13 +529,16 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setSaving(true)
     setError(null)
     try {
-      const movementIds = selectedMovements.map((m) => m.id)
+      const movements = buildMovementsPayload(selectedMovements, prescriptions)
+      const timeCapSeconds = parseMmss(timeCapInput)
+      const tracksRoundsForType = type === 'AMRAP' ? tracksRounds : false
+      const timeCapForCreate = timeCapSeconds !== null ? { timeCapSeconds } : {}
       let id = localWorkoutId
       if (id) {
-        await api.workouts.update(id, { title: title.trim(), description, type, movementIds, namedWorkoutId })
+        await api.workouts.update(id, { title: title.trim(), description, type, movements, namedWorkoutId, timeCapSeconds, tracksRounds: tracksRoundsForType })
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-        const created = await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movementIds, namedWorkoutId: namedWorkoutId ?? undefined })
+        const created = await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
         id = created.id
       }
       await api.workouts.publish(id!)
@@ -603,6 +781,37 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
             </select>
           </div>
 
+          {TIME_CAP_TYPES.has(type) && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor="wd-time-cap" className="block text-xs text-gray-400 mb-1">
+                  Time cap <span className="text-gray-500">(M:SS)</span>
+                </label>
+                <input
+                  id="wd-time-cap"
+                  type="text"
+                  value={timeCapInput}
+                  onChange={(e) => setTimeCapInput(e.target.value)}
+                  placeholder="20:00"
+                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              {type === 'AMRAP' && (
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 cursor-pointer min-h-7 select-none">
+                    <input
+                      type="checkbox"
+                      checked={tracksRounds}
+                      onChange={(e) => setTracksRounds(e.target.checked)}
+                      className="w-4 h-4 rounded accent-indigo-500"
+                    />
+                    <span className="text-sm text-gray-300">Track rounds</span>
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="block text-xs text-gray-400 mb-1">Title</label>
             <input
@@ -675,26 +884,34 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                 </label>
 
                 {selectedMovements.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
+                  <div className="space-y-2 mb-2">
                     {selectedMovements.map((m) => (
-                      <span
+                      <PrescriptionRow
                         key={m.id}
-                        className="flex items-center gap-1 bg-gray-700 text-gray-200 text-xs px-2 py-1 rounded-full"
-                      >
-                        {m.name}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedMovements((prev) => prev.filter((x) => x.id !== m.id))
-                            setDismissedIds((prev) => new Set([...prev, m.id]))
-                          }}
-                          className="flex items-center justify-center w-7 h-7 -mr-1 -my-1 text-gray-400 hover:text-white hover:bg-gray-600 rounded-full transition-colors"
-                          aria-label={`Remove ${m.name}`}
-                        >
-                          ×
-                        </button>
-                      </span>
+                        movement={m}
+                        type={type}
+                        prescription={prescriptions[m.id] ?? blankPrescription()}
+                        showAllColumns={showAllColumns}
+                        onChange={(next) =>
+                          setPrescriptions((prev) => ({ ...prev, [m.id]: next }))
+                        }
+                        onRemove={() => {
+                          setSelectedMovements((prev) => prev.filter((x) => x.id !== m.id))
+                          setPrescriptions((prev) => {
+                            const { [m.id]: _, ...rest } = prev
+                            return rest
+                          })
+                          setDismissedIds((prev) => new Set([...prev, m.id]))
+                        }}
+                      />
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllColumns((v) => !v)}
+                      className="text-xs text-gray-400 hover:text-white transition-colors"
+                    >
+                      {showAllColumns ? '− Hide unused columns' : '+ Show all columns'}
+                    </button>
                   </div>
                 )}
 
@@ -859,5 +1076,161 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
         </div>
       </div>
     </>
+  )
+}
+
+// ─── Per-movement prescription row ─────────────────────────────────────────────
+
+interface PrescriptionRowProps {
+  movement: Movement
+  type: WorkoutType
+  prescription: PrescriptionForm
+  showAllColumns: boolean
+  onChange: (next: PrescriptionForm) => void
+  onRemove: () => void
+}
+
+const COLUMN_DEFS: { key: keyof PrescriptionForm; label: string; placeholder: string; inputMode?: 'numeric' | 'decimal' | 'text' }[] = [
+  { key: 'sets',     label: 'Sets',     placeholder: '5',       inputMode: 'numeric' },
+  { key: 'reps',     label: 'Reps',     placeholder: '5/1.1.1', inputMode: 'text' },
+  { key: 'load',     label: 'Load',     placeholder: '225',     inputMode: 'decimal' },
+  { key: 'tempo',    label: 'Tempo',    placeholder: '3.1.1.0', inputMode: 'text' },
+  { key: 'distance', label: 'Distance', placeholder: '500',     inputMode: 'decimal' },
+  { key: 'calories', label: 'Cals',     placeholder: '20',      inputMode: 'numeric' },
+  { key: 'seconds',  label: 'Seconds',  placeholder: '60',      inputMode: 'numeric' },
+]
+
+function PrescriptionRow({ movement, type, prescription, showAllColumns, onChange, onRemove }: PrescriptionRowProps) {
+  const defaults = defaultPrescriptionColumns(type)
+  const available = availablePrescriptionColumns(type)
+  // Surface a column when (a) it's reachable for this type AND (b) the
+  // type's defaults include it, the user typed a value into it, or the
+  // global "show all" toggle is on. Strength's `available` excludes `load`
+  // so the column never appears regardless of the toggle.
+  const visible = COLUMN_DEFS.filter((c) =>
+    available.has(c.key) && (showAllColumns || defaults.has(c.key) || prescription[c.key] !== ''),
+  )
+
+  // The Load tracking toggle is meaningful only for categories where the
+  // result form surfaces a Load column. MonoStructural doesn't, so the
+  // toggle would be a no-op there; hide it.
+  const category = WORKOUT_TYPE_STYLES[type].category
+  const showLoadToggle = category !== 'MonoStructural'
+
+  function update<K extends keyof PrescriptionForm>(key: K, value: PrescriptionForm[K]) {
+    onChange({ ...prescription, [key]: value })
+  }
+
+  return (
+    <div className="border border-gray-800 rounded-md bg-gray-800/30 px-3 py-2">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-sm text-gray-200">{movement.name}</span>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${movement.name}`}
+          className="text-gray-500 hover:text-red-400 -my-1 -mr-1.5 w-7 h-7 inline-flex items-center justify-center transition-colors"
+        >
+          ×
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {visible.map((c) => (
+          <PrescriptionInput
+            key={c.key}
+            id={`pr-${movement.id}-${c.key}`}
+            field={c.key}
+            label={c.label}
+            placeholder={c.placeholder}
+            inputMode={c.inputMode}
+            prescription={prescription}
+            onUpdate={update}
+          />
+        ))}
+      </div>
+      {showLoadToggle && (
+        <label
+          htmlFor={`pr-${movement.id}-tracksLoad`}
+          className="flex items-center gap-2 mt-2 text-xs text-gray-400 cursor-pointer min-h-7 select-none"
+        >
+          <input
+            id={`pr-${movement.id}-tracksLoad`}
+            type="checkbox"
+            checked={prescription.tracksLoad}
+            onChange={(e) => update('tracksLoad', e.target.checked)}
+            className="w-4 h-4 rounded accent-indigo-500"
+          />
+          <span>Track load on results</span>
+        </label>
+      )}
+    </div>
+  )
+}
+
+function PrescriptionInput({
+  id,
+  field,
+  label,
+  placeholder,
+  inputMode,
+  prescription,
+  onUpdate,
+}: {
+  id: string
+  field: keyof PrescriptionForm
+  label: string
+  placeholder: string
+  inputMode?: 'numeric' | 'decimal' | 'text'
+  prescription: PrescriptionForm
+  onUpdate: <K extends keyof PrescriptionForm>(key: K, value: PrescriptionForm[K]) => void
+}) {
+  // Load and Distance carry a unit picker beside the value input. Other
+  // columns are plain text/number inputs. Wrapping the unit picker into the
+  // same primitive keeps the grid alignment uniform.
+  const unitField =
+    field === 'load' ? 'loadUnit' :
+    field === 'distance' ? 'distanceUnit' :
+    null
+
+  return (
+    <div>
+      <label htmlFor={id} className="block text-[10px] uppercase tracking-wide text-gray-400 mb-0.5">{label}</label>
+      <div className={unitField ? 'flex gap-1' : ''}>
+        <input
+          id={id}
+          type="text"
+          inputMode={inputMode}
+          value={prescription[field] as string}
+          onChange={(e) => onUpdate(field, e.target.value as PrescriptionForm[typeof field])}
+          placeholder={placeholder}
+          className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded px-2 py-1 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+        />
+        {unitField === 'loadUnit' && (
+          <select
+            aria-label={`Load unit for ${label}`}
+            value={prescription.loadUnit}
+            onChange={(e) => onUpdate('loadUnit', e.target.value as LoadUnit)}
+            className="bg-gray-900 border border-gray-700 rounded px-1 text-xs text-white"
+          >
+            <option value="LB">lb</option>
+            <option value="KG">kg</option>
+          </select>
+        )}
+        {unitField === 'distanceUnit' && (
+          <select
+            aria-label={`Distance unit for ${label}`}
+            value={prescription.distanceUnit}
+            onChange={(e) => onUpdate('distanceUnit', e.target.value as DistanceUnit)}
+            className="bg-gray-900 border border-gray-700 rounded px-1 text-xs text-white"
+          >
+            <option value="M">m</option>
+            <option value="KM">km</option>
+            <option value="MI">mi</option>
+            <option value="FT">ft</option>
+            <option value="YD">yd</option>
+          </select>
+        )}
+      </div>
+    </div>
   )
 }

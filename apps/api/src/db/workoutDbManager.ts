@@ -125,6 +125,7 @@ export async function findWorkoutsByGymAndDateRange(
   gymId: string,
   from: Date,
   to: Date,
+  viewerUserId: string,
   filters: WorkoutDateRangeFilters = {},
 ) {
   // When the caller pins specific programIds the route layer has already
@@ -152,6 +153,10 @@ export async function findWorkoutsByGymAndDateRange(
       program: programSelect,
       namedWorkout: namedWorkoutSelect,
       _count: { select: { results: true } },
+      // Viewer's own result on this workout (0 or 1 row — Result is unique by
+      // (userId, workoutId)). Surfaced to the feed tile as `myResultId` so the
+      // UI can show a "you logged" indicator without an N+1 fetch per tile.
+      results: { where: { userId: viewerUserId }, select: { id: true } },
       ...workoutMovementsInclude,
     },
   })
@@ -182,7 +187,13 @@ export async function findWorkoutsByGymAndDateRange(
 
   if (updates.length > 0) await Promise.all(updates)
 
-  return workouts
+  // Reshape `results` (an array of 0–1 ids filtered to the viewer) into a
+  // simple scalar `myResultId` field. The raw array is an internal shape that
+  // shouldn't leak to the API client.
+  return workouts.map(({ results, ...rest }) => ({
+    ...rest,
+    myResultId: results[0]?.id ?? null,
+  }))
 }
 
 export async function findWorkoutById(id: string) {
