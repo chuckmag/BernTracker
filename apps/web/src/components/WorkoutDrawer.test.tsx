@@ -21,8 +21,12 @@ vi.mock('../lib/api', () => ({
   },
 }))
 
+// Tests that need a populated catalog (e.g. suggestion-pill flow) override
+// this with vi.doMock or vi.mocked — the default empty list keeps the older
+// autosave / prescription specs unchanged.
+const movementsCatalog: { id: string; name: string; parentId: string | null }[] = []
 vi.mock('../context/MovementsContext.tsx', () => ({
-  useMovements: () => [],
+  useMovements: () => movementsCatalog,
 }))
 
 import { api } from '../lib/api'
@@ -325,6 +329,90 @@ describe('WorkoutDrawer prescription editor', () => {
     expect(payload).toMatchObject({
       movements: [{ movementId: 'mv-1', tracksLoad: false }],
     })
+  })
+})
+
+describe('WorkoutDrawer movement suggestions', () => {
+  const SNATCH_VARIANTS = [
+    { id: 'mv-snatch',          name: 'Snatch',              parentId: null },
+    { id: 'mv-power-snatch',    name: 'Power Snatch',        parentId: null },
+    { id: 'mv-hang-snatch',     name: 'Hang Snatch',         parentId: null },
+    { id: 'mv-muscle-snatch',   name: 'Muscle Snatch',       parentId: null },
+    { id: 'mv-snatch-balance',  name: 'Snatch Balance',      parentId: null },
+  ]
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.clearAllMocks()
+    seedApi()
+    movementsCatalog.length = 0
+    movementsCatalog.push(...SNATCH_VARIANTS)
+    vi.mocked(api.movements.detect).mockResolvedValue(SNATCH_VARIANTS as never)
+  })
+
+  async function typeSnatchAndAwaitSuggestions(user: ReturnType<typeof userEvent.setup>) {
+    await waitFor(() => expect(screen.getByRole('option', { name: 'General' })).toBeInTheDocument())
+    await user.type(screen.getByPlaceholderText('e.g. Fran'), 'Snatch Day')
+    await user.type(screen.getByPlaceholderText(/Workout details/), 'snatch')
+    await act(async () => { vi.advanceTimersByTime(1000) })
+    await waitFor(() => expect(api.movements.detect).toHaveBeenCalled())
+  }
+
+  it('detection populates suggestion pills without auto-adding to selectedMovements', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const props = defaultProps()
+    render(<WorkoutDrawer {...props} />)
+
+    await typeSnatchAndAwaitSuggestions(user)
+
+    // All five matched movements appear as suggestion pills, but NONE has a
+    // PrescriptionRow yet — selectedMovements stays empty until the user
+    // clicks ✓.
+    for (const m of SNATCH_VARIANTS) {
+      expect(screen.getByLabelText(`Add ${m.name}`)).toBeInTheDocument()
+      expect(screen.getByLabelText(`Dismiss ${m.name}`)).toBeInTheDocument()
+    }
+    // No prescription row has rendered (the row exposes a "Sets" input).
+    expect(screen.queryByLabelText('Sets')).not.toBeInTheDocument()
+
+    // Autosave shouldn't have fired purely from suggestions appearing.
+    expect(api.workouts.create).not.toHaveBeenCalled()
+  })
+
+  it('accepting a suggestion promotes it to selectedMovements and removes the pill', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<WorkoutDrawer {...defaultProps()} />)
+
+    await typeSnatchAndAwaitSuggestions(user)
+
+    await user.click(screen.getByLabelText('Add Power Snatch'))
+
+    // Pill is gone.
+    expect(screen.queryByLabelText('Add Power Snatch')).not.toBeInTheDocument()
+    // Movement now has its prescription row (the row's remove button uses
+    // the same "Remove {name}" aria-label as the existing fixtures expect).
+    expect(screen.getByLabelText('Remove Power Snatch')).toBeInTheDocument()
+    // Other suggestions remain available.
+    expect(screen.getByLabelText('Add Snatch')).toBeInTheDocument()
+  })
+
+  it('dismissing a suggestion removes the pill and keeps it dismissed across re-detection', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<WorkoutDrawer {...defaultProps()} />)
+
+    await typeSnatchAndAwaitSuggestions(user)
+
+    await user.click(screen.getByLabelText('Dismiss Hang Snatch'))
+    expect(screen.queryByLabelText('Add Hang Snatch')).not.toBeInTheDocument()
+
+    // Trigger another detection by extending the description; Hang Snatch
+    // must NOT reappear because it is now dismissed.
+    await user.type(screen.getByPlaceholderText(/Workout details/), ' workout')
+    await act(async () => { vi.advanceTimersByTime(1000) })
+    await waitFor(() => expect(api.movements.detect).toHaveBeenCalledTimes(2))
+
+    expect(screen.queryByLabelText('Add Hang Snatch')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Add Snatch')).toBeInTheDocument()
   })
 })
 

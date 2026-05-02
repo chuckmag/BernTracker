@@ -198,6 +198,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const [namedWorkouts, setNamedWorkouts] = useState<NamedWorkout[]>([])
   const [namedWorkoutId, setNamedWorkoutId] = useState<string | null>(null)
   const [selectedMovements, setSelectedMovements] = useState<Movement[]>([])
+  const [suggestedMovementIds, setSuggestedMovementIds] = useState<string[]>([])
   const [prescriptions, setPrescriptions] = useState<Record<string, PrescriptionForm>>({})
   const [timeCapInput, setTimeCapInput] = useState<string>('')
   const [tracksRounds, setTracksRounds] = useState<boolean>(false)
@@ -279,6 +280,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setTracksRounds(workout?.tracksRounds ?? false)
     setShowAllColumns(false)
     setDismissedIds(new Set())
+    setSuggestedMovementIds([])
     setMovementSearch('')
     setSearchOpen(false)
     setSuggestError(null)
@@ -431,26 +433,42 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, snapshot, canAutosave, localWorkoutId])
 
-  // Auto-detect movements from description (debounced 800ms)
+  // Auto-detect movements from description (debounced 800ms). Detection
+  // produces suggestions, not auto-tags — the programmer accepts each one
+  // explicitly via the pill ✓ / ✗ controls below the prescription rows.
   useEffect(() => {
     if (!isOpen || !description.trim() || allMovements.length === 0) return
     const timer = setTimeout(() => {
       setDetectLoading(true)
       api.movements.detect(description)
         .then((detected) => {
-          setSelectedMovements((prev) => {
-            const currentIds = new Set(prev.map((m) => m.id))
-            const toAdd = detected.filter((m) => !currentIds.has(m.id) && !dismissedIds.has(m.id))
-            return toAdd.length > 0 ? [...prev, ...toAdd] : prev
-          })
+          const selectedIds = new Set(selectedMovements.map((m) => m.id))
+          const fresh = detected
+            .filter((m) => !selectedIds.has(m.id) && !dismissedIds.has(m.id))
+            .map((m) => m.id)
+          setSuggestedMovementIds(fresh)
         })
         .catch(() => {})
         .finally(() => setDetectLoading(false))
     }, 800)
     return () => clearTimeout(timer)
-    // dismissedIds intentionally omitted — closure captures current value without triggering re-runs on dismiss
+    // selectedMovements + dismissedIds intentionally omitted — captured at
+    // setup time, refreshed on the next description change. Avoids re-firing
+    // the detect API on every accept/dismiss.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [description, isOpen, allMovements.length])
+
+  function acceptSuggestion(id: string) {
+    const movement = allMovements.find((m) => m.id === id)
+    if (!movement) return
+    setSelectedMovements((prev) => (prev.some((m) => m.id === id) ? prev : [...prev, movement]))
+    setSuggestedMovementIds((prev) => prev.filter((sid) => sid !== id))
+  }
+
+  function dismissSuggestion(id: string) {
+    setDismissedIds((prev) => new Set(prev).add(id))
+    setSuggestedMovementIds((prev) => prev.filter((sid) => sid !== id))
+  }
 
   function handleApplyTemplate() {
     const nw = namedWorkouts.find((n) => n.id === namedWorkoutId)
@@ -460,6 +478,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setDescription(nw.templateWorkout.description)
     setSelectedMovements(nw.templateWorkout.workoutMovements?.map((wm) => wm.movement) ?? [])
     setDismissedIds(new Set())
+    setSuggestedMovementIds([])
   }
 
   // When the clipboard carries HTML (e.g., a table copied from a web page), convert
@@ -912,6 +931,39 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                     >
                       {showAllColumns ? '− Hide unused columns' : '+ Show all columns'}
                     </button>
+                  </div>
+                )}
+
+                {suggestedMovementIds.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-1.5" data-testid="movement-suggestions">
+                    {suggestedMovementIds.map((id) => {
+                      const m = allMovements.find((x) => x.id === id)
+                      if (!m) return null
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-0.5 pl-2.5 pr-0.5 py-0.5 rounded-full text-xs bg-indigo-900/40 border border-indigo-700/40 text-indigo-200"
+                        >
+                          <span className="mr-1">{m.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => acceptSuggestion(id)}
+                            aria-label={`Add ${m.name}`}
+                            className="w-7 h-7 inline-flex items-center justify-center rounded-full text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => dismissSuggestion(id)}
+                            aria-label={`Dismiss ${m.name}`}
+                            className="w-7 h-7 inline-flex items-center justify-center rounded-full text-rose-400 hover:bg-rose-500/20 hover:text-rose-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900"
+                          >
+                            ✗
+                          </button>
+                        </span>
+                      )
+                    })}
                   </div>
                 )}
 
