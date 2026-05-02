@@ -1,20 +1,10 @@
 import type { ResultValue } from './api'
+import { styleFor } from './workoutTypeStyles'
 
-const TYPE_ABBR: Record<string, string> = {
-  // Strength
-  STRENGTH: 'S', POWER_LIFTING: 'PL', WEIGHT_LIFTING: 'WL', BODY_BUILDING: 'BB', MAX_EFFORT: 'ME',
-  // Metcon
-  AMRAP: 'A', FOR_TIME: 'F', EMOM: 'E', METCON: 'M', TABATA: 'TB', INTERVALS: 'IN', CHIPPER: 'CH', LADDER: 'LD', DEATH_BY: 'DB',
-  // MonoStructural
-  CARDIO: 'C', RUNNING: 'RN', ROWING: 'RW', BIKING: 'BK', SWIMMING: 'SW', SKI_ERG: 'SK', MIXED_MONO: 'MM',
-  // Skill Work
-  GYMNASTICS: 'GM', WEIGHTLIFTING_TECHNIQUE: 'WT',
-  // Warmup / Recovery
-  WARMUP: 'W', MOBILITY: 'MB', COOLDOWN: 'CD',
-}
-
+// Single source of truth for the badge text — matches the web's
+// WORKOUT_TYPE_STYLES[type].abbr. Falls back to '?' for unknown types.
 export function workoutTypeAbbr(type: string): string {
-  return TYPE_ABBR[type] ?? '?'
+  return styleFor(type).abbr
 }
 
 function formatTime(seconds: number, cappedOut: boolean): string {

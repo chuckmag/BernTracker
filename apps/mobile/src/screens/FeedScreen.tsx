@@ -13,6 +13,7 @@ import type { StackScreenProps } from '@react-navigation/stack'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { FeedStackParamList, MainTabParamList, RootStackParamList } from '../../App'
 import { api, type Workout } from '../lib/api'
+import { styleFor, WORKOUT_TYPE_STYLES, type WorkoutTypeStyle } from '../lib/workoutTypeStyles'
 import { useGym } from '../context/GymContext'
 import { useProgramFilter } from '../context/ProgramFilterContext'
 import ProgramFilterPicker from '../components/ProgramFilterPicker'
@@ -24,11 +25,6 @@ type Props = CompositeScreenProps<
     StackScreenProps<RootStackParamList>
   >
 >
-
-const TYPE_ABBR: Record<string, string> = {
-  WARMUP: 'W', STRENGTH: 'S', AMRAP: 'A',
-  FOR_TIME: 'F', EMOM: 'E', CARDIO: 'C', METCON: 'M',
-}
 
 // Initial window when the screen first opens. Subsequent infinite-scroll
 // pages load PAGE_DAYS at a time as the user scrolls into older days.
@@ -96,15 +92,16 @@ function buildDayBlocks(workouts: Workout[], start: Date, end: Date): DayBlock[]
 }
 
 function WorkoutCard({ workout, onPress }: { workout: Workout; onPress: () => void }) {
+  const ts = styleFor(workout.type)
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardLeft}>
-        <View style={styles.typeBadge}>
-          <Text style={styles.typeAbbr}>{TYPE_ABBR[workout.type] ?? '?'}</Text>
+        <View style={[styles.typeBadge, { backgroundColor: ts.bgTint }]}>
+          <Text style={[styles.typeAbbr, { color: ts.tint }]}>{ts.abbr}</Text>
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle} numberOfLines={1}>{workout.title}</Text>
-          <Text style={styles.cardType}>{workout.type.replace('_', ' ')}</Text>
+          <Text style={styles.cardType}>{ts.label}</Text>
         </View>
       </View>
       <Text style={styles.chevron}>›</Text>
@@ -325,18 +322,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   typeBadge: {
-    width: 32,
+    minWidth: 38,
+    paddingHorizontal: 6,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#1e1b4b',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   typeAbbr: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#818cf8',
+    letterSpacing: 0.5,
   },
   cardBody: {
     flex: 1,

@@ -13,7 +13,8 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { StackNavigationProp, StackScreenProps } from '@react-navigation/stack'
 import type { HistoryStackParamList, MainTabParamList, RootStackParamList } from '../../App'
 import { api, type ResultHistoryItem } from '../lib/api'
-import { formatResultValue, monthKey, shortDate, workoutTypeAbbr } from '../lib/format'
+import { formatResultValue, monthKey, shortDate } from '../lib/format'
+import { styleFor } from '../lib/workoutTypeStyles'
 
 type Props = CompositeScreenProps<
   StackScreenProps<HistoryStackParamList, 'History'>,
@@ -47,11 +48,12 @@ function groupByMonth(results: ResultHistoryItem[]): MonthBlock[] {
 }
 
 function ResultRow({ item, onPress }: { item: ResultHistoryItem; onPress: () => void }) {
+  const ts = styleFor(item.workout.type)
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.rowLeft}>
-        <View style={styles.typeBadge}>
-          <Text style={styles.typeAbbr}>{workoutTypeAbbr(item.workout.type)}</Text>
+        <View style={[styles.typeBadge, { backgroundColor: ts.bgTint }]}>
+          <Text style={[styles.typeAbbr, { color: ts.tint }]}>{ts.abbr}</Text>
         </View>
         <View style={styles.rowBody}>
           <Text style={styles.rowTitle} numberOfLines={1}>{item.workout.title}</Text>
@@ -212,15 +214,15 @@ const styles = StyleSheet.create({
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   typeBadge: {
-    width: 32,
+    minWidth: 38,
+    paddingHorizontal: 6,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#1e1b4b',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  typeAbbr: { fontSize: 13, fontWeight: '700', color: '#818cf8' },
+  typeAbbr: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
   rowBody: { flex: 1 },
   rowTitle: { fontSize: 15, fontWeight: '600', color: '#ffffff', marginBottom: 2 },
   rowMeta: { fontSize: 12, color: '#6b7280' },

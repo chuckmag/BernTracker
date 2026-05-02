@@ -11,6 +11,7 @@ import { useFocusEffect } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { api, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender } from '../lib/api'
+import { styleFor } from '../lib/workoutTypeStyles'
 import { useAuth } from '../context/AuthContext'
 import { formatResultValue } from '../lib/format'
 
@@ -114,6 +115,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
     )
   }
 
+  const typeStyle = styleFor(workout.type)
   const scheduledDate = new Date(workout.scheduledAt).toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
   })
@@ -123,8 +125,8 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.typeBadgeRow}>
-          <View style={styles.typeBadge}>
-            <Text style={styles.typeText}>{workout.type.replace('_', ' ')}</Text>
+          <View style={[styles.typeBadge, { backgroundColor: typeStyle.bgTint }]}>
+            <Text style={[styles.typeText, { color: typeStyle.tint }]}>{typeStyle.label.toUpperCase()}</Text>
           </View>
           <Text style={styles.dateText}>{scheduledDate}</Text>
         </View>
