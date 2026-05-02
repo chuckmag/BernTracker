@@ -229,6 +229,22 @@ export async function countWorkoutsByProgramId(programId: string): Promise<numbe
   return prisma.workout.count({ where: { programId } })
 }
 
+// Used by the WODalytics admin surface (#160) to list every workout under a
+// program without gym scoping. Newest first by scheduledAt — admins typically
+// want to see the latest entry from an ingest job at the top.
+export async function findWorkoutsByProgramId(programId: string) {
+  return prisma.workout.findMany({
+    where: { programId },
+    orderBy: [{ scheduledAt: 'desc' }, { dayOrder: 'asc' }, { createdAt: 'asc' }],
+    include: {
+      program: programSelect,
+      namedWorkout: namedWorkoutSelect,
+      _count: { select: { results: true } },
+      ...workoutMovementsInclude,
+    },
+  })
+}
+
 export async function updateWorkout(id: string, data: UpdateWorkoutData) {
   const { movementIds, movements, ...rest } = data
   const prescriptions = toPrescriptionList(movementIds, movements)

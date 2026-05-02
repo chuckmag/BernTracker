@@ -65,6 +65,35 @@ export async function ensureProgramIsPublic(programId: string) {
 }
 
 /**
+ * Lists every program with no `GymProgram` link, regardless of caller
+ * subscription. Used by the WODalytics admin surface (#160) to enumerate
+ * programs that need curation. Differs from `findUnaffiliatedPublicProgramsForUser`
+ * which excludes the caller's own subscriptions for the public-catalog browse
+ * use case — admins need the full list.
+ */
+export async function findAllUnaffiliatedPrograms() {
+  return prisma.program.findMany({
+    where: { gyms: { none: {} } },
+    orderBy: { createdAt: 'desc' },
+    include: { _count: { select: { members: true, workouts: true } } },
+  })
+}
+
+/**
+ * Look up a single unaffiliated program by id with the same `_count` shape
+ * the list endpoint returns. Returns null when the program either does not
+ * exist or has any `GymProgram` link — that second case keeps the admin
+ * surface from straying onto gym-affiliated programs (a separate auth
+ * boundary). Callers should treat null as 404.
+ */
+export async function findUnaffiliatedProgramByIdWithCounts(id: string) {
+  return prisma.program.findFirst({
+    where: { id, gyms: { none: {} } },
+    include: { _count: { select: { members: true, workouts: true } } },
+  })
+}
+
+/**
  * Lists PUBLIC programs that are NOT linked to any gym (e.g. the CrossFit
  * Mainsite WOD program created by the ingest job) and that the caller has
  * not already subscribed to. Drives the "Public programs" section of the

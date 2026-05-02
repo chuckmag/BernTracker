@@ -16,6 +16,12 @@ const staffLinks = [
   { to: '/gym-settings', label: 'Gym Settings' },
 ]
 
+// WODalytics admin (#160) — visible only to users on the WODALYTICS_ADMIN_EMAILS
+// allowlist (server checks via requireWodalyticsAdmin).
+const adminLinks = [
+  { to: '/admin/programs', label: 'Programs' },
+]
+
 interface SidebarProps {
   isOpen: boolean
   onClose: () => void
@@ -73,6 +79,31 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <span className="text-xs text-gray-400 uppercase tracking-widest">Staff</span>
             </div>
             {staffLinks.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  [
+                    'flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-400 hover:bg-gray-800 hover:text-white',
+                  ].join(' ')
+                }
+              >
+                {label}
+              </NavLink>
+            ))}
+          </>
+        )}
+
+        {user?.isWodalyticsAdmin && (
+          <>
+            <div className="pt-3 pb-1 px-3">
+              <span className="text-xs text-gray-400 uppercase tracking-widest">WODalytics Admin</span>
+            </div>
+            {adminLinks.map(({ to, label }) => (
               <NavLink
                 key={to}
                 to={to}

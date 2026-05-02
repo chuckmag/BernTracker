@@ -27,6 +27,8 @@ import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
 import WodResultDetail from './pages/WodResultDetail.tsx'
 import History from './pages/History.tsx'
+import AdminProgramsIndex from './pages/AdminProgramsIndex.tsx'
+import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
   const navigate = useNavigate()
@@ -79,6 +81,15 @@ function AppLayout() {
               <Route path="/gyms/new" element={<GymCreate />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/gym-settings" element={<GymSettings />} />
+              {/*
+                * WODalytics admin (#160). Server enforces the admin gate; the
+                * sidebar additionally hides the entry point for non-admins.
+                * Direct navigation to these routes for a non-admin will load
+                * the page shell, then 403 on the API call and surface the
+                * error inline (no redirect — failure is visible).
+                */}
+              <Route path="/admin/programs" element={<AdminProgramsIndex />} />
+              <Route path="/admin/programs/:id" element={<AdminProgramDetail />} />
               {/* Legacy aliases — old bookmarks and deep links still resolve. */}
               <Route path="/settings" element={<Navigate to="/gym-settings" replace />} />
               <Route path="/members" element={<Navigate to="/gym-settings#members" replace />} />
