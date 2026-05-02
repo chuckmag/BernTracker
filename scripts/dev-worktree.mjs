@@ -10,12 +10,17 @@
  *    them to .dev-ports.local at the worktree root. Random port within
  *    API [3001, 5000) and web [5174, 7000); defaults 3000 / 5173 are reserved
  *    for non-worktree `turbo dev`.
- * 2. Spawns `npm run dev:api` with API_PORT set, and `npm run dev:web` with
+ * 2. Records the orchestrator's PID in .dev-pids.local. The companion
+ *    `npm run dev:worktree:stop` reads this file to terminate **only this
+ *    worktree's stack**, never sibling worktrees. If a stale .dev-pids.local
+ *    exists at startup with a still-alive PID, this script refuses to start
+ *    and tells the operator to run the stop script first.
+ * 3. Spawns `npm run dev:api` with API_PORT set, and `npm run dev:web` with
  *    WEB_PORT set. Vite's proxy reads API_PORT to forward `/api/*` to the
  *    correct backend port.
- * 3. Forwards stdout / stderr from both children with a [api] / [web] prefix
+ * 4. Forwards stdout / stderr from both children with a [api] / [web] prefix
  *    so the engineer can see both streams in one terminal.
- * 4. **Self-healing on collision.** If a child crashes within the first
+ * 5. **Self-healing on collision.** If a child crashes within the first
  *    COLLISION_WINDOW_MS with an EADDRINUSE-shaped error (Node's native
  *    string OR Vite's "Port N is (already) in use" wording), it means the
  *    randomly-picked port collided with a sibling worktree starting at the
@@ -23,31 +28,81 @@
  *    `find-free-ports --repick=<role>`), updates .dev-ports.local, and
  *    respawns that child. Capped at MAX_PORT_RETRIES per role with a clear
  *    `[dev:worktree] <role> hit EADDRINUSE on N — retrying on M` log line.
- * 5. Non-collision exits (or exhausted retries) take the surviving sibling
+ * 6. Non-collision exits (or exhausted retries) take the surviving sibling
  *    down so the orchestrator never outlives a half-broken pair.
- * 6. On Ctrl-C, sends SIGTERM to both children and waits for them to exit
- *    cleanly before quitting.
+ * 7. On Ctrl-C (interactive) or SIGTERM (from the stop script), sends SIGTERM
+ *    to both children, waits for them to exit cleanly, deletes
+ *    .dev-pids.local, and quits.
+ *
+ * Two ways to stop a running stack:
+ * - **Interactive shell:** Ctrl-C in the terminal that started it.
+ * - **Background / scripted (Claude sessions):** `npm run dev:worktree:stop`
+ *   from the same worktree root. **Never** use `pkill node` / `killall node`
+ *   — that kills sibling worktrees too and is the foot-gun this script
+ *   exists to prevent.
  *
  * After a successful run, downstream tooling (npm run test:worktree, the
  * test:e2e command) reads .dev-ports.local to know where the live stack is.
  *
  * Troubleshooting:
+ * - "Stack is already running (PID N)" on startup — a previous run didn't
+ *   clean up its PID file. Run `npm run dev:worktree:stop` to terminate it,
+ *   or, if you know that PID is dead, delete .dev-pids.local manually.
  * - "API URL printed but `curl` 404s" — proxy target wasn't set; confirm
  *   API_PORT made it into the web child's env (printed `[web]` lines log
  *   the resolved proxy target on Vite startup).
  * - "Both children keep crashing on the same port" — the retry cap was hit;
- *   shut everything down with Ctrl-C, check `lsof -i :<port>` for a stale
- *   process, then restart.
+ *   run `npm run dev:worktree:stop`, then `lsof -i :<port>` to find any
+ *   stale external listener, then restart.
  * - "I want a fixed port" — skip this script and use `npm run dev:api` /
  *   `npm run dev:web` directly with explicit `API_PORT=` / `WEB_PORT=` env.
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = resolve(here, '..')
+const pidsFile = resolve(root, '.dev-pids.local')
+
+// Stale-PID guard: if a previous run left .dev-pids.local behind and that PID
+// is still alive, refuse to start. Otherwise, ignore the stale file.
+function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+if (existsSync(pidsFile)) {
+  let stale = null
+  try {
+    stale = JSON.parse(readFileSync(pidsFile, 'utf8'))
+  } catch {
+    // unreadable / corrupt — treat as stale
+  }
+  if (stale && typeof stale.orchestratorPid === 'number' && isProcessAlive(stale.orchestratorPid)) {
+    console.error(`[dev:worktree] A dev stack is already running in this worktree (PID ${stale.orchestratorPid}).`)
+    console.error('[dev:worktree] Run \`npm run dev:worktree:stop\` to terminate it before starting a new one.')
+    process.exit(1)
+  }
+}
+
+// Write our own PID before doing anything else, so the stop script has a
+// target even if startup fails partway through.
+writeFileSync(pidsFile, JSON.stringify({ orchestratorPid: process.pid }, null, 2) + '\n')
+
+function cleanupPidsFile() {
+  try { unlinkSync(pidsFile) } catch {}
+}
+// 'exit' fires for any normal termination (process.exit, end of event loop,
+// or after our SIGINT/SIGTERM handlers run process.exit). It does NOT fire
+// on SIGKILL — but the stop script's job in that case is to clean up the
+// file itself, so we're covered.
+process.on('exit', cleanupPidsFile)
 
 // Children sometimes log EADDRINUSE long after they've actually been running
 // (e.g. an HMR reload that hits a port that just closed). Only treat it as a
