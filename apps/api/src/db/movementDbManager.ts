@@ -100,35 +100,52 @@ export async function detectMovementsInText(description: string) {
     select: { id: true, name: true, parentId: true, aliases: true },
   })
 
-  // Search both the canonical name and any per-movement aliases so common
-  // abbreviations like "WB" / "wall ball" still resolve to "Wall-ball Shot".
-  // The aliases array is weighted equal to name — a literal alias hit is as
-  // strong a signal as a name match.
-  const fuse = new Fuse(movements, {
-    keys: ['name', 'aliases'],
-    threshold: 0.3,
-    includeScore: true,
-  })
+  // Two-pass match. Pass 1 is an exact-token lookup against an alias index
+  // — short abbreviations like "WB" or "KBS" need to match by literal
+  // equality with a description token, not by fuzzy similarity. Fuse's
+  // 0.3 threshold trips on 2-3 char tokens, and the canonical-name 60% gate
+  // below would filter them out anyway. Aliases are an explicit declaration
+  // by the programmer that a short form maps to this movement, so honor
+  // them as strong signals.
+  const aliasIndex = new Map<string, Set<string>>()
+  for (const m of movements) {
+    for (const alias of m.aliases) {
+      const key = alias.toLowerCase()
+      const set = aliasIndex.get(key) ?? new Set<string>()
+      set.add(m.id)
+      aliasIndex.set(key, set)
+    }
+  }
 
   const words = description.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
+  const matchedIds = new Set<string>()
+
+  // Pass 1: exact alias hits per token AND per multi-word ngram (so "Wall
+  // Ball" — a 2-word alias on Wall-ball Shot — also matches).
+  const allTokens = new Set<string>()
+  for (let i = 0; i < words.length; i++) {
+    allTokens.add(words[i])
+    if (words[i + 1]) allTokens.add(`${words[i]} ${words[i + 1]}`)
+    if (words[i + 1] && words[i + 2]) allTokens.add(`${words[i]} ${words[i + 1]} ${words[i + 2]}`)
+  }
+  for (const tok of allTokens) {
+    const ids = aliasIndex.get(tok)
+    if (ids) for (const id of ids) matchedIds.add(id)
+  }
+
+  // Pass 2: fuzzy match against canonical names with the existing 60% gate.
+  const fuse = new Fuse(movements, { keys: ['name'], threshold: 0.3, includeScore: true })
   const ngrams = new Set<string>()
   for (let i = 0; i < words.length; i++) {
-    // Skip very short tokens (numbers, abbreviations) — they fuzzy-match too broadly
+    // Skip very short single tokens — they fuzzy-match too broadly
     if (words[i].length >= 4) ngrams.add(words[i])
     if (words[i + 1]) ngrams.add(`${words[i]} ${words[i + 1]}`)
     if (words[i + 1] && words[i + 2]) ngrams.add(`${words[i]} ${words[i + 1]} ${words[i + 2]}`)
   }
-
-  const matchedIds = new Set<string>()
   for (const gram of ngrams) {
     for (const result of fuse.search(gram)) {
-      // Require the n-gram to cover ≥60% of the movement name length.
       // Prevents short n-grams ("pull") from matching long names ("Burpee Pull-up", "Sumo Deadlift High Pull").
-      // Aliases are exempt — short abbreviations ("WB") legitimately match
-      // long canonical names, and the alias list itself is the explicit
-      // declaration that this short form maps to this movement.
-      const aliasHit = result.item.aliases.some((a) => a.toLowerCase() === gram)
-      if (aliasHit || gram.length / result.item.name.length >= 0.6) {
+      if (gram.length / result.item.name.length >= 0.6) {
         matchedIds.add(result.item.id)
       }
     }
