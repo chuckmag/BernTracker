@@ -13,6 +13,7 @@
     "dev:web": "cd apps/web && npm run dev",
     "dev:mobile": "cd apps/mobile && npm run dev",
     "dev:worktree": "node scripts/dev-worktree.mjs",
+    "dev:worktree:stop": "node scripts/stop-worktree.mjs",
     "test:worktree": "node scripts/test-worktree.mjs",
     "find-free-ports": "node scripts/find-free-ports.mjs",
     "build": "turbo build",

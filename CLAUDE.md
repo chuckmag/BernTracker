@@ -90,7 +90,8 @@ WODalytics/
 
 ```bash
 turbo dev             # start all apps concurrently (default ports: 3000 / 5173)
-npm run dev:worktree  # worktree-aware dev — picks free ports, prints URLs, writes .dev-ports.local
+npm run dev:worktree         # worktree-aware dev — picks free ports, prints URLs, writes .dev-ports.local + .dev-pids.local
+npm run dev:worktree:stop    # tear down THIS worktree's dev stack (PID + port-targeted; never affects siblings)
 npm run dev:jobs -- <name>            # run a single API background job locally
 npm run test:worktree -- api          # API integration tests against the worktree's dev stack
 npm run test:worktree -- e2e [args]   # Playwright E2E against the worktree's dev stack
@@ -117,7 +118,7 @@ When working in a `git worktree` (e.g. `.claude/worktrees/<branch>`), the defaul
    ```bash
    npm run dev:worktree
    ```
-   Picks random free API + web ports, writes `.dev-ports.local`, spawns `dev:api` and `dev:web` with the right env, and self-heals if a parallel worktree collides on the same port. Full behavior, port ranges, and troubleshooting live in the script header — see `scripts/dev-worktree.mjs`. Ctrl-C tears both servers down cleanly.
+   Picks random free API + web ports, writes `.dev-ports.local` + `.dev-pids.local`, spawns `dev:api` and `dev:web` with the right env, and self-heals if a parallel worktree collides on the same port. Full behavior, port ranges, and troubleshooting live in the script header — see `scripts/dev-worktree.mjs`. Ctrl-C tears both servers down cleanly in an interactive terminal; from a background / scripted context use the stop command (next section).
 
 2. **Run tests against that stack:**
    ```bash
@@ -142,9 +143,25 @@ Before reporting test success in a PR (especially for a slice or feature work), 
 1. From the worktree, run `npm run dev:worktree` in the background and wait for both servers to bind.
 2. Run **both** `npm run test:worktree -- api` and `npm run test:worktree -- e2e` against that stack.
 3. Report the actual numbers (passed / failed / total) plus any flaky tests.
-4. Tear the dev stack down (`kill` the bg PIDs) before opening the PR.
+4. Tear the dev stack down with `npm run dev:worktree:stop` before opening the PR.
 
 Skipping the live test runs and falling back to "static checks only" — like the slice-1 / slice-2 PRs had to — is a regression that this workflow exists to prevent. If the worktree dev stack genuinely won't start (port conflict the helper can't resolve, DB unreachable), say so explicitly in the PR rather than papering over with "reviewer to verify".
+
+### Stopping the dev stack — the only sanctioned way
+
+> **Hard rule: never use `pkill node`, `killall node`, or any other broad process kill to clean up after `npm run dev:worktree`.** Those kill sibling worktrees too, which is the foot-gun this section exists to prevent.
+
+From a background / scripted context (which is most Claude sessions), shut the stack down with:
+
+```bash
+npm run dev:worktree:stop
+```
+
+It reads `.dev-pids.local` and `.dev-ports.local` and kills only this worktree's orchestrator and any process still listening on this worktree's API/web ports. Idempotent — safe to run when nothing is running. Sibling worktrees in other directories are untouched.
+
+From an interactive terminal, Ctrl-C in the foreground process is equivalent and also cleans up the state files.
+
+If you're unsure whether a stack is still running, check `.dev-pids.local` (presence + a live PID = running) before launching another. The orchestrator refuses to start a second instance over an existing live one.
 
 ### Env vars honored
 
