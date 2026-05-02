@@ -32,6 +32,49 @@ function formatResultValue(result: WorkoutResult): string {
   return formatValue(result.value)
 }
 
+interface SetEntry {
+  reps?: string
+  load?: number
+  tempo?: string
+  distance?: number
+  calories?: number
+  seconds?: number
+}
+
+interface MovementResultEntry {
+  workoutMovementId?: string
+  loadUnit?: string
+  distanceUnit?: string
+  sets?: SetEntry[]
+}
+
+function formatSeconds(totalSec: number): string {
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+// Compose one set into a "5 × 225 lb · tempo 3.1.1.0" line. Empty fields are
+// dropped so the row only shows what the member actually logged.
+function describeSet(set: SetEntry, loadUnit?: string, distanceUnit?: string): string {
+  const parts: string[] = []
+  const repsLabel = set.reps ?? (set.load !== undefined ? '?' : null)
+  if (set.load !== undefined) {
+    const unit = loadUnit ? ` ${loadUnit.toLowerCase()}` : ''
+    parts.push(`${repsLabel ?? '?'} × ${set.load}${unit}`)
+  } else if (set.reps) {
+    parts.push(`${set.reps} reps`)
+  }
+  if (set.distance !== undefined) {
+    const unit = distanceUnit ? ` ${distanceUnit.toLowerCase()}` : ''
+    parts.push(`${set.distance}${unit}`)
+  }
+  if (set.calories !== undefined) parts.push(`${set.calories} cal`)
+  if (set.seconds !== undefined) parts.push(formatSeconds(set.seconds))
+  if (set.tempo) parts.push(`tempo ${set.tempo}`)
+  return parts.join(' · ') || '—'
+}
+
 export default function WodResultDetail() {
   const { id, resultId } = useParams<{ id: string; resultId: string }>()
   const navigate = useNavigate()
@@ -82,6 +125,12 @@ export default function WodResultDetail() {
   const isMe = result.userId === user?.id
   const ownerName = result.user.name ?? 'Unknown athlete'
   const titleText = isMe ? 'Your Result' : `${ownerName}'s Result`
+
+  const movementResults = ((result.value as { movementResults?: MovementResultEntry[] } | null)?.movementResults ?? [])
+    .filter((mr) => (mr.sets?.length ?? 0) > 0)
+  const movementNameById = new Map(
+    workout.workoutMovements.map((wm) => [wm.movement.id, wm.movement.name]),
+  )
 
   const scheduledDate = new Date(workout.scheduledAt).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -147,13 +196,36 @@ export default function WodResultDetail() {
       )}
 
       {/* Result block */}
-      <div className="px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 space-y-2">
+      <div className="px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Result</span>
           <span className="text-base font-medium text-white font-mono">{formatResultValue(result)}</span>
           <span className="text-xs text-gray-400">{LEVEL_LABELS[result.level]}</span>
           <span className="text-xs text-gray-500">{WORKOUT_GENDER_LABELS[result.workoutGender]}</span>
         </div>
+        {movementResults.length > 0 && (
+          <div className="space-y-3 pt-1">
+            {movementResults.map((mr, mIdx) => {
+              const name = (mr.workoutMovementId && movementNameById.get(mr.workoutMovementId)) || 'Movement'
+              return (
+                <div key={mr.workoutMovementId ?? mIdx}>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">{name}</p>
+                  <ol className="space-y-1">
+                    {(mr.sets ?? []).map((set, sIdx) => (
+                      <li
+                        key={sIdx}
+                        className="flex items-baseline gap-3 text-sm text-gray-200"
+                      >
+                        <span className="text-xs text-gray-400 font-mono w-12 shrink-0">Set {sIdx + 1}</span>
+                        <span className="font-mono">{describeSet(set, mr.loadUnit, mr.distanceUnit)}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )
+            })}
+          </div>
+        )}
         {result.notes ? (
           <div>
             <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Notes</p>
