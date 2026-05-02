@@ -1,6 +1,7 @@
 import { prisma } from '@wodalytics/db'
 import { createLogger } from '../lib/logger.js'
 import { runCrossfitWodJob } from './crossfitWod.js'
+import { runSeedCrossfitMovementsJob } from './seedCrossfitMovements.js'
 
 const log = createLogger('jobs')
 
@@ -15,6 +16,9 @@ const JOBS: Record<string, JobHandler> = {
     log.info('noop job ran')
   },
   'crossfit-wod': () => runCrossfitWodJob(),
+  // One-shot seed (not on a cron schedule) — populates the Movement catalog
+  // from CrossFit's published list. Re-running is a no-op on stable rows.
+  'seed-crossfit-movements': async () => { await runSeedCrossfitMovementsJob() },
 }
 
 // Returns the host (and db name) from a postgres URL without exposing
