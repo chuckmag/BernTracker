@@ -440,6 +440,16 @@ model Movement {
   id         String            @id @default(cuid())
   name       String            @unique
   status     MovementStatus    @default(ACTIVE)
+  // Authoritative reference URL for the movement — usually a CrossFit
+  // /essentials/the-<slug> page. Surfaced as a "Learn more" link in the
+  // member UI; the body content stays on the source site so we don't have
+  // to maintain a copy or worry about stale technique cues.
+  sourceUrl  String?
+  // Common abbreviations and alternate names — fed into the WorkoutDrawer's
+  // movement search alongside the canonical name. e.g. ['WB', 'Wall Ball']
+  // for "Wall-ball Shot". Don't add forms that fuzzy matching already
+  // handles (Wall-ball → wall ball is fine without an alias).
+  aliases    String[]
   parentId   String?
   parent     Movement?         @relation("MovementVariations", fields: [parentId], references: [id])
   variations Movement[]        @relation("MovementVariations")

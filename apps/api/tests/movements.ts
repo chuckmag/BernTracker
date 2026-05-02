@@ -121,7 +121,12 @@ async function setup() {
   const thruster = await prisma.movement.upsert({
     where: { name: `Thruster-${TS}` },
     update: {},
-    create: { name: `Thruster-${TS}`, status: 'ACTIVE' },
+    create: {
+      name: `Thruster-${TS}`,
+      status: 'ACTIVE',
+      sourceUrl: 'https://www.crossfit.com/essentials/the-thruster',
+      aliases: [`Thrust-${TS}`],
+    },
   })
   thrusterMovementId = thruster.id
 
@@ -195,8 +200,14 @@ async function runTests() {
     const r = await api('GET', '/movements', memberToken)
     check('T1: GET /api/movements → 200', 200, r.status)
     check('T1: returns array', true, Array.isArray(r.body))
-    const arr = r.body as unknown as { id: string }[]
+    const arr = r.body as unknown as { id: string; sourceUrl: string | null; aliases: string[] }[]
     check('T1: includes seeded thruster', true, arr.some((m) => m.id === thrusterMovementId))
+    const thr = arr.find((m) => m.id === thrusterMovementId)!
+    check('T1: thruster exposes sourceUrl', 'https://www.crossfit.com/essentials/the-thruster', thr.sourceUrl)
+    check('T1: thruster exposes aliases', `Thrust-${TS}`, (thr.aliases ?? [])[0])
+    const pu = arr.find((m) => m.id === pullUpMovementId)!
+    check('T1: pull-up sourceUrl null when unset', null, pu.sourceUrl)
+    check('T1: pull-up aliases empty when unset', 0, (pu.aliases ?? []).length)
   }
 
   {

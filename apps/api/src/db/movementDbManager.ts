@@ -2,7 +2,7 @@ import { prisma } from '@wodalytics/db'
 import Fuse from 'fuse.js'
 
 const movementBaseSelect = {
-  select: { id: true, name: true, status: true, parentId: true },
+  select: { id: true, name: true, status: true, parentId: true, sourceUrl: true, aliases: true },
 } as const
 
 const movementWithVariationsSelect = {
@@ -11,6 +11,8 @@ const movementWithVariationsSelect = {
     name: true,
     status: true,
     parentId: true,
+    sourceUrl: true,
+    aliases: true,
     parent: { select: { id: true, name: true } },
     variations: { select: { id: true, name: true } },
   },
@@ -95,10 +97,18 @@ export async function expandMovementIdsWithVariations(movementIds: string[]): Pr
 export async function detectMovementsInText(description: string) {
   const movements = await prisma.movement.findMany({
     where: { status: 'ACTIVE' },
-    select: { id: true, name: true, parentId: true },
+    select: { id: true, name: true, parentId: true, aliases: true },
   })
 
-  const fuse = new Fuse(movements, { keys: ['name'], threshold: 0.3, includeScore: true })
+  // Search both the canonical name and any per-movement aliases so common
+  // abbreviations like "WB" / "wall ball" still resolve to "Wall-ball Shot".
+  // The aliases array is weighted equal to name — a literal alias hit is as
+  // strong a signal as a name match.
+  const fuse = new Fuse(movements, {
+    keys: ['name', 'aliases'],
+    threshold: 0.3,
+    includeScore: true,
+  })
 
   const words = description.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean)
   const ngrams = new Set<string>()
@@ -114,7 +124,11 @@ export async function detectMovementsInText(description: string) {
     for (const result of fuse.search(gram)) {
       // Require the n-gram to cover ≥60% of the movement name length.
       // Prevents short n-grams ("pull") from matching long names ("Burpee Pull-up", "Sumo Deadlift High Pull").
-      if (gram.length / result.item.name.length >= 0.6) {
+      // Aliases are exempt — short abbreviations ("WB") legitimately match
+      // long canonical names, and the alias list itself is the explicit
+      // declaration that this short form maps to this movement.
+      const aliasHit = result.item.aliases.some((a) => a.toLowerCase() === gram)
+      if (aliasHit || gram.length / result.item.name.length >= 0.6) {
         matchedIds.add(result.item.id)
       }
     }

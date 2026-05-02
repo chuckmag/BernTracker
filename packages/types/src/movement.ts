@@ -7,6 +7,10 @@ export const MovementSchema = z.object({
   name: z.string(),
   status: MovementStatusSchema,
   parentId: z.string().nullable(),
+  // Authoritative reference URL — usually CrossFit /essentials/the-<slug>.
+  sourceUrl: z.string().url().nullable().optional(),
+  // Common abbreviations / alternate names for fuzzy matching.
+  aliases: z.array(z.string()).optional().default([]),
   parent: z.object({ id: z.string(), name: z.string() }).nullable().optional(),
   variations: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
 })
