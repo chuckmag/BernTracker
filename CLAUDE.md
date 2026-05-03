@@ -92,6 +92,7 @@ WODalytics/
 turbo dev             # start all apps concurrently (default ports: 3000 / 5173)
 npm run dev:worktree         # worktree-aware dev — picks free ports, prints URLs, writes .dev-ports.local + .dev-pids.local
 npm run dev:worktree:stop    # tear down THIS worktree's dev stack (PID + port-targeted; never affects siblings)
+npm run setup:worktree       # idempotent first-run preflight (.env symlink, install, prisma generate, db:migrate); auto-run by dev:worktree
 npm run dev:jobs -- <name>            # run a single API background job locally
 npm run test:worktree -- api          # API integration tests against the worktree's dev stack
 npm run test:worktree -- e2e [args]   # Playwright E2E against the worktree's dev stack
@@ -119,6 +120,8 @@ When working in a `git worktree` (e.g. `.claude/worktrees/<branch>`), the defaul
    npm run dev:worktree
    ```
    Picks random free API + web ports, writes `.dev-ports.local` + `.dev-pids.local`, spawns `dev:api` and `dev:web` with the right env, and self-heals if a parallel worktree collides on the same port. Full behavior, port ranges, and troubleshooting live in the script header — see `scripts/dev-worktree.mjs`. Ctrl-C tears both servers down cleanly in an interactive terminal; from a background / scripted context use the stop command (next section).
+
+   **First-run setup is automatic.** `dev:worktree` runs `scripts/setup-worktree.mjs` as a preflight before spawning anything. That script idempotently handles the four things a fresh `git worktree add` checkout needs: symlinking the primary checkout's `.env`, `npm install`, `npx prisma generate`, and `npm run db:migrate`. Subsequent runs no-op fast. You can also invoke it directly via `npm run setup:worktree` (e.g. before `npm run test:worktree` from a worktree where you don't want the dev servers running).
 
 2. **Run tests against that stack:**
    ```bash

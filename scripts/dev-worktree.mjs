@@ -6,6 +6,11 @@
  * — the root CLAUDE.md points here for details rather than duplicating them.
  *
  * Behavior:
+ * 0. Runs `scripts/setup-worktree.mjs` as a preflight. That script handles
+ *    the four idempotent first-run setup steps a fresh `git worktree add`
+ *    needs (.env symlink, npm install, prisma generate, db:migrate). On
+ *    subsequent runs the steps no-op in well under a second, so it's
+ *    cheaper to always run than to detect freshness here.
  * 1. Picks free API + web ports via scripts/find-free-ports.mjs and writes
  *    them to .dev-ports.local at the worktree root. Random port within
  *    API [3001, 5000) and web [5174, 7000); defaults 3000 / 5173 are reserved
@@ -89,6 +94,20 @@ if (existsSync(pidsFile)) {
     console.error('[dev:worktree] Run \`npm run dev:worktree:stop\` to terminate it before starting a new one.')
     process.exit(1)
   }
+}
+
+// Preflight: ensure .env, node_modules, Prisma client, and DB migrations are
+// in place. setup-worktree.mjs is idempotent — already-done steps no-op
+// fast, so we run it on every start rather than guessing whether the
+// worktree is fresh.
+const setupResult = spawnSync(
+  process.execPath,
+  [resolve(here, 'setup-worktree.mjs')],
+  { cwd: root, stdio: 'inherit' },
+)
+if (setupResult.status !== 0) {
+  console.error(`[dev:worktree] setup-worktree preflight failed (exit ${setupResult.status}) — see output above.`)
+  process.exit(1)
 }
 
 // Write our own PID before doing anything else, so the stop script has a
