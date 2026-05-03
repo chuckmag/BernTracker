@@ -24,6 +24,7 @@ interface CreateWorkoutData {
   programId?: string
   title: string
   description: string
+  coachNotes?: string | null
   type: WorkoutType
   scheduledAt: Date
   dayOrder?: number
@@ -41,6 +42,7 @@ interface CreateWorkoutData {
 interface UpdateWorkoutData {
   title?: string
   description?: string
+  coachNotes?: string | null
   type?: WorkoutType
   scheduledAt?: Date
   dayOrder?: number

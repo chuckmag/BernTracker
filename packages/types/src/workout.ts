@@ -50,6 +50,9 @@ export const CreateWorkoutSchema = z
     programId: z.string().optional(),
     title: z.string().min(1, 'Title is required'),
     description: z.string().min(1, 'Description is required'),
+    // Optional stimulus / teaching notes (markdown). Empty string is
+    // normalized to null on write.
+    coachNotes: z.string().optional(),
     type: WorkoutTypeSchema,
     scheduledAt: z.string().datetime(),
     dayOrder: z.number().int().min(0).optional(),
@@ -74,6 +77,8 @@ export const UpdateWorkoutSchema = z
   .object({
     title: z.string().min(1).optional(),
     description: z.string().min(1).optional(),
+    // Empty string is treated as a clear (→ null) on the server.
+    coachNotes: z.string().nullable().optional(),
     type: WorkoutTypeSchema.optional(),
     scheduledAt: z.string().datetime().optional(),
     dayOrder: z.number().int().min(0).optional(),
