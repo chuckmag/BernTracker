@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api, type GymProgram, type Program } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
+import { makeGymProgramScope } from '../lib/gymProgramScope'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
@@ -15,6 +16,10 @@ export default function ProgramsIndex() {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const canWrite = gymRole === 'OWNER' || gymRole === 'PROGRAMMER'
+  const scope = useMemo(
+    () => makeGymProgramScope({ gymId: gymId ?? '', gymRole: gymRole ?? null }),
+    [gymId, gymRole],
+  )
 
   useEffect(() => {
     if (!gymId) return
@@ -90,8 +95,7 @@ export default function ProgramsIndex() {
       )}
 
       <ProgramFormDrawer
-        gymId={gymId}
-        canSetDefault={gymRole === 'OWNER'}
+        scope={scope}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onSaved={handleCreated}

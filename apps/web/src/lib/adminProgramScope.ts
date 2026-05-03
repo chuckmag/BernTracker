@@ -21,4 +21,12 @@ export const adminProgramScope: ProgramScope = {
   list: () => api.admin.programs.list(),
   get: (id) => api.admin.programs.get(id),
   listWorkouts: (programId) => api.admin.programs.listWorkouts(programId),
+
+  createProgram: (data) => api.admin.programs.create(data),
+  updateProgram: (id, data) => api.admin.programs.update(id, data),
+  deleteProgram: (id) => api.admin.programs.delete(id),
+
+  createWorkout: (programId, data) => api.admin.programs.createWorkout(programId, data),
+  updateWorkout: (workoutId, data) => api.admin.workouts.update(workoutId, data),
+  deleteWorkout: (workoutId) => api.admin.workouts.delete(workoutId),
 }

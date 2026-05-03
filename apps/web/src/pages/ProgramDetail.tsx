@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, type GymProgram, type Program, type ProgramVisibility } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
+import { makeGymProgramScope } from '../lib/gymProgramScope'
 import Button from '../components/ui/Button'
 import Skeleton from '../components/ui/Skeleton'
 import ProgramFormDrawer from '../components/ProgramFormDrawer'
@@ -24,6 +25,12 @@ export default function ProgramDetail() {
   const canWrite = gymRole === 'OWNER' || gymRole === 'PROGRAMMER'
   const canDelete = gymRole === 'OWNER'
   const canSeeMembers = canWrite || gymRole === 'COACH'
+  // Detail row carries gymId; the scope only really needs it once detail
+  // resolves, so derive lazily.
+  const scope = useMemo(
+    () => makeGymProgramScope({ gymId: detail?.gymId ?? '', gymRole: gymRole ?? null }),
+    [detail?.gymId, gymRole],
+  )
 
   useEffect(() => {
     if (!id) return
@@ -167,10 +174,9 @@ export default function ProgramDetail() {
       )}
 
       <ProgramFormDrawer
-        gymId={detail.gymId}
+        scope={scope}
         program={program}
         isDefault={detail.isDefault}
-        canSetDefault={gymRole === 'OWNER'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onSaved={handleSaved}

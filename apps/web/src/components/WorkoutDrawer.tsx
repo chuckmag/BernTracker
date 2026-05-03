@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import TurndownService from 'turndown'
 // @ts-expect-error — turndown-plugin-gfm ships no types
 import { gfm } from 'turndown-plugin-gfm'
-import { api, TYPE_ABBR, type DistanceUnit, type GymProgram, type LoadUnit, type Movement, type NamedWorkout, type Role, type Workout, type WorkoutStatus, type WorkoutType } from '../lib/api'
+import { api, TYPE_ABBR, type DistanceUnit, type LoadUnit, type Movement, type NamedWorkout, type Program, type Role, type Workout, type WorkoutStatus, type WorkoutType } from '../lib/api'
+import type { ProgramScope } from '../lib/programScope'
 import { WORKOUT_CATEGORIES, WORKOUT_TYPE_STYLES, typesInCategory } from '../lib/workoutTypeStyles'
 import { useMovements } from '../context/MovementsContext.tsx'
 
@@ -140,23 +141,31 @@ const AUTOSAVE_MIN_TITLE = 3
 const AUTOSAVE_MIN_DESCRIPTION = 5
 
 interface WorkoutDrawerProps {
-  gymId: string
+  /**
+   * Routes program/workout list + create/update/delete through the active
+   * scope (gym vs admin). Gym callers build it from `useGym()` via
+   * `makeGymProgramScope`; admin callers pass `adminProgramScope`. The
+   * drawer only sees the interface, not the gym/admin specifics.
+   */
+  scope: ProgramScope
   dateKey: string | null
   workout?: Workout
-  workoutsOnDay: Workout[]
+  workoutsOnDay?: Workout[]
   userGymRole?: Role | null
   /**
    * Pre-selects this program in the picker when the drawer opens in create
    * mode. Used by Calendar's `?programId` filter so a workout created from a
-   * filtered view is auto-tagged to that program.
+   * filtered view is auto-tagged to that program. For admin, the parent
+   * page (`AdminProgramDetail`) passes the current program id so the picker
+   * is locked to the program being edited.
    */
   defaultProgramId?: string
   onClose: () => void
   onSaved: () => void
   onAutoSaved?: () => void
   onReordered?: () => void
-  onWorkoutSelect: (id: string) => void
-  onNewWorkout: () => void
+  onWorkoutSelect?: (id: string) => void
+  onNewWorkout?: () => void
 }
 
 function buildSnapshot(args: {
@@ -185,11 +194,16 @@ function buildSnapshot(args: {
   })
 }
 
-export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, userGymRole, defaultProgramId, onClose, onSaved, onAutoSaved, onReordered, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
+export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay = [], userGymRole, defaultProgramId, onClose, onSaved, onAutoSaved, onReordered, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
   const isOpen = dateKey !== null
+  // The day-context affordances (workoutsOnDay nav, dayOrder reorder, draft
+  // autosave + publish-from-draft toggle) only make sense in the gym
+  // calendar surface. Admin curates one workout at a time inside a program
+  // and auto-publishes on create.
+  const isGymScope = scope.kind === 'gym'
 
   const allMovements = useMovements()
-  const [programs, setPrograms] = useState<GymProgram[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
   const [programsLoading, setProgramsLoading] = useState(false)
   const [programId, setProgramId] = useState('')
   const [title, setTitle] = useState('')
@@ -239,14 +253,14 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       .catch(() => {}) // non-fatal
     if (isEdit) return
     setProgramsLoading(true)
-    api.gyms.programs.list(gymId)
+    scope.list()
       .then((list) => {
         setPrograms(list)
-        setProgramId((prev) => prev || defaultProgramId || list[0]?.programId || '')
+        setProgramId((prev) => prev || defaultProgramId || list[0]?.id || '')
       })
       .catch(() => setError('Failed to load programs'))
       .finally(() => setProgramsLoading(false))
-  }, [isOpen, isEdit, gymId, defaultProgramId])
+  }, [isOpen, isEdit, scope, defaultProgramId])
 
   useEffect(() => {
     if (!isOpen) return
@@ -347,7 +361,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       setAutosaving(true)
       try {
         if (localWorkoutId) {
-          await api.workouts.update(localWorkoutId, {
+          await scope.updateWorkout(localWorkoutId, {
             title: title.trim(),
             description,
             type,
@@ -359,8 +373,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
           lastAutosaveSnapshotRef.current = snapshotAtSave
         } else {
           const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-          const created = await api.workouts.create(gymId, {
-            programId,
+          const created = await scope.createWorkout(programId, {
             title: title.trim(),
             description,
             type,
@@ -528,10 +541,10 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       const tracksRoundsForType = type === 'AMRAP' ? tracksRounds : false
       const timeCapForCreate = timeCapSeconds !== null ? { timeCapSeconds } : {}
       if (localWorkoutId) {
-        await api.workouts.update(localWorkoutId, { title: title.trim(), description, type, movements, namedWorkoutId, timeCapSeconds, tracksRounds: tracksRoundsForType })
+        await scope.updateWorkout(localWorkoutId, { title: title.trim(), description, type, movements, namedWorkoutId, timeCapSeconds, tracksRounds: tracksRoundsForType })
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-        await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
+        await scope.createWorkout(programId, { title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
       }
       onSaved()
       setSaving(false)
@@ -554,13 +567,16 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       const timeCapForCreate = timeCapSeconds !== null ? { timeCapSeconds } : {}
       let id = localWorkoutId
       if (id) {
-        await api.workouts.update(id, { title: title.trim(), description, type, movements, namedWorkoutId, timeCapSeconds, tracksRounds: tracksRoundsForType })
+        await scope.updateWorkout(id, { title: title.trim(), description, type, movements, namedWorkoutId, timeCapSeconds, tracksRounds: tracksRoundsForType })
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-        const created = await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
+        const created = await scope.createWorkout(programId, { title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
         id = created.id
       }
-      await api.workouts.publish(id!)
+      // Publish is gym-only — admin workouts are auto-PUBLISHED on create.
+      // Hidden in the UI when scope.kind !== 'gym', so this branch is
+      // unreachable in admin mode; the guard is belt-and-suspenders.
+      if (isGymScope) await api.workouts.publish(id!)
       onSaved()
       setSaving(false)
     } catch (e) {
@@ -574,7 +590,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setDeleting(true)
     setError(null)
     try {
-      await api.workouts.delete(localWorkoutId)
+      await scope.deleteWorkout(localWorkoutId)
       onSaved()
     } catch (e) {
       setError((e as Error).message)
@@ -594,8 +610,8 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setError(null)
     try {
       await Promise.all([
-        api.workouts.update(current.id, { dayOrder: target.dayOrder }),
-        api.workouts.update(target.id, { dayOrder: current.dayOrder }),
+        scope.updateWorkout(current.id, { dayOrder: target.dayOrder }),
+        scope.updateWorkout(target.id, { dayOrder: current.dayOrder }),
       ])
       onReordered?.()
     } catch (e) {
@@ -617,7 +633,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
 
   const programName =
     workout?.program?.name ??
-    programs.find((gp) => gp.programId === programId)?.program.name ??
+    programs.find((p) => p.id === programId)?.name ??
     '—'
 
   const autosaveLabel = isPublished
@@ -724,7 +740,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                 ) : (
                   <button
                     key={w.id}
-                    onClick={() => onWorkoutSelect(w.id)}
+                    onClick={() => onWorkoutSelect?.(w.id)}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-gray-300 hover:bg-gray-800/60 hover:text-white transition-colors"
                   >
                     {rowContent}
@@ -764,8 +780,8 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                 {!programsLoading && programs.length === 0 && (
                   <option value="">No programs found — create one in Settings</option>
                 )}
-                {programs.map((gp) => (
-                  <option key={gp.programId} value={gp.programId}>{gp.program.name}</option>
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
             )}
@@ -1096,6 +1112,21 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
 
           {!showPublishConfirm && !showDeleteConfirm && (
             <>
+              {/*
+                * Admin path has no draft/staging concept (catalog content is
+                * always live), so the footer collapses to a single Save
+                * button that publishes immediately. Gym keeps the original
+                * Draft/Publish split flow.
+                */}
+              {!isGymScope ? (
+                <button
+                  onClick={handlePublish}
+                  disabled={saving}
+                  className="w-full bg-indigo-700 hover:bg-indigo-600 text-white text-sm py-2 rounded transition-colors disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              ) : (
               <div className="flex gap-2">
                 <button
                   onClick={handleSaveDraft}
@@ -1114,6 +1145,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
                   </button>
                 )}
               </div>
+              )}
               {isEdit && (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}

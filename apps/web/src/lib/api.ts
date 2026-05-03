@@ -845,6 +845,56 @@ export const api = {
         req<Program>(`/api/admin/programs/${id}`, { token }),
       listWorkouts: (id: string, token?: string) =>
         req<Workout[]>(`/api/admin/programs/${id}/workouts`, { token }),
+      create: (
+        data: { name: string; description?: string; startDate: string; endDate?: string; coverColor?: string | null; visibility?: ProgramVisibility },
+        token?: string,
+      ) =>
+        req<Program>(`/api/admin/programs`, { method: 'POST', body: JSON.stringify(data), token }),
+      update: (
+        id: string,
+        data: { name?: string; description?: string | null; startDate?: string; endDate?: string | null; coverColor?: string | null; visibility?: ProgramVisibility },
+        token?: string,
+      ) =>
+        req<Program>(`/api/admin/programs/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
+      delete: (id: string, token?: string) =>
+        req<void>(`/api/admin/programs/${id}`, { method: 'DELETE', token }),
+      createWorkout: (
+        programId: string,
+        data: {
+          title: string
+          description: string
+          type: WorkoutType
+          scheduledAt: string
+          movementIds?: string[]
+          movements?: WorkoutMovementInput[]
+          namedWorkoutId?: string
+          timeCapSeconds?: number | null
+          tracksRounds?: boolean
+        },
+        token?: string,
+      ) =>
+        req<Workout>(`/api/admin/programs/${programId}/workouts`, { method: 'POST', body: JSON.stringify(data), token }),
+    },
+    workouts: {
+      update: (
+        id: string,
+        data: {
+          title?: string
+          description?: string
+          type?: WorkoutType
+          scheduledAt?: string
+          dayOrder?: number
+          movementIds?: string[]
+          movements?: WorkoutMovementInput[]
+          namedWorkoutId?: string | null
+          timeCapSeconds?: number | null
+          tracksRounds?: boolean
+        },
+        token?: string,
+      ) =>
+        req<Workout>(`/api/admin/workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
+      delete: (id: string, token?: string) =>
+        req<void>(`/api/admin/workouts/${id}`, { method: 'DELETE', token }),
     },
   },
 }
