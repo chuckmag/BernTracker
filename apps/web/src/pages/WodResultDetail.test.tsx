@@ -151,4 +151,150 @@ describe('WodResultDetail', () => {
     renderPage('workout-1', 'missing-result-id')
     expect(await screen.findByText(/Result not found/i)).toBeInTheDocument()
   })
+
+  it('renders the full per-movement set breakdown for a strength result', async () => {
+    const strengthWorkout = {
+      ...makeWorkout({
+        title: 'Back Squat 5×5',
+        type: 'STRENGTH' as const,
+        description: '5x5 Back Squat',
+      }),
+      workoutMovements: [
+        {
+          movement: { id: 'm-back-squat', name: 'Back Squat', parentId: null },
+          displayOrder: 0,
+          sets: 5,
+          reps: '5',
+          load: null,
+          loadUnit: 'LB' as const,
+          tracksLoad: true,
+          tempo: null,
+          distance: null,
+          distanceUnit: null,
+          calories: null,
+          seconds: null,
+        },
+      ],
+    }
+    const strengthResult = {
+      ...makeResult({ id: 'r-str', userId: 'somebody-else', name: 'Jane Doe' }),
+      value: {
+        movementResults: [
+          {
+            workoutMovementId: 'm-back-squat',
+            loadUnit: 'LB',
+            sets: [
+              { reps: '5', load: 225 },
+              { reps: '5', load: 235 },
+              { reps: '5', load: 245 },
+              { reps: '3', load: 255 },
+              { reps: '1', load: 275 },
+            ],
+          },
+        ],
+      },
+    }
+    vi.mocked(api.workouts.get).mockResolvedValue(strengthWorkout)
+    vi.mocked(api.results.leaderboard).mockResolvedValue([strengthResult] as never)
+
+    renderPage('workout-1', 'r-str')
+
+    // Movement section header is shown (also appears in the workout movement
+    // chip list above, so allow the duplicate).
+    const squatLabels = await screen.findAllByText('Back Squat')
+    expect(squatLabels.length).toBeGreaterThanOrEqual(1)
+    // Every set is enumerated, not just the heaviest
+    expect(screen.getByText('Set 1')).toBeInTheDocument()
+    expect(screen.getByText('Set 5')).toBeInTheDocument()
+    // Each set's reps × load is rendered (the lighter sets would be hidden if
+    // the page kept using the leaderboard summary helper).
+    expect(screen.getByText('5 × 225 lb')).toBeInTheDocument()
+    expect(screen.getByText('5 × 235 lb')).toBeInTheDocument()
+    expect(screen.getByText('5 × 245 lb')).toBeInTheDocument()
+    expect(screen.getByText('3 × 255 lb')).toBeInTheDocument()
+    expect(screen.getByText('1 × 275 lb')).toBeInTheDocument()
+    // Headline summary still surfaces the heaviest set
+    expect(screen.getByText('1 x 275 lb')).toBeInTheDocument()
+  })
+
+  it('renders sets across multiple movements with the right names and per-movement units', async () => {
+    const workout = {
+      ...makeWorkout({
+        title: 'Squat + Press',
+        type: 'STRENGTH' as const,
+        description: 'Heavy squat then press',
+      }),
+      workoutMovements: [
+        {
+          movement: { id: 'm-squat', name: 'Back Squat', parentId: null },
+          displayOrder: 0,
+          sets: 3,
+          reps: '3',
+          load: null,
+          loadUnit: 'LB' as const,
+          tracksLoad: true,
+          tempo: null,
+          distance: null,
+          distanceUnit: null,
+          calories: null,
+          seconds: null,
+        },
+        {
+          movement: { id: 'm-press', name: 'Strict Press', parentId: null },
+          displayOrder: 1,
+          sets: 3,
+          reps: '5',
+          load: null,
+          loadUnit: 'KG' as const,
+          tracksLoad: true,
+          tempo: null,
+          distance: null,
+          distanceUnit: null,
+          calories: null,
+          seconds: null,
+        },
+      ],
+    }
+    const result = {
+      ...makeResult({ id: 'r-multi', userId: 'somebody-else', name: 'Jane Doe', notes: 'Felt grindy on the third squat set.' }),
+      value: {
+        movementResults: [
+          {
+            workoutMovementId: 'm-squat',
+            loadUnit: 'LB',
+            sets: [
+              { reps: '3', load: 285 },
+              { reps: '3', load: 295 },
+              { reps: '3', load: 305 },
+            ],
+          },
+          {
+            workoutMovementId: 'm-press',
+            loadUnit: 'KG',
+            sets: [
+              { reps: '5', load: 60 },
+              { reps: '5', load: 62.5 },
+            ],
+          },
+        ],
+      },
+    }
+    vi.mocked(api.workouts.get).mockResolvedValue(workout)
+    vi.mocked(api.results.leaderboard).mockResolvedValue([result] as never)
+
+    renderPage('workout-1', 'r-multi')
+
+    // Both movement names appear as section headers in the result block
+    const squat = await screen.findAllByText('Back Squat')
+    expect(squat.length).toBeGreaterThan(0)
+    const press = await screen.findAllByText('Strict Press')
+    expect(press.length).toBeGreaterThan(0)
+
+    // Per-movement load unit is honored
+    expect(screen.getByText('3 × 305 lb')).toBeInTheDocument()
+    expect(screen.getByText('5 × 62.5 kg')).toBeInTheDocument()
+
+    // Notes are still rendered alongside the breakdown
+    expect(screen.getByText(/Felt grindy/)).toBeInTheDocument()
+  })
 })
