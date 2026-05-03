@@ -913,6 +913,8 @@ export const api = {
         token?: string,
       ) =>
         req<Workout>(`/api/admin/workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
+      publish: (id: string, token?: string) =>
+        req<Workout>(`/api/admin/workouts/${id}/publish`, { method: 'POST', token }),
       delete: (id: string, token?: string) =>
         req<void>(`/api/admin/workouts/${id}`, { method: 'DELETE', token }),
     },
