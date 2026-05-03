@@ -151,6 +151,7 @@ export default function WodDetail() {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    timeZone: 'UTC',
   })
 
   const myResult = results.find((r) => r.userId === user?.id)
