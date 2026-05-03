@@ -81,7 +81,9 @@ export default function Calendar() {
 
   const workoutsByDate: Record<string, Workout[]> = {}
   for (const w of workouts) {
-    const key = toDateKey(new Date(w.scheduledAt))
+    // scheduledAt is UTC midnight — slice the ISO string to get the UTC calendar date,
+    // avoiding a local-timezone shift that would bucket the workout a day early for US users.
+    const key = w.scheduledAt.slice(0, 10)
     if (!workoutsByDate[key]) workoutsByDate[key] = []
     workoutsByDate[key].push(w)
   }

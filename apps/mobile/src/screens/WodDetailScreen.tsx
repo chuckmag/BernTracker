@@ -125,7 +125,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
 
   const typeStyle = styleFor(workout.type)
   const scheduledDate = new Date(workout.scheduledAt).toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
+    weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC',
   })
   const cfUrl = workout.externalSourceId?.startsWith('crossfit-mainsite:w')
     ? `https://www.crossfit.com/workout/${workout.externalSourceId.replace('crossfit-mainsite:w', '').slice(2)}`

@@ -20,11 +20,11 @@ function formatResultValue(result: HistoryResult): string {
 }
 
 function monthKey(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 }
 
 function shortDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 }
 
 export default function History() {
