@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { CreateWorkoutSchema } from '@wodalytics/types'
+import { WorkoutStatus } from '@wodalytics/db'
 import { requireAuth } from '../middleware/auth.js'
 import { findOrCreatePersonalProgramForUser } from '../db/programDbManager.js'
 import {
@@ -75,6 +76,13 @@ async function createMyPersonalProgramWorkout(req: Request, res: Response) {
   const program = await findOrCreatePersonalProgramForUser(userId)
 
   const { title, description, type, scheduledAt, dayOrder, movementIds, movements, timeCapSeconds, tracksRounds } = parsed.data
+  // Personal-program workouts auto-publish: there is no audience to gate
+  // visibility against (the user is the sole reader/writer), so the
+  // DRAFT/PUBLISHED distinction is not meaningful. Without this, the
+  // schema's `status @default(DRAFT)` would hide the workout from the
+  // viewer's own feed (the gym feed query filters published-only for
+  // MEMBER role) and surface a "Draft" pill on the detail page that
+  // there's no way to clear from the personal-program UI.
   const workout = await createWorkoutForProgramDb({
     programId: program.id,
     title,
@@ -86,6 +94,7 @@ async function createMyPersonalProgramWorkout(req: Request, res: Response) {
     movements,
     timeCapSeconds,
     tracksRounds,
+    status: WorkoutStatus.PUBLISHED,
   })
   res.status(201).json(workout)
 }

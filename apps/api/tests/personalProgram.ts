@@ -121,6 +121,11 @@ async function testWorkoutCreate() {
   createdWorkoutIds.push(workoutId)
   check('workout has personal program id', true, typeof r.body.programId === 'string' && r.body.programId.length > 0)
   check('workout title persisted', 'Z2 row', r.body.title)
+  // Auto-publish: personal-program workouts have no audience to gate
+  // visibility against, so they bypass the schema's DRAFT default.
+  // Without this, the gym feed (which filters published-only for MEMBER
+  // role) would silently hide the user's own personal workouts.
+  check('workout auto-published', 'PUBLISHED', r.body.status)
 
   const spoofed = await api('POST', '/me/personal-program/workouts', userATok, {
     programId: 'nonexistent-program-id',

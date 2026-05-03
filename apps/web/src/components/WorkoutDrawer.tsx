@@ -681,7 +681,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                 {autosaveLabel}
               </span>
             )}
-            {isEdit && (
+            {isEdit && isGymScope && (
               <span
                 className={[
                   'text-xs px-2 py-0.5 rounded-full font-medium border',
