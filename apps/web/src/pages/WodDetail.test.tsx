@@ -141,6 +141,7 @@ function makeResult(overrides: { id: string; userId: string; name: string; level
       lastName: rest.join(' ') || null,
       email: `${overrides.userId}@test.com`,
       avatarUrl: overrides.avatarUrl ?? null,
+      birthday: null,
     },
     level: overrides.level,
     workoutGender: 'OPEN' as const,

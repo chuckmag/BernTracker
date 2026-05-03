@@ -15,8 +15,10 @@ module.exports = {
   preset: path.dirname(require.resolve('jest-expo/jest-preset.js')),
   // react@19.1.0 is hoisted to root node_modules; pin so all consumers
   // resolve the same instance (jest-expo, RN, our test files).
+  // @wodalytics/* packages are workspace symlinks in root node_modules.
   moduleNameMapper: {
     '^react$': path.resolve(ROOT_NODE_MODULES, 'react'),
     '^react/(.*)$': path.resolve(ROOT_NODE_MODULES, 'react/$1'),
+    '^@wodalytics/(.*)$': path.resolve(ROOT_NODE_MODULES, '@wodalytics/$1/dist/index.js'),
   },
 }

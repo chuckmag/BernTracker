@@ -10,7 +10,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
-import { api, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender } from '../lib/api'
+import { AGE_DIVISIONS, getAgeDivision } from '@wodalytics/types'
+import { api, type AgeDivision, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender } from '../lib/api'
 import { styleFor } from '../lib/workoutTypeStyles'
 import { useAuth } from '../context/AuthContext'
 import { formatResultValue } from '../lib/format'
@@ -45,6 +46,11 @@ const GENDER_LABELS: Record<WorkoutGender, string> = {
   OPEN: 'Open',
 }
 
+const DIVISION_FILTERS: { label: string; value: AgeDivision | null }[] = [
+  { label: 'All', value: null },
+  ...AGE_DIVISIONS.map((d) => ({ label: d.label, value: d.value })),
+]
+
 export default function WodDetailScreen({ route, navigation }: Props) {
   const { workoutId } = route.params
   const { user } = useAuth()
@@ -52,6 +58,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [levelFilter, setLevelFilter] = useState<WorkoutLevel | null>(null)
   const [genderFilter, setGenderFilter] = useState<WorkoutGender | null>(null)
+  const [divisionFilter, setDivisionFilter] = useState<AgeDivision | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,10 +73,10 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       .finally(() => setLoading(false))
   }, [workoutId, navigation])
 
-  // Always fetch the unfiltered leaderboard and apply the level filter
-  // client-side. This way the user's "your result" badge keeps showing
-  // their RX entry even when the leaderboard list is filtered to RX+ —
-  // their own state shouldn't depend on which filter chip is active.
+  // Always fetch the unfiltered leaderboard and apply filters client-side.
+  // This way the user's "your result" badge keeps showing their RX entry even
+  // when the leaderboard list is filtered to RX+ — their own state shouldn't
+  // depend on which filter chip is active.
   // useFocusEffect picks up create/edit/delete results on goBack from
   // LogResultScreen.
   const loadLeaderboard = useCallback(() => {
@@ -80,6 +87,14 @@ export default function WodDetailScreen({ route, navigation }: Props) {
 
   useFocusEffect(useCallback(() => { loadLeaderboard() }, [loadLeaderboard]))
 
+  // Auto-detect the viewer's age division from their birthday once the
+  // workout is loaded. Mirrors the web auto-detect behaviour.
+  useEffect(() => {
+    if (!workout || !user?.birthday) return
+    const div = getAgeDivision(user.birthday, workout.scheduledAt)
+    if (div) setDivisionFilter(div)
+  }, [workout, user])
+
   const userResult = leaderboard.find((e) => e.user.id === user?.id)
   const hasLogged = !!userResult
 
@@ -87,17 +102,25 @@ export default function WodDetailScreen({ route, navigation }: Props) {
     () =>
       leaderboard
         .filter((e) => !levelFilter || e.level === levelFilter)
-        .filter((e) => !genderFilter || e.workoutGender === genderFilter),
-    [leaderboard, levelFilter, genderFilter],
+        .filter((e) => !genderFilter || e.workoutGender === genderFilter)
+        .filter((e) => {
+          if (!divisionFilter || !workout) return true
+          return getAgeDivision(e.user.birthday, workout.scheduledAt) === divisionFilter
+        }),
+    [leaderboard, levelFilter, genderFilter, divisionFilter, workout],
   )
 
   const emptyLeaderboardCopy = useMemo(() => {
     const parts: string[] = []
     if (levelFilter) parts.push(LEVEL_LABELS[levelFilter])
     if (genderFilter) parts.push(GENDER_LABELS[genderFilter])
+    if (divisionFilter) {
+      const div = AGE_DIVISIONS.find((d) => d.value === divisionFilter)
+      if (div) parts.push(div.label)
+    }
     if (parts.length === 0) return 'No results yet.'
     return `No ${parts.join(' / ')} results yet.`
-  }, [levelFilter, genderFilter])
+  }, [levelFilter, genderFilter, divisionFilter])
 
   if (loading) {
     return (
@@ -209,6 +232,27 @@ export default function WodDetailScreen({ route, navigation }: Props) {
               testID={`gender-chip-${f.label}`}
             >
               <Text style={[styles.chipText, genderFilter === f.value && styles.chipTextActive]}>
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Age division filter chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterRow}
+          contentContainerStyle={styles.filterContent}
+        >
+          {DIVISION_FILTERS.map((f) => (
+            <TouchableOpacity
+              key={`division-${f.label}`}
+              style={[styles.chip, divisionFilter === f.value && styles.chipActive]}
+              onPress={() => setDivisionFilter(f.value)}
+              testID={`division-chip-${f.label}`}
+            >
+              <Text style={[styles.chipText, divisionFilter === f.value && styles.chipTextActive]}>
                 {f.label}
               </Text>
             </TouchableOpacity>

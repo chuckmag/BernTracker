@@ -121,6 +121,54 @@ export function deriveWorkoutGender(
   return 'OPEN'
 }
 
+// ─── Age divisions (CrossFit Games model) ─────────────────────────────────────
+
+export type AgeDivision =
+  | 'OPEN'
+  | 'TEEN_14_15'
+  | 'TEEN_16_17'
+  | 'MASTERS_35_39'
+  | 'MASTERS_40_44'
+  | 'MASTERS_45_49'
+  | 'MASTERS_50_54'
+  | 'MASTERS_55_59'
+  | 'MASTERS_60_64'
+  | 'MASTERS_65_69'
+  | 'MASTERS_70_PLUS'
+
+export const AGE_DIVISIONS: { value: AgeDivision; label: string; minAge: number; maxAge: number | null }[] = [
+  { value: 'OPEN',           label: 'Open (18–34)',    minAge: 18, maxAge: 34 },
+  { value: 'TEEN_14_15',     label: 'Teen (14–15)',    minAge: 14, maxAge: 15 },
+  { value: 'TEEN_16_17',     label: 'Teen (16–17)',    minAge: 16, maxAge: 17 },
+  { value: 'MASTERS_35_39',  label: 'Masters (35–39)', minAge: 35, maxAge: 39 },
+  { value: 'MASTERS_40_44',  label: 'Masters (40–44)', minAge: 40, maxAge: 44 },
+  { value: 'MASTERS_45_49',  label: 'Masters (45–49)', minAge: 45, maxAge: 49 },
+  { value: 'MASTERS_50_54',  label: 'Masters (50–54)', minAge: 50, maxAge: 54 },
+  { value: 'MASTERS_55_59',  label: 'Masters (55–59)', minAge: 55, maxAge: 59 },
+  { value: 'MASTERS_60_64',  label: 'Masters (60–64)', minAge: 60, maxAge: 64 },
+  { value: 'MASTERS_65_69',  label: 'Masters (65–69)', minAge: 65, maxAge: 69 },
+  { value: 'MASTERS_70_PLUS', label: 'Masters (70+)', minAge: 70, maxAge: null },
+]
+
+// Derives the CrossFit Games age division from a user's birthday and a
+// reference date (typically the workout's scheduledAt). Returns null when
+// birthday is unknown or the athlete is under 14 (no division defined).
+export function getAgeDivision(
+  birthday: string | null | undefined,
+  workoutDate: string | Date,
+): AgeDivision | null {
+  if (!birthday) return null
+  const dob = new Date(birthday)
+  const ref = typeof workoutDate === 'string' ? new Date(workoutDate) : workoutDate
+  let age = ref.getFullYear() - dob.getFullYear()
+  const monthDiff = ref.getMonth() - dob.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < dob.getDate())) age--
+  for (const div of AGE_DIVISIONS) {
+    if (age >= div.minAge && (div.maxAge === null || age <= div.maxAge)) return div.value
+  }
+  return null
+}
+
 export const CreateResultSchema = z.object({
   level: WorkoutLevelSchema,
   workoutGender: WorkoutGenderSchema,

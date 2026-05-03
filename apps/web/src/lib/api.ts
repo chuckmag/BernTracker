@@ -213,6 +213,7 @@ export interface WorkoutResult {
     lastName: string | null
     email: string
     avatarUrl: string | null
+    birthday: string | null
   }
   workout: { type: WorkoutType }
 }

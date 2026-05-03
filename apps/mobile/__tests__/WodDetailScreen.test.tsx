@@ -57,7 +57,7 @@ const WORKOUT = {
 function makeEntry(id: string, userId: string, userName: string) {
   return {
     id,
-    user: { id: userId, name: userName },
+    user: { id: userId, name: userName, birthday: null },
     level: 'RX' as const,
     workoutGender: 'OPEN' as const,
     value: { type: 'FOR_TIME' as const, seconds: 210 },
