@@ -24,6 +24,10 @@ jest.mock('../src/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
 
+jest.mock('../src/context/GymContext', () => ({
+  useGym: jest.fn(),
+}))
+
 jest.mock('../src/lib/api', () => ({
   api: {
     workouts: {
@@ -42,6 +46,7 @@ jest.mock('../src/lib/format', () => ({
 }))
 
 import { useAuth } from '../src/context/AuthContext'
+import { useGym } from '../src/context/GymContext'
 import { api } from '../src/lib/api'
 
 const WORKOUT = {
@@ -82,6 +87,13 @@ describe('WodDetailScreen', () => {
       isLoading: false,
       login: jest.fn(),
       logout: jest.fn(),
+    })
+    // Default to MEMBER for the existing tests — they don't care about role,
+    // and the coach-notes tests below override per-case via mockReturnValueOnce.
+    ;(useGym as jest.Mock).mockReturnValue({
+      activeGym: { id: 'gym-1', name: 'Test Gym', slug: 'test-gym', timezone: 'UTC', role: 'MEMBER' },
+      isLoading: false,
+      selectGym: jest.fn(),
     })
     ;(api.workouts.get as jest.Mock).mockResolvedValue(WORKOUT)
     ;(api.workouts.results as jest.Mock).mockResolvedValue([])
@@ -277,5 +289,79 @@ describe('WodDetailScreen', () => {
     const highlight = '#1e1b4b'
     expect(findAncestorWithBg(meText, highlight)).not.toBeNull()
     expect(findAncestorWithBg(await findByText('Alice'), highlight)).toBeNull()
+  })
+
+  // ── Coach notes (#187) ─────────────────────────────────────────────────────
+  // The collapsible "Coach notes" panel ships viewer-only on mobile (authoring
+  // is deferred until the mobile workout-edit screen lands — see #130). The
+  // default open/closed state is driven by the active gym role per #184:
+  // MEMBER → collapsed, COACH/PROGRAMMER/OWNER → expanded.
+  describe('coach notes', () => {
+    test('renders nothing when workout.coachNotes is null', async () => {
+      ;(api.workouts.get as jest.Mock).mockResolvedValue({ ...WORKOUT, coachNotes: null })
+
+      const { findByText, queryByText, queryByTestId } = render(
+        <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
+      )
+
+      // Wait for the screen to render fully before asserting absence — otherwise
+      // the queryBy could match against the loading state and produce a false
+      // negative.
+      await findByText('Fran')
+
+      expect(queryByText('COACH NOTES')).toBeNull()
+      expect(queryByTestId('coach-notes-toggle')).toBeNull()
+      expect(queryByTestId('coach-notes-body')).toBeNull()
+    })
+
+    test('MEMBER → header rendered, body hidden initially; press reveals body', async () => {
+      ;(useGym as jest.Mock).mockReturnValue({
+        activeGym: { id: 'gym-1', name: 'Test Gym', slug: 'test-gym', timezone: 'UTC', role: 'MEMBER' },
+        isLoading: false,
+        selectGym: jest.fn(),
+      })
+      ;(api.workouts.get as jest.Mock).mockResolvedValue({
+        ...WORKOUT,
+        coachNotes: 'Stim: 7-min sprint pace.',
+      })
+
+      const { findByTestId, queryByTestId, queryByText } = render(
+        <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
+      )
+
+      // Header is present, body is not.
+      const toggle = await findByTestId('coach-notes-toggle')
+      expect(queryByTestId('coach-notes-body')).toBeNull()
+      expect(queryByText('Stim: 7-min sprint pace.')).toBeNull()
+
+      // Pressing the header reveals the body.
+      fireEvent.press(toggle)
+      expect(await findByTestId('coach-notes-body')).toBeTruthy()
+      expect(queryByText('Stim: 7-min sprint pace.')).not.toBeNull()
+    })
+
+    test.each(['COACH', 'PROGRAMMER', 'OWNER'] as const)(
+      '%s → body rendered initially without a press',
+      async (role) => {
+        ;(useGym as jest.Mock).mockReturnValue({
+          activeGym: { id: 'gym-1', name: 'Test Gym', slug: 'test-gym', timezone: 'UTC', role },
+          isLoading: false,
+          selectGym: jest.fn(),
+        })
+        ;(api.workouts.get as jest.Mock).mockResolvedValue({
+          ...WORKOUT,
+          coachNotes: 'Cue hip drive on the second pull.',
+        })
+
+        const { findByTestId, findByText } = render(
+          <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
+        )
+
+        // Both header and body are present from first paint — no press needed.
+        await findByTestId('coach-notes-toggle')
+        await findByTestId('coach-notes-body')
+        await findByText('Cue hip drive on the second pull.')
+      },
+    )
   })
 })

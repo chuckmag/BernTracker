@@ -59,6 +59,8 @@ export interface WorkoutMovementWithPrescription {
   seconds: number | null
 }
 
+export type Role = 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER'
+
 export interface AuthUser {
   id: string
   email: string
@@ -71,7 +73,9 @@ export interface Gym {
   name: string
   slug: string
   timezone: string
-  userRole: string
+  // The caller's membership role within this gym. Mirrors what
+  // GET /api/me/gyms returns (see findGymMembershipsByUserId in the API).
+  role: Role
 }
 
 export interface Program {
@@ -96,6 +100,9 @@ export interface Workout {
   id: string
   title: string
   description: string
+  // Optional programmer-authored stimulus / teaching notes (#184). Nullable
+  // on read; mobile only displays it (no authoring surface yet — #130).
+  coachNotes?: string | null
   type: WorkoutType
   status: WorkoutStatus
   scheduledAt: string

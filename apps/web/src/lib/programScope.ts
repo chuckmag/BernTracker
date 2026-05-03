@@ -52,6 +52,9 @@ export interface UpdateProgramScopeData {
 export interface CreateWorkoutScopeData {
   title: string
   description: string
+  // Programmer-authored stimulus / teaching notes (markdown). Optional;
+  // empty string is treated as "unset" and dropped from the payload.
+  coachNotes?: string
   type: WorkoutType
   scheduledAt: string
   movementIds?: string[]
@@ -64,6 +67,9 @@ export interface CreateWorkoutScopeData {
 export interface UpdateWorkoutScopeData {
   title?: string
   description?: string
+  // Nullable on update so clients can clear the field; the server normalizes
+  // empty string → null too.
+  coachNotes?: string | null
   type?: WorkoutType
   scheduledAt?: string
   dayOrder?: number

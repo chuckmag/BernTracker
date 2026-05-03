@@ -426,6 +426,163 @@ describe('WorkoutDrawer movement suggestions', () => {
   })
 })
 
+describe('WorkoutDrawer coach notes', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.clearAllMocks()
+    seedApi()
+  })
+
+  it('renders the coach-notes textarea for an editor (OWNER) opening the drawer', async () => {
+    const props = defaultProps()
+    render(<WorkoutDrawer {...props} />)
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'General' })).toBeInTheDocument(),
+    )
+    expect(
+      screen.getByLabelText(/Coach notes \(stimulus, teaching points\)/),
+    ).toBeInTheDocument()
+  })
+
+  it('seeds the textarea from workout.coachNotes when editing', async () => {
+    const props = defaultProps({
+      workout: {
+        id: 'wod-existing',
+        title: 'Existing',
+        description: 'A description that is long enough to autosave',
+        coachNotes: 'Pre-seeded notes — stimulus + cues',
+        type: 'AMRAP' as const,
+        status: 'DRAFT' as const,
+        scheduledAt: '2026-04-21T12:00:00.000Z',
+        dayOrder: 0,
+        workoutMovements: [],
+        programId: 'prog-1',
+        program: { id: 'prog-1', name: 'General' },
+        namedWorkoutId: null,
+        namedWorkout: null,
+        timeCapSeconds: null,
+        tracksRounds: false,
+      } as never,
+    })
+    render(<WorkoutDrawer {...props} />)
+    const textarea = (await screen.findByLabelText(
+      /Coach notes \(stimulus, teaching points\)/,
+    )) as HTMLTextAreaElement
+    expect(textarea.value).toBe('Pre-seeded notes — stimulus + cues')
+  })
+
+  it('autosaves a new workout with the coachNotes value (debounced PATCH→create)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    vi.mocked(api.workouts.create).mockResolvedValue({
+      id: 'new-wod-coach',
+      status: 'DRAFT',
+    } as never)
+
+    const props = defaultProps()
+    render(<WorkoutDrawer {...props} />)
+
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'General' })).toBeInTheDocument(),
+    )
+
+    await user.type(screen.getByPlaceholderText('e.g. Fran'), 'Stim Test')
+    await user.type(screen.getByPlaceholderText(/Workout details/), 'Body of the WOD')
+    await user.type(
+      screen.getByLabelText(/Coach notes \(stimulus, teaching points\)/),
+      '7-min sprint pace; sub ring rows if pull-ups break form',
+    )
+
+    // Past the 2s autosave debounce.
+    await act(async () => { vi.advanceTimersByTime(2100) })
+
+    await waitFor(() => expect(api.workouts.create).toHaveBeenCalledTimes(1))
+    const [, payload] = vi.mocked(api.workouts.create).mock.calls[0]
+    expect(payload).toMatchObject({
+      title: 'Stim Test',
+      description: 'Body of the WOD',
+      coachNotes: '7-min sprint pace; sub ring rows if pull-ups break form',
+    })
+  })
+
+  it('autosaves an edit to an existing workout with the updated coachNotes', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    vi.mocked(api.workouts.update).mockResolvedValue({} as never)
+
+    const props = defaultProps({
+      workout: {
+        id: 'wod-edit-coach',
+        title: 'Existing',
+        description: 'A description that is long enough to autosave',
+        coachNotes: '',
+        type: 'AMRAP' as const,
+        status: 'DRAFT' as const,
+        scheduledAt: '2026-04-21T12:00:00.000Z',
+        dayOrder: 0,
+        workoutMovements: [],
+        programId: 'prog-1',
+        program: { id: 'prog-1', name: 'General' },
+        namedWorkoutId: null,
+        namedWorkout: null,
+        timeCapSeconds: null,
+        tracksRounds: false,
+      } as never,
+    })
+    render(<WorkoutDrawer {...props} />)
+
+    const notes = (await screen.findByLabelText(
+      /Coach notes \(stimulus, teaching points\)/,
+    )) as HTMLTextAreaElement
+    await user.type(notes, 'Added some teaching cues')
+
+    await act(async () => { vi.advanceTimersByTime(2100) })
+
+    await waitFor(() => expect(api.workouts.update).toHaveBeenCalledTimes(1))
+    const [idArg, payload] = vi.mocked(api.workouts.update).mock.calls[0]
+    expect(idArg).toBe('wod-edit-coach')
+    expect(payload).toMatchObject({
+      coachNotes: 'Added some teaching cues',
+    })
+  })
+
+  it('clearing the textarea sends an empty string on the next autosave (API normalizes "" → null)', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    vi.mocked(api.workouts.update).mockResolvedValue({} as never)
+
+    const props = defaultProps({
+      workout: {
+        id: 'wod-clear-coach',
+        title: 'Existing',
+        description: 'A description that is long enough to autosave',
+        coachNotes: 'About to be cleared',
+        type: 'AMRAP' as const,
+        status: 'DRAFT' as const,
+        scheduledAt: '2026-04-21T12:00:00.000Z',
+        dayOrder: 0,
+        workoutMovements: [],
+        programId: 'prog-1',
+        program: { id: 'prog-1', name: 'General' },
+        namedWorkoutId: null,
+        namedWorkout: null,
+        timeCapSeconds: null,
+        tracksRounds: false,
+      } as never,
+    })
+    render(<WorkoutDrawer {...props} />)
+
+    const notes = (await screen.findByLabelText(
+      /Coach notes \(stimulus, teaching points\)/,
+    )) as HTMLTextAreaElement
+    expect(notes.value).toBe('About to be cleared')
+    await user.clear(notes)
+
+    await act(async () => { vi.advanceTimersByTime(2100) })
+
+    await waitFor(() => expect(api.workouts.update).toHaveBeenCalledTimes(1))
+    const [, payload] = vi.mocked(api.workouts.update).mock.calls[0]
+    expect(payload).toMatchObject({ coachNotes: '' })
+  })
+})
+
 describe('WorkoutDrawer markdown paste', () => {
   beforeEach(() => {
     vi.clearAllMocks()

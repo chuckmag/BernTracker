@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
+import { useGym } from '../context/GymContext.tsx'
 import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
@@ -58,6 +59,7 @@ export default function WodDetail() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
+  const { gymRole } = useGym()
   const fromHistory = (location.state as { from?: string } | null)?.from === 'history'
 
   const [workout, setWorkout] = useState<Workout | null>(null)
@@ -165,6 +167,33 @@ export default function WodDetail() {
         </div>
         <p className="text-sm text-gray-500 ml-11">{scheduledDate}</p>
       </div>
+
+      {/*
+        Coach notes — programmer-authored stimulus / teaching points (#184).
+        Placed ABOVE the description so the staff framing reads first when
+        they're skimming a workout 5 min before class. Members see the same
+        ordering, but with the section collapsed by default so the prescription
+        stays the focal point.
+
+        Default-open is role-driven (per the cross-app contract in #184):
+          MEMBER                       → collapsed
+          COACH / PROGRAMMER / OWNER   → expanded
+        User can always toggle. State is not persisted.
+      */}
+      {workout.coachNotes && workout.coachNotes.trim() !== '' && (
+        <details
+          className="bg-gray-900 rounded-lg px-4 py-3 border border-indigo-900/40"
+          {...(gymRole && gymRole !== 'MEMBER' ? { open: true } : {})}
+          data-testid="coach-notes"
+        >
+          <summary className="cursor-pointer text-sm font-semibold text-indigo-300 hover:text-indigo-200 select-none">
+            Coach notes
+          </summary>
+          <div className="mt-2">
+            <MarkdownDescription source={workout.coachNotes} />
+          </div>
+        </details>
+      )}
 
       {/* Description */}
       {workout.description && (

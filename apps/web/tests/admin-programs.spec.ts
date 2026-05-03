@@ -70,7 +70,8 @@ async function teardown(fx: AdminFixture, extraUserId?: string) {
 }
 
 test('admin sees the WODalytics Admin nav and can list + view an unaffiliated program', async ({ page, context }) => {
-  const fx = await seedAdminFixture(randomUUID().slice(0, 8))
+  const nameSuffix = randomUUID().slice(0, 8)
+  const fx = await seedAdminFixture(nameSuffix)
   try {
     await loginAs(context, fx.adminUserId, 'OWNER')
     await page.goto('/admin/programs')
@@ -78,15 +79,17 @@ test('admin sees the WODalytics Admin nav and can list + view an unaffiliated pr
     // Sidebar nav header for admin.
     await expect(page.getByText('WODalytics Admin')).toBeVisible()
 
-    // The seeded program shows up in the list.
-    const listLink = page.getByRole('link', { name: new RegExp(`Admin E2E `) }).first()
+    // The seeded program shows up in the list. Match the unique nonce so
+    // parallel-running specs that seeded sibling "Admin E2E ..." programs
+    // can't trick `.first()` into clicking the wrong row.
+    const listLink = page.getByRole('link', { name: new RegExp(`Admin E2E ${nameSuffix}`) })
     await expect(listLink).toBeVisible()
 
     // Click into detail; verify program name + workouts section + the seeded workout.
     await listLink.click()
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Admin E2E')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(`Admin E2E ${nameSuffix}`)
     await expect(page.getByRole('heading', { name: 'Workouts' })).toBeVisible()
-    await expect(page.getByText(/Admin E2E Workout/)).toBeVisible()
+    await expect(page.getByText(`Admin E2E Workout ${nameSuffix}`)).toBeVisible()
   } finally {
     await teardown(fx)
   }
