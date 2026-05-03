@@ -122,6 +122,20 @@ enum MembershipRequestStatus {
   EXPIRED
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+// Channel used to deliver an Invitation — EMAIL sends a deep link, SMS sends a short code.
+enum InvitationChannel {
+  EMAIL
+  SMS
+}
+
 enum WorkoutCategory {
   GIRL_WOD // e.g. Fran, Cindy, Grace
   HERO_WOD // e.g. Murph, Badger, DT
@@ -200,6 +214,8 @@ model User {
   membershipInvitesSent GymMembershipRequest[] @relation("InvitedBy")
   membershipDecisions   GymMembershipRequest[] @relation("DecidedBy")
   workoutImports        WorkoutImport[]
+  sentInvitations       Invitation[]           @relation("SentInvitations")
+  receivedInvitations   Invitation[]           @relation("ReceivedInvitations")
 }
 
 model OAuthAccount {
@@ -236,6 +252,7 @@ model Gym {
   members            UserGym[]
   programs           GymProgram[]
   membershipRequests GymMembershipRequest[]
+  invitations        Invitation[]
 }
 
 model UserGym {
@@ -344,6 +361,35 @@ model GymMembershipRequest {
   @@index([gymId, status])
   @@index([userId, status])
   @@index([email, status])
+}
+
+// Invite-code-based invitation for both app-only and gym-context invites.
+// gymId null = app-only invite (join WODalytics, no gym affiliation).
+// gymId set  = gym-context invite; on acceptance a UserGym row is created.
+// Separate from GymMembershipRequest which handles the USER_REQUESTED join flow.
+model Invitation {
+  id           String            @id @default(cuid())
+  // 6-char uppercase alphanumeric code (no ambiguous 0/O/1/I). Unique.
+  code         String            @unique
+  channel      InvitationChannel
+  email        String?
+  phone        String?
+  gymId        String?
+  roleToGrant  Role              @default(MEMBER)
+  invitedById  String
+  status       InvitationStatus  @default(PENDING)
+  expiresAt    DateTime
+  acceptedById String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  gym        Gym?  @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  invitedBy  User  @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedBy User? @relation("ReceivedInvitations", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  @@index([email, status])
+  @@index([gymId, status])
+  @@index([invitedById])
 }
 
 model NamedWorkout {
