@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useGym } from '../context/GymContext.tsx'
 import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
@@ -10,6 +10,7 @@ import Avatar from '../components/Avatar.tsx'
 import Button from '../components/ui/Button.tsx'
 import SegmentedControl from '../components/ui/SegmentedControl.tsx'
 import { formatResultValue as formatValue } from '../lib/formatResult.ts'
+import { AGE_DIVISIONS, getAgeDivision, type AgeDivision } from '@wodalytics/types'
 
 const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
   GIRL_WOD: 'Girl WOD',
@@ -20,6 +21,7 @@ const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
 }
 
 type GenderFilter = WorkoutGender | 'ALL'
+type DivisionFilter = AgeDivision | 'ALL'
 
 const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   RX_PLUS: 'RX+',
@@ -76,6 +78,8 @@ export default function WodDetail() {
   const [levelFilter, setLevelFilter] = useState<WorkoutLevel>('RX')
   const [showAllLevels, setShowAllLevels] = useState(false)
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('ALL')
+  const [divisionFilter, setDivisionFilter] = useState<DivisionFilter>('ALL')
+  const [showAllDivisions, setShowAllDivisions] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showLogDrawer, setShowLogDrawer] = useState(false)
@@ -105,9 +109,20 @@ export default function WodDetail() {
     if (autoDetectAppliedRef.current === id) return
     autoDetectAppliedRef.current = id ?? null
     if (!user) return
+
     const my = results.find((r) => r.userId === user.id)
     if (my) setLevelFilter(my.level)
-  }, [id, loading, results, user])
+
+    // Auto-detect the viewer's age division from their birthday and the
+    // workout's scheduled date. Mirrors the level auto-detect pattern above.
+    if (workout && user.birthday) {
+      const div = getAgeDivision(user.birthday, workout.scheduledAt)
+      if (div) {
+        setDivisionFilter(div)
+        setShowAllDivisions(false)
+      }
+    }
+  }, [id, loading, results, user, workout])
 
   if (loading) {
     return (
@@ -146,6 +161,10 @@ export default function WodDetail() {
   const filteredResults = results
     .filter((r) => showAllLevels || LEVEL_RANK[r.level] <= LEVEL_RANK[levelFilter])
     .filter((r) => genderFilter === 'ALL' || r.workoutGender === genderFilter)
+    .filter((r) => {
+      if (showAllDivisions) return true
+      return getAgeDivision(r.user.birthday, workout.scheduledAt) === divisionFilter
+    })
     .sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level])
 
   return (
@@ -275,7 +294,7 @@ export default function WodDetail() {
             disabled={showAllLevels}
             aria-label="Filter results by level"
           />
-          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none min-h-7">
             <input
               type="checkbox"
               checked={showAllLevels}
@@ -294,6 +313,42 @@ export default function WodDetail() {
             onChange={setGenderFilter}
             aria-label="Filter results by gender"
           />
+        </div>
+
+        {/* Age division filter */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <label htmlFor="division-select" className="text-xs text-gray-400 shrink-0">
+            Division
+          </label>
+          <select
+            id="division-select"
+            value={divisionFilter}
+            onChange={(e) => setDivisionFilter(e.target.value as DivisionFilter)}
+            disabled={showAllDivisions}
+            className="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+          >
+            {AGE_DIVISIONS.map((d) => (
+              <option key={d.value} value={d.value}>{d.label}</option>
+            ))}
+          </select>
+          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none min-h-7">
+            <input
+              type="checkbox"
+              checked={showAllDivisions}
+              onChange={(e) => setShowAllDivisions(e.target.checked)}
+              className="accent-indigo-500 cursor-pointer"
+            />
+            All divisions
+          </label>
+          {!user?.birthday && (
+            <span className="text-xs text-gray-500">
+              Add your{' '}
+              <Link to="/profile" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+                birthday
+              </Link>{' '}
+              to auto-select your division
+            </span>
+          )}
         </div>
 
         {filteredResults.length === 0 ? (

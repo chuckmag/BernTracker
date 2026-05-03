@@ -1,13 +1,14 @@
 import * as SecureStore from 'expo-secure-store'
 import type {
+  AgeDivision,
   IdentifiedGender,
   ResultValue,
   WorkoutGender,
   WorkoutLevel,
 } from '@wodalytics/types'
 
-export type { IdentifiedGender, ResultValue, WorkoutGender, WorkoutLevel }
-export { deriveWorkoutGender } from '@wodalytics/types'
+export type { AgeDivision, IdentifiedGender, ResultValue, WorkoutGender, WorkoutLevel }
+export { AGE_DIVISIONS, deriveWorkoutGender, getAgeDivision } from '@wodalytics/types'
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
 const ACCESS_TOKEN_KEY = 'accessToken'
@@ -115,7 +116,7 @@ export interface Workout {
 
 export interface LeaderboardEntry {
   id: string
-  user: { id: string; name: string }
+  user: { id: string; name: string; birthday: string | null }
   level: WorkoutLevel
   workoutGender: WorkoutGender
   value: ResultValue
