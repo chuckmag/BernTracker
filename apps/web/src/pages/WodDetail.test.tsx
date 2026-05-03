@@ -23,6 +23,13 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'user-1', name: 'Test User' } }),
 }))
 
+// Mutable so individual tests can swap the active role before rendering.
+// The coach-notes section's default-open state depends on this.
+const mockGymContext: { gymRole: 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER' | null } = { gymRole: 'MEMBER' }
+vi.mock('../context/GymContext.tsx', () => ({
+  useGym: () => mockGymContext,
+}))
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 import { api } from '../lib/api'
@@ -32,6 +39,7 @@ function makeWorkout(overrides = {}) {
     id: 'workout-1',
     title: 'Test Workout',
     description: '3 rounds',
+    coachNotes: null as string | null,
     type: 'FOR_TIME' as const,
     status: 'PUBLISHED' as const,
     scheduledAt: '2026-07-15T12:00:00.000Z',
@@ -266,5 +274,63 @@ describe('WodDetail level filter — graded inclusion + ordering', () => {
     expect(screen.getByText('Scaled User')).toBeInTheDocument()
     expect(screen.getByText('Modified User')).toBeInTheDocument()
     expect(screen.getByText(/Test User/)).toBeInTheDocument()
+  })
+})
+
+// ─── Coach notes (#184/#186) ─────────────────────────────────────────────────
+
+describe('WodDetail coach notes section', () => {
+  beforeEach(() => {
+    vi.mocked(api.results.leaderboard).mockResolvedValue([])
+    // Reset to a sensible default — individual tests reassign as needed.
+    mockGymContext.gymRole = 'MEMBER'
+  })
+
+  it('renders no coach-notes section when coachNotes is null', async () => {
+    vi.mocked(api.workouts.get).mockResolvedValue(makeWorkout({ coachNotes: null }))
+    renderPage()
+    // Wait for the page to settle.
+    await screen.findByRole('heading', { name: 'Test Workout' })
+    expect(screen.queryByTestId('coach-notes')).not.toBeInTheDocument()
+    expect(screen.queryByText('Coach notes')).not.toBeInTheDocument()
+  })
+
+  it('renders no coach-notes section when coachNotes is an empty / whitespace-only string', async () => {
+    vi.mocked(api.workouts.get).mockResolvedValue(makeWorkout({ coachNotes: '   ' }))
+    renderPage()
+    await screen.findByRole('heading', { name: 'Test Workout' })
+    expect(screen.queryByTestId('coach-notes')).not.toBeInTheDocument()
+  })
+
+  it('renders the section COLLAPSED for MEMBER when coachNotes exist', async () => {
+    mockGymContext.gymRole = 'MEMBER'
+    vi.mocked(api.workouts.get).mockResolvedValue(
+      makeWorkout({ coachNotes: 'Stim: 7-min sprint pace, sub ring rows' }),
+    )
+    renderPage()
+    const details = await screen.findByTestId('coach-notes')
+    expect(details.tagName).toBe('DETAILS')
+    // No `open` attribute → collapsed.
+    expect(details.hasAttribute('open')).toBe(false)
+    // The summary itself is always present (it's the toggle handle).
+    expect(screen.getByText('Coach notes')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['COACH'],
+    ['PROGRAMMER'],
+    ['OWNER'],
+  ] as const)('renders the section EXPANDED for %s when coachNotes exist', async (role) => {
+    mockGymContext.gymRole = role
+    vi.mocked(api.workouts.get).mockResolvedValue(
+      makeWorkout({ coachNotes: 'Stim: 7-min sprint pace, sub ring rows' }),
+    )
+    renderPage()
+    const details = await screen.findByTestId('coach-notes')
+    expect(details.tagName).toBe('DETAILS')
+    expect(details.hasAttribute('open')).toBe(true)
+    // Body is in the DOM either way; the assertion above is what proves
+    // default-open. This sanity-checks that MarkdownDescription rendered.
+    expect(screen.getByText(/Stim: 7-min sprint pace/)).toBeInTheDocument()
   })
 })

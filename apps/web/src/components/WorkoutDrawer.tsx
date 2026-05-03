@@ -162,6 +162,7 @@ interface WorkoutDrawerProps {
 function buildSnapshot(args: {
   title: string
   description: string
+  coachNotes: string
   type: WorkoutType
   namedWorkoutId: string | null
   movementIds: string[]
@@ -175,6 +176,7 @@ function buildSnapshot(args: {
   return JSON.stringify({
     title: args.title.trim(),
     description: args.description,
+    coachNotes: args.coachNotes,
     type: args.type,
     namedWorkoutId: args.namedWorkoutId,
     movementIds: args.movementIds,
@@ -195,6 +197,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const [title, setTitle] = useState('')
   const [type, setType] = useState<WorkoutType>('AMRAP')
   const [description, setDescription] = useState('')
+  const [coachNotes, setCoachNotes] = useState('')
   const [namedWorkouts, setNamedWorkouts] = useState<NamedWorkout[]>([])
   const [namedWorkoutId, setNamedWorkoutId] = useState<string | null>(null)
   const [selectedMovements, setSelectedMovements] = useState<Movement[]>([])
@@ -253,6 +256,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     setTitle(workout?.title ?? '')
     setType(workout?.type ?? 'AMRAP')
     setDescription(workout?.description ?? '')
+    setCoachNotes(workout?.coachNotes ?? '')
     setProgramId(workout?.programId ?? defaultProgramId ?? '')
     setNamedWorkoutId(workout?.namedWorkoutId ?? null)
     setSelectedMovements(workout?.workoutMovements?.map((wm) => wm.movement) ?? [])
@@ -295,6 +299,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
     lastAutosaveSnapshotRef.current = buildSnapshot({
       title: workout?.title ?? '',
       description: workout?.description ?? '',
+      coachNotes: workout?.coachNotes ?? '',
       type: workout?.type ?? 'AMRAP',
       namedWorkoutId: workout?.namedWorkoutId ?? null,
       movementIds: workout?.workoutMovements?.map((wm) => wm.movement.id) ?? [],
@@ -311,6 +316,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
   const snapshot = buildSnapshot({
     title,
     description,
+    coachNotes,
     type,
     namedWorkoutId,
     movementIds: selectedMovements.map((m) => m.id),
@@ -350,6 +356,8 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
           await api.workouts.update(localWorkoutId, {
             title: title.trim(),
             description,
+            // Empty string clears the field — API normalizes "" → null.
+            coachNotes,
             type,
             movements,
             namedWorkoutId,
@@ -363,6 +371,9 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
             programId,
             title: title.trim(),
             description,
+            // Only attach coachNotes if the user typed something — keeps the
+            // create payload tidy for workouts authored without notes.
+            ...(coachNotes ? { coachNotes } : {}),
             type,
             scheduledAt,
             movements,
@@ -377,6 +388,7 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
           lastAutosaveSnapshotRef.current = buildSnapshot({
             title,
             description,
+            coachNotes,
             type,
             namedWorkoutId,
             movementIds: selectedMovements.map((m) => m.id),
@@ -528,10 +540,10 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       const tracksRoundsForType = type === 'AMRAP' ? tracksRounds : false
       const timeCapForCreate = timeCapSeconds !== null ? { timeCapSeconds } : {}
       if (localWorkoutId) {
-        await api.workouts.update(localWorkoutId, { title: title.trim(), description, type, movements, namedWorkoutId, timeCapSeconds, tracksRounds: tracksRoundsForType })
+        await api.workouts.update(localWorkoutId, { title: title.trim(), description, coachNotes, type, movements, namedWorkoutId, timeCapSeconds, tracksRounds: tracksRoundsForType })
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-        await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
+        await api.workouts.create(gymId, { programId, title: title.trim(), description, ...(coachNotes ? { coachNotes } : {}), type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
       }
       onSaved()
       setSaving(false)
@@ -554,10 +566,10 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
       const timeCapForCreate = timeCapSeconds !== null ? { timeCapSeconds } : {}
       let id = localWorkoutId
       if (id) {
-        await api.workouts.update(id, { title: title.trim(), description, type, movements, namedWorkoutId, timeCapSeconds, tracksRounds: tracksRoundsForType })
+        await api.workouts.update(id, { title: title.trim(), description, coachNotes, type, movements, namedWorkoutId, timeCapSeconds, tracksRounds: tracksRoundsForType })
       } else {
         const scheduledAt = new Date(dateKey! + 'T12:00:00').toISOString()
-        const created = await api.workouts.create(gymId, { programId, title: title.trim(), description, type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
+        const created = await api.workouts.create(gymId, { programId, title: title.trim(), description, ...(coachNotes ? { coachNotes } : {}), type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
         id = created.id
       }
       await api.workouts.publish(id!)
@@ -854,6 +866,28 @@ export default function WorkoutDrawer({ gymId, dateKey, workout, workoutsOnDay, 
               onPaste={handleDescriptionPaste}
               placeholder="Workout details, movements, reps…"
               rows={6}
+              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 resize-none font-mono"
+            />
+          </div>
+
+          {/*
+            Coach notes — programmer-authored stimulus / teaching points (#184).
+            Visible to all editors of this drawer (same gate as description, since
+            the drawer itself only opens for programmers/owners). Markdown is
+            rendered on the read side via MarkdownDescription; here it's a plain
+            textarea matching the description-authoring shape.
+          */}
+          <div>
+            <label htmlFor="wd-coach-notes" className="block text-xs text-gray-400 mb-1">
+              Coach notes (stimulus, teaching points)
+              <span className="ml-1 text-gray-400">(optional, supports markdown)</span>
+            </label>
+            <textarea
+              id="wd-coach-notes"
+              value={coachNotes}
+              onChange={(e) => setCoachNotes(e.target.value)}
+              placeholder="Stimulus, scaling guidance, teaching cues…"
+              rows={4}
               className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 resize-none font-mono"
             />
           </div>

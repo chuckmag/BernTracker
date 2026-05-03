@@ -45,6 +45,7 @@ function makeWorkout(overrides: Partial<Workout> = {}): Workout {
     id: 'w-1',
     title: 'Test Workout',
     description: 'desc',
+    coachNotes: null,
     type: 'POWER_LIFTING',
     status: 'PUBLISHED',
     scheduledAt: '2026-04-30T10:00:00.000Z',
