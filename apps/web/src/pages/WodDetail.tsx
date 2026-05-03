@@ -53,6 +53,15 @@ function formatResultValue(result: WorkoutResult): string {
   return formatValue(result.value)
 }
 
+// Derives the crossfit.com permalink from an externalSourceId like
+// "crossfit-mainsite:w20260425". Returns null for user-authored workouts.
+function crossfitSourceUrl(externalSourceId: string | null): string | null {
+  if (!externalSourceId?.startsWith('crossfit-mainsite:w')) return null
+  const yyyymmdd = externalSourceId.replace('crossfit-mainsite:w', '')
+  const yymmdd = yyyymmdd.slice(2)
+  return `https://www.crossfit.com/workout/${yymmdd}`
+}
+
 export default function WodDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -128,6 +137,7 @@ export default function WodDetail() {
   })
 
   const myResult = results.find((r) => r.userId === user?.id)
+  const cfUrl = crossfitSourceUrl(workout.externalSourceId)
 
   // Graded inclusion: selecting level X shows X-and-easier (lower-rank) results.
   // Sort is stable, so within each level the API's performance ordering is preserved.
@@ -182,6 +192,18 @@ export default function WodDetail() {
             </span>
           ))}
         </div>
+      )}
+
+      {/* CrossFit source link */}
+      {cfUrl && (
+        <a
+          href={cfUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+        >
+          View on CrossFit.com →
+        </a>
       )}
 
       {/* Log Result CTA */}

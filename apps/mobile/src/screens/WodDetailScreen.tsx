@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Linking,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
@@ -119,6 +120,9 @@ export default function WodDetailScreen({ route, navigation }: Props) {
   const scheduledDate = new Date(workout.scheduledAt).toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
   })
+  const cfUrl = workout.externalSourceId?.startsWith('crossfit-mainsite:w')
+    ? `https://www.crossfit.com/workout/${workout.externalSourceId.replace('crossfit-mainsite:w', '').slice(2)}`
+    : null
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -139,6 +143,17 @@ export default function WodDetailScreen({ route, navigation }: Props) {
           <Text style={styles.sectionLabel}>WORKOUT</Text>
           <Text style={styles.description}>{workout.description}</Text>
         </View>
+      ) : null}
+
+      {/* CrossFit source link */}
+      {cfUrl ? (
+        <TouchableOpacity
+          style={styles.sourceLink}
+          onPress={() => Linking.openURL(cfUrl)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.sourceLinkText}>View on CrossFit.com →</Text>
+        </TouchableOpacity>
       ) : null}
 
       {/* Log Result CTA */}
@@ -305,6 +320,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#d1d5db',
     lineHeight: 22,
+  },
+  sourceLink: {
+    marginHorizontal: 20,
+    marginTop: 12,
+  },
+  sourceLinkText: {
+    fontSize: 13,
+    color: '#818cf8',
   },
   logButton: {
     marginHorizontal: 20,

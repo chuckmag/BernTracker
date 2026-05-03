@@ -116,7 +116,7 @@ export async function fetchCrossfitWod(
     title: wod.title,
     descriptionRaw: wod.wodRaw,
     descriptionHtml: wod.wodHtml,
-    scheduledAt: wod.publishingDate,
+    scheduledAt: date.toISOString(),
     canonicalUrl: wod.url,
     previousUrl,
   }
