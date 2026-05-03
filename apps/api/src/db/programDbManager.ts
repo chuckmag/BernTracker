@@ -65,30 +65,82 @@ export async function ensureProgramIsPublic(programId: string) {
 }
 
 /**
- * Lists every program with no `GymProgram` link, regardless of caller
- * subscription. Used by the WODalytics admin surface (#160) to enumerate
- * programs that need curation. Differs from `findUnaffiliatedPublicProgramsForUser`
- * which excludes the caller's own subscriptions for the public-catalog browse
- * use case — admins need the full list.
+ * Public-catalog filter for the admin surface: programs with no gym link
+ * AND no `ownerUserId` (i.e. not a Personal Program — those belong to a
+ * specific user and are private by design). The two conditions together
+ * isolate true "WODalytics-curated" programs like the CrossFit Mainsite
+ * ingest from both gym-scoped programs and per-user Personal Programs.
+ */
+const ADMIN_CATALOG_WHERE = {
+  gyms: { none: {} },
+  ownerUserId: null,
+} as const
+
+/**
+ * Lists every public-catalog program (gym-less + non-Personal), regardless
+ * of caller subscription. Used by the WODalytics admin surface (#160) to
+ * enumerate programs that need curation. Differs from
+ * `findUnaffiliatedPublicProgramsForUser` which excludes the caller's own
+ * subscriptions for the public-catalog browse use case — admins need the
+ * full list.
  */
 export async function findAllUnaffiliatedPrograms() {
   return prisma.program.findMany({
-    where: { gyms: { none: {} } },
+    where: ADMIN_CATALOG_WHERE,
     orderBy: { createdAt: 'desc' },
     include: { _count: { select: { members: true, workouts: true } } },
   })
 }
 
 /**
- * Look up a single unaffiliated program by id with the same `_count` shape
- * the list endpoint returns. Returns null when the program either does not
- * exist or has any `GymProgram` link — that second case keeps the admin
- * surface from straying onto gym-affiliated programs (a separate auth
- * boundary). Callers should treat null as 404.
+ * Look up a single public-catalog program by id with the same `_count`
+ * shape the list endpoint returns. Returns null when the program does not
+ * exist, has a gym link, or is a Personal Program — those cases would
+ * stray the admin surface onto material that has its own auth boundary.
+ * Callers should treat null as 404.
  */
 export async function findUnaffiliatedProgramByIdWithCounts(id: string) {
   return prisma.program.findFirst({
-    where: { id, gyms: { none: {} } },
+    where: { id, ...ADMIN_CATALOG_WHERE },
+    include: { _count: { select: { members: true, workouts: true } } },
+  })
+}
+
+/**
+ * Same predicate as `findUnaffiliatedProgramByIdWithCounts` but without the
+ * `_count` payload — for mutation handlers that just need the existence +
+ * access check before delegating to a generic update / delete.
+ */
+export async function findUnaffiliatedProgramById(id: string) {
+  return prisma.program.findFirst({
+    where: { id, ...ADMIN_CATALOG_WHERE },
+  })
+}
+
+interface CreateUnaffiliatedProgramData {
+  name: string
+  description?: string | null
+  startDate: Date
+  endDate?: Date | null
+  coverColor?: string | null
+  visibility?: ProgramVisibility
+}
+
+/**
+ * Creates a new public-catalog program (no gym link, no owner). Visibility
+ * defaults to PUBLIC — the whole point of admin curation is discoverability
+ * across gyms.
+ */
+export async function createUnaffiliatedProgram(data: CreateUnaffiliatedProgramData) {
+  return prisma.program.create({
+    data: {
+      name: data.name,
+      description: data.description ?? null,
+      startDate: data.startDate,
+      endDate: data.endDate ?? null,
+      coverColor: data.coverColor ?? null,
+      visibility: data.visibility ?? 'PUBLIC',
+    },
     include: { _count: { select: { members: true, workouts: true } } },
   })
 }

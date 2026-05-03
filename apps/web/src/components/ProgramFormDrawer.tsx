@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { api, type Program, type ProgramVisibility } from '../lib/api'
+import type { Program, ProgramVisibility } from '../lib/api'
+import type { ProgramScope } from '../lib/programScope'
 import Button from './ui/Button'
 
 const COVER_COLORS = [
@@ -14,12 +15,10 @@ const COVER_COLORS = [
 ]
 
 interface ProgramFormDrawerProps {
-  gymId: string
+  scope: ProgramScope
   program?: Program  // edit mode when provided
-  /** Whether the program is currently the gym's default. Edit mode only. */
+  /** Whether the program is currently the gym's default. Gym-only edit mode. */
   isDefault?: boolean
-  /** OWNER-only on the parent — gates the gym-default toggle inside the drawer. */
-  canSetDefault?: boolean
   open: boolean
   onClose: () => void
   onSaved: (program: Program) => void
@@ -31,14 +30,14 @@ function toDateInputValue(iso: string | null | undefined): string {
 }
 
 export default function ProgramFormDrawer({
-  gymId,
+  scope,
   program,
   isDefault: initialIsDefault = false,
-  canSetDefault = false,
   open,
   onClose,
   onSaved,
 }: ProgramFormDrawerProps) {
+  const canSetDefault = scope.capabilities.canSetDefault
   const isEdit = !!program
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -89,10 +88,10 @@ export default function ProgramFormDrawer({
         // default in the same save, and we send the clearDefault before the
         // PATCH only when both flips are happening.
         const becomingPrivate = visibility === 'PRIVATE' && program.visibility !== 'PRIVATE'
-        if (initialIsDefault && !isDefault && becomingPrivate) {
-          await api.gyms.programs.clearDefault(gymId, program.id)
+        if (initialIsDefault && !isDefault && becomingPrivate && scope.clearProgramDefault) {
+          await scope.clearProgramDefault(program.id)
         }
-        const updated = await api.programs.update(program.id, {
+        const updated = await scope.updateProgram(program.id, {
           name: name.trim(),
           description: description.trim() || null,
           startDate,
@@ -101,12 +100,12 @@ export default function ProgramFormDrawer({
           visibility,
         })
         if (canSetDefault && initialIsDefault !== isDefault && !becomingPrivate) {
-          if (isDefault) await api.gyms.programs.setDefault(gymId, program.id)
-          else await api.gyms.programs.clearDefault(gymId, program.id)
+          if (isDefault) await scope.setProgramAsDefault?.(program.id)
+          else await scope.clearProgramDefault?.(program.id)
         }
         onSaved(updated)
       } else {
-        const { program: created } = await api.gyms.programs.create(gymId, {
+        const created = await scope.createProgram({
           name: name.trim(),
           description: description.trim() || undefined,
           startDate,
@@ -116,7 +115,7 @@ export default function ProgramFormDrawer({
         })
         // Allow OWNERs to mark as default at create-time too.
         if (canSetDefault && isDefault && visibility === 'PUBLIC') {
-          await api.gyms.programs.setDefault(gymId, created.id)
+          await scope.setProgramAsDefault?.(created.id)
         }
         onSaved(created)
       }

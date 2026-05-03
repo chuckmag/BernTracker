@@ -2,6 +2,7 @@ import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import WorkoutDrawer from './WorkoutDrawer'
+import { makeGymProgramScope } from '../lib/gymProgramScope'
 
 vi.mock('../lib/api', () => ({
   api: {
@@ -33,9 +34,15 @@ import { api } from '../lib/api'
 
 const noop = () => {}
 
+// The gym scope routes its CRUD methods through `api.gyms.programs.*` and
+// `api.workouts.*`, so the existing `api.*` mocks are still authoritative
+// — this test file's `expect(api.workouts.create).toHaveBeenCalled()`
+// assertions remain valid after the slice-3 ProgramScope refactor.
+const gymScope = makeGymProgramScope({ gymId: 'gym-1', gymRole: 'OWNER' })
+
 function defaultProps(overrides: Partial<Parameters<typeof WorkoutDrawer>[0]> = {}) {
   return {
-    gymId: 'gym-1',
+    scope: gymScope,
     dateKey: '2026-04-21',
     workout: undefined,
     workoutsOnDay: [],
@@ -53,6 +60,9 @@ function seedApi() {
   vi.mocked(api.namedWorkouts.list).mockResolvedValue([])
   vi.mocked(api.movements.list).mockResolvedValue([])
   vi.mocked(api.movements.detect).mockResolvedValue([])
+  // Gym scope's `list()` calls api.gyms.programs.list and maps each row's
+  // `.program` into a Program — the test's mock still uses the GymProgram
+  // shape so the mapping has something to project from.
   vi.mocked(api.gyms.programs.list).mockResolvedValue([
     { programId: 'prog-1', program: { id: 'prog-1', name: 'General' } } as never,
   ])

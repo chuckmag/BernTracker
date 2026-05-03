@@ -70,7 +70,8 @@ async function teardown(fx: AdminFixture, extraUserId?: string) {
 }
 
 test('admin sees the WODalytics Admin nav and can list + view an unaffiliated program', async ({ page, context }) => {
-  const fx = await seedAdminFixture(randomUUID().slice(0, 8))
+  const nameSuffix = randomUUID().slice(0, 8)
+  const fx = await seedAdminFixture(nameSuffix)
   try {
     await loginAs(context, fx.adminUserId, 'OWNER')
     await page.goto('/admin/programs')
@@ -78,16 +79,58 @@ test('admin sees the WODalytics Admin nav and can list + view an unaffiliated pr
     // Sidebar nav header for admin.
     await expect(page.getByText('WODalytics Admin')).toBeVisible()
 
-    // The seeded program shows up in the list.
-    const listLink = page.getByRole('link', { name: new RegExp(`Admin E2E `) }).first()
+    // The seeded program shows up in the list. Match the unique nonce so
+    // parallel-running specs that seeded sibling "Admin E2E ..." programs
+    // can't trick `.first()` into clicking the wrong row.
+    const listLink = page.getByRole('link', { name: new RegExp(`Admin E2E ${nameSuffix}`) })
     await expect(listLink).toBeVisible()
 
     // Click into detail; verify program name + workouts section + the seeded workout.
     await listLink.click()
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Admin E2E')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(`Admin E2E ${nameSuffix}`)
     await expect(page.getByRole('heading', { name: 'Workouts' })).toBeVisible()
-    await expect(page.getByText(/Admin E2E Workout/)).toBeVisible()
+    await expect(page.getByText(`Admin E2E Workout ${nameSuffix}`)).toBeVisible()
   } finally {
+    await teardown(fx)
+  }
+})
+
+test('admin can create a workout under an unaffiliated program (slice 3)', async ({ page, context }) => {
+  const fx = await seedAdminFixture(randomUUID().slice(0, 8))
+  let createdWorkoutId: string | null = null
+  const newTitle = `Admin E2E New Workout ${randomUUID().slice(0, 8)}`
+  try {
+    await loginAs(context, fx.adminUserId, 'OWNER')
+    await page.goto(`/admin/programs/${fx.programId}`)
+
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Admin E2E')
+    await page.getByRole('button', { name: '+ New Workout' }).click()
+
+    // The shared WorkoutDrawer opens. Title input renders immediately;
+    // programs load asynchronously into the picker — wait for the select
+    // to settle on the seeded program before filling the form so the
+    // create call carries the right programId.
+    const title = page.getByPlaceholder('e.g. Fran')
+    await expect(title).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('select#wd-program')).toHaveValue(/.+/, { timeout: 10000 })
+
+    await title.fill(newTitle)
+    await page.getByPlaceholder(/Workout details/).fill('21-15-9 thrusters / pull-ups')
+
+    // Admin path: single Save button (no Draft/Publish split — admin
+    // workouts auto-publish).
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+
+    // The drawer closes and the new workout appears in the list.
+    await expect(page.getByText(newTitle)).toBeVisible({ timeout: 10000 })
+
+    const created = await prisma.workout.findFirst({ where: { title: newTitle } })
+    if (!created) throw new Error('Created workout not found in DB')
+    createdWorkoutId = created.id
+    expect(created.programId).toBe(fx.programId)
+    expect(created.status).toBe('PUBLISHED')
+  } finally {
+    if (createdWorkoutId) await prisma.workout.delete({ where: { id: createdWorkoutId } }).catch(() => {})
     await teardown(fx)
   }
 })

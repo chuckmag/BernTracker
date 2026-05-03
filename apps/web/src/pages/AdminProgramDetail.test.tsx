@@ -7,9 +7,31 @@ import type { Program, Workout } from '../lib/api'
 vi.mock('../lib/api', () => ({
   api: {
     admin: {
-      programs: { list: vi.fn(), get: vi.fn(), listWorkouts: vi.fn() },
+      programs: {
+        list: vi.fn(),
+        get: vi.fn(),
+        listWorkouts: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+        createWorkout: vi.fn(),
+      },
+      workouts: { update: vi.fn(), delete: vi.fn() },
     },
+    // Editors imported by AdminProgramDetail call these on open. Tests below
+    // never open the drawers, so the mocks only need to exist (for module
+    // resolution) — actual return values are irrelevant.
+    namedWorkouts: { list: vi.fn() },
+    movements: { list: vi.fn(), detect: vi.fn() },
   },
+  TYPE_ABBR: {
+    STRENGTH: 'S', FOR_TIME: 'F', EMOM: 'E', CARDIO: 'C',
+    AMRAP: 'A', METCON: 'M', WARMUP: 'W',
+  },
+}))
+
+vi.mock('../context/MovementsContext.tsx', () => ({
+  useMovements: () => [],
 }))
 
 import { api } from '../lib/api'
@@ -93,5 +115,12 @@ describe('AdminProgramDetail', () => {
   it('shows empty-state copy when no workouts', async () => {
     renderPage()
     expect(await screen.findByText('No workouts yet.')).toBeInTheDocument()
+  })
+
+  it('renders the New Workout + Edit + Delete affordances (slice 3)', async () => {
+    renderPage()
+    expect(await screen.findByRole('button', { name: '+ New Workout' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Delete program/ })).toBeInTheDocument()
   })
 })

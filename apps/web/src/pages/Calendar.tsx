@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type Workout } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
+import { makeGymProgramScope } from '../lib/gymProgramScope'
 import { useMovements } from '../context/MovementsContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 import CalendarCell from '../components/CalendarCell'
@@ -21,6 +22,10 @@ const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function Calendar() {
   const { gymId, gymRole: userGymRole } = useGym()
+  const scope = useMemo(
+    () => makeGymProgramScope({ gymId: gymId ?? '', gymRole: userGymRole ?? null }),
+    [gymId, userGymRole],
+  )
   const allMovements = useMovements()
   const { selected: programIds, available, clear: clearProgramFilter } = useProgramFilter()
   const today = new Date()
@@ -240,7 +245,7 @@ export default function Calendar() {
       </div>
 
       <WorkoutDrawer
-        gymId={gymId}
+        scope={scope}
         dateKey={selectedDate}
         workout={selectedWorkout}
         workoutsOnDay={workoutsOnDay}
