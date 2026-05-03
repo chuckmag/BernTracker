@@ -38,7 +38,7 @@ import { useGym } from '../src/context/GymContext'
 import { useProgramFilter } from '../src/context/ProgramFilterContext'
 import { api } from '../src/lib/api'
 
-const ACTIVE_GYM = { id: 'gym-1', name: 'Test Gym', slug: 'test-gym', timezone: 'UTC', userRole: 'MEMBER' }
+const ACTIVE_GYM = { id: 'gym-1', name: 'Test Gym', slug: 'test-gym', timezone: 'UTC', role: 'MEMBER' }
 
 function makeNavigation() {
   return { navigate: jest.fn(), setOptions: jest.fn(), goBack: jest.fn() } as any
