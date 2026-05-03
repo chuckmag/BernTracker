@@ -110,6 +110,7 @@ export interface Workout {
   workoutMovements: WorkoutMovementWithPrescription[]
   timeCapSeconds: number | null
   tracksRounds: boolean
+  externalSourceId: string | null
 }
 
 export interface LeaderboardEntry {

@@ -135,9 +135,24 @@ export async function findWorkoutsByGymAndDateRange(
   // programs the caller subscribes to). Drop the gym-scoping constraint in
   // that case so workouts under unaffiliated programs come back instead of
   // silently filtering to the empty set.
+  //
+  // When no programIds filter is set ("All Programs" view), include both:
+  //   1. Workouts from programs linked to the caller's gym (the normal case).
+  //   2. Workouts from unaffiliated programs (no GymProgram rows) where the
+  //      caller has a UserProgram subscription — e.g. CrossFit Mainsite WOD.
   const gymScope = filters.programIds?.length
     ? {}
-    : { program: { gyms: { some: { gymId } } } }
+    : {
+        OR: [
+          { program: { gyms: { some: { gymId } } } },
+          {
+            program: {
+              gyms: { none: {} },
+              members: { some: { userId: viewerUserId } },
+            },
+          },
+        ],
+      }
 
   const workouts = await prisma.workout.findMany({
     where: {

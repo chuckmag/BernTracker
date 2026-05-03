@@ -52,6 +52,7 @@ function makeWorkout(overrides = {}) {
     timeCapSeconds: null,
     tracksRounds: false,
     _count: { results: 0 },
+    externalSourceId: null,
     createdAt: '2026-07-01T00:00:00.000Z',
     updatedAt: '2026-07-01T00:00:00.000Z',
     ...overrides,

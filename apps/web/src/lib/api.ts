@@ -197,6 +197,12 @@ export interface Workout {
    * single-workout `GET /api/workouts/:id` endpoint does not populate it.
    */
   myResultId?: string | null
+  /**
+   * Stable identifier from an external ingest source, e.g.
+   * "crossfit-mainsite:w20260425". Null for user-authored workouts.
+   * Used to derive a link back to the source page on the workout detail view.
+   */
+  externalSourceId: string | null
   createdAt: string
   updatedAt: string
 }

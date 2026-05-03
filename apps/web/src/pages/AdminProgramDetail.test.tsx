@@ -47,6 +47,7 @@ function makeWorkout(overrides: Partial<Workout> = {}): Workout {
     timeCapSeconds: null,
     tracksRounds: false,
     _count: { results: 0 },
+    externalSourceId: null,
     createdAt: '2026-04-15T10:00:00.000Z',
     updatedAt: '2026-04-15T10:00:00.000Z',
     ...overrides,

@@ -54,7 +54,7 @@ async function main() {
     check('title preserved', 'Saturday 260425', result?.title)
     check('descriptionRaw preserved', fixturePayload.wods.wodRaw, result?.descriptionRaw)
     check('descriptionHtml preserved', fixturePayload.wods.wodHtml, result?.descriptionHtml)
-    check('scheduledAt is publishingDate', '2026-04-24T23:55:00+00:00', result?.scheduledAt)
+    check('scheduledAt is the requested date (UTC midnight)', new Date(Date.UTC(2026, 3, 25)).toISOString(), result?.scheduledAt)
     check('canonicalUrl from wods.url', '/260425', result?.canonicalUrl)
     check('previousUrl extracted', '/260424', result?.previousUrl)
   }
