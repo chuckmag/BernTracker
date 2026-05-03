@@ -830,4 +830,21 @@ export const api = {
     unsubscribe: (id: string, token?: string) =>
       req<void>(`/api/programs/${id}/subscribe`, { method: 'DELETE', token }),
   },
+
+  /**
+   * WODalytics admin surface (#160). Curates unaffiliated/public-catalog
+   * programs. Every endpoint is gated server-side by `requireWodalyticsAdmin`.
+   * The web app keys off `user.isWodalyticsAdmin` to render the entry point;
+   * this client surface is the data layer underneath.
+   */
+  admin: {
+    programs: {
+      list: (token?: string) =>
+        req<Program[]>(`/api/admin/programs`, { token }),
+      get: (id: string, token?: string) =>
+        req<Program>(`/api/admin/programs/${id}`, { token }),
+      listWorkouts: (id: string, token?: string) =>
+        req<Workout[]>(`/api/admin/programs/${id}/workouts`, { token }),
+    },
+  },
 }

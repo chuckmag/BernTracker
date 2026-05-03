@@ -6,6 +6,7 @@ import Button from '../components/ui/Button'
 import Skeleton from '../components/ui/Skeleton'
 import ProgramFormDrawer from '../components/ProgramFormDrawer'
 import ProgramMembersTab from '../components/ProgramMembersTab'
+import ProgramOverviewMeta from '../components/ProgramOverviewMeta'
 
 type Tab = 'overview' | 'members' | 'workouts'
 
@@ -197,11 +198,6 @@ function OverviewTab({
   onOpenMembers: () => void
   onDefaultChanged: () => void
 }) {
-  const memberCount = program._count?.members ?? 0
-  const workoutCount = program._count?.workouts ?? 0
-  const fmt = (d: string | null) =>
-    d ? new Date(d).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '—'
-
   const [setDefaultLoading, setSetDefaultLoading] = useState(false)
   const [setDefaultError, setSetDefaultError] = useState<string | null>(null)
 
@@ -230,36 +226,10 @@ function OverviewTab({
 
   return (
     <>
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm mb-8">
-        <div>
-          <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Start date</dt>
-          <dd className="text-white">{fmt(program.startDate)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">End date</dt>
-          <dd className="text-white">{fmt(program.endDate)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Members</dt>
-          <dd className="text-white">
-            {canSeeMembers ? (
-              <button
-                type="button"
-                onClick={onOpenMembers}
-                className="text-white hover:text-indigo-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 rounded"
-              >
-                {memberCount}
-              </button>
-            ) : (
-              memberCount
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Workouts</dt>
-          <dd className="text-white">{workoutCount}</dd>
-        </div>
-      </dl>
+      <ProgramOverviewMeta
+        program={program}
+        onOpenMembers={canSeeMembers ? onOpenMembers : undefined}
+      />
 
       {canSetDefault && (
         <div className="mb-6">

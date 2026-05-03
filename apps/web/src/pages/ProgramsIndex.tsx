@@ -1,20 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { api, type GymProgram, type Program } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
 import ProgramFormDrawer from '../components/ProgramFormDrawer'
-import { VisibilityBadge, DefaultBadge } from './ProgramDetail'
-
-function formatDateRange(start: string, end: string | null): string {
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
-  const s = new Date(start).toLocaleDateString(undefined, opts)
-  if (!end) return `From ${s}`
-  const e = new Date(end).toLocaleDateString(undefined, opts)
-  return `${s} – ${e}`
-}
+import ProgramCard from '../components/ProgramCard'
 
 export default function ProgramsIndex() {
   const { gymId, gymRole } = useGym()
@@ -88,7 +79,12 @@ export default function ProgramsIndex() {
       {gymPrograms.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {gymPrograms.map((gp) => (
-            <ProgramCard key={gp.program.id} program={gp.program} isDefault={gp.isDefault} />
+            <ProgramCard
+              key={gp.program.id}
+              program={gp.program}
+              to={`/programs/${gp.program.id}`}
+              isDefault={gp.isDefault}
+            />
           ))}
         </div>
       )}
@@ -101,37 +97,5 @@ export default function ProgramsIndex() {
         onSaved={handleCreated}
       />
     </div>
-  )
-}
-
-function ProgramCard({ program, isDefault }: { program: Program; isDefault: boolean }) {
-  const stripe = program.coverColor ?? '#374151'
-  const memberCount = program._count?.members ?? 0
-  const workoutCount = program._count?.workouts ?? 0
-  return (
-    <Link
-      to={`/programs/${program.id}`}
-      className="group bg-gray-900 border border-gray-800 rounded-lg overflow-hidden hover:border-gray-700 transition-colors"
-    >
-      <div style={{ backgroundColor: stripe }} className="h-1.5 w-full" />
-      <div className="p-4">
-        <div className="flex items-start gap-2 flex-wrap">
-          <h3 className="font-semibold text-white truncate group-hover:text-indigo-300 transition-colors flex-1 min-w-0">
-            {program.name}
-          </h3>
-          {isDefault && <DefaultBadge className="shrink-0" />}
-          <VisibilityBadge visibility={program.visibility} className="shrink-0" />
-        </div>
-        {program.description && (
-          <p className="mt-1 text-xs text-gray-400 line-clamp-2">{program.description}</p>
-        )}
-        <p className="mt-3 text-xs text-gray-400">{formatDateRange(program.startDate, program.endDate)}</p>
-        <div className="mt-3 flex items-center gap-3 text-xs text-gray-400">
-          <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
-          <span className="text-gray-700" aria-hidden="true">·</span>
-          <span>{workoutCount} {workoutCount === 1 ? 'workout' : 'workouts'}</span>
-        </div>
-      </div>
-    </Link>
   )
 }
