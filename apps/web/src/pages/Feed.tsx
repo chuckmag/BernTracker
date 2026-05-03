@@ -8,7 +8,7 @@ import Skeleton from '../components/ui/Skeleton.tsx'
 import BarbellIcon from '../components/icons/BarbellIcon.tsx'
 import UsersIcon from '../components/icons/UsersIcon.tsx'
 
-const INITIAL_FUTURE_DAYS = 14
+const INITIAL_FUTURE_DAYS = 30
 const INITIAL_PAST_DAYS = 30
 const PAGE_DAYS = 30
 
@@ -161,7 +161,15 @@ export default function Feed() {
   const today = new Date()
   const todayKey = toDateKey(today)
 
-  const dayBlocks = fetchStart && fetchEnd ? buildDayBlocks(workouts, fetchStart, fetchEnd) : []
+  // Future tiles only extend as far as the last day with a workout scheduled.
+  // If nothing is planned ahead, the feed ends at today.
+  const latestFutureWorkout = workouts.reduce<Date | null>((latest, w) => {
+    const d = new Date(w.scheduledAt)
+    return toDateKey(d) > todayKey ? (!latest || d > latest ? d : latest) : latest
+  }, null)
+  const blockEnd = latestFutureWorkout ?? today
+
+  const dayBlocks = fetchStart ? buildDayBlocks(workouts, fetchStart, blockEnd) : []
 
   // Single-program filter gets a featured header (color stripe + name).
   // Multi-program gets a compact chip pointing at the picker.

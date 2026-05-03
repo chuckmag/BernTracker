@@ -218,10 +218,9 @@ describe('Feed — empty-day tiles', () => {
     expect(tiles.length).toBeGreaterThan(0)
   })
 
-  it('renders a day header for days with no workouts alongside the empty-tile text', async () => {
+  it('renders a TODAY label when there are no workouts', async () => {
     vi.mocked(api.workouts.list).mockResolvedValue([] as never)
     renderFeed()
-    // TODAY label should always appear (it's within the initial range)
     expect(await screen.findByText('TODAY')).toBeInTheDocument()
   })
 
@@ -233,6 +232,31 @@ describe('Feed — empty-day tiles', () => {
     // Other days in the range have no workouts → at least one empty tile
     const emptyTiles = await screen.findAllByText('No workouts planned')
     expect(emptyTiles.length).toBeGreaterThan(0)
+  })
+
+  it('does not render future empty tiles when no future workouts exist', async () => {
+    // Only a past workout — feed should end at today with no TOMORROW tile
+    const w = makeWorkout('AMRAP', 2)   // 2 days ago
+    vi.mocked(api.workouts.list).mockResolvedValue([w] as never)
+    renderFeed()
+    await screen.findByText('TODAY')
+    expect(screen.queryByText('TOMORROW')).not.toBeInTheDocument()
+  })
+
+  it('renders future empty tiles only up to the last day with a workout', async () => {
+    // Workout scheduled 3 days from now — TOMORROW tile should appear
+    const d = new Date()
+    d.setDate(d.getDate() + 3)
+    d.setHours(12, 0, 0, 0)
+    const w = {
+      ...makeWorkout('AMRAP', 0),
+      id: 'w-future',
+      scheduledAt: d.toISOString(),
+    }
+    vi.mocked(api.workouts.list).mockResolvedValue([w] as never)
+    renderFeed()
+    // TOMORROW is between today and the future workout → empty tile expected
+    expect(await screen.findByText('TOMORROW')).toBeInTheDocument()
   })
 })
 
