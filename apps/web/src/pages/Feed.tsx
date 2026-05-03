@@ -1,19 +1,50 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, type Workout } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
-import EmptyState from '../components/ui/EmptyState.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
 import BarbellIcon from '../components/icons/BarbellIcon.tsx'
 import UsersIcon from '../components/icons/UsersIcon.tsx'
+
+const INITIAL_FUTURE_DAYS = 14
+const INITIAL_PAST_DAYS = 30
+const PAGE_DAYS = 30
+
+type DayBlock = { dateKey: string; workouts: Workout[] }
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date)
+  d.setDate(d.getDate() + days)
+  return d
+}
+
+// Builds a contiguous DayBlock[] from `start` to `end`, newest-first.
+// Days without workouts get an empty array so they render as "No workouts planned".
+function buildDayBlocks(workouts: Workout[], start: Date, end: Date): DayBlock[] {
+  const byDate: Record<string, Workout[]> = {}
+  for (const w of workouts) {
+    const key = toDateKey(new Date(w.scheduledAt))
+    if (!byDate[key]) byDate[key] = []
+    byDate[key].push(w)
+  }
+  const blocks: DayBlock[] = []
+  const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  let cursor = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+  while (cursor >= startMidnight) {
+    const key = toDateKey(cursor)
+    blocks.push({ dateKey: key, workouts: byDate[key] ?? [] })
+    cursor = addDays(cursor, -1)
+  }
+  return blocks
 }
 
 function formatDayLabel(dateKey: string, todayKey: string): string {
@@ -34,8 +65,16 @@ export default function Feed() {
   const { gymId } = useGym()
   const { selected: programIds, available, clear: clearProgramFilter } = useProgramFilter()
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [fetchStart, setFetchStart] = useState<Date | null>(null)
+  const [fetchEnd, setFetchEnd] = useState<Date | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Refs let loadMore read current values without needing them in its dep array,
+  // so the IntersectionObserver doesn't reconnect on every page load.
+  const fetchStartRef = useRef<Date | null>(null)
+  const loadingMoreRef = useRef(false)
+  const sentinelRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
 
   const programIdsKey = programIds.join(',')
@@ -45,11 +84,15 @@ export default function Feed() {
     let cancelled = false
     setLoading(true)
     setError(null)
+    setWorkouts([])
+    setFetchStart(null)
+    setFetchEnd(null)
+    fetchStartRef.current = null
+    loadingMoreRef.current = false
     const today = new Date()
-    const from = new Date(today)
-    from.setDate(today.getDate() - 30)
+    const from = addDays(today, -INITIAL_PAST_DAYS)
     const to = new Date(today)
-    to.setDate(today.getDate() + 14)
+    to.setDate(today.getDate() + INITIAL_FUTURE_DAYS)
     to.setHours(23, 59, 59, 999)
     api.workouts.list(
       gymId,
@@ -57,11 +100,54 @@ export default function Feed() {
       to.toISOString(),
       programIds.length ? { programIds } : undefined,
     )
-      .then((data) => { if (!cancelled) setWorkouts(data.filter((w) => w.status === 'PUBLISHED')) })
+      .then((data) => {
+        if (!cancelled) {
+          setWorkouts(data.filter((w) => w.status === 'PUBLISHED'))
+          fetchStartRef.current = from
+          setFetchStart(from)
+          setFetchEnd(to)
+        }
+      })
       .catch((e) => { if (!cancelled) setError((e as Error).message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [gymId, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadMore = useCallback(() => {
+    if (!gymId || !fetchStartRef.current || loadingMoreRef.current) return
+    loadingMoreRef.current = true
+    setLoadingMore(true)
+    const newFrom = addDays(fetchStartRef.current, -PAGE_DAYS)
+    const newTo = addDays(fetchStartRef.current, -1)
+    newTo.setHours(23, 59, 59, 999)
+    api.workouts.list(
+      gymId,
+      newFrom.toISOString(),
+      newTo.toISOString(),
+      programIds.length ? { programIds } : undefined,
+    )
+      .then((data) => {
+        setWorkouts((prev) => [...prev, ...data.filter((w) => w.status === 'PUBLISHED')])
+        fetchStartRef.current = newFrom
+        setFetchStart(newFrom)
+      })
+      .catch((e) => setError((e as Error).message))
+      .finally(() => {
+        loadingMoreRef.current = false
+        setLoadingMore(false)
+      })
+  }, [gymId, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore() },
+      { rootMargin: '200px' },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [loadMore])
 
   if (!gymId) {
     return (
@@ -75,17 +161,7 @@ export default function Feed() {
   const today = new Date()
   const todayKey = toDateKey(today)
 
-  const workoutsByDate: Record<string, Workout[]> = {}
-  for (const w of workouts) {
-    const key = toDateKey(new Date(w.scheduledAt))
-    if (!workoutsByDate[key]) workoutsByDate[key] = []
-    workoutsByDate[key].push(w)
-  }
-
-  const allKeys = Object.keys(workoutsByDate)
-  const futureKeys = allKeys.filter((k) => k >= todayKey).sort()
-  const pastKeys = allKeys.filter((k) => k < todayKey).sort().reverse()
-  const sortedKeys = [...futureKeys, ...pastKeys]
+  const dayBlocks = fetchStart && fetchEnd ? buildDayBlocks(workouts, fetchStart, fetchEnd) : []
 
   // Single-program filter gets a featured header (color stripe + name).
   // Multi-program gets a compact chip pointing at the picker.
@@ -133,15 +209,8 @@ export default function Feed() {
 
       {loading && <Skeleton variant="feed-row" count={4} />}
 
-      {!loading && sortedKeys.length === 0 && (
-        <EmptyState
-          title="No published workouts"
-          body="Nothing posted in the last 30 days."
-        />
-      )}
-
       <div className="space-y-8">
-        {sortedKeys.map((dateKey) => (
+        {dayBlocks.map(({ dateKey, workouts: dayWorkouts }) => (
           <div key={dateKey}>
             <div className="flex items-center gap-3 mb-3">
               <span className="text-xs font-semibold tracking-widest text-gray-400">
@@ -150,38 +219,45 @@ export default function Feed() {
               <hr className="flex-1 border-gray-800" />
             </div>
 
-            <div className="space-y-2">
-              {workoutsByDate[dateKey].map((workout) => {
-                const styles = WORKOUT_TYPE_STYLES[workout.type]
-                return (
-                <button
-                  key={workout.id}
-                  onClick={() => navigate(`/workouts/${workout.id}`)}
-                  className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left group border-l-4 ${styles.accentBar}`}
-                >
-                  <span className={`shrink-0 mt-0.5 w-7 h-6 flex items-center justify-center rounded text-xs font-bold ${styles.bg} ${styles.tint}`}>
-                    {styles.abbr}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-medium text-white break-words">
-                      {workout.title}
-                    </span>
-                    {workout.namedWorkout && (
-                      <span className="text-xs text-indigo-400">● {workout.namedWorkout.name}</span>
-                    )}
-                    <FeedTileBadgeRow
-                      logged={Boolean(workout.myResultId)}
-                      resultCount={workout._count.results}
-                    />
-                  </span>
-                  <span className="shrink-0 mt-0.5 text-gray-400 group-hover:text-white transition-colors">›</span>
-                </button>
-                )
-              })}
-            </div>
+            {dayWorkouts.length === 0 ? (
+              <p className="text-sm text-gray-500 pl-1">No workouts planned</p>
+            ) : (
+              <div className="space-y-2">
+                {dayWorkouts.map((workout) => {
+                  const styles = WORKOUT_TYPE_STYLES[workout.type]
+                  return (
+                    <button
+                      key={workout.id}
+                      onClick={() => navigate(`/workouts/${workout.id}`)}
+                      className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left group border-l-4 ${styles.accentBar}`}
+                    >
+                      <span className={`shrink-0 mt-0.5 w-7 h-6 flex items-center justify-center rounded text-xs font-bold ${styles.bg} ${styles.tint}`}>
+                        {styles.abbr}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-medium text-white break-words">
+                          {workout.title}
+                        </span>
+                        {workout.namedWorkout && (
+                          <span className="text-xs text-indigo-400">● {workout.namedWorkout.name}</span>
+                        )}
+                        <FeedTileBadgeRow
+                          logged={Boolean(workout.myResultId)}
+                          resultCount={workout._count.results}
+                        />
+                      </span>
+                      <span className="shrink-0 mt-0.5 text-gray-400 group-hover:text-white transition-colors">›</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         ))}
       </div>
+
+      <div ref={sentinelRef} className="h-1" />
+      {loadingMore && <Skeleton variant="feed-row" count={2} />}
     </div>
   )
 }

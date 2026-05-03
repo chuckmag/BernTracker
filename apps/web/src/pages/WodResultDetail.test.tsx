@@ -26,6 +26,7 @@ function makeWorkout(overrides = {}) {
     id: 'workout-1',
     title: 'Fran',
     description: '21-15-9 Thrusters and Pull-ups',
+    coachNotes: null,
     type: 'FOR_TIME' as const,
     status: 'PUBLISHED' as const,
     scheduledAt: '2026-07-15T12:00:00.000Z',

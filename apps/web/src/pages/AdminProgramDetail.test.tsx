@@ -34,6 +34,7 @@ function makeWorkout(overrides: Partial<Workout> = {}): Workout {
     id: overrides.id ?? 'w-1',
     title: overrides.title ?? 'Fran',
     description: '21-15-9 thrusters / pull-ups',
+    coachNotes: null,
     type: 'FOR_TIME',
     status: 'PUBLISHED',
     scheduledAt: '2026-04-15T10:00:00.000Z',

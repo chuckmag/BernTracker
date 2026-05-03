@@ -172,6 +172,13 @@ export interface Workout {
   id: string
   title: string
   description: string
+  /**
+   * Programmer-authored stimulus / teaching notes. Optional, nullable. Visible
+   * to every gym member but UI defaults to collapsed for MEMBER and expanded
+   * for COACH/PROGRAMMER/OWNER (see #184). Empty string is treated as null on
+   * write — the API normalizes `""` → `null`.
+   */
+  coachNotes: string | null
   type: WorkoutType
   status: WorkoutStatus
   scheduledAt: string
@@ -643,6 +650,7 @@ export const api = {
         programId?: string
         title: string
         description: string
+        coachNotes?: string
         type: WorkoutType
         scheduledAt: string
         movementIds?: string[]
@@ -660,6 +668,9 @@ export const api = {
       data: {
         title?: string
         description?: string
+        // Nullable so clients can clear the notes; the API also accepts "" and
+        // normalizes it to null on write.
+        coachNotes?: string | null
         type?: WorkoutType
         scheduledAt?: string
         dayOrder?: number
