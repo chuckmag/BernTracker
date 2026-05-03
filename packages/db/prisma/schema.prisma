@@ -190,6 +190,10 @@ model User {
   refreshTokens         RefreshToken[]
   gyms                  UserGym[]
   programs              UserProgram[]
+  // The user's private "Personal Program" — auto-upserted on first use,
+  // never linked to a Gym, never visible to other users. Nullable until the
+  // user touches the feature for the first time.
+  personalProgram       Program?               @relation("UserPersonalProgram")
   results               Result[]
   emergencyContacts     EmergencyContact[]
   membershipRequests    GymMembershipRequest[] @relation("UserRequests")
@@ -254,9 +258,15 @@ model Program {
   endDate     DateTime?
   coverColor  String?
   visibility  ProgramVisibility @default(PRIVATE)
+  // When set, this program is the owner's private "Personal Program" — never
+  // linked to a Gym, never publicly browsable. The unique constraint enforces
+  // one personal program per user, so the upsert in `findOrCreatePersonalProgram`
+  // can race-safely use `ownerUserId` as its where-key.
+  ownerUserId String?           @unique
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
+  owner    User?           @relation("UserPersonalProgram", fields: [ownerUserId], references: [id], onDelete: Cascade)
   gyms     GymProgram[]
   members  UserProgram[]
   workouts Workout[]
