@@ -196,6 +196,30 @@ export async function findWorkoutsByGymAndDateRange(
   }))
 }
 
+/**
+ * Lists every workout in a single program, scheduled-asc. Used by the
+ * personal-program endpoint (#183) — there's no gym scoping, no date range,
+ * and no published-only filter because the caller is always the owner of
+ * a private one-user program.
+ */
+export async function findWorkoutsByProgramId(programId: string, viewerUserId: string) {
+  const workouts = await prisma.workout.findMany({
+    where: { programId },
+    orderBy: [{ scheduledAt: 'asc' }, { dayOrder: 'asc' }, { createdAt: 'asc' }],
+    include: {
+      program: programSelect,
+      namedWorkout: namedWorkoutSelect,
+      _count: { select: { results: true } },
+      results: { where: { userId: viewerUserId }, select: { id: true } },
+      ...workoutMovementsInclude,
+    },
+  })
+  return workouts.map(({ results, ...rest }) => ({
+    ...rest,
+    myResultId: results[0]?.id ?? null,
+  }))
+}
+
 export async function findWorkoutById(id: string) {
   return prisma.workout.findUnique({
     where: { id },

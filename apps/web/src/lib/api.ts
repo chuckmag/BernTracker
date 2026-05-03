@@ -271,6 +271,14 @@ export interface Program {
   _count?: { members: number; workouts: number }
 }
 
+// User's private "Personal Program" (#183) — same Prisma model as Program but
+// with `ownerUserId` set, no GymProgram links, and PRIVATE visibility. The
+// `_count.workouts` field is always populated since the page header reads it.
+export interface PersonalProgram extends Omit<Program, '_count'> {
+  ownerUserId: string
+  _count: { workouts: number }
+}
+
 export type ProgramRole = 'MEMBER' | 'PROGRAMMER'
 
 export interface ProgramMember {
@@ -495,6 +503,39 @@ export const api = {
      */
     programs: (gymId: string, token?: string) =>
       req<GymProgram[]>(`/api/me/programs?gymId=${encodeURIComponent(gymId)}`, { token }),
+
+    personalProgram: {
+      // Returns the caller's private "Personal Program" (#183), creating it on
+      // first call. Idempotent — repeat calls return the existing row.
+      get: (token?: string) =>
+        req<PersonalProgram>('/api/me/personal-program', { token }),
+
+      workouts: {
+        list: (token?: string) =>
+          req<Workout[]>('/api/me/personal-program/workouts', { token }),
+        // Body uses the same shape as `api.workouts.create` minus `programId`,
+        // which is always the caller's personal program server-side.
+        create: (
+          data: {
+            title: string
+            description: string
+            type: WorkoutType
+            scheduledAt: string
+            movementIds?: string[]
+            movements?: WorkoutMovementInput[]
+            namedWorkoutId?: string
+            timeCapSeconds?: number | null
+            tracksRounds?: boolean
+          },
+          token?: string,
+        ) =>
+          req<Workout>('/api/me/personal-program/workouts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            token,
+          }),
+      },
+    },
   },
 
   gyms: {
