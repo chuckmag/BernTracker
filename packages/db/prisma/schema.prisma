@@ -355,6 +355,11 @@ model Workout {
   programId        String?
   title            String
   description      String
+  // Programmer-authored stimulus / teaching notes shown on the workout
+  // detail view. UI defaults to expanded for staff (COACH/PROGRAMMER/OWNER)
+  // and collapsed for MEMBER. Empty string is normalized to null at the API
+  // boundary so the field can be cleared via the same PATCH.
+  coachNotes       String?
   type             WorkoutType
   status           WorkoutStatus @default(DRAFT)
   scheduledAt      DateTime
