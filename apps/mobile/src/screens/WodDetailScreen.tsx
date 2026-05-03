@@ -13,6 +13,7 @@ import type { RootStackParamList } from '../../App'
 import { api, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender } from '../lib/api'
 import { styleFor } from '../lib/workoutTypeStyles'
 import { useAuth } from '../context/AuthContext'
+import { useGym } from '../context/GymContext'
 import { formatResultValue } from '../lib/format'
 
 type Props = StackScreenProps<RootStackParamList, 'WodDetail'>
@@ -48,12 +49,18 @@ const GENDER_LABELS: Record<WorkoutGender, string> = {
 export default function WodDetailScreen({ route, navigation }: Props) {
   const { workoutId } = route.params
   const { user } = useAuth()
+  const { activeGym } = useGym()
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [levelFilter, setLevelFilter] = useState<WorkoutLevel | null>(null)
   const [genderFilter, setGenderFilter] = useState<WorkoutGender | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Coach notes are reference material for staff during class but supplementary
+  // colour for members — so the toggle defaults open for COACH/PROGRAMMER/OWNER
+  // and closed for MEMBER. Same contract as web (#184). User can always toggle.
+  const isStaff = activeGym?.role === 'COACH' || activeGym?.role === 'PROGRAMMER' || activeGym?.role === 'OWNER'
+  const [showCoachNotes, setShowCoachNotes] = useState(isStaff)
 
   // Load workout details once
   useEffect(() => {
@@ -132,6 +139,29 @@ export default function WodDetailScreen({ route, navigation }: Props) {
         </View>
         <Text style={styles.title}>{workout.title}</Text>
       </View>
+
+      {/* Coach notes — collapsible. Default state per role (#184): expanded for
+          staff, collapsed for members. Hidden entirely when notes are absent. */}
+      {workout.coachNotes ? (
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.coachNotesHeader}
+            onPress={() => setShowCoachNotes((v) => !v)}
+            activeOpacity={0.7}
+            testID="coach-notes-toggle"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showCoachNotes }}
+          >
+            <Text style={styles.coachNotesLabel}>COACH NOTES</Text>
+            <Text style={styles.coachNotesChevron}>{showCoachNotes ? '−' : '+'}</Text>
+          </TouchableOpacity>
+          {showCoachNotes ? (
+            <Text style={styles.coachNotesBody} testID="coach-notes-body">
+              {workout.coachNotes}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* Description */}
       {workout.description ? (
@@ -302,6 +332,31 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   description: {
+    fontSize: 15,
+    color: '#d1d5db',
+    lineHeight: 22,
+  },
+  coachNotesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  // Same visual as sectionLabel but without its own marginBottom (the row owns
+  // spacing so the chevron stays vertically centered).
+  coachNotesLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4b5563',
+    letterSpacing: 0.8,
+  },
+  coachNotesChevron: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6b7280',
+    paddingHorizontal: 6,
+  },
+  coachNotesBody: {
     fontSize: 15,
     color: '#d1d5db',
     lineHeight: 22,

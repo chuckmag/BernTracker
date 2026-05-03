@@ -87,7 +87,7 @@ describe('ProgramFilterContext', () => {
     jest.clearAllMocks()
     mockStore.clear()
     ;(useGym as jest.Mock).mockReturnValue({
-      activeGym: { id: 'gym-1', name: 'Test', slug: 't', timezone: 'UTC', userRole: 'MEMBER' },
+      activeGym: { id: 'gym-1', name: 'Test', slug: 't', timezone: 'UTC', role: 'MEMBER' },
       isLoading: false,
       selectGym: jest.fn(),
     })
