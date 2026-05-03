@@ -79,15 +79,18 @@ const ALL_TYPES: WorkoutType[] = [
 ]
 
 function makeWorkout(type: WorkoutType, idx: number) {
-  // Space scheduledAt across distinct days so they render as separate cards.
-  const day = String(idx + 1).padStart(2, '0')
+  // Space scheduledAt across distinct days relative to today so they always
+  // fall within the initial 30-day fetch window (today-30 … today+14).
+  const d = new Date()
+  d.setDate(d.getDate() - idx)
+  d.setHours(12, 0, 0, 0)
   return {
     id: `w-${type}`,
     title: `${type} workout`,
     description: null,
     type,
     status: 'PUBLISHED' as const,
-    scheduledAt: `2026-04-${day}T12:00:00.000Z`,
+    scheduledAt: d.toISOString(),
     dayOrder: 0,
     workoutMovements: [],
     programId: null,
@@ -95,8 +98,8 @@ function makeWorkout(type: WorkoutType, idx: number) {
     namedWorkoutId: null,
     namedWorkout: null,
     _count: { results: 0 },
-    createdAt: '2026-04-01T00:00:00.000Z',
-    updatedAt: '2026-04-01T00:00:00.000Z',
+    createdAt: d.toISOString(),
+    updatedAt: d.toISOString(),
   }
 }
 
@@ -196,6 +199,40 @@ describe('Feed — workout-type tokens', () => {
       expect(abbr.className).toContain(styles.bg)
       expect(abbr.className).toContain(styles.tint)
     }
+  })
+})
+
+// ─── Empty-day tiles ─────────────────────────────────────────────────────────
+
+describe('Feed — empty-day tiles', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFilter.selected = []
+    mockFilter.available = []
+  })
+
+  it('renders "No workouts planned" tiles when the API returns no workouts', async () => {
+    vi.mocked(api.workouts.list).mockResolvedValue([] as never)
+    renderFeed()
+    const tiles = await screen.findAllByText('No workouts planned')
+    expect(tiles.length).toBeGreaterThan(0)
+  })
+
+  it('renders a day header for days with no workouts alongside the empty-tile text', async () => {
+    vi.mocked(api.workouts.list).mockResolvedValue([] as never)
+    renderFeed()
+    // TODAY label should always appear (it's within the initial range)
+    expect(await screen.findByText('TODAY')).toBeInTheDocument()
+  })
+
+  it('renders workout cards for days that do have workouts and empty tiles for days that do not', async () => {
+    const w = makeWorkout('AMRAP', 0)   // scheduled today
+    vi.mocked(api.workouts.list).mockResolvedValue([w] as never)
+    renderFeed()
+    expect(await screen.findByRole('button', { name: /AMRAP workout/ })).toBeInTheDocument()
+    // Other days in the range have no workouts → at least one empty tile
+    const emptyTiles = await screen.findAllByText('No workouts planned')
+    expect(emptyTiles.length).toBeGreaterThan(0)
   })
 })
 
