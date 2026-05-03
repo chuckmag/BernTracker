@@ -351,6 +351,79 @@ async function runTests() {
   // membership now uses POST /programs/:id/members. Coverage moved to
   // apps/api/tests/programs.ts under the slice-3 + slice-4 sections.)
 
+  // ── coachNotes (#185) ──────────────────────────────────────────────────────
+  console.log('\n=== coachNotes ===')
+
+  let coachNotesWorkoutId = ''
+
+  {
+    // Create with coachNotes set
+    const r = await api('POST', `/gyms/${gymId}/workouts`, programmerToken, {
+      programId,
+      title: 'Coach Notes Workout',
+      description: 'desc',
+      coachNotes: 'Stim: 7-min sprint, sub ring rows for pull-ups.',
+      type: 'FOR_TIME',
+      scheduledAt: '2026-04-15T10:00:00Z',
+    })
+    check('POST workout with coachNotes → 201', 201, r.status)
+    check('POST workout → coachNotes persisted', 'Stim: 7-min sprint, sub ring rows for pull-ups.', r.body.coachNotes)
+    coachNotesWorkoutId = r.body.id as string
+  }
+
+  {
+    // Create without coachNotes → null
+    const r = await api('POST', `/gyms/${gymId}/workouts`, programmerToken, {
+      programId,
+      title: 'No Coach Notes Workout',
+      description: 'desc',
+      type: 'FOR_TIME',
+      scheduledAt: '2026-04-16T10:00:00Z',
+    })
+    check('POST workout without coachNotes → 201', 201, r.status)
+    check('POST workout without coachNotes → coachNotes is null', null, r.body.coachNotes)
+    if (r.body.id) await prisma.workout.delete({ where: { id: r.body.id as string } })
+  }
+
+  {
+    // GET surfaces coachNotes for any authorized reader (member)
+    const r = await api('GET', `/workouts/${coachNotesWorkoutId}`, memberToken)
+    check('GET /workouts/:id as MEMBER → coachNotes visible', 'Stim: 7-min sprint, sub ring rows for pull-ups.', r.body.coachNotes)
+  }
+
+  {
+    // PATCH with new coachNotes
+    const r = await api('PATCH', `/workouts/${coachNotesWorkoutId}`, programmerToken, { coachNotes: 'Updated: focus on hip drive.' })
+    check('PATCH coachNotes → 200', 200, r.status)
+    check('PATCH coachNotes → value updated', 'Updated: focus on hip drive.', r.body.coachNotes)
+
+    const reread = await api('GET', `/workouts/${coachNotesWorkoutId}`, programmerToken)
+    check('PATCH coachNotes → re-GET reflects update', 'Updated: focus on hip drive.', reread.body.coachNotes)
+  }
+
+  {
+    // PATCH with empty string clears to null
+    const r = await api('PATCH', `/workouts/${coachNotesWorkoutId}`, programmerToken, { coachNotes: '' })
+    check('PATCH coachNotes="" → 200', 200, r.status)
+    check('PATCH coachNotes="" → value cleared to null', null, r.body.coachNotes)
+  }
+
+  {
+    // PATCH with explicit null also clears
+    await api('PATCH', `/workouts/${coachNotesWorkoutId}`, programmerToken, { coachNotes: 'temp' })
+    const r = await api('PATCH', `/workouts/${coachNotesWorkoutId}`, programmerToken, { coachNotes: null })
+    check('PATCH coachNotes=null → 200', 200, r.status)
+    check('PATCH coachNotes=null → value cleared', null, r.body.coachNotes)
+  }
+
+  {
+    // PATCH with wrong type → 400
+    const r = await api('PATCH', `/workouts/${coachNotesWorkoutId}`, programmerToken, { coachNotes: 12345 })
+    check('PATCH coachNotes with wrong type → 400', 400, r.status)
+  }
+
+  if (coachNotesWorkoutId) await prisma.workout.delete({ where: { id: coachNotesWorkoutId } })
+
   // ── Workout auth: gym-linked program (#118) ────────────────────────────────
   // Regression coverage for the bug where workout write access ran the caller's
   // UserProgram.role through the gym-role allowlist. The fix derives write
