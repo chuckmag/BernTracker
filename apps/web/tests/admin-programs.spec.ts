@@ -117,9 +117,12 @@ test('admin can create a workout under an unaffiliated program (slice 3)', async
     await title.fill(newTitle)
     await page.getByPlaceholder(/Workout details/).fill('21-15-9 thrusters / pull-ups')
 
-    // Admin path: single Save button (no Draft/Publish split — admin
-    // workouts auto-publish).
-    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    // Admin uses the same Save-as-Draft / Publish split as the gym
+    // calendar — the shared WorkoutDrawer footer renders both buttons.
+    // Click Publish, then confirm in the dialog. End state in the DB:
+    // status=PUBLISHED via the new POST /api/admin/workouts/:id/publish.
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await page.getByRole('button', { name: 'Confirm Publish' }).click()
 
     // The drawer closes and the new workout appears in the list.
     await expect(page.getByText(newTitle)).toBeVisible({ timeout: 10000 })
@@ -145,12 +148,16 @@ test('non-admin user does not see the WODalytics Admin sidebar entry', async ({ 
 
     await expect(page.getByText('WODalytics Admin')).toHaveCount(0)
 
-    // Direct navigation to /admin/programs renders the page shell but the
-    // API call returns 403 — the heading still renders (no redirect) and
-    // no admin programs appear (the list comes from the 403'd API call).
+    // Direct navigation to /admin/programs is allowed (route isn't gated by
+    // role on the client; the API enforces the 403). The point of this leg
+    // is just that the non-admin sees no admin program content, regardless
+    // of which page state the app lands on under load. Wait for the URL
+    // to settle, then assert: no admin program rows appear and no admin
+    // sidebar entry appeared.
     await page.goto('/admin/programs')
-    await expect(page.getByRole('heading', { name: /Admin · Programs/ })).toBeVisible()
+    await page.waitForURL('**/admin/programs', { timeout: 10000 })
     await expect(page.getByText(/Admin E2E /)).toHaveCount(0)
+    await expect(page.getByText('WODalytics Admin')).toHaveCount(0)
   } finally {
     await teardown(fx, nonAdmin.id)
   }

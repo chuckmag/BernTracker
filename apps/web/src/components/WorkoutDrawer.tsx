@@ -198,11 +198,6 @@ function buildSnapshot(args: {
 
 export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay = [], userGymRole, defaultProgramId, onClose, onSaved, onAutoSaved, onReordered, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
   const isOpen = dateKey !== null
-  // The day-context affordances (workoutsOnDay nav, dayOrder reorder, draft
-  // autosave + publish-from-draft toggle) only make sense in the gym
-  // calendar surface. Admin curates one workout at a time inside a program
-  // and auto-publishes on create.
-  const isGymScope = scope.kind === 'gym'
 
   const allMovements = useMovements()
   const [programs, setPrograms] = useState<Program[]>([])
@@ -585,10 +580,10 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
         const created = await scope.createWorkout(programId, { title: title.trim(), description, ...(coachNotes ? { coachNotes } : {}), type, scheduledAt, movements, namedWorkoutId: namedWorkoutId ?? undefined, ...timeCapForCreate, tracksRounds: tracksRoundsForType })
         id = created.id
       }
-      // Publish is gym-only — admin workouts are auto-PUBLISHED on create.
-      // Hidden in the UI when scope.kind !== 'gym', so this branch is
-      // unreachable in admin mode; the guard is belt-and-suspenders.
-      if (isGymScope) await api.workouts.publish(id!)
+      // Publish goes through the scope so admin and gym share the flow.
+      // Gym hits api.workouts.publish; admin hits api.admin.workouts.publish
+      // (the new endpoint added alongside this drawer change).
+      await scope.publishWorkout(id!)
       onSaved()
       setSaving(false)
     } catch (e) {
@@ -1146,21 +1141,6 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
 
           {!showPublishConfirm && !showDeleteConfirm && (
             <>
-              {/*
-                * Admin path has no draft/staging concept (catalog content is
-                * always live), so the footer collapses to a single Save
-                * button that publishes immediately. Gym keeps the original
-                * Draft/Publish split flow.
-                */}
-              {!isGymScope ? (
-                <button
-                  onClick={handlePublish}
-                  disabled={saving}
-                  className="w-full bg-indigo-700 hover:bg-indigo-600 text-white text-sm py-2 rounded transition-colors disabled:opacity-50"
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </button>
-              ) : (
               <div className="flex gap-2">
                 <button
                   onClick={handleSaveDraft}
@@ -1179,7 +1159,6 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                   </button>
                 )}
               </div>
-              )}
               {isEdit && (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}

@@ -48,6 +48,7 @@ export function makeGymProgramScope({ gymId, gymRole }: GymScopeOpts): ProgramSc
     createWorkout: (programId, data) =>
       api.workouts.create(gymId, { ...data, programId }),
     updateWorkout: (workoutId, data) => api.workouts.update(workoutId, data),
+    publishWorkout: (workoutId) => api.workouts.publish(workoutId),
     deleteWorkout: (workoutId) => api.workouts.delete(workoutId),
 
     setProgramAsDefault: (programId) => api.gyms.programs.setDefault(gymId, programId),

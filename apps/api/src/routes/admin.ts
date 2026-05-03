@@ -36,6 +36,7 @@ import {
   findWorkoutById,
   findWorkoutsByProgramId,
   updateWorkout,
+  publishWorkoutById,
   deleteWorkout,
 } from '../db/workoutDbManager.js'
 
@@ -56,6 +57,7 @@ router.patch('/admin/programs/:id', ...adminGuards, updateAdminProgram)
 router.delete('/admin/programs/:id', ...adminGuards, deleteAdminProgram)
 router.post('/admin/programs/:id/workouts', ...adminGuards, createAdminWorkout)
 router.patch('/admin/workouts/:id', ...adminGuards, updateAdminWorkout)
+router.post('/admin/workouts/:id/publish', ...adminGuards, publishAdminWorkout)
 router.delete('/admin/workouts/:id', ...adminGuards, deleteAdminWorkout)
 
 export default router
@@ -160,8 +162,9 @@ async function createAdminWorkout(req: Request, res: Response) {
   const d = parsed.data
   // URL programId is authoritative — body's optional programId is ignored to
   // keep the URL as the single source of truth for which program a workout
-  // belongs to. Status defaults to PUBLISHED for admin-authored content (the
-  // catalog has no draft/staging concept; it's curated and live).
+  // belongs to. Status defaults to DRAFT (schema default), matching the gym
+  // create flow — admins use the same Save-as-Draft / Publish split the
+  // gym staff use, via the shared `WorkoutDrawer`.
   const workout = await createWorkoutForProgram({
     programId,
     title: d.title,
@@ -175,7 +178,6 @@ async function createAdminWorkout(req: Request, res: Response) {
     namedWorkoutId: d.namedWorkoutId,
     timeCapSeconds: d.timeCapSeconds,
     tracksRounds: d.tracksRounds,
-    status: 'PUBLISHED',
   })
   res.status(201).json(workout)
 }
@@ -210,6 +212,21 @@ async function updateAdminWorkout(req: Request, res: Response) {
     tracksRounds: d.tracksRounds,
   })
   res.json(updated)
+}
+
+async function publishAdminWorkout(req: Request, res: Response) {
+  const workoutId = req.params.id as string
+  const existing = await findWorkoutById(workoutId)
+  if (!existing) {
+    res.status(404).json({ error: 'Workout not found' })
+    return
+  }
+  if (!existing.programId || !(await findUnaffiliatedProgramById(existing.programId))) {
+    res.status(404).json({ error: 'Workout not found' })
+    return
+  }
+  const workout = await publishWorkoutById(workoutId)
+  res.json(workout)
 }
 
 async function deleteAdminWorkout(req: Request, res: Response) {

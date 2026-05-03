@@ -273,7 +273,10 @@ async function runTests() {
     check('T19: admin → 201', 201, r.status)
     const body = r.body as { id: string; status: string; programId: string }
     check('T19: programId from URL wins', publicProgramId, body.programId)
-    check('T19: auto-PUBLISHED', 'PUBLISHED', body.status)
+    // Status defaults to DRAFT — admins use the same Save-as-Draft / Publish
+    // split flow as gym staff via the shared `WorkoutDrawer`. The dedicated
+    // POST /admin/workouts/:id/publish flips it to PUBLISHED (T26+).
+    check('T19: defaults to DRAFT', 'DRAFT', body.status)
     createdWorkoutId = body.id
   }
 
@@ -295,19 +298,39 @@ async function runTests() {
     check('T22: title updated', `Admin-Mut-Workout-Renamed-${TS}`, (r.body as { title: string }).title)
   }
 
+  // ── POST /api/admin/workouts/:id/publish ────────────────────────────────────
+  console.log('\n=== POST /api/admin/workouts/:id/publish ===')
+  {
+    const r = await api('POST', `/admin/workouts/${createdWorkoutId}/publish`)
+    check('T23: no auth → 401', 401, r.status)
+  }
+  {
+    const r = await api('POST', `/admin/workouts/${createdWorkoutId}/publish`, nonAdminToken)
+    check('T24: non-admin → 403', 403, r.status)
+  }
+  {
+    const r = await api('POST', `/admin/workouts/${affiliatedWorkoutId}/publish`, adminToken)
+    check('T25: admin publish on affiliated workout → 404', 404, r.status)
+  }
+  {
+    const r = await api('POST', `/admin/workouts/${createdWorkoutId}/publish`, adminToken)
+    check('T26: admin publish → 200', 200, r.status)
+    check('T26: status flipped to PUBLISHED', 'PUBLISHED', (r.body as { status: string }).status)
+  }
+
   // ── DELETE /api/admin/workouts/:id ──────────────────────────────────────────
   console.log('\n=== DELETE /api/admin/workouts/:id ===')
   {
     const r = await api('DELETE', `/admin/workouts/${createdWorkoutId}`, nonAdminToken)
-    check('T23: non-admin → 403', 403, r.status)
+    check('T27: non-admin → 403', 403, r.status)
   }
   {
     const r = await api('DELETE', `/admin/workouts/${affiliatedWorkoutId}`, adminToken)
-    check('T24: admin DELETE affiliated workout → 404', 404, r.status)
+    check('T28: admin DELETE affiliated workout → 404', 404, r.status)
   }
   {
     const r = await api('DELETE', `/admin/workouts/${createdWorkoutId}`, adminToken)
-    check('T25: admin DELETE → 204', 204, r.status)
+    check('T29: admin DELETE → 204', 204, r.status)
   }
 }
 
