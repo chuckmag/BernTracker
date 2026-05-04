@@ -172,7 +172,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
     }
     let score: Record<string, unknown> | undefined
     if (mode === 'score') {
-      const built = buildScore(scoreKind, scoreFields)
+      const built = buildScore(scoreKind, scoreFields, workout.tracksRounds)
       if (!built.ok) return built
       score = built.score
     }
@@ -748,13 +748,16 @@ function ScoreFields({
 
 type Result<T> = { ok: true } & T | { ok: false; error: string }
 
-function buildScore(kind: ScoreKind, f: ScoreFieldState): Result<{ score: Record<string, unknown> }> {
+function buildScore(kind: ScoreKind, f: ScoreFieldState, tracksRounds?: boolean): Result<{ score: Record<string, unknown> }> {
   if (kind === 'ROUNDS_REPS') {
-    const r = parseInt(f.rounds || '0', 10)
     const rp = parseInt(f.reps || '0', 10)
-    if (!Number.isInteger(r) || r < 0) return { ok: false, error: 'Rounds must be a non-negative number.' }
     if (!Number.isInteger(rp) || rp < 0) return { ok: false, error: 'Reps must be a non-negative number.' }
-    return { ok: true, score: { kind: 'ROUNDS_REPS', rounds: r, reps: rp, cappedOut: false } }
+    if (tracksRounds) {
+      const r = parseInt(f.rounds || '0', 10)
+      if (!Number.isInteger(r) || r < 0) return { ok: false, error: 'Rounds must be a non-negative number.' }
+      return { ok: true, score: { kind: 'ROUNDS_REPS', rounds: r, reps: rp, cappedOut: false } }
+    }
+    return { ok: true, score: { kind: 'ROUNDS_REPS', reps: rp, cappedOut: false } }
   }
   if (kind === 'TIME') {
     const m = parseInt(f.minutes || '0', 10)

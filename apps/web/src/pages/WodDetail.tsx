@@ -52,8 +52,8 @@ const GENDER_OPTIONS: { value: GenderFilter; label: string }[] = [
   { value: 'FEMALE', label: 'Female' },
 ]
 
-function formatResultValue(result: WorkoutResult): string {
-  return formatValue(result.value)
+function formatResultValue(result: WorkoutResult, tracksRounds?: boolean): string {
+  return formatValue(result.value, { tracksRounds })
 }
 
 // Derives the crossfit.com permalink from an externalSourceId like
@@ -260,7 +260,7 @@ export default function WodDetail() {
         <div className="px-4 py-3 rounded-lg bg-gray-900 border border-gray-700">
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your Result</span>
-            <span className="text-sm font-medium text-white">{formatResultValue(myResult)}</span>
+            <span className="text-sm font-medium text-white">{formatResultValue(myResult, workout?.tracksRounds)}</span>
             <span className="text-xs text-gray-400">{LEVEL_LABELS[myResult.level]}</span>
             <button
               onClick={() => setShowLogDrawer(true)}
@@ -404,7 +404,7 @@ export default function WodDetail() {
                           </span>
                         </td>
                         <td className="py-2.5 pr-4 text-gray-400">{LEVEL_LABELS[result.level]}</td>
-                        <td className="py-2.5 font-mono">{formatResultValue(result)}</td>
+                        <td className="py-2.5 font-mono">{formatResultValue(result, workout?.tracksRounds)}</td>
                       </tr>
                       {result.notes && (
                         <tr className="border-b border-gray-900">
