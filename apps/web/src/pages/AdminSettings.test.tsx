@@ -63,9 +63,9 @@ describe('AdminSettings', () => {
     vi.mocked(api.movements.pending).mockResolvedValue([])
   })
 
-  it('renders the Settings heading and both tabs', async () => {
+  it('renders the WODalytics Settings heading and both tabs', async () => {
     renderPage()
-    expect(await screen.findByRole('heading', { name: 'Settings', level: 1 })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'WODalytics Settings', level: 1 })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Programs' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Movements' })).toBeInTheDocument()
   })

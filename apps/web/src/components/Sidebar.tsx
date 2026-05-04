@@ -20,9 +20,11 @@ const staffLinks = [
 // WODalytics admin (#160) — visible only to users on the WODALYTICS_ADMIN_EMAILS
 // allowlist (server checks via requireWodalyticsAdmin). Single entry point;
 // the page itself has hash-anchor tabs for Programs and Movements (mirrors
-// the GymSettings details/members tab pattern).
+// the GymSettings details/members tab pattern). Labelled "WODalytics
+// Settings" (not just "Settings") so it's never confused with the per-gym
+// "Gym Settings" entry in the Staff section.
 const adminLinks = [
-  { to: '/admin/settings', label: 'Settings' },
+  { to: '/admin/settings', label: 'WODalytics Settings' },
 ]
 
 interface SidebarProps {
@@ -104,7 +106,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {user?.isWodalyticsAdmin && (
           <>
             <div className="pt-3 pb-1 px-3">
-              <span className="text-xs text-gray-400 uppercase tracking-widest">Settings</span>
+              <span className="text-xs text-gray-400 uppercase tracking-widest">Admin</span>
             </div>
             {adminLinks.map(({ to, label }) => (
               <NavLink

@@ -109,7 +109,7 @@ export default function AdminProgramDetail() {
     return (
       <div>
         <p className="text-red-400 mb-3">{error ?? 'Program not found.'}</p>
-        <Link to="/admin/settings#programs" className="text-indigo-400 hover:text-indigo-300 text-sm">← Back to Settings</Link>
+        <Link to="/admin/settings#programs" className="text-indigo-400 hover:text-indigo-300 text-sm">← Back to WODalytics Settings</Link>
       </div>
     )
   }
@@ -119,7 +119,7 @@ export default function AdminProgramDetail() {
   return (
     <div>
       <div className="mb-4">
-        <Link to="/admin/settings#programs" className="text-xs text-indigo-400 hover:text-indigo-300">← Settings</Link>
+        <Link to="/admin/settings#programs" className="text-xs text-indigo-400 hover:text-indigo-300">← WODalytics Settings</Link>
       </div>
 
       <div className="flex items-start gap-4 mb-6">

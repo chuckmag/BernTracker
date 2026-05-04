@@ -53,7 +53,7 @@ export default function AdminSettings() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <h1 className="text-2xl font-bold">WODalytics Settings</h1>
 
       <div className="border-b border-gray-800">
         <nav className="flex gap-1" role="tablist">
