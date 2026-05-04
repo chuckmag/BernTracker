@@ -12,6 +12,7 @@ import namedWorkoutsRouter from './routes/namedWorkouts'
 import movementsRouter from './routes/movements'
 import userProfileRouter from './routes/userProfile'
 import membershipRequestsRouter from './routes/membershipRequests'
+import invitationsRouter from './routes/invitations'
 import avatarRouter from './routes/avatar'
 import gymLogoRouter from './routes/gymLogo'
 import adminRouter from './routes/admin'
@@ -63,6 +64,7 @@ app.use('/api', namedWorkoutsRouter)
 app.use('/api', movementsRouter)
 app.use('/api', userProfileRouter)
 app.use('/api', membershipRequestsRouter)
+app.use('/api', invitationsRouter)
 app.use('/api', avatarRouter)
 app.use('/api', gymLogoRouter)
 app.use('/api', adminRouter)
