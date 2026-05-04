@@ -39,7 +39,10 @@ function formatSeconds(totalSec: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-export function formatResultValue(value: Record<string, unknown> | undefined | null): string {
+export function formatResultValue(
+  value: Record<string, unknown> | undefined | null,
+  options?: { tracksRounds?: boolean },
+): string {
   if (!value) return '—'
   const v = value as unknown as ResultValueShape
   const score = v.score
@@ -47,7 +50,8 @@ export function formatResultValue(value: Record<string, unknown> | undefined | n
     switch (score.kind) {
       case 'ROUNDS_REPS': {
         if (score.cappedOut && (score.reps ?? 0) === 0 && !score.rounds) return 'CAPPED'
-        return score.rounds !== undefined
+        const showRounds = options?.tracksRounds !== false && score.rounds !== undefined
+        return showRounds
           ? `${score.rounds} rounds + ${score.reps ?? 0} reps`
           : `${score.reps ?? 0} reps`
       }

@@ -18,7 +18,7 @@ export default function Login() {
     try {
       const data = await api.auth.login({ email, password })
       login(data.accessToken, data.user)
-      navigate('/dashboard', { replace: true })
+      navigate('/feed', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Network error — is the API running?')
     } finally {

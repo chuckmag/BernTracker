@@ -285,6 +285,14 @@ export interface Program {
   _count?: { members: number; workouts: number }
 }
 
+// User's private "Personal Program" (#183). Same Prisma model as Program with
+// `ownerUserId` set, no GymProgram links, and PRIVATE visibility. The
+// `_count.workouts` field is always populated since the page header reads it.
+export interface PersonalProgram extends Omit<Program, '_count'> {
+  ownerUserId: string
+  _count: { workouts: number }
+}
+
 export type ProgramRole = 'MEMBER' | 'PROGRAMMER'
 
 export interface ProgramMember {
@@ -509,6 +517,44 @@ export const api = {
      */
     programs: (gymId: string, token?: string) =>
       req<GymProgram[]>(`/api/me/programs?gymId=${encodeURIComponent(gymId)}`, { token }),
+
+    personalProgram: {
+      // Returns the caller's private "Personal Program" (#183), creating it on
+      // first call. Idempotent — repeat calls return the existing row.
+      get: (token?: string) =>
+        req<PersonalProgram>('/api/me/personal-program', { token }),
+
+      workouts: {
+        // Date range optional. When `from` and `to` are both supplied the
+        // server filters to that window — used by the calendar page to fetch
+        // a single visible month at a time.
+        list: (range?: { from: string; to: string }, token?: string) => {
+          const qs = range ? `?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}` : ''
+          return req<Workout[]>(`/api/me/personal-program/workouts${qs}`, { token })
+        },
+        // Body uses the same shape as `api.workouts.create` minus `programId`,
+        // which the server pins to the caller's personal program.
+        create: (
+          data: {
+            title: string
+            description: string
+            type: WorkoutType
+            scheduledAt: string
+            movementIds?: string[]
+            movements?: WorkoutMovementInput[]
+            namedWorkoutId?: string
+            timeCapSeconds?: number | null
+            tracksRounds?: boolean
+          },
+          token?: string,
+        ) =>
+          req<Workout>('/api/me/personal-program/workouts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            token,
+          }),
+      },
+    },
   },
 
   gyms: {

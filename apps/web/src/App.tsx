@@ -28,6 +28,7 @@ import WodDetail from './pages/WodDetail.tsx'
 import WodResultDetail from './pages/WodResultDetail.tsx'
 import History from './pages/History.tsx'
 import AdminSettings from './pages/AdminSettings.tsx'
+import PersonalProgram from './pages/PersonalProgram.tsx'
 import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
@@ -72,6 +73,7 @@ function AppLayout() {
               <Route path="/workouts/:id" element={<WodDetail />} />
               <Route path="/workouts/:id/results/:resultId" element={<WodResultDetail />} />
               <Route path="/history" element={<History />} />
+              <Route path="/personal-program" element={<PersonalProgram />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/programs" element={<ProgramsIndex />} />

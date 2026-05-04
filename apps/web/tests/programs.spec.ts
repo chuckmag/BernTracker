@@ -290,9 +290,13 @@ test.describe('Programs CRUD E2E', () => {
     await page.goto('/browse-programs')
     await expect(page.locator('h1', { hasText: 'Browse programs' })).toBeVisible()
 
-    // The seeded PUBLIC program is on the page; click Join
+    // The seeded PUBLIC program is on the page; click Join.
+    // Scope to the section containing this program to avoid a strict-mode
+    // violation when the public-catalog section also loads Join buttons.
     await expect(page.getByText(name)).toBeVisible({ timeout: 5000 })
-    await page.getByRole('button', { name: 'Join' }).click()
+    await page.locator('section').filter({ has: page.getByText(name) })
+      .getByRole('button', { name: 'Join' })
+      .click()
 
     // Lands on /feed (program filter set to the joined program by the page)
     await page.waitForURL('**/feed**')
