@@ -5,6 +5,7 @@ import ProgramFilterPicker from './ProgramFilterPicker.tsx'
 
 // Browse Gyms moved into the TopBar gym picker — no standalone sidebar entry.
 const memberLinks = [
+  { to: '/dashboard',        label: 'Dashboard'        },
   { to: '/feed',             label: 'Feed'             },
   { to: '/history',          label: 'History'          },
   { to: '/personal-program', label: 'Personal Program' },

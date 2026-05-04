@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { GymProvider } from './src/context/GymContext'
 import { ProgramFilterProvider } from './src/context/ProgramFilterContext'
 import LoginScreen from './src/screens/LoginScreen'
+import HomeScreen from './src/screens/HomeScreen'
 import FeedScreen from './src/screens/FeedScreen'
 import WodDetailScreen from './src/screens/WodDetailScreen'
 import HistoryScreen from './src/screens/HistoryScreen'
@@ -24,8 +25,13 @@ export type RootStackParamList = {
 }
 
 export type MainTabParamList = {
+  HomeTab: undefined
   FeedTab: undefined
   HistoryTab: undefined
+}
+
+export type HomeStackParamList = {
+  Home: undefined
 }
 
 export type FeedStackParamList = {
@@ -40,6 +46,7 @@ export type HistoryStackParamList = {
 
 const RootStack = createStackNavigator<RootStackParamList>()
 const Tab = createBottomTabNavigator<MainTabParamList>()
+const HomeStack = createStackNavigator<HomeStackParamList>()
 const FeedStack = createStackNavigator<FeedStackParamList>()
 const HistoryStack = createStackNavigator<HistoryStackParamList>()
 
@@ -48,6 +55,14 @@ const stackScreenOptions = {
   headerTintColor: '#ffffff',
   headerTitleStyle: { fontWeight: '600' as const },
   cardStyle: { backgroundColor: '#030712' },
+}
+
+function HomeStackNavigator() {
+  return (
+    <HomeStack.Navigator screenOptions={stackScreenOptions}>
+      <HomeStack.Screen name="Home" component={HomeScreen} options={{ title: 'Today' }} />
+    </HomeStack.Navigator>
+  )
 }
 
 function FeedStackNavigator() {
@@ -76,6 +91,7 @@ function MainTabs() {
         tabBarInactiveTintColor: '#6b7280',
       }}
     >
+      <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Today' }} />
       <Tab.Screen name="FeedTab" component={FeedStackNavigator} options={{ title: 'Feed' }} />
       <Tab.Screen name="HistoryTab" component={HistoryStackNavigator} options={{ title: 'History' }} />
     </Tab.Navigator>

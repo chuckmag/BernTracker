@@ -244,6 +244,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
 
   const isEdit = !!localWorkoutId
   const isPublished = localStatus === 'PUBLISHED'
+  const isGymScope = scope.kind === 'gym'
 
   useEffect(() => {
     if (!isOpen) return

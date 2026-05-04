@@ -68,7 +68,7 @@ function AppLayout() {
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">
           <ErrorBoundary FallbackComponent={PageErrorFallback} resetKeys={[window.location.pathname]}>
             <Routes>
-              <Route path="/" element={<Navigate to="/feed" replace />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/feed" element={<Feed />} />
               <Route path="/workouts/:id" element={<WodDetail />} />
               <Route path="/workouts/:id/results/:resultId" element={<WodResultDetail />} />
