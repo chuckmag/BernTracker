@@ -29,6 +29,7 @@ import WodResultDetail from './pages/WodResultDetail.tsx'
 import History from './pages/History.tsx'
 import AdminProgramsIndex from './pages/AdminProgramsIndex.tsx'
 import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
+import AdminMovements from './pages/AdminMovements.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
   const navigate = useNavigate()
@@ -90,6 +91,7 @@ function AppLayout() {
                 */}
               <Route path="/admin/programs" element={<AdminProgramsIndex />} />
               <Route path="/admin/programs/:id" element={<AdminProgramDetail />} />
+              <Route path="/admin/movements" element={<AdminMovements />} />
               {/* Legacy aliases — old bookmarks and deep links still resolve. */}
               <Route path="/settings" element={<Navigate to="/gym-settings" replace />} />
               <Route path="/members" element={<Navigate to="/gym-settings#members" replace />} />

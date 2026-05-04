@@ -17,9 +17,13 @@ const staffLinks = [
 ]
 
 // WODalytics admin (#160) — visible only to users on the WODALYTICS_ADMIN_EMAILS
-// allowlist (server checks via requireWodalyticsAdmin).
+// allowlist (server checks via requireWodalyticsAdmin). Section header is
+// "Settings" (the catch-all admin surface) and currently has two sub-pages:
+// Programs (public-catalog program curation) and Movements (pending-movement
+// review, lifted out of /gym-settings since it was an admin-only block there).
 const adminLinks = [
-  { to: '/admin/programs', label: 'Programs' },
+  { to: '/admin/programs',  label: 'Programs'  },
+  { to: '/admin/movements', label: 'Movements' },
 ]
 
 interface SidebarProps {
@@ -101,7 +105,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {user?.isWodalyticsAdmin && (
           <>
             <div className="pt-3 pb-1 px-3">
-              <span className="text-xs text-gray-400 uppercase tracking-widest">WODalytics Admin</span>
+              <span className="text-xs text-gray-400 uppercase tracking-widest">Settings</span>
             </div>
             {adminLinks.map(({ to, label }) => (
               <NavLink

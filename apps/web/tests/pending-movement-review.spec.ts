@@ -47,8 +47,11 @@ async function teardownReviewerFixture(f: ReviewerFixture) {
 async function gotoSettings(page: Page, f: ReviewerFixture) {
   await loginAs(page.context(), f.reviewerUserId, 'OWNER')
   await page.addInitScript((id) => localStorage.setItem('gymId', id), f.gymId)
-  await page.goto('/settings')
-  await page.waitForSelector('h2:has-text("Pending Movements")')
+  // Pending-movement review moved out of /gym-settings to its own page
+  // under the Settings sidebar entry. The page heading is now an h1
+  // ("Settings · Movements") instead of the old in-section h2.
+  await page.goto('/admin/movements')
+  await page.waitForSelector('h1:has-text("Settings · Movements")')
 }
 
 function displayRow(page: Page, name: string) {
