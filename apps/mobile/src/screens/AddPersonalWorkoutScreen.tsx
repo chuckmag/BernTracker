@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
   TextInput,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
 } from 'react-native'
 import type { StackScreenProps } from '@react-navigation/stack'
@@ -48,6 +50,27 @@ export default function AddPersonalWorkoutScreen({ navigation, route }: Props) {
   const [type, setType] = useState<WorkoutType>('METCON')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Persistent "Done" affordance in the modal header so the keyboard can
+  // always be dismissed — multiline TextInputs on RN consume the return
+  // key as a newline, so without this users can get stuck after editing
+  // the description with no obvious way to hide the keyboard.
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={Keyboard.dismiss}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss keyboard"
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          style={styles.headerDoneBtn}
+          testID="dismiss-keyboard-button"
+        >
+          <Text style={styles.headerDoneText}>Done</Text>
+        </TouchableOpacity>
+      ),
+    })
+  }, [navigation])
 
   // Group types by category for the picker. Hide deprecated types unless
   // already selected (mirrors the web drawer's filter so legacy rows stay
@@ -97,8 +120,16 @@ export default function AddPersonalWorkoutScreen({ navigation, route }: Props) {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.dayLabel}>{formatDayLabel(scheduledAt)}</Text>
-        <Text style={styles.subtitle}>Personal Program — only you will see this workout.</Text>
+        {/* Tap-outside-input dismisses the keyboard. Wrap only the
+            non-input content so taps on TextInputs don't get intercepted —
+            `accessible={false}` keeps the wrapper invisible to screen
+            readers since it's purely a gesture surface. */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View>
+            <Text style={styles.dayLabel}>{formatDayLabel(scheduledAt)}</Text>
+            <Text style={styles.subtitle}>Personal Program — only you will see this workout.</Text>
+          </View>
+        </TouchableWithoutFeedback>
 
         <Text style={styles.sectionLabel}>TITLE</Text>
         <TextInput
@@ -108,6 +139,8 @@ export default function AddPersonalWorkoutScreen({ navigation, route }: Props) {
           placeholder="e.g. Easy Z2 row"
           placeholderTextColor="#6b7280"
           maxLength={120}
+          autoFocus
+          returnKeyType="next"
           testID="title-input"
         />
 
@@ -278,5 +311,16 @@ const styles = StyleSheet.create({
   cancelBtnText: {
     color: '#9ca3af',
     fontSize: 14,
+  },
+
+  headerDoneBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 4,
+  },
+  headerDoneText: {
+    color: '#818cf8',
+    fontSize: 15,
+    fontWeight: '600',
   },
 })

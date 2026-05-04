@@ -1,4 +1,5 @@
 import React from 'react'
+import { Keyboard } from 'react-native'
 import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import AddPersonalWorkoutScreen from '../src/screens/AddPersonalWorkoutScreen'
 
@@ -82,6 +83,29 @@ describe('AddPersonalWorkoutScreen', () => {
     fireEvent.changeText(getByTestId('title-input'), 'Title only')
     fireEvent.press(saveBtn)
     expect(api.me.personalProgram.workouts.create).not.toHaveBeenCalled()
+  })
+
+  test('mounts a "Done" header button that dismisses the keyboard', () => {
+    const navigation = makeNavigation()
+    render(<AddPersonalWorkoutScreen navigation={navigation} route={makeRoute()} />)
+
+    // setOptions is called with a `headerRight` factory pointing at the
+    // dismiss button. Multiline TextInputs consume the keyboard return
+    // key as a newline, so without this users can get stuck after
+    // editing the description with no obvious dismiss affordance.
+    expect(navigation.setOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ headerRight: expect.any(Function) }),
+    )
+
+    // Render the headerRight factory to confirm tapping it dispatches
+    // Keyboard.dismiss().
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {})
+    const optionsArg = (navigation.setOptions as jest.Mock).mock.calls[0][0]
+    const HeaderRight = optionsArg.headerRight as () => React.ReactElement
+    const { getByTestId } = render(HeaderRight())
+    fireEvent.press(getByTestId('dismiss-keyboard-button'))
+    expect(dismissSpy).toHaveBeenCalled()
+    dismissSpy.mockRestore()
   })
 
   test('renders a server-side error and stays on screen if create rejects', async () => {
