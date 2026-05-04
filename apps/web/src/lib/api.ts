@@ -243,6 +243,30 @@ export interface ResultHistoryPage {
   pages: number
 }
 
+export interface DashboardTodayResult {
+  id: string
+  value: Record<string, unknown>
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  primaryScoreKind: string | null
+  primaryScoreValue: number | null
+  createdAt: string
+  notes: string | null
+}
+
+export interface DashboardLeaderboard {
+  rank: number | null
+  totalLogged: number
+  percentile: number | null
+}
+
+export interface DashboardToday {
+  workout: Workout | null
+  myResult: DashboardTodayResult | null
+  leaderboard: DashboardLeaderboard | null
+  gymMemberCount: number
+}
+
 export interface MyGym {
   id: string
   name: string
@@ -558,6 +582,10 @@ export const api = {
   },
 
   gyms: {
+    dashboard: {
+      today: (gymId: string) => req<DashboardToday>(`/api/gyms/${gymId}/dashboard/today`),
+    },
+
     create: (data: { name: string; timezone?: string }, token?: string) =>
       req<Gym>('/api/gyms', { method: 'POST', body: JSON.stringify(data), token }),
 

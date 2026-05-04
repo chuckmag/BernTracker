@@ -114,6 +114,30 @@ export interface Workout {
   externalSourceId: string | null
 }
 
+export interface DashboardTodayResult {
+  id: string
+  value: ResultValue
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  primaryScoreKind: string | null
+  primaryScoreValue: number | null
+  createdAt: string
+  notes: string | null
+}
+
+export interface DashboardLeaderboard {
+  rank: number | null
+  totalLogged: number
+  percentile: number | null
+}
+
+export interface DashboardToday {
+  workout: (Workout & { program: { id: string; name: string } | null; namedWorkout: { id: string; name: string; category: string } | null; _count: { results: number } }) | null
+  myResult: DashboardTodayResult | null
+  leaderboard: DashboardLeaderboard | null
+  gymMemberCount: number
+}
+
 export interface LeaderboardEntry {
   id: string
   user: { id: string; name: string; birthday: string | null }
@@ -258,6 +282,11 @@ export const api = {
   },
 
   gyms: {
+    dashboard: {
+      today: (gymId: string) =>
+        request<DashboardToday>(`/api/gyms/${gymId}/dashboard/today`),
+    },
+
     workouts: (gymId: string, from: string, to: string, programIds?: string[]) => {
       const qs = new URLSearchParams({ from, to })
       if (programIds?.length) qs.set('programIds', programIds.join(','))
