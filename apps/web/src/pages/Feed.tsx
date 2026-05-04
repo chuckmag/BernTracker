@@ -5,7 +5,7 @@ import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
-import EmptyState from '../components/ui/EmptyState.tsx'
+import Button from '../components/ui/Button.tsx'
 import BarbellIcon from '../components/icons/BarbellIcon.tsx'
 import UsersIcon from '../components/icons/UsersIcon.tsx'
 
@@ -160,11 +160,23 @@ export default function Feed() {
   if (!gymLoading && !gymId) {
     return (
       <div className="max-w-2xl mx-auto">
-        <EmptyState
-          title="No workouts yet"
-          body="Join a gym or subscribe to a program to see workouts here."
-          cta={{ label: 'Browse programs', onClick: () => navigate('/programs') }}
-        />
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 flex flex-col items-center text-center gap-4">
+          <div className="text-4xl" aria-hidden="true">🏋️</div>
+          <div>
+            <h2 className="text-base font-semibold text-white mb-1">No workouts yet</h2>
+            <p className="text-sm text-gray-400 max-w-sm">
+              Browse public programs to follow, or add workouts to your personal program.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Button variant="primary">
+              <Link to="/programs" className="contents">Browse programs</Link>
+            </Button>
+            <Button variant="secondary">
+              <Link to="/personal-program" className="contents">Track personal workout</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }

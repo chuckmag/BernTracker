@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(null)
     setApiToken(null)
     setUser(null)
+    localStorage.removeItem('gymId')
   }
 
   return (
