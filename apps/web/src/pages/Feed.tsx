@@ -1,12 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api, type Workout } from '../lib/api.ts'
+import { api, type PersonalProgram, type Workout } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
+import { makePersonalProgramScope } from '../lib/personalProgramScope.ts'
 import Skeleton from '../components/ui/Skeleton.tsx'
 import BarbellIcon from '../components/icons/BarbellIcon.tsx'
 import UsersIcon from '../components/icons/UsersIcon.tsx'
+import PersonalProgramIcon from '../components/icons/PersonalProgramIcon.tsx'
+import WorkoutDrawer from '../components/WorkoutDrawer.tsx'
 
 const INITIAL_FUTURE_DAYS = 30
 const INITIAL_PAST_DAYS = 30
@@ -72,9 +75,17 @@ export default function Feed() {
   const [loading, setLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Personal program is upserted on first feed load so the day-header "+"
+  // button can open WorkoutDrawer with the personal scope without an extra
+  // round-trip on click. Failure is non-fatal — the button just stays hidden.
+  const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(null)
+  // dateKey the drawer is open for (null = closed). Adding from the feed
+  // always targets the personal program; the date is inherited from the row.
+  const [addingForDate, setAddingForDate] = useState<string | null>(null)
   // Refs let loadMore read current values without needing them in its dep array,
   // so the IntersectionObserver doesn't reconnect on every page load.
   const fetchStartRef = useRef<Date | null>(null)
+  const fetchEndRef = useRef<Date | null>(null)
   const loadingMoreRef = useRef(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -90,6 +101,7 @@ export default function Feed() {
     setFetchStart(null)
     setFetchEnd(null)
     fetchStartRef.current = null
+    fetchEndRef.current = null
     loadingMoreRef.current = false
     const today = new Date()
     const from = addDays(today, -INITIAL_PAST_DAYS)
@@ -106,6 +118,7 @@ export default function Feed() {
         if (!cancelled) {
           setWorkouts(data.filter((w) => w.status === 'PUBLISHED'))
           fetchStartRef.current = from
+          fetchEndRef.current = to
           setFetchStart(from)
           setFetchEnd(to)
         }
@@ -113,6 +126,39 @@ export default function Feed() {
       .catch((e) => { if (!cancelled) setError((e as Error).message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
+  }, [gymId, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Upsert the personal program once per session. Independent of the gym /
+  // program-filter loop above so the "+" button is available even before the
+  // workouts list resolves.
+  useEffect(() => {
+    let cancelled = false
+    api.me.personalProgram.get()
+      .then((p) => { if (!cancelled) setPersonalProgram(p) })
+      .catch(() => { /* non-fatal — add button stays hidden */ })
+    return () => { cancelled = true }
+  }, [])
+
+  const personalScope = useMemo(
+    () => personalProgram ? makePersonalProgramScope({ program: personalProgram }) : null,
+    [personalProgram],
+  )
+
+  // Re-query the visible window after a personal-program save so the new tile
+  // appears in its day group without a full page reload.
+  const reloadVisibleWindow = useCallback(async () => {
+    if (!gymId || !fetchStartRef.current || !fetchEndRef.current) return
+    try {
+      const data = await api.workouts.list(
+        gymId,
+        fetchStartRef.current.toISOString(),
+        fetchEndRef.current.toISOString(),
+        programIds.length ? { programIds } : undefined,
+      )
+      setWorkouts(data.filter((w) => w.status === 'PUBLISHED'))
+    } catch (e) {
+      setError((e as Error).message)
+    }
   }, [gymId, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = useCallback(() => {
@@ -179,6 +225,14 @@ export default function Feed() {
     ? available.find(({ program }) => program.id === programIds[0])?.program ?? null
     : null
 
+  // Workouts on the day the drawer is open for — fed to the drawer's
+  // "today's workouts" nav so the user can hop between siblings.
+  const drawerWorkoutsOnDay = addingForDate
+    ? (dayBlocks.find((b) => b.dateKey === addingForDate)?.workouts ?? []).filter(
+        (w) => personalProgram && w.programId === personalProgram.id,
+      )
+    : []
+
   return (
     <div className="max-w-2xl mx-auto">
       {programIds.length > 0 && (
@@ -220,55 +274,148 @@ export default function Feed() {
       {loading && <Skeleton variant="feed-row" count={4} />}
 
       <div className="space-y-8">
-        {dayBlocks.map(({ dateKey, workouts: dayWorkouts }) => (
-          <div key={dateKey}>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-xs font-semibold tracking-widest text-gray-400">
-                {formatDayLabel(dateKey, todayKey)}
-              </span>
-              <hr className="flex-1 border-gray-800" />
-            </div>
-
-            {dayWorkouts.length === 0 ? (
-              <p className="text-sm text-gray-500 pl-1">No workouts planned</p>
-            ) : (
-              <div className="space-y-2">
-                {dayWorkouts.map((workout) => {
-                  const styles = WORKOUT_TYPE_STYLES[workout.type]
-                  return (
-                    <button
-                      key={workout.id}
-                      onClick={() => navigate(`/workouts/${workout.id}`)}
-                      className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left group border-l-4 ${styles.accentBar}`}
-                    >
-                      <span className={`shrink-0 mt-0.5 w-7 h-6 flex items-center justify-center rounded text-xs font-bold ${styles.bg} ${styles.tint}`}>
-                        {styles.abbr}
-                      </span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-sm font-medium text-white break-words">
-                          {workout.title}
-                        </span>
-                        {workout.namedWorkout && (
-                          <span className="text-xs text-indigo-400">● {workout.namedWorkout.name}</span>
-                        )}
-                        <FeedTileBadgeRow
-                          logged={Boolean(workout.myResultId)}
-                          resultCount={workout._count.results}
-                        />
-                      </span>
-                      <span className="shrink-0 mt-0.5 text-gray-400 group-hover:text-white transition-colors">›</span>
-                    </button>
-                  )
-                })}
+        {dayBlocks.map(({ dateKey, workouts: dayWorkouts }) => {
+          // Personal-program tiles always sort to the bottom of the day with
+          // a divider above them — readable as "your extra work, on top of
+          // the class programming". Detection is by program id (the personal
+          // program is upserted at mount and pinned to the user). Note:
+          // unaffiliated catalog workouts (e.g. CrossFit Mainsite) carry
+          // `programId !== null` but `!== personalProgramId`, so they stay
+          // grouped with the gym tiles — only the user's *own* program
+          // moves to the bottom.
+          const personalProgramId = personalProgram?.id ?? null
+          const gymTiles: Workout[] = []
+          const personalTiles: Workout[] = []
+          for (const w of dayWorkouts) {
+            if (personalProgramId !== null && w.programId === personalProgramId) {
+              personalTiles.push(w)
+            } else {
+              gymTiles.push(w)
+            }
+          }
+          return (
+            <div key={dateKey}>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-xs font-semibold tracking-widest text-gray-400">
+                  {formatDayLabel(dateKey, todayKey)}
+                </span>
+                <hr className="flex-1 border-gray-800" />
+                {personalScope && (
+                  <button
+                    type="button"
+                    onClick={() => setAddingForDate(dateKey)}
+                    aria-label={`Add personal workout on ${formatDayLabel(dateKey, todayKey).toLowerCase()}`}
+                    title="Add personal workout"
+                    className="-my-1 -mr-1 w-7 h-7 inline-flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+                  >
+                    <span aria-hidden="true" className="text-base leading-none">+</span>
+                  </button>
+                )}
               </div>
-            )}
-          </div>
-        ))}
+
+              {gymTiles.length === 0 && personalTiles.length === 0 ? (
+                <p className="text-sm text-gray-500 pl-1">No workouts planned</p>
+              ) : (
+                <div className="space-y-2">
+                  {gymTiles.map((workout) => (
+                    <FeedTile key={workout.id} workout={workout} onClick={() => navigate(`/workouts/${workout.id}`)} />
+                  ))}
+
+                  {personalTiles.length > 0 && (
+                    <>
+                      {gymTiles.length > 0 && (
+                        <div
+                          className="flex items-center gap-2 pt-2 pb-0.5"
+                          aria-hidden="true"
+                        >
+                          <span className="h-px flex-1 bg-gray-800" />
+                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-gray-500">
+                            <PersonalProgramIcon size={12} />
+                            Extra work
+                          </span>
+                          <span className="h-px flex-1 bg-gray-800" />
+                        </div>
+                      )}
+                      {personalTiles.map((workout) => (
+                        <FeedTile
+                          key={workout.id}
+                          workout={workout}
+                          isPersonal
+                          onClick={() => navigate(`/workouts/${workout.id}`)}
+                        />
+                      ))}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       <div ref={sentinelRef} className="h-1" />
       {loadingMore && <Skeleton variant="feed-row" count={2} />}
+
+      {personalScope && (
+        <WorkoutDrawer
+          dateKey={addingForDate}
+          workout={undefined}
+          workoutsOnDay={drawerWorkoutsOnDay}
+          scope={personalScope}
+          // Personal-program drawer behaves like admin: one Save button, no
+          // DRAFT/PUBLISHED state, no inter-row reorder. Forced OWNER here is
+          // a no-op since canReorder also requires `kind === 'gym'` upstream.
+          userGymRole="OWNER"
+          defaultProgramId={personalProgram?.id}
+          onClose={() => setAddingForDate(null)}
+          onSaved={() => { setAddingForDate(null); reloadVisibleWindow() }}
+          onAutoSaved={reloadVisibleWindow}
+          onWorkoutSelect={() => { /* feed-add flow is single-row; no inter-day jump */ }}
+          onNewWorkout={() => { /* feed-add flow is single-row; no inter-day jump */ }}
+        />
+      )}
     </div>
+  )
+}
+
+interface FeedTileProps {
+  workout: Workout
+  isPersonal?: boolean
+  onClick: () => void
+}
+
+function FeedTile({ workout, isPersonal = false, onClick }: FeedTileProps) {
+  const styles = WORKOUT_TYPE_STYLES[workout.type]
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left group border-l-4 ${styles.accentBar}`}
+    >
+      <span className={`shrink-0 mt-0.5 w-7 h-6 flex items-center justify-center rounded text-xs font-bold ${styles.bg} ${styles.tint}`}>
+        {styles.abbr}
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-sm font-medium text-white break-words">
+          {isPersonal && (
+            <span
+              className="inline-flex items-center mr-1.5 text-indigo-400 align-text-bottom"
+              title="Personal Program — your own extra work"
+            >
+              <PersonalProgramIcon size={14} />
+            </span>
+          )}
+          {workout.title}
+        </span>
+        {workout.namedWorkout && (
+          <span className="text-xs text-indigo-400">● {workout.namedWorkout.name}</span>
+        )}
+        <FeedTileBadgeRow
+          logged={Boolean(workout.myResultId)}
+          resultCount={workout._count.results}
+        />
+      </span>
+      <span className="shrink-0 mt-0.5 text-gray-400 group-hover:text-white transition-colors">›</span>
+    </button>
   )
 }
 
