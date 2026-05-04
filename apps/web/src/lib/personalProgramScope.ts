@@ -78,6 +78,9 @@ export function makePersonalProgramScope({ program }: PersonalScopeOpts): Progra
       return api.me.personalProgram.workouts.create(data)
     },
     updateWorkout: (workoutId, data) => api.workouts.update(workoutId, data),
+    // Personal workouts auto-publish on create; this is never reached from the
+    // UI (guarded by isGymScope), but satisfies the ProgramScope contract.
+    publishWorkout: (workoutId) => api.workouts.publish(workoutId),
     deleteWorkout: (workoutId) => api.workouts.delete(workoutId),
 
     // Personal programs aren't gym defaults — leave the optional methods

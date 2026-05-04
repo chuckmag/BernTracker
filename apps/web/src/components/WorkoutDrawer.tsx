@@ -198,6 +198,7 @@ function buildSnapshot(args: {
 
 export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay = [], userGymRole, defaultProgramId, onClose, onSaved, onAutoSaved, onReordered, onWorkoutSelect, onNewWorkout }: WorkoutDrawerProps) {
   const isOpen = dateKey !== null
+  const isGymScope = scope.kind === 'gym'
 
   const allMovements = useMovements()
   const [programs, setPrograms] = useState<Program[]>([])
