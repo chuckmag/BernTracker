@@ -20,8 +20,22 @@ vi.mock('../lib/api', async (importOriginal) => {
   }
 })
 
+const defaultGym = {
+  gymId: 'gym-1',
+  gymRole: 'MEMBER' as const,
+  gyms: [],
+  setGymId: vi.fn(),
+  refreshGyms: vi.fn(),
+  loading: false,
+  clearGymId: vi.fn(),
+}
+
 vi.mock('../context/GymContext', () => ({
-  useGym: () => ({ gymId: 'gym-1', gymRole: 'MEMBER', gyms: [], setGymId: vi.fn(), refreshGyms: vi.fn(), loading: false }),
+  useGym: vi.fn(() => defaultGym),
+}))
+
+vi.mock('../context/ProgramFilterContext', () => ({
+  useProgramFilter: () => ({ available: [], selected: [], setSelected: vi.fn() }),
 }))
 
 vi.mock('../context/AuthContext', () => ({
@@ -39,8 +53,10 @@ function renderDashboard() {
 }
 
 describe('Dashboard', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    const { useGym } = await import('../context/GymContext')
+    vi.mocked(useGym).mockReturnValue(defaultGym)
   })
 
   it('renders greeting with first name', async () => {
@@ -113,5 +129,29 @@ describe('Dashboard', () => {
 
     renderDashboard()
     expect(await screen.findByText('Social feed coming soon')).toBeInTheDocument()
+  })
+
+  it('shows no-gym CTA card when user has no gym', async () => {
+    const { useGym } = await import('../context/GymContext')
+    vi.mocked(useGym).mockReturnValue({
+      ...defaultGym,
+      gymId: null,
+      gymRole: null,
+      loading: false,
+    })
+
+    renderDashboard()
+    expect(await screen.findByText("You're not part of a gym yet")).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Browse programs' })).toBeInTheDocument()
+  })
+
+  it('does not call dashboard API when no gymId', async () => {
+    const { useGym } = await import('../context/GymContext')
+    vi.mocked(useGym).mockReturnValue({ ...defaultGym, gymId: null, gymRole: null, loading: false })
+    const { api } = await import('../lib/api')
+
+    renderDashboard()
+    await screen.findByText("You're not part of a gym yet")
+    expect(api.gyms.dashboard.today).not.toHaveBeenCalled()
   })
 })

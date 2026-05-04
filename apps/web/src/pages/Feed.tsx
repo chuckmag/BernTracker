@@ -5,6 +5,7 @@ import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
+import EmptyState from '../components/ui/EmptyState.tsx'
 import BarbellIcon from '../components/icons/BarbellIcon.tsx'
 import UsersIcon from '../components/icons/UsersIcon.tsx'
 
@@ -64,7 +65,7 @@ function formatDayLabel(dateKey: string, todayKey: string): string {
 }
 
 export default function Feed() {
-  const { gymId } = useGym()
+  const { gymId, loading: gymLoading, clearGymId } = useGym()
   const { selected: programIds, available, clear: clearProgramFilter } = useProgramFilter()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [fetchStart, setFetchStart] = useState<Date | null>(null)
@@ -82,7 +83,7 @@ export default function Feed() {
   const programIdsKey = programIds.join(',')
 
   useEffect(() => {
-    if (!gymId) return
+    if (gymLoading || !gymId) return
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -110,10 +111,15 @@ export default function Feed() {
           setFetchEnd(to)
         }
       })
-      .catch((e) => { if (!cancelled) setError((e as Error).message) })
+      .catch((e: Error & { status?: number }) => {
+        if (!cancelled) {
+          if (e.status === 403) { clearGymId(); return }
+          setError(e.message)
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [gymId, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gymId, gymLoading, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = useCallback(() => {
     if (!gymId || !fetchStartRef.current || loadingMoreRef.current) return
@@ -151,11 +157,14 @@ export default function Feed() {
     return () => observer.disconnect()
   }, [loadMore])
 
-  if (!gymId) {
+  if (!gymLoading && !gymId) {
     return (
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-2">Feed</h1>
-        <p className="text-gray-400">Set up your gym in Settings first.</p>
+        <EmptyState
+          title="No workouts yet"
+          body="Join a gym or subscribe to a program to see workouts here."
+          cta={{ label: 'Browse programs', onClick: () => navigate('/programs') }}
+        />
       </div>
     )
   }

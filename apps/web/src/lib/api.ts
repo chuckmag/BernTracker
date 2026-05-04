@@ -583,7 +583,10 @@ export const api = {
 
   gyms: {
     dashboard: {
-      today: (gymId: string) => req<DashboardToday>(`/api/gyms/${gymId}/dashboard/today`),
+      today: (gymId: string, programIds?: string[]) => {
+        const qs = programIds?.length ? `?programIds=${programIds.join(',')}` : ''
+        return req<DashboardToday>(`/api/gyms/${gymId}/dashboard/today${qs}`)
+      },
     },
 
     create: (data: { name: string; timezone?: string }, token?: string) =>

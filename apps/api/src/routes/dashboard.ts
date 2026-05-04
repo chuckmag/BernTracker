@@ -11,6 +11,9 @@ router.get('/gyms/:gymId/dashboard/today', requireAuth, validateGymExists, requi
 export default router
 
 async function getDashboardToday(req: Request, res: Response) {
-  const data = await getDashboardTodayDb(req.params.gymId as string, req.user!.id)
+  const programIds = req.query.programIds
+    ? String(req.query.programIds).split(',').filter(Boolean)
+    : undefined
+  const data = await getDashboardTodayDb(req.params.gymId as string, req.user!.id, programIds)
   res.json(data)
 }
