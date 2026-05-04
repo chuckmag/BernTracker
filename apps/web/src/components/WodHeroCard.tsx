@@ -86,11 +86,11 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
         {myResult ? (
           <ResultCard result={myResult} leaderboard={leaderboard} scored={scored} levelLabel={levelLabel} workoutId={workout.id} compact={compact} />
         ) : (
-          <div className={`flex gap-2 ${compact ? 'flex-row w-full' : 'flex-col md:flex-row items-stretch md:items-center flex-shrink-0'}`}>
+          <div className={`flex flex-row gap-2 ${compact ? 'w-full' : 'items-center flex-shrink-0'}`}>
             <Button variant="primary" className={compact ? 'flex-1' : undefined}>
               <Link to={`/workouts/${workout.id}`} className="contents">Start workout</Link>
             </Button>
-            <Button variant="secondary">
+            <Button variant="secondary" className={compact ? 'flex-1' : undefined}>
               <Link to={`/workouts/${workout.id}`} className="contents">Log result</Link>
             </Button>
           </div>

@@ -13,19 +13,19 @@ function greetingFor(firstName: string | null | undefined): string {
 }
 
 export default function HomeScreen() {
-  const { gymId } = useGym()
+  const { activeGym } = useGym()
   const { user } = useAuth()
   const [data, setData] = useState<DashboardToday | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function load(quiet = false) {
-    if (!gymId) return
+    if (!activeGym) return
     if (!quiet) setLoading(true)
     setError(null)
     try {
-      const result = await api.gyms.dashboard.today(gymId)
+      const result = await api.gyms.dashboard.today(activeGym.id)
       setData(result)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
@@ -38,7 +38,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       load()
-    }, [gymId]),
+    }, [activeGym]),
   )
 
   function onRefresh() {
