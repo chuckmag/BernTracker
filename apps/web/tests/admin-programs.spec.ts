@@ -69,15 +69,18 @@ async function teardown(fx: AdminFixture, extraUserId?: string) {
   // user, reused across parallel specs and persistent in the dev DB.
 }
 
-test('admin sees the WODalytics Admin nav and can list + view an unaffiliated program', async ({ page, context }) => {
+test('admin sees the WODalytics Settings sidebar entry and can list + view an unaffiliated program', async ({ page, context }) => {
   const nameSuffix = randomUUID().slice(0, 8)
   const fx = await seedAdminFixture(nameSuffix)
   try {
     await loginAs(context, fx.adminUserId, 'OWNER')
-    await page.goto('/admin/programs')
+    await page.goto('/admin/settings')
 
-    // Sidebar nav header for admin.
-    await expect(page.getByText('WODalytics Admin')).toBeVisible()
+    // Sidebar Settings link for admin. Use the link role specifically so
+    // we don't conflict with the page h1 (also "Settings") or with
+    // "Gym Settings" in the Staff section. Bump timeout a bit because
+    // AuthContext + sidebar conditional render races under parallel load.
+    await expect(page.getByRole('link', { name: 'WODalytics Settings', exact: true })).toBeVisible({ timeout: 10000 })
 
     // The seeded program shows up in the list. Match the unique nonce so
     // parallel-running specs that seeded sibling "Admin E2E ..." programs
@@ -138,7 +141,7 @@ test('admin can create a workout under an unaffiliated program (slice 3)', async
   }
 })
 
-test('non-admin user does not see the WODalytics Admin sidebar entry', async ({ page, context }) => {
+test('non-admin user does not see the WODalytics Settings sidebar entry', async ({ page, context }) => {
   const fx = await seedAdminFixture(randomUUID().slice(0, 8))
   const ts = randomUUID().slice(0, 8)
   const nonAdmin = await prisma.user.create({ data: { email: `admin-e2e-nonadmin-${ts}@test.com` } })
@@ -146,18 +149,20 @@ test('non-admin user does not see the WODalytics Admin sidebar entry', async ({ 
     await loginAs(context, nonAdmin.id, 'MEMBER')
     await page.goto('/feed')
 
-    await expect(page.getByText('WODalytics Admin')).toHaveCount(0)
+    // Sidebar Settings link is admin-only. (Gym Settings still appears
+    // for staff but its name is "Gym Settings", not "Settings".)
+    await expect(page.getByRole('link', { name: 'WODalytics Settings', exact: true })).toHaveCount(0)
 
-    // Direct navigation to /admin/programs is allowed (route isn't gated by
-    // role on the client; the API enforces the 403). The point of this leg
-    // is just that the non-admin sees no admin program content, regardless
-    // of which page state the app lands on under load. Wait for the URL
-    // to settle, then assert: no admin program rows appear and no admin
-    // sidebar entry appeared.
-    await page.goto('/admin/programs')
-    await page.waitForURL('**/admin/programs', { timeout: 10000 })
+    // Direct navigation to /admin/settings is allowed (route isn't gated
+    // by role on the client; the API enforces the 403). The point of this
+    // leg is just that the non-admin sees no admin program content,
+    // regardless of which page state the app lands on under load. Wait
+    // for the URL to settle, then assert: no admin program rows appear
+    // and no admin sidebar entry appeared.
+    await page.goto('/admin/settings')
+    await page.waitForURL('**/admin/settings', { timeout: 10000 })
     await expect(page.getByText(/Admin E2E /)).toHaveCount(0)
-    await expect(page.getByText('WODalytics Admin')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'WODalytics Settings', exact: true })).toHaveCount(0)
   } finally {
     await teardown(fx, nonAdmin.id)
   }
