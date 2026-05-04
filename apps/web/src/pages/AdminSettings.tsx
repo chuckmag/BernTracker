@@ -1,24 +1,167 @@
 import { useEffect, useState } from 'react'
-import { api, type PendingMovement } from '../lib/api'
+import { api, type PendingMovement, type Program } from '../lib/api'
+import { adminProgramScope } from '../lib/adminProgramScope'
 import { useMovements } from '../context/MovementsContext.tsx'
+import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
+import ProgramCard from '../components/ProgramCard'
+import ProgramFormDrawer from '../components/ProgramFormDrawer'
 
 /**
- * WODalytics admin — pending movement review (#160 follow-up).
+ * WODalytics admin Settings page (#160). Mirrors the `GymSettings` shape:
+ * one page with hash-anchor tabs. The two tabs are:
+ *   - Programs   (default — list of unaffiliated/public-catalog programs)
+ *   - Movements  (pending-movement review)
  *
- * Mounted at `/admin/movements`. Server gates every endpoint via
- * `requireWodalyticsAdmin`; the sidebar additionally hides the link for
- * non-admins. Lifted out of `/gym-settings` (where it was rendered behind a
- * `user.isWodalyticsAdmin` conditional and didn't actually belong on the
- * gym-settings page).
- *
- * Behavior preserved verbatim from the GymSettings block:
- *   - load all PENDING movements on mount
- *   - inline edit (rename + parent search)
- *   - approve (status=ACTIVE) / reject (status=REJECTED)
+ * The /admin/programs/:id detail page stays separate (parallel to clicking
+ * a member detail in the Members tab of GymSettings — a click leaves the
+ * tabbed page entirely). Server gates every endpoint via
+ * `requireWodalyticsAdmin`; the sidebar additionally hides the link.
  */
-export default function AdminMovements() {
+
+type Tab = 'programs' | 'movements'
+
+function readTabFromHash(): Tab {
+  if (typeof window === 'undefined') return 'programs'
+  return window.location.hash === '#movements' ? 'movements' : 'programs'
+}
+
+export default function AdminSettings() {
+  const [tab, setTab] = useState<Tab>(readTabFromHash)
+
+  // Listen for hash changes so back/forward and external links pick the right tab.
+  useEffect(() => {
+    function onHashChange() { setTab(readTabFromHash()) }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  function selectTab(next: Tab) {
+    setTab(next)
+    const hash = next === 'movements' ? '#movements' : ''
+    if (hash !== window.location.hash) {
+      // replaceState avoids cluttering history with tab switches.
+      window.history.replaceState(null, '', `${window.location.pathname}${hash}`)
+    }
+  }
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'programs',  label: 'Programs'  },
+    { id: 'movements', label: 'Movements' },
+  ]
+
+  return (
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold">Settings</h1>
+
+      <div className="border-b border-gray-800">
+        <nav className="flex gap-1" role="tablist">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => selectTab(t.id)}
+              className={[
+                'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
+                tab === t.id
+                  ? 'border-indigo-500 text-white'
+                  : 'border-transparent text-gray-400 hover:text-white',
+              ].join(' ')}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {tab === 'programs' && <ProgramsTab />}
+      {tab === 'movements' && <MovementsTab />}
+    </div>
+  )
+}
+
+// ─── Programs tab ─────────────────────────────────────────────────────────────
+
+function ProgramsTab() {
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  useEffect(() => {
+    const signal = { cancelled: false }
+    load(signal)
+    return () => { signal.cancelled = true }
+  }, [])
+
+  async function load(signal?: { cancelled: boolean }) {
+    setLoading(true)
+    setError(null)
+    try {
+      const list = await adminProgramScope.list()
+      if (!signal?.cancelled) setPrograms(list)
+    } catch (e) {
+      if (!signal?.cancelled) setError((e as Error).message)
+    } finally {
+      if (!signal?.cancelled) setLoading(false)
+    }
+  }
+
+  function handleCreated(_created: Program) {
+    setDrawerOpen(false)
+    load()
+  }
+
+  return (
+    <section>
+      <div className="flex items-start justify-between mb-6 gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold">Programs</h2>
+            <span className="bg-gray-700 text-sm px-2 py-0.5 rounded-full">{programs.length}</span>
+          </div>
+          <p className="mt-1 text-sm text-gray-400">
+            Unaffiliated programs surfaced from public sources (e.g. CrossFit Mainsite). Editable by WODalytics staff.
+          </p>
+        </div>
+        <Button variant="primary" onClick={() => setDrawerOpen(true)}>+ New Program</Button>
+      </div>
+
+      {error && <p className="text-red-400 mb-4">{error}</p>}
+      {loading && <Skeleton variant="feed-row" count={3} />}
+
+      {!loading && programs.length === 0 && !error && (
+        <EmptyState
+          title="No unaffiliated programs"
+          body="Programs imported from external sources will appear here once an ingest job runs — or create one yourself."
+          cta={{ label: '+ New Program', onClick: () => setDrawerOpen(true) }}
+        />
+      )}
+
+      {programs.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {programs.map((p) => (
+            <ProgramCard key={p.id} program={p} to={`/admin/programs/${p.id}`} />
+          ))}
+        </div>
+      )}
+
+      <ProgramFormDrawer
+        scope={adminProgramScope}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onSaved={handleCreated}
+      />
+    </section>
+  )
+}
+
+// ─── Movements tab ────────────────────────────────────────────────────────────
+
+function MovementsTab() {
   const allMovements = useMovements()
   const [pendingMovements, setPendingMovements] = useState<PendingMovement[]>([])
   const [pendingLoading, setPendingLoading] = useState(false)
@@ -82,10 +225,10 @@ export default function AdminMovements() {
   }
 
   return (
-    <div>
+    <section>
       <div className="mb-6">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">Settings · Movements</h1>
+          <h2 className="text-lg font-semibold">Pending Movements</h2>
           {pendingMovements.length > 0 && (
             <span className="bg-yellow-500/20 text-yellow-400 text-sm px-2 py-0.5 rounded-full">
               {pendingMovements.length}
@@ -223,6 +366,6 @@ export default function AdminMovements() {
           })}
         </div>
       )}
-    </div>
+    </section>
   )
 }

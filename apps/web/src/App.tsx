@@ -27,9 +27,8 @@ import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
 import WodResultDetail from './pages/WodResultDetail.tsx'
 import History from './pages/History.tsx'
-import AdminProgramsIndex from './pages/AdminProgramsIndex.tsx'
+import AdminSettings from './pages/AdminSettings.tsx'
 import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
-import AdminMovements from './pages/AdminMovements.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
   const navigate = useNavigate()
@@ -89,9 +88,11 @@ function AppLayout() {
                 * the page shell, then 403 on the API call and surface the
                 * error inline (no redirect — failure is visible).
                 */}
-              <Route path="/admin/programs" element={<AdminProgramsIndex />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/programs/:id" element={<AdminProgramDetail />} />
-              <Route path="/admin/movements" element={<AdminMovements />} />
+              {/* Legacy aliases — early admin work used split routes. */}
+              <Route path="/admin/programs" element={<Navigate to="/admin/settings#programs" replace />} />
+              <Route path="/admin/movements" element={<Navigate to="/admin/settings#movements" replace />} />
               {/* Legacy aliases — old bookmarks and deep links still resolve. */}
               <Route path="/settings" element={<Navigate to="/gym-settings" replace />} />
               <Route path="/members" element={<Navigate to="/gym-settings#members" replace />} />

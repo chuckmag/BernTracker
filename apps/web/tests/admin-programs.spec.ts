@@ -74,12 +74,13 @@ test('admin sees the Settings sidebar entry and can list + view an unaffiliated 
   const fx = await seedAdminFixture(nameSuffix)
   try {
     await loginAs(context, fx.adminUserId, 'OWNER')
-    await page.goto('/admin/programs')
+    await page.goto('/admin/settings')
 
-    // Sidebar section header for admin (renamed from "WODalytics Admin").
-    // "Gym Settings" still appears in the Staff section, so target the
-    // section-header literal text "Settings" exactly.
-    await expect(page.getByText('Settings', { exact: true })).toBeVisible()
+    // Sidebar Settings link for admin. Use the link role specifically so
+    // we don't conflict with the page h1 (also "Settings") or with
+    // "Gym Settings" in the Staff section. Bump timeout a bit because
+    // AuthContext + sidebar conditional render races under parallel load.
+    await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible({ timeout: 10000 })
 
     // The seeded program shows up in the list. Match the unique nonce so
     // parallel-running specs that seeded sibling "Admin E2E ..." programs
@@ -148,19 +149,20 @@ test('non-admin user does not see the Settings sidebar entry', async ({ page, co
     await loginAs(context, nonAdmin.id, 'MEMBER')
     await page.goto('/feed')
 
-    // Sidebar Settings section is admin-only.
-    await expect(page.getByText('Settings', { exact: true })).toHaveCount(0)
+    // Sidebar Settings link is admin-only. (Gym Settings still appears
+    // for staff but its name is "Gym Settings", not "Settings".)
+    await expect(page.getByRole('link', { name: 'Settings', exact: true })).toHaveCount(0)
 
-    // Direct navigation to /admin/programs is allowed (route isn't gated by
-    // role on the client; the API enforces the 403). The point of this leg
-    // is just that the non-admin sees no admin program content, regardless
-    // of which page state the app lands on under load. Wait for the URL
-    // to settle, then assert: no admin program rows appear and no admin
-    // sidebar entry appeared.
-    await page.goto('/admin/programs')
-    await page.waitForURL('**/admin/programs', { timeout: 10000 })
+    // Direct navigation to /admin/settings is allowed (route isn't gated
+    // by role on the client; the API enforces the 403). The point of this
+    // leg is just that the non-admin sees no admin program content,
+    // regardless of which page state the app lands on under load. Wait
+    // for the URL to settle, then assert: no admin program rows appear
+    // and no admin sidebar entry appeared.
+    await page.goto('/admin/settings')
+    await page.waitForURL('**/admin/settings', { timeout: 10000 })
     await expect(page.getByText(/Admin E2E /)).toHaveCount(0)
-    await expect(page.getByText('Settings', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Settings', exact: true })).toHaveCount(0)
   } finally {
     await teardown(fx, nonAdmin.id)
   }

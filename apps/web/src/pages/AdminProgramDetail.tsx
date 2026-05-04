@@ -75,7 +75,7 @@ export default function AdminProgramDetail() {
     setError(null)
     try {
       await adminProgramScope.deleteProgram(program.id)
-      navigate('/admin/programs', { replace: true })
+      navigate('/admin/settings#programs', { replace: true })
     } catch (e) {
       setError((e as Error).message)
       setDeleting(false)
@@ -109,7 +109,7 @@ export default function AdminProgramDetail() {
     return (
       <div>
         <p className="text-red-400 mb-3">{error ?? 'Program not found.'}</p>
-        <Link to="/admin/programs" className="text-indigo-400 hover:text-indigo-300 text-sm">← Back to Admin · Programs</Link>
+        <Link to="/admin/settings#programs" className="text-indigo-400 hover:text-indigo-300 text-sm">← Back to Settings</Link>
       </div>
     )
   }
@@ -119,7 +119,7 @@ export default function AdminProgramDetail() {
   return (
     <div>
       <div className="mb-4">
-        <Link to="/admin/programs" className="text-xs text-indigo-400 hover:text-indigo-300">← Admin · Programs</Link>
+        <Link to="/admin/settings#programs" className="text-xs text-indigo-400 hover:text-indigo-300">← Settings</Link>
       </div>
 
       <div className="flex items-start gap-4 mb-6">

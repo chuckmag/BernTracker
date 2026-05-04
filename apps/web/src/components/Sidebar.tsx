@@ -17,13 +17,11 @@ const staffLinks = [
 ]
 
 // WODalytics admin (#160) — visible only to users on the WODALYTICS_ADMIN_EMAILS
-// allowlist (server checks via requireWodalyticsAdmin). Section header is
-// "Settings" (the catch-all admin surface) and currently has two sub-pages:
-// Programs (public-catalog program curation) and Movements (pending-movement
-// review, lifted out of /gym-settings since it was an admin-only block there).
+// allowlist (server checks via requireWodalyticsAdmin). Single entry point;
+// the page itself has hash-anchor tabs for Programs and Movements (mirrors
+// the GymSettings details/members tab pattern).
 const adminLinks = [
-  { to: '/admin/programs',  label: 'Programs'  },
-  { to: '/admin/movements', label: 'Movements' },
+  { to: '/admin/settings', label: 'Settings' },
 ]
 
 interface SidebarProps {
