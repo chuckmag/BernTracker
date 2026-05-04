@@ -31,6 +31,12 @@ jest.mock('../src/components/ProgramFilterPicker', () => () => null)
 jest.mock('../src/lib/api', () => ({
   api: {
     gyms: { workouts: jest.fn() },
+    me: {
+      personalProgram: {
+        get: jest.fn(),
+        workouts: { list: jest.fn(), create: jest.fn() },
+      },
+    },
   },
 }))
 
@@ -66,6 +72,13 @@ function daysFromNow(n: number) {
 describe('FeedScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    // Default the personal-program upsert to a never-resolving promise so
+    // existing specs (which don't care about the add affordance) render
+    // exactly the same as before — and so the .then/.catch handlers never
+    // fire, which avoids leaking a setState into an unmounted renderer
+    // between tests. The personal-program-specific specs override this
+    // with a resolved row in their own beforeEach.
+    ;(api.me.personalProgram.get as jest.Mock).mockReturnValue(new Promise(() => {}))
     ;(useGym as jest.Mock).mockReturnValue({ activeGym: ACTIVE_GYM, isLoading: false, selectGym: jest.fn() })
     ;(useProgramFilter as jest.Mock).mockReturnValue({
       selected: [],
@@ -218,3 +231,5 @@ describe('FeedScreen', () => {
     expect(toAge).toBeLessThanOrEqual(31)
   })
 })
+
+

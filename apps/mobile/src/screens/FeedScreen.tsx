@@ -12,7 +12,7 @@ import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/nat
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { FeedStackParamList, MainTabParamList, RootStackParamList } from '../../App'
-import { api, type Workout } from '../lib/api'
+import { api, type PersonalProgram, type Workout } from '../lib/api'
 import { styleFor, WORKOUT_TYPE_STYLES, type WorkoutTypeStyle } from '../lib/workoutTypeStyles'
 import { useGym } from '../context/GymContext'
 import { useProgramFilter } from '../context/ProgramFilterContext'
@@ -91,7 +91,15 @@ function buildDayBlocks(workouts: Workout[], start: Date, end: Date): DayBlock[]
   return blocks
 }
 
-function WorkoutCard({ workout, onPress }: { workout: Workout; onPress: () => void }) {
+function WorkoutCard({
+  workout,
+  isPersonal = false,
+  onPress,
+}: {
+  workout: Workout
+  isPersonal?: boolean
+  onPress: () => void
+}) {
   const ts = styleFor(workout.type)
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
@@ -101,7 +109,9 @@ function WorkoutCard({ workout, onPress }: { workout: Workout; onPress: () => vo
         </View>
         <View style={styles.cardBody}>
           <Text style={styles.cardTitle} numberOfLines={1}>{workout.title}</Text>
-          <Text style={styles.cardType}>{ts.label}</Text>
+          <Text style={styles.cardType}>
+            {isPersonal ? `Personal · ${ts.label}` : ts.label}
+          </Text>
         </View>
       </View>
       <Text style={styles.chevron}>›</Text>
@@ -109,19 +119,76 @@ function WorkoutCard({ workout, onPress }: { workout: Workout; onPress: () => vo
   )
 }
 
-function DayBlockItem({ block, onWorkoutPress }: { block: DayBlock; onWorkoutPress: (id: string) => void }) {
+interface DayBlockItemProps {
+  block: DayBlock
+  personalProgramId: string | null
+  onWorkoutPress: (id: string) => void
+  onAddPersonalPress: ((dateKey: string) => void) | null
+}
+
+function DayBlockItem({ block, personalProgramId, onWorkoutPress, onAddPersonalPress }: DayBlockItemProps) {
+  // Partition the day's workouts into gym tiles and personal tiles. Personal
+  // tiles always sort to the bottom of the day with an "Extra work" divider
+  // between, mirroring the web feed (#183) — readable as "your extra work,
+  // on top of the class programming".
+  const gymTiles: Workout[] = []
+  const personalTiles: Workout[] = []
+  for (const w of block.workouts) {
+    if (personalProgramId !== null && w.programId === personalProgramId) {
+      personalTiles.push(w)
+    } else {
+      gymTiles.push(w)
+    }
+  }
+
+  const empty = gymTiles.length === 0 && personalTiles.length === 0
+
   return (
     <View style={styles.dayBlock}>
-      <Text style={styles.dayHeader}>{formatDateHeader(block.date)}</Text>
-      <View style={styles.divider} />
-      {block.workouts.length === 0 ? (
+      <View style={styles.dayHeaderRow}>
+        <Text style={styles.dayHeader}>{formatDateHeader(block.date)}</Text>
+        <View style={styles.divider} />
+        {onAddPersonalPress && (
+          <TouchableOpacity
+            onPress={() => onAddPersonalPress(block.date)}
+            accessibilityRole="button"
+            accessibilityLabel="Add personal workout"
+            style={styles.addBtn}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          >
+            <Text style={styles.addBtnText}>+</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {empty ? (
         <View style={styles.emptyDay}>
           <Text style={styles.emptyDayText}>No workouts planned</Text>
         </View>
       ) : (
-        block.workouts.map((w) => (
-          <WorkoutCard key={w.id} workout={w} onPress={() => onWorkoutPress(w.id)} />
-        ))
+        <>
+          {gymTiles.map((w) => (
+            <WorkoutCard key={w.id} workout={w} onPress={() => onWorkoutPress(w.id)} />
+          ))}
+          {personalTiles.length > 0 && (
+            <>
+              {gymTiles.length > 0 && (
+                <View style={styles.extraWorkDivider}>
+                  <View style={styles.extraWorkLine} />
+                  <Text style={styles.extraWorkLabel}>EXTRA WORK</Text>
+                  <View style={styles.extraWorkLine} />
+                </View>
+              )}
+              {personalTiles.map((w) => (
+                <WorkoutCard
+                  key={w.id}
+                  workout={w}
+                  isPersonal
+                  onPress={() => onWorkoutPress(w.id)}
+                />
+              ))}
+            </>
+          )}
+        </>
       )}
     </View>
   )
@@ -135,6 +202,11 @@ export default function FeedScreen({ navigation }: Props) {
   const [loadingMore, setLoadingMore] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Personal program is upserted on first feed load so the day-header "+"
+  // button can navigate to AddPersonalWorkout without an extra round-trip
+  // on tap. Failure is non-fatal — the button stays hidden and the rest
+  // of the feed renders normally.
+  const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(null)
   // Tracks the oldest day already loaded; the next "load more" page fetches
   // the PAGE_DAYS days immediately preceding this date.
   const oldestLoadedRef = useRef<Date | null>(null)
@@ -150,6 +222,17 @@ export default function FeedScreen({ navigation }: Props) {
       headerRight: () => <ProgramFilterPicker />,
     })
   }, [navigation])
+
+  // Upsert the personal program once per session. Independent of the gym /
+  // program-filter loop below so the "+" button is available even before
+  // the workouts list resolves.
+  useEffect(() => {
+    let cancelled = false
+    api.me.personalProgram.get()
+      .then((p) => { if (!cancelled) setPersonalProgram(p) })
+      .catch(() => { /* non-fatal — add button stays hidden */ })
+    return () => { cancelled = true }
+  }, [])
 
   const loadInitial = useCallback(async (silent = false) => {
     if (!activeGym) return
@@ -230,7 +313,13 @@ export default function FeedScreen({ navigation }: Props) {
       renderItem={({ item }) => (
         <DayBlockItem
           block={item}
+          personalProgramId={personalProgram?.id ?? null}
           onWorkoutPress={(id) => navigation.navigate('WodDetail', { workoutId: id })}
+          onAddPersonalPress={
+            personalProgram
+              ? (dateKey) => navigation.navigate('AddPersonalWorkout', { scheduledAt: dateKey })
+              : null
+          }
         />
       )}
       onEndReached={loadMoreOlder}
@@ -285,17 +374,58 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 24,
   },
+  dayHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
   dayHeader: {
     fontSize: 11,
     fontWeight: '700',
     color: '#6b7280',
     letterSpacing: 0.8,
-    marginBottom: 6,
   },
   divider: {
+    flex: 1,
     height: 1,
     backgroundColor: '#1f2937',
-    marginBottom: 8,
+  },
+  // Right-aligned "+" button on the day header — taps into AddPersonalWorkout
+  // for that calendar date. Hit-slop padded so the touch target is the
+  // recommended 28×28 even though the visible chevron is smaller.
+  addBtn: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+  },
+  addBtnText: {
+    color: '#9ca3af',
+    fontSize: 22,
+    fontWeight: '500',
+    lineHeight: 24,
+  },
+  // Eyebrow divider between gym and personal tiles when both are present
+  // on the same day. Mirrors the web `<hr> Extra work <hr>` separator.
+  extraWorkDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  extraWorkLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#1f2937',
+  },
+  extraWorkLabel: {
+    color: '#6b7280',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
   emptyDay: {
     paddingVertical: 12,

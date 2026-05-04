@@ -87,6 +87,14 @@ export interface Program {
   coverColor: string | null
 }
 
+// User's private "Personal Program" (#183). Same Program shape with
+// `ownerUserId` set, no GymProgram links, and PRIVATE visibility. The
+// `_count.workouts` field is always populated since the page header reads it.
+export interface PersonalProgram extends Program {
+  ownerUserId: string
+  _count: { workouts: number }
+}
+
 // Mirrors the web `GymProgram` shape (apps/web/src/lib/api.ts): the join row
 // carries gym/program IDs and the nested `program` object holds the
 // human-facing fields (name, description, etc.).
@@ -243,6 +251,38 @@ export const api = {
 
     programs: (gymId: string) =>
       request<GymProgram[]>(`/api/me/programs?gymId=${encodeURIComponent(gymId)}`),
+
+    personalProgram: {
+      // Returns the caller's private "Personal Program" (#183), creating it on
+      // first call. Idempotent — repeat calls return the existing row.
+      get: () =>
+        request<PersonalProgram>('/api/me/personal-program'),
+
+      workouts: {
+        // Date range optional; without it every workout in the program is
+        // returned. The mobile feed currently routes through
+        // `/api/gyms/:gymId/workouts` (which already includes unaffiliated
+        // programs the caller subscribes to), so the dedicated personal-program
+        // list is only used by the future personal-program calendar screen.
+        list: (range?: { from: string; to: string }) => {
+          const qs = range ? `?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}` : ''
+          return request<Workout[]>(`/api/me/personal-program/workouts${qs}`)
+        },
+        // Body matches `api.workouts.create` minus `programId`, which the
+        // server pins to the caller's personal program (and strips before
+        // validating, so a spoofed value can't escape).
+        create: (data: {
+          title: string
+          description: string
+          type: WorkoutType
+          scheduledAt: string
+        }) =>
+          request<Workout>('/api/me/personal-program/workouts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+          }),
+      },
+    },
 
     results: (page = 1, movementIds?: string[]) => {
       const qs = new URLSearchParams({ page: String(page), limit: '20' })
