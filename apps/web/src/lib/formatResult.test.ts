@@ -20,6 +20,10 @@ describe('formatResultValue', () => {
     expect(formatResultValue({ score: { kind: 'ROUNDS_REPS', reps: 95, cappedOut: false } })).toBe('95 reps')
   })
 
+  test('ROUNDS_REPS with rounds=0 and tracksRounds:false → "Y reps" only', () => {
+    expect(formatResultValue({ score: { kind: 'ROUNDS_REPS', rounds: 0, reps: 45, cappedOut: false } }, { tracksRounds: false })).toBe('45 reps')
+  })
+
   test('LOAD score → "value unit"', () => {
     expect(formatResultValue({ score: { kind: 'LOAD', load: 225, unit: 'LB' } })).toBe('225 lb')
     expect(formatResultValue({ score: { kind: 'LOAD', load: 100, unit: 'KG' } })).toBe('100 kg')
