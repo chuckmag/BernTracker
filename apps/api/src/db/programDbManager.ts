@@ -1,4 +1,4 @@
-import { prisma, type ProgramVisibility } from '@wodalytics/db'
+import { prisma, ProgramRole, Prisma, type ProgramVisibility } from '@wodalytics/db'
 
 interface UpdateProgramData {
   name?: string
@@ -165,6 +165,64 @@ export async function findUnaffiliatedPublicProgramsForUser(userId: string) {
     orderBy: { createdAt: 'desc' },
     include: { _count: { select: { members: true, workouts: true } } },
   })
+}
+
+// ─── Personal Program (#183) ──────────────────────────────────────────────────
+
+const personalProgramInclude = {
+  _count: { select: { workouts: true } },
+} as const
+
+export type PersonalProgramRow = Prisma.ProgramGetPayload<{
+  include: typeof personalProgramInclude
+}>
+
+/**
+ * Returns the caller's personal program, creating it on first call. Idempotent:
+ * subsequent calls return the existing row. The unique constraint on
+ * `Program.ownerUserId` makes the create race-safe — concurrent first-time
+ * callers collapse to one row, the loser gets P2002 and we re-fetch.
+ *
+ * Personal programs are PRIVATE, never linked to a Gym, and the owner is
+ * auto-subscribed as PROGRAMMER so the existing workout middleware grants
+ * read+write on workouts under the program (see middleware/workout.ts —
+ * unaffiliated-program path).
+ */
+export async function findOrCreatePersonalProgramForUser(userId: string): Promise<PersonalProgramRow> {
+  const existing = await prisma.program.findUnique({
+    where: { ownerUserId: userId },
+    include: personalProgramInclude,
+  })
+  if (existing) return existing
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const program = await tx.program.create({
+        data: {
+          name: 'Personal Program',
+          ownerUserId: userId,
+          startDate: new Date(),
+          visibility: 'PRIVATE',
+        },
+      })
+      await tx.userProgram.create({
+        data: { userId, programId: program.id, role: ProgramRole.PROGRAMMER },
+      })
+      return tx.program.findUniqueOrThrow({
+        where: { id: program.id },
+        include: personalProgramInclude,
+      })
+    })
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      const racedRow = await prisma.program.findUnique({
+        where: { ownerUserId: userId },
+        include: personalProgramInclude,
+      })
+      if (racedRow) return racedRow
+    }
+    throw err
+  }
 }
 
 export type ProgramGymAccessResult = 'ok' | 'not-found' | 'forbidden'

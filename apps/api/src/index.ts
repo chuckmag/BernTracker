@@ -6,6 +6,7 @@ import { prisma } from '@wodalytics/db'
 import { authRouter } from './routes/auth.js'
 import gymsRouter from './routes/gyms'
 import programsRouter from './routes/programs'
+import personalProgramRouter from './routes/personalProgram'
 import workoutsRouter from './routes/workouts'
 import resultsRouter from './routes/results'
 import namedWorkoutsRouter from './routes/namedWorkouts'
@@ -57,6 +58,7 @@ app.get('/api/health', async (_req, res) => {
 
 app.use('/api', gymsRouter)
 app.use('/api', programsRouter)
+app.use('/api', personalProgramRouter)
 app.use('/api', workoutsRouter)
 app.use('/api', resultsRouter)
 app.use('/api', namedWorkoutsRouter)
