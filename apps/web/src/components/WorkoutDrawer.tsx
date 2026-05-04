@@ -229,6 +229,8 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
   const [showPublishConfirm, setShowPublishConfirm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
+  const isGymScope = scope.kind === 'gym'
+
   // When autosave creates a new workout, the drawer keeps editing it locally rather
   // than waiting for the parent to pipe a `workout` prop back in (which would reset
   // the form mid-edit). `localWorkoutId` and `localStatus` drive the edit/published

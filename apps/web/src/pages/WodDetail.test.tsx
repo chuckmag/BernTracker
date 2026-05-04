@@ -16,6 +16,7 @@ vi.mock('../lib/api', () => ({
   api: {
     workouts: { get: vi.fn() },
     results: { leaderboard: vi.fn() },
+    movements: { myHistory: vi.fn() },
   },
 }))
 
@@ -73,9 +74,24 @@ function renderPage(workoutId = 'workout-1') {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+function emptyMovementHistory(movementId = 'm-1', movementName = 'Movement') {
+  return {
+    movementId,
+    movementName,
+    category: 'STRENGTH' as const,
+    prTable: { category: 'STRENGTH' as const, entries: [] },
+    results: [],
+    total: 0,
+    page: 1,
+    limit: 10,
+    pages: 0,
+  }
+}
+
 describe('WodDetail', () => {
   beforeEach(() => {
     vi.mocked(api.results.leaderboard).mockResolvedValue([])
+    vi.mocked(api.movements.myHistory).mockResolvedValue(emptyMovementHistory())
   })
 
   it('renders the page when workoutMovements is empty', async () => {
@@ -189,6 +205,7 @@ describe('WodDetail level filter — graded inclusion + ordering', () => {
   beforeEach(() => {
     vi.mocked(api.workouts.get).mockResolvedValue(makeWorkout())
     vi.mocked(api.results.leaderboard).mockResolvedValue(MIXED_LEADERBOARD as never)
+    vi.mocked(api.movements.myHistory).mockResolvedValue(emptyMovementHistory())
   })
 
   it('defaults to RX when the viewer has no logged result, showing RX + Scaled + Modified ordered by level desc', async () => {
@@ -284,6 +301,7 @@ describe('WodDetail level filter — graded inclusion + ordering', () => {
 describe('WodDetail coach notes section', () => {
   beforeEach(() => {
     vi.mocked(api.results.leaderboard).mockResolvedValue([])
+    vi.mocked(api.movements.myHistory).mockResolvedValue(emptyMovementHistory())
     // Reset to a sensible default — individual tests reassign as needed.
     mockGymContext.gymRole = 'MEMBER'
   })

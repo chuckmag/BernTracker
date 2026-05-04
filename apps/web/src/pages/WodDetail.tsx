@@ -5,6 +5,7 @@ import { useGym } from '../context/GymContext.tsx'
 import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
+import WorkoutMovementHistory from '../components/WorkoutMovementHistory.tsx'
 import MarkdownDescription from '../components/MarkdownDescription.tsx'
 import Avatar from '../components/Avatar.tsx'
 import Button from '../components/ui/Button.tsx'
@@ -71,7 +72,11 @@ export default function WodDetail() {
   const location = useLocation()
   const { user } = useAuth()
   const { gymRole } = useGym()
-  const fromHistory = (location.state as { from?: string } | null)?.from === 'history'
+  const locationState = location.state as { from?: string; originWorkoutId?: string } | null
+  const fromHistory = locationState?.from === 'history'
+  // When the user arrives via a past-result link from the movement history
+  // section, hide Your History to prevent infinite result → history → result nesting.
+  const fromMovementHistory = locationState?.from === 'movement-history'
 
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [results, setResults] = useState<WorkoutResult[]>([])
@@ -422,6 +427,21 @@ export default function WodDetail() {
           </div>
         )}
       </div>
+
+      {/* Your History — one section per movement, hidden when arrived from a past result link */}
+      {user && !fromMovementHistory && (workout.workoutMovements?.length ?? 0) > 0 && (
+        <div className="space-y-6">
+          <h2 className="text-base font-semibold text-gray-200">Your History</h2>
+          {workout.workoutMovements.map((wm) => (
+            <WorkoutMovementHistory
+              key={wm.movement.id}
+              movementId={wm.movement.id}
+              movementName={wm.movement.name}
+              currentWorkoutId={workout.id}
+            />
+          ))}
+        </div>
+      )}
     </div>
 
     {showLogDrawer && workout && (

@@ -91,6 +91,98 @@ export interface Movement {
   parentId: string | null
 }
 
+export type MovementCategory = 'STRENGTH' | 'ENDURANCE' | 'MACHINE' | 'GYMNASTICS' | 'SKILL'
+
+export interface MovementHistorySet {
+  reps?: string
+  load?: number
+  seconds?: number
+  distance?: number
+  calories?: number
+  tempo?: string
+}
+
+export interface MovementHistoryResult {
+  id: string
+  createdAt: string
+  level: string
+  notes: string | null
+  workout: { id: string; title: string; type: string; scheduledAt: string }
+  movementSets: MovementHistorySet[]
+  loadUnit?: string
+  distanceUnit?: string
+}
+
+export interface StrengthPrEntry {
+  reps: number
+  maxLoad: number
+  unit: string
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface EndurancePrEntry {
+  distance: number
+  distanceUnit: string
+  bestSeconds: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MachinePrCalEntry {
+  calories: number
+  bestSeconds: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MachinePrDistEntry {
+  distance: number
+  distanceUnit: string
+  bestSeconds: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MachineTimeCapCalEntry {
+  seconds: number
+  bestCalories: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MachineTimeCapDistEntry {
+  seconds: number
+  bestDistance: number
+  distanceUnit: string
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export type MovementPrTable =
+  | { category: 'STRENGTH'; entries: StrengthPrEntry[] }
+  | { category: 'ENDURANCE'; entries: EndurancePrEntry[] }
+  | { category: 'MACHINE'; outputCapped: { calories: MachinePrCalEntry[]; distance: MachinePrDistEntry[] }; timeCapped: { calories: MachineTimeCapCalEntry[]; distance: MachineTimeCapDistEntry[] } }
+  | { category: 'GYMNASTICS' | 'SKILL'; entries: never[] }
+
+export interface MovementHistoryPage {
+  movementId: string
+  movementName: string
+  category: MovementCategory
+  prTable: MovementPrTable
+  results: MovementHistoryResult[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
 export interface PendingMovement {
   id: string
   name: string
@@ -939,6 +1031,9 @@ export const api = {
         body: JSON.stringify({ status }),
         token,
       }),
+
+    myHistory: (id: string, page = 1, limit = 10, token?: string) =>
+      req<MovementHistoryPage>(`/api/movements/${id}/my-history?page=${page}&limit=${limit}`, { token }),
   },
 
   programs: {
