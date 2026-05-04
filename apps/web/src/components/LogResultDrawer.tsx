@@ -51,7 +51,7 @@ function loggingModeFor(workout: Workout): LoggingMode {
 }
 
 function scoreKindFor(workout: Workout): ScoreKind {
-  if (workout.type === 'AMRAP') return 'ROUNDS_REPS'
+  if (workout.type === 'AMRAP' || workout.type === 'INTERVALS') return 'ROUNDS_REPS'
   if (WORKOUT_TYPE_STYLES[workout.type].category === 'Metcon') return 'TIME'
   // MonoStructural — distance/cal/time all valid; pick by which prescription
   // the programmer filled in. Default to TIME.
