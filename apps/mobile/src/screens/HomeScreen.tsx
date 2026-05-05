@@ -5,6 +5,8 @@ import { api, type DashboardToday } from '../lib/api'
 import { useGym } from '../context/GymContext'
 import { useAuth } from '../context/AuthContext'
 import WodHeroCard from '../components/WodHeroCard'
+import LeaderboardCard from '../components/LeaderboardCard'
+import UpcomingCard from '../components/UpcomingCard'
 
 function greetingFor(firstName: string | null | undefined): string {
   const hour = new Date().getHours()
@@ -70,7 +72,20 @@ export default function HomeScreen() {
       )}
 
       {!loading && data && (
-        <WodHeroCard data={data} />
+        <>
+          <WodHeroCard data={data} />
+          {data.workout && (
+            <LeaderboardCard
+              workoutId={data.workout.id}
+              workoutTitle={data.workout.title}
+              myUserId={user?.id ?? ''}
+            />
+          )}
+        </>
+      )}
+
+      {!loading && activeGym && (
+        <UpcomingCard gymId={activeGym.id} />
       )}
 
       {/* Social feed placeholder — deferred until social features are scoped */}

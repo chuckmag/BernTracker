@@ -5,6 +5,8 @@ import { useGym } from '../context/GymContext.tsx'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 import WodHeroCard from '../components/WodHeroCard.tsx'
+import LeaderboardCard from '../components/LeaderboardCard.tsx'
+import UpcomingCard from '../components/UpcomingCard.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
 import Button from '../components/ui/Button.tsx'
@@ -80,12 +82,19 @@ export default function Dashboard() {
           )}
 
           {!gymLoading && !loading && !noGym && !error && data?.workout && (
-            <WodHeroCard
-              workout={data.workout}
-              myResult={data.myResult}
-              leaderboard={data.leaderboard}
-              gymMemberCount={data.gymMemberCount}
-            />
+            <>
+              <WodHeroCard
+                workout={data.workout}
+                myResult={data.myResult}
+                leaderboard={data.leaderboard}
+                gymMemberCount={data.gymMemberCount}
+              />
+              <LeaderboardCard
+                workoutId={data.workout.id}
+                workoutTitle={data.workout.title}
+                myUserId={user?.id ?? ''}
+              />
+            </>
           )}
 
           {!gymLoading && !loading && !noGym && !error && data && !data.workout && (
@@ -103,10 +112,10 @@ export default function Dashboard() {
           {!noGym && <SocialPlaceholder />}
         </div>
 
-        {/* Right rail — Activity and Upcoming cards land here in later slices */}
+        {/* Right rail */}
         <div className="hidden lg:flex flex-col gap-5">
           <RailPlaceholder label="Activity" />
-          <RailPlaceholder label="Coming up" />
+          {!noGym && gymId && <UpcomingCard gymId={gymId} />}
         </div>
       </div>
     </div>
