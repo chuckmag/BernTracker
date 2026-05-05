@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAccessToken(accessToken)
         const me = await api.auth.me().catch(async () => {
           // accessToken expired — try refresh
-          const refreshRes = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'}/api/auth/refresh`, {
+          const refreshRes = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'https://qa.wodalytics.com'}/api/auth/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refreshToken }),

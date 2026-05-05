@@ -10,7 +10,7 @@ import type {
 export type { AgeDivision, IdentifiedGender, ResultValue, WorkoutGender, WorkoutLevel }
 export { AGE_DIVISIONS, deriveWorkoutGender, getAgeDivision } from '@wodalytics/types'
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://qa.wodalytics.com'
 const ACCESS_TOKEN_KEY = 'accessToken'
 const REFRESH_TOKEN_KEY = 'refreshToken'
 
