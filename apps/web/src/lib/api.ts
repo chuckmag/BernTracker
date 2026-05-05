@@ -410,6 +410,63 @@ export interface CreateInvitationPayload {
   roleToGrant?: Role
 }
 
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED' | 'EXPIRED'
+export type InvitationChannel = 'EMAIL' | 'SMS'
+
+// Pre-signup invitation delivered via email link or SMS code.
+// Separate from GymInvitation (which is a GymMembershipRequest for existing users).
+export interface Invitation {
+  id: string
+  code: string
+  channel: InvitationChannel
+  email: string | null
+  phone: string | null
+  gymId: string | null
+  roleToGrant: Role
+  invitedById: string
+  status: InvitationStatus
+  expiresAt: string
+  acceptedById: string | null
+  createdAt: string
+  updatedAt: string
+  gym: { id: string; name: string; slug: string } | null
+  invitedBy: { id: string; firstName: string | null; lastName: string | null }
+}
+
+// Public lookup shape returned by GET /invitations/:code (safe subset — no contact info)
+export interface InvitationLookup {
+  code: string
+  channel: InvitationChannel
+  gymId: string | null
+  gym: { id: string; name: string; slug: string } | null
+  invitedBy: { id: string; firstName: string | null; lastName: string | null }
+  roleToGrant: Role
+  expiresAt: string
+}
+
+// Discriminated union returned by GET /users/me/pending-invitations
+export type PendingInvitation =
+  | { kind: 'invitation'; data: Invitation }
+  | { kind: 'membershipRequest'; data: GymInvitation }
+
+// Unified gym invite response — backend routes to whichever model fits
+export type GymInviteResponse =
+  | { kind: 'invitation'; data: Invitation }
+  | { kind: 'membershipRequest'; data: GymInvitation }
+
+export interface CreateGymInvitePayload {
+  channel: InvitationChannel
+  email?: string   // required when channel = 'EMAIL'
+  phone?: string   // required when channel = 'SMS', E.164
+  roleToGrant?: Role
+}
+
+export interface CreateAppInvitePayload {
+  channel: InvitationChannel
+  email?: string
+  phone?: string
+}
+
 // User-requested join (slice D2). Same model as GymInvitation but with the
 // invitedBy slot null and a `user` join populated for the staff-side list.
 export interface GymJoinRequest {
@@ -519,6 +576,14 @@ export const api = {
           req<GymInvitation>(`/api/invitations/${id}/accept`, { method: 'POST' }),
         decline: (id: string) =>
           req<GymInvitation>(`/api/invitations/${id}/decline`, { method: 'POST' }),
+        // Merged pending list: Invitation (pre-signup) + GymMembershipRequest (existing user)
+        pendingAll: () => req<PendingInvitation[]>('/api/users/me/pending-invitations'),
+      },
+      codeInvitations: {
+        accept: (code: string) =>
+          req<Invitation>(`/api/invitations/code/${code}/accept`, { method: 'POST' }),
+        decline: (code: string) =>
+          req<Invitation>(`/api/invitations/code/${code}/decline`, { method: 'POST' }),
       },
       joinRequests: {
         list: () => req<GymJoinRequest[]>('/api/users/me/join-requests'),
@@ -628,6 +693,20 @@ export const api = {
         }),
       revoke: (gymId: string, id: string) =>
         req<GymInvitation>(`/api/gyms/${gymId}/invitations/${id}/revoke`, { method: 'POST' }),
+      // Unified invite — backend routes to GymMembershipRequest (existing user)
+      // or pre-signup Invitation (new user) based on whether email matches an account
+      invite: (gymId: string, data: CreateGymInvitePayload) =>
+        req<GymInviteResponse>(`/api/gyms/${gymId}/invite`, {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+    },
+    codeInvitations: {
+      lookup: (code: string) => req<InvitationLookup>(`/api/invitations/code/${code}`),
+      revoke: (id: string) =>
+        req<Invitation>(`/api/invitations/${id}/revoke`, { method: 'POST' }),
+      create: (data: CreateAppInvitePayload) =>
+        req<Invitation>('/api/invitations', { method: 'POST', body: JSON.stringify(data) }),
     },
 
     logo: {
