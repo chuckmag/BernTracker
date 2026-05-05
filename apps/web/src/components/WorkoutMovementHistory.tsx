@@ -20,6 +20,29 @@ import type {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Repetition percentages of 1RM from strengthlevel.com
+const E1RM_PCT: Record<number, number> = {
+  1: 1.00, 2: 0.97, 3: 0.94, 4: 0.92, 5: 0.89,
+  6: 0.86, 7: 0.83, 8: 0.81, 9: 0.78, 10: 0.75,
+  11: 0.73, 12: 0.71, 13: 0.70, 14: 0.68, 15: 0.67,
+  16: 0.65, 17: 0.64, 18: 0.63, 19: 0.61, 20: 0.60,
+  21: 0.59, 22: 0.58, 23: 0.57, 24: 0.56, 25: 0.55,
+  26: 0.54, 27: 0.53, 28: 0.52, 29: 0.51, 30: 0.50,
+}
+
+function bestE1RM(result: MovementHistoryResult): number | null {
+  let best: number | null = null
+  for (const set of result.movementSets) {
+    if (set.load === undefined || !set.reps) continue
+    const reps = parseInt(set.reps, 10)
+    const pct = E1RM_PCT[reps]
+    if (!pct) continue
+    const e1rm = Math.round((set.load / pct) * 10) / 10
+    if (best === null || e1rm > best) best = e1rm
+  }
+  return best
+}
+
 function formatSeconds(sec: number): string {
   const m = Math.floor(sec / 60)
   const s = sec % 60
@@ -217,24 +240,37 @@ function MachinePrTable({ prTable }: { prTable: Extract<MovementPrTable, { categ
 
 // ─── Chart sub-component ──────────────────────────────────────────────────────
 
-function StrengthChart({ prTable }: { prTable: Extract<MovementPrTable, { category: 'STRENGTH' }> }) {
-  const data = prTable.entries.map((e) => ({
-    label: `${e.reps}RM`,
-    load: e.maxLoad,
-  }))
-  if (data.length < 2) return <p className="text-xs text-gray-500">Not enough data to chart.</p>
+function StrengthChart({ results }: { results: MovementHistoryResult[] }) {
+  const unit = results.find((r) => r.loadUnit)?.loadUnit ?? 'lb'
+  // Results arrive newest-first; reverse to chronological for the trend line.
+  const chartData = [...results]
+    .reverse()
+    .map((r) => {
+      const e1rm = bestE1RM(r)
+      if (e1rm === null) return null
+      return {
+        date: new Date(r.workout.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+        fullDate: new Date(r.workout.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }),
+        e1rm,
+      }
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null)
+
+  if (chartData.length < 2) return <p className="text-xs text-gray-500">Not enough data to chart.</p>
   return (
     <ResponsiveContainer width="100%" height={160}>
-      <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+      <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-        <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 11 }} />
-        <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+        <XAxis dataKey="date" tick={{ fill: '#9ca3af', fontSize: 11 }} />
+        <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} domain={['auto', 'auto']} />
         <Tooltip
           contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 6, fontSize: 12 }}
+          labelFormatter={(_label, payload) => (payload?.[0]?.payload as { fullDate?: string } | undefined)?.fullDate ?? _label}
           labelStyle={{ color: '#e5e7eb' }}
+          formatter={(v) => [`${v} ${unit.toLowerCase()}`, 'Est. 1RM']}
           itemStyle={{ color: '#818cf8' }}
         />
-        <Line type="monotone" dataKey="load" stroke="#818cf8" strokeWidth={2} dot={{ fill: '#818cf8', r: 3 }} />
+        <Line type="monotone" dataKey="e1rm" stroke="#818cf8" strokeWidth={2} dot={{ fill: '#818cf8', r: 3 }} />
       </LineChart>
     </ResponsiveContainer>
   )
@@ -263,8 +299,8 @@ function EnduranceChart({ prTable }: { prTable: Extract<MovementPrTable, { categ
   )
 }
 
-function PrChart({ prTable }: { prTable: MovementPrTable }) {
-  if (prTable.category === 'STRENGTH') return <StrengthChart prTable={prTable} />
+function PrChart({ prTable, results }: { prTable: MovementPrTable; results: MovementHistoryResult[] }) {
+  if (prTable.category === 'STRENGTH') return <StrengthChart results={results} />
   if (prTable.category === 'ENDURANCE') return <EnduranceChart prTable={prTable} />
   return <p className="text-xs text-gray-500">Chart not available for this movement type.</p>
 }
@@ -366,11 +402,11 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
                 onClick={() => setShowChart((v) => !v)}
                 className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
               >
-                {showChart ? '▲ Hide chart' : '▼ Show chart'}
+                {showChart ? '▲ Hide trend' : `▼ ${data.prTable.category === 'STRENGTH' ? 'Est. 1RM trend' : 'Show trend'}`}
               </button>
               {showChart && (
                 <div className="mt-3">
-                  <PrChart prTable={data.prTable} />
+                  <PrChart prTable={data.prTable} results={data.results} />
                 </div>
               )}
             </div>
