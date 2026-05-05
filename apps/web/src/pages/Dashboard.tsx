@@ -50,20 +50,22 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
-        <h1 className="text-2xl font-bold tracking-tight text-white">{greeting}</h1>
+      <div className="flex items-start gap-4 mb-6">
+        <h1 className="basis-[60%] min-w-0 text-2xl font-bold tracking-tight text-white leading-tight">{greeting}</h1>
         {showPicker && (
-          <select
-            value={selectedProgramId}
-            onChange={(e) => setSelectedProgramId(e.target.value)}
-            className="text-sm bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-950"
-            aria-label="Filter by program"
-          >
-            <option value="">All programs</option>
-            {available.map(({ program }) => (
-              <option key={program.id} value={program.id}>{program.name}</option>
-            ))}
-          </select>
+          <div className="basis-[30%] min-w-0">
+            <select
+              value={selectedProgramId}
+              onChange={(e) => setSelectedProgramId(e.target.value)}
+              className="w-full text-sm bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-950"
+              aria-label="Filter by program"
+            >
+              <option value="">All programs</option>
+              {available.map(({ program }) => (
+                <option key={program.id} value={program.id}>{program.name}</option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 
@@ -108,11 +110,18 @@ export default function Dashboard() {
             />
           )}
 
+          {/* Upcoming card — inline on mobile, hidden on desktop (right rail has it) */}
+          {!noGym && gymId && (
+            <div className="lg:hidden">
+              <UpcomingCard gymId={gymId} />
+            </div>
+          )}
+
           {/* Social feed placeholder — deferred until social features are scoped */}
           {!noGym && <SocialPlaceholder />}
         </div>
 
-        {/* Right rail */}
+        {/* Right rail — desktop only */}
         <div className="hidden lg:flex flex-col gap-5">
           <RailPlaceholder label="Activity" />
           {!noGym && gymId && <UpcomingCard gymId={gymId} />}

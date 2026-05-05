@@ -66,6 +66,8 @@ export interface AuthUser {
   id: string
   email: string
   name: string
+  firstName: string | null
+  lastName: string | null
   identifiedGender: IdentifiedGender | null
 }
 
@@ -323,8 +325,10 @@ export const api = {
 
   gyms: {
     dashboard: {
-      today: (gymId: string) =>
-        request<DashboardToday>(`/api/gyms/${gymId}/dashboard/today`),
+      today: (gymId: string, programIds?: string[]) => {
+        const qs = programIds?.length ? `?programIds=${programIds.join(',')}` : ''
+        return request<DashboardToday>(`/api/gyms/${gymId}/dashboard/today${qs}`)
+      },
     },
 
     workouts: (gymId: string, from: string, to: string, programIds?: string[]) => {
