@@ -35,7 +35,7 @@ const STATUS_TINT: Record<GymInvitation['status'], string> = {
   EXPIRED: 'bg-gray-700/40 text-gray-400',
 }
 
-const CHANNEL_OPTIONS: { value: InvitationChannel; label: string }[] = [
+const ALL_CHANNEL_OPTIONS: { value: InvitationChannel; label: string }[] = [
   { value: 'EMAIL', label: 'Email' },
   { value: 'SMS', label: 'SMS' },
 ]
@@ -154,6 +154,8 @@ export default function GymInvitationsPanel() {
 
   const grantable = gymRole ? GRANTABLE_BY[gymRole] : []
   const canInvite = grantable.length > 0
+  // SMS channel only works via sms: deep-link — only offer it on mobile
+  const channelOptions = isMobileDevice ? ALL_CHANNEL_OPTIONS : ALL_CHANNEL_OPTIONS.filter((o) => o.value !== 'SMS')
 
   useEffect(() => {
     if (!gymId) return
@@ -231,12 +233,14 @@ export default function GymInvitationsPanel() {
       {canInvite && (
         <div className="space-y-3 max-w-xl">
           <form onSubmit={handleSend} className="rounded-xl bg-gray-800 p-4 space-y-3">
-            <SegmentedControl
-              options={CHANNEL_OPTIONS}
-              value={channel}
-              onChange={(v) => setChannel(v)}
-              aria-label="Invite channel"
-            />
+            {channelOptions.length > 1 && (
+              <SegmentedControl
+                options={channelOptions}
+                value={channel}
+                onChange={(v) => setChannel(v)}
+                aria-label="Invite channel"
+              />
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_max-content_max-content] gap-3 items-end">
               {channel === 'EMAIL' ? (
                 <label className="block">
