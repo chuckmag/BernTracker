@@ -20,6 +20,12 @@ vi.mock('../lib/api', () => ({
     programs: { get: vi.fn() },
     namedWorkouts: { list: vi.fn() },
     movements: { list: vi.fn(), detect: vi.fn() },
+    me: {
+      personalProgram: {
+        get: vi.fn(),
+        workouts: { list: vi.fn(), create: vi.fn() },
+      },
+    },
   },
 }))
 
@@ -113,6 +119,7 @@ beforeEach(() => {
   vi.mocked(api.gyms.programs.list).mockResolvedValue([] as never)
   vi.mocked(api.namedWorkouts.list).mockResolvedValue([] as never)
   vi.mocked(api.movements.list).mockResolvedValue([] as never)
+  vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('not seeded'))
 })
 
 // ─── Tests ───────────────────────────────────────────────────────────────────

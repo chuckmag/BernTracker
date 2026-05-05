@@ -12,6 +12,7 @@ import FeedScreen from './src/screens/FeedScreen'
 import WodDetailScreen from './src/screens/WodDetailScreen'
 import HistoryScreen from './src/screens/HistoryScreen'
 import LogResultScreen from './src/screens/LogResultScreen'
+import AddPersonalWorkoutScreen from './src/screens/AddPersonalWorkoutScreen'
 import type { LeaderboardEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -22,6 +23,10 @@ export type RootStackParamList = {
   Main: undefined
   WodDetail: { workoutId: string; from?: 'feed' | 'history' }
   LogResult: { workoutId: string; resultId?: string; existingResult?: LeaderboardEntry }
+  // Modal-style flow off the Feed (#183 mobile parity). Carries the
+  // YYYY-MM-DD calendar date the user tapped "+" on so the form can
+  // pin scheduledAt without exposing a date picker on first cut.
+  AddPersonalWorkout: { scheduledAt: string }
 }
 
 export type MainTabParamList = {
@@ -104,6 +109,11 @@ function RootStackNavigator() {
       <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
       <RootStack.Screen name="WodDetail" component={WodDetailScreen} options={{ title: '' }} />
       <RootStack.Screen name="LogResult" component={LogResultScreen} options={{ title: 'Log Result' }} />
+      <RootStack.Screen
+        name="AddPersonalWorkout"
+        component={AddPersonalWorkoutScreen}
+        options={{ title: 'Personal Workout', presentation: 'modal' }}
+      />
     </RootStack.Navigator>
   )
 }
