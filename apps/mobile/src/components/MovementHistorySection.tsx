@@ -8,9 +8,11 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
   Alert,
 } from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import {
@@ -175,23 +177,6 @@ function PastResultCard({ result, onPress }: PastResultCardProps) {
 
 // ─── PR Backfill Modal ────────────────────────────────────────────────────────
 
-function formatDateLocal(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function toISODateString(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}T12:00:00.000Z`
-}
-
-function addDays(d: Date, n: number): Date {
-  const copy = new Date(d)
-  copy.setDate(copy.getDate() + n)
-  return copy
-}
-
 interface BackfillModalProps {
   movementId: string
   movementName: string
@@ -204,12 +189,9 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
   const [loadInput, setLoadInput] = useState('')
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [saving, setSaving] = useState(false)
+  const [showAndroidPicker, setShowAndroidPicker] = useState(false)
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const sel = new Date(selectedDate)
-  sel.setHours(0, 0, 0, 0)
-  const isToday = sel.getTime() === today.getTime()
+  const maxDate = new Date()
 
   async function handleSave() {
     const load = parseFloat(loadInput)
@@ -220,12 +202,11 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
 
     setSaving(true)
     try {
-      const scheduledAt = toISODateString(selectedDate)
       const workout = await api.me.personalProgram.workouts.create({
         title: `${movementName} ${rm}RM`,
         description: `${rm} × ${load} lb`,
         type: 'STRENGTH',
-        scheduledAt,
+        scheduledAt: selectedDate.toISOString(),
         movementIds: [movementId],
       })
 
@@ -258,40 +239,58 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={s.modalSheet}>
-          <Text style={s.modalTitle}>{rm}RM — {movementName}</Text>
-          <Text style={s.modalSubtitle}>Log your max effort for this rep count</Text>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Text style={s.modalTitle}>{rm}RM — {movementName}</Text>
+            <Text style={s.modalSubtitle}>Log your max effort for this rep count</Text>
 
-          <Text style={s.fieldLabel}>LOAD (LB)</Text>
-          <TextInput
-            style={s.loadInput}
-            value={loadInput}
-            onChangeText={setLoadInput}
-            keyboardType="decimal-pad"
-            placeholder="e.g. 185"
-            placeholderTextColor="#4b5563"
-            autoFocus
-          />
+            <Text style={s.fieldLabel}>LOAD (LB)</Text>
+            <TextInput
+              style={s.loadInput}
+              value={loadInput}
+              onChangeText={setLoadInput}
+              keyboardType="decimal-pad"
+              placeholder="e.g. 185"
+              placeholderTextColor="#4b5563"
+              autoFocus
+            />
 
-          <Text style={s.fieldLabel}>DATE</Text>
-          <View style={s.dateRow}>
-            <TouchableOpacity
-              style={s.dateArrow}
-              onPress={() => setSelectedDate((d) => addDays(d, -1))}
-              activeOpacity={0.7}
-            >
-              <Text style={s.dateArrowText}>‹</Text>
-            </TouchableOpacity>
-            <Text style={s.dateLabel}>{formatDateLocal(selectedDate)}</Text>
-            <TouchableOpacity
-              style={s.dateArrow}
-              onPress={() => {
-                if (!isToday) setSelectedDate((d) => addDays(d, 1))
-              }}
-              activeOpacity={isToday ? 1 : 0.7}
-            >
-              <Text style={[s.dateArrowText, isToday && s.dateArrowDisabled]}>›</Text>
-            </TouchableOpacity>
-          </View>
+            <Text style={s.fieldLabel}>DATE</Text>
+            {Platform.OS === 'ios' ? (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="inline"
+                maximumDate={maxDate}
+                onChange={(_, date) => { if (date) setSelectedDate(date) }}
+                style={s.datePicker}
+                themeVariant="dark"
+              />
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={s.dateRow}
+                  onPress={() => setShowAndroidPicker(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.dateLabel}>
+                    {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                </TouchableOpacity>
+                {showAndroidPicker && (
+                  <DateTimePicker
+                    value={selectedDate}
+                    mode="date"
+                    display="default"
+                    maximumDate={maxDate}
+                    onChange={(_, date) => {
+                      setShowAndroidPicker(false)
+                      if (date) setSelectedDate(date)
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </ScrollView>
 
           <View style={s.modalActions}>
             <TouchableOpacity style={s.cancelBtn} onPress={onClose} activeOpacity={0.7}>
@@ -569,9 +568,10 @@ const s = StyleSheet.create({
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderColor: '#1f2937',
-    padding: 24,
-    paddingBottom: 40,
-    gap: 0,
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 0,
+    maxHeight: '92%',
   },
   modalTitle: {
     fontSize: 17,
@@ -604,28 +604,18 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 20,
   },
+  datePicker: {
+    marginBottom: 16,
+    marginHorizontal: -8,
+  },
   dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#0f172a',
     borderWidth: 1,
     borderColor: '#374151',
     borderRadius: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    marginBottom: 28,
-  },
-  dateArrow: {
-    padding: 10,
-  },
-  dateArrowText: {
-    fontSize: 22,
-    color: '#818cf8',
-    lineHeight: 24,
-  },
-  dateArrowDisabled: {
-    color: '#374151',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 20,
   },
   dateLabel: {
     fontSize: 15,
@@ -635,6 +625,8 @@ const s = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     gap: 12,
+    paddingVertical: 20,
+    paddingBottom: 36,
   },
   cancelBtn: {
     flex: 1,
