@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { formatResultValue } from '../lib/formatResult.ts'
 import Button from './ui/Button.tsx'
+import MarkdownDescription from './MarkdownDescription.tsx'
 import type { Workout, DashboardTodayResult, DashboardLeaderboard } from '../lib/api.ts'
 
 interface Props {
@@ -103,7 +104,7 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
           {workout.description && (
             <div className="bg-gray-800/60 rounded-xl border border-gray-800 p-4">
               <p className="text-[10px] font-bold tracking-[0.1em] text-gray-500 uppercase mb-2">Workout</p>
-              <p className="text-sm text-gray-200 whitespace-pre-line leading-relaxed">{workout.description}</p>
+              <MarkdownDescription source={workout.description} />
             </div>
           )}
           {workout.workoutMovements.length > 0 && (
