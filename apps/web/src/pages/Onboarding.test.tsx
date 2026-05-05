@@ -122,7 +122,7 @@ describe('Onboarding page', () => {
 
     await screen.findByText('About you')
     await user.type(screen.getByLabelText(/birthday/i), '1995-06-15')
-    await user.click(screen.getByRole('button', { name: /Continue/ }))
+    await user.click(screen.getByRole('button', { name: /Finish/ }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/feed', { replace: true }))
   })
@@ -139,7 +139,7 @@ describe('Onboarding page', () => {
 
     await screen.findByText('About you')
     await user.type(screen.getByLabelText(/birthday/i), '1995-06-15')
-    await user.click(screen.getByRole('button', { name: /Continue/ }))
+    await user.click(screen.getByRole('button', { name: /Finish/ }))
 
     // Step 3 should appear with gym invitation
     expect(await screen.findByText('Join a gym')).toBeInTheDocument()

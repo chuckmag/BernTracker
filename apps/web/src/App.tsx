@@ -29,6 +29,7 @@ import WodResultDetail from './pages/WodResultDetail.tsx'
 import History from './pages/History.tsx'
 import AdminProgramsIndex from './pages/AdminProgramsIndex.tsx'
 import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
+import JoinInvitation from './pages/JoinInvitation.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
   const navigate = useNavigate()
@@ -107,6 +108,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/join/:code" element={<JoinInvitation />} />
         <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
         <Route
           path="/*"

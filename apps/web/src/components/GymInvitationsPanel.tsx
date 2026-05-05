@@ -40,11 +40,11 @@ const CHANNEL_OPTIONS: { value: InvitationChannel; label: string }[] = [
   { value: 'SMS', label: 'SMS' },
 ]
 
-function buildShareMessage(inv: Invitation, gymName: string | null): string {
+function buildShareMessage(inv: Invitation, gymName: string | null, joinUrl: string): string {
   const base = gymName
     ? `You've been invited to join ${gymName} on WODalytics!`
     : "You've been invited to join WODalytics!"
-  return `${base} Use code ${inv.code} when you sign up at wodalytics.com.`
+  return `${base}\n\nJoin here: ${joinUrl}`
 }
 
 function InviteShareCard({
@@ -57,7 +57,8 @@ function InviteShareCard({
   onDismiss: () => void
 }) {
   const [copied, setCopied] = useState(false)
-  const message = buildShareMessage(inv, gymName)
+  const joinUrl = `${window.location.origin}/join/${inv.code}`
+  const message = buildShareMessage(inv, gymName, joinUrl)
 
   function handleCopy() {
     navigator.clipboard.writeText(message).then(() => {
