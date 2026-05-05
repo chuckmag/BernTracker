@@ -30,15 +30,17 @@ const E1RM_PCT: Record<number, number> = {
   26: 0.54, 27: 0.53, 28: 0.52, 29: 0.51, 30: 0.50,
 }
 
-function bestE1RM(result: MovementHistoryResult): number | null {
-  let best: number | null = null
+interface BestSet { reps: number; load: number; e1rm: number }
+
+function bestE1RM(result: MovementHistoryResult): BestSet | null {
+  let best: BestSet | null = null
   for (const set of result.movementSets) {
     if (set.load === undefined || !set.reps) continue
     const reps = parseInt(set.reps, 10)
     const pct = E1RM_PCT[reps]
     if (!pct) continue
     const e1rm = Math.round((set.load / pct) * 10) / 10
-    if (best === null || e1rm > best) best = e1rm
+    if (best === null || e1rm > best.e1rm) best = { reps, load: set.load, e1rm }
   }
   return best
 }
@@ -240,21 +242,29 @@ function MachinePrTable({ prTable }: { prTable: Extract<MovementPrTable, { categ
 
 // ─── Chart sub-component ──────────────────────────────────────────────────────
 
+interface StrengthChartPoint {
+  date: string
+  fullDate: string
+  effort: string   // e.g. "5 × 505"
+  e1rm: number
+}
+
 function StrengthChart({ results }: { results: MovementHistoryResult[] }) {
   const unit = results.find((r) => r.loadUnit)?.loadUnit ?? 'lb'
   // Results arrive newest-first; reverse to chronological for the trend line.
-  const chartData = [...results]
+  const chartData: StrengthChartPoint[] = [...results]
     .reverse()
     .map((r) => {
-      const e1rm = bestE1RM(r)
-      if (e1rm === null) return null
+      const best = bestE1RM(r)
+      if (best === null) return null
       return {
         date: new Date(r.workout.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
         fullDate: new Date(r.workout.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }),
-        e1rm,
+        effort: `${best.reps} × ${best.load}`,
+        e1rm: best.e1rm,
       }
     })
-    .filter((d): d is NonNullable<typeof d> => d !== null)
+    .filter((d): d is StrengthChartPoint => d !== null)
 
   if (chartData.length < 2) return <p className="text-xs text-gray-500">Not enough data to chart.</p>
   return (
@@ -265,10 +275,13 @@ function StrengthChart({ results }: { results: MovementHistoryResult[] }) {
         <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} domain={['auto', 'auto']} />
         <Tooltip
           contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 6, fontSize: 12 }}
-          labelFormatter={(_label, payload) => (payload?.[0]?.payload as { fullDate?: string } | undefined)?.fullDate ?? _label}
+          labelFormatter={(_label, payload) => (payload?.[0]?.payload as StrengthChartPoint | undefined)?.fullDate ?? _label}
           labelStyle={{ color: '#e5e7eb' }}
-          formatter={(v) => [`${v} ${unit.toLowerCase()}`, 'Est. 1RM']}
-          itemStyle={{ color: '#818cf8' }}
+          formatter={(v, _name, item) => {
+            const p = item.payload as StrengthChartPoint
+            return [`${p.effort}\nEst. 1RM: ${v} ${unit.toLowerCase()}`, '']
+          }}
+          itemStyle={{ color: '#818cf8', whiteSpace: 'pre-line' }}
         />
         <Line type="monotone" dataKey="e1rm" stroke="#818cf8" strokeWidth={2} dot={{ fill: '#818cf8', r: 3 }} />
       </LineChart>
