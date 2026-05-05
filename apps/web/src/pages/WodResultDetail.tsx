@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
@@ -78,7 +78,11 @@ function describeSet(set: SetEntry, loadUnit?: string, distanceUnit?: string): s
 export default function WodResultDetail() {
   const { id, resultId } = useParams<{ id: string; resultId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
+  const locationState = location.state as { from?: string; originWorkoutId?: string } | null
+  const fromMovementHistory = locationState?.from === 'movement-history'
+  const originWorkoutId = locationState?.originWorkoutId
 
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [result, setResult] = useState<WorkoutResult | null>(null)
@@ -113,7 +117,11 @@ export default function WodResultDetail() {
       <div className="max-w-2xl mx-auto">
         <p className="text-red-400">{error ?? 'Result not found.'}</p>
         <button
-          onClick={() => navigate(id ? `/workouts/${id}` : '/feed')}
+          onClick={() =>
+            fromMovementHistory && originWorkoutId
+              ? navigate(`/workouts/${originWorkoutId}`)
+              : navigate(id ? `/workouts/${id}` : '/feed')
+          }
           className="mt-4 text-sm text-gray-400 hover:text-white transition-colors"
         >
           ← Back to WOD
@@ -142,7 +150,11 @@ export default function WodResultDetail() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <button
-        onClick={() => navigate(`/workouts/${workout.id}`)}
+        onClick={() =>
+          fromMovementHistory && originWorkoutId
+            ? navigate(`/workouts/${originWorkoutId}`)
+            : navigate(`/workouts/${workout.id}`)
+        }
         className="text-sm text-gray-400 hover:text-white transition-colors"
       >
         ← Back to WOD

@@ -72,6 +72,20 @@ enum MovementStatus {
   REJECTED
 }
 
+// Drives which PR-table layout and chart shape to show in the "Your History"
+// section of the workout detail page.
+// STRENGTH  → max load per rep count (1RM, 2RM, …)
+// ENDURANCE → best time per distance (400 m, 1 mi, 5 k, …)
+// MACHINE   → best time per calorie/distance target OR best output per time target
+// GYMNASTICS / SKILL → history feed only, no PR table
+enum MovementCategory {
+  STRENGTH
+  ENDURANCE
+  MACHINE
+  GYMNASTICS
+  SKILL
+}
+
 // Self-identified gender — stored on the user profile for demographics
 // and communication preferences. Nullable: users are never required to share.
 enum Gender {
@@ -501,6 +515,10 @@ model Movement {
   id         String            @id @default(cuid())
   name       String            @unique
   status     MovementStatus    @default(ACTIVE)
+  // Drives PR-table layout in "Your History". Defaults to STRENGTH so all
+  // existing movements keep current behaviour; a follow-up task will
+  // categorize non-strength movements explicitly.
+  category   MovementCategory  @default(STRENGTH)
   // Authoritative reference URL for the movement — usually a CrossFit
   // /essentials/the-<slug> page. Surfaced as a "Learn more" link in the
   // member UI; the body content stays on the source site so we don't have
