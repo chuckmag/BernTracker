@@ -1,23 +1,52 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
-import { api, type IdentifiedGender } from '../lib/api'
+import { api, type IdentifiedGender, type PendingInvitation } from '../lib/api'
 import Button from '../components/ui/Button'
 import AvatarUploader from '../components/AvatarUploader'
 import { NameFields, BirthdayField, GenderField } from '../components/ProfileFields'
 
-const STEPS = ['Your name', 'About you'] as const
+const PROFILE_STEPS = ['Your name', 'About you'] as const
+
+const ROLE_LABEL: Record<string, string> = {
+  OWNER: 'Owner',
+  PROGRAMMER: 'Programmer',
+  COACH: 'Coach',
+  MEMBER: 'Member',
+}
+
+function formatInviter(
+  invitedBy: { firstName?: string | null; lastName?: string | null; name?: string | null; email?: string } | null,
+): string {
+  if (!invitedBy) return 'a staff member'
+  const first = invitedBy.firstName?.trim()
+  const last = invitedBy.lastName?.trim()
+  if (first && last) return `${first} ${last}`
+  if (first) return first
+  if (invitedBy.name?.trim()) return invitedBy.name.trim()
+  return invitedBy.email ?? 'a staff member'
+}
 
 export default function Onboarding() {
   const { login, accessToken } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
+
+  // Profile fields
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [birthday, setBirthday] = useState('')
   const [gender, setGender] = useState<NonNullable<IdentifiedGender>>('PREFER_NOT_TO_SAY')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Invitations step — shown when there are pending gym invites after profile save
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([])
+  const [inviteActingOn, setInviteActingOn] = useState<string | null>(null)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+
+  const steps =
+    step >= 2 ? ([...PROFILE_STEPS, 'Join a gym'] as const) : PROFILE_STEPS
 
   // Pre-fill from existing user record (handles re-entry mid-onboarding).
   useEffect(() => {
@@ -57,29 +86,73 @@ export default function Onboarding() {
       setStep(1)
       return
     }
-    // Step 1: finish — persist and exit onboarding.
-    if (!step2Valid()) {
-      setError('Birthday is required.')
+
+    if (step === 1) {
+      if (!step2Valid()) {
+        setError('Birthday is required.')
+        return
+      }
+      setSubmitting(true)
+      try {
+        await api.users.me.profile.update({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          birthday,
+          identifiedGender: gender,
+        })
+        // Refresh AuthUser so RequireOnboarded lets us through.
+        if (accessToken) {
+          const me = await api.auth.me(accessToken)
+          login(accessToken, me)
+        }
+        // Check for pending gym invitations before navigating to the feed.
+        const pending = await api.users.me.invitations.pendingAll()
+        const gymPending = pending.filter(
+          (item) =>
+            (item.kind === 'membershipRequest' && item.data.gymId) ||
+            (item.kind === 'invitation' && !!item.data.gymId),
+        )
+        if (gymPending.length > 0) {
+          setPendingInvitations(gymPending)
+          setStep(2)
+        } else {
+          navigate('/feed', { replace: true })
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to finish onboarding')
+      } finally {
+        setSubmitting(false)
+      }
       return
     }
-    setSubmitting(true)
+
+    // Step 2: invitations done — go to feed
+    navigate('/feed', { replace: true })
+  }
+
+  async function handleInviteAction(action: 'accept' | 'decline', item: PendingInvitation) {
+    const key = item.kind === 'membershipRequest' ? item.data.id : `code-${item.data.code}`
+    setInviteActingOn(key)
+    setInviteError(null)
     try {
-      await api.users.me.profile.update({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        birthday,
-        identifiedGender: gender,
-      })
-      // Refresh AuthUser so RequireOnboarded lets us through.
-      if (accessToken) {
-        const me = await api.auth.me(accessToken)
-        login(accessToken, me)
+      if (action === 'accept') {
+        if (item.kind === 'membershipRequest') {
+          await api.users.me.invitations.accept(item.data.id)
+        } else {
+          await api.users.me.codeInvitations.accept(item.data.code)
+        }
+      } else {
+        if (item.kind === 'membershipRequest') {
+          await api.users.me.invitations.decline(item.data.id)
+        } else {
+          await api.users.me.codeInvitations.decline(item.data.code)
+        }
       }
-      navigate('/feed', { replace: true })
+      setPendingInvitations((prev) => prev.filter((i) => i !== item))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to finish onboarding')
+      setInviteError(e instanceof Error ? e.message : `Failed to ${action} invitation`)
     } finally {
-      setSubmitting(false)
+      setInviteActingOn(null)
     }
   }
 
@@ -93,14 +166,14 @@ export default function Onboarding() {
         </header>
 
         <ol className="flex items-center gap-2 text-xs">
-          {STEPS.map((label, i) => (
+          {steps.map((label, i) => (
             <li key={label} className="flex items-center gap-2">
               <span className={[
                 'w-6 h-6 rounded-full flex items-center justify-center font-semibold',
                 i === step ? 'bg-indigo-600 text-white' : i < step ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400',
               ].join(' ')}>{i + 1}</span>
               <span className={i === step ? 'text-white' : 'text-gray-400'}>{label}</span>
-              {i < STEPS.length - 1 && <span className="text-gray-700 mx-1" aria-hidden="true">·</span>}
+              {i < steps.length - 1 && <span className="text-gray-700 mx-1" aria-hidden="true">·</span>}
             </li>
           ))}
         </ol>
@@ -137,18 +210,77 @@ export default function Onboarding() {
             </div>
           )}
 
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-white">You've been invited to a gym!</p>
+                <p className="text-xs text-gray-400">Accept or decline below. You can always manage invitations from your profile.</p>
+              </div>
+              {pendingInvitations.length === 0 ? (
+                <p className="text-sm text-gray-400">All done — click Continue to get started.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {pendingInvitations.map((item) => {
+                    const key = item.kind === 'membershipRequest'
+                      ? item.data.id
+                      : `code-${item.data.code}`
+                    const gymName = item.kind === 'membershipRequest'
+                      ? item.data.gym.name
+                      : item.data.gym?.name ?? null
+                    const roleToGrant = item.data.roleToGrant
+                    const inviterLabel = item.kind === 'membershipRequest'
+                      ? formatInviter(item.data.invitedBy)
+                      : formatInviter(item.data.invitedBy)
+                    return (
+                      <li key={key} className="rounded-xl bg-gray-800 border border-gray-700 p-4 space-y-3">
+                        <div className="space-y-1">
+                          <p className="text-sm text-white">
+                            <span className="font-semibold">{gymName ?? 'Unknown gym'}</span>
+                            <span className="text-gray-400"> · as </span>
+                            <span className="text-indigo-300">{ROLE_LABEL[roleToGrant] ?? roleToGrant}</span>
+                          </p>
+                          <p className="text-xs text-gray-400">From {inviterLabel}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleInviteAction('accept', item)}
+                            disabled={!!inviteActingOn}
+                          >
+                            {inviteActingOn === key ? 'Accepting…' : 'Accept'}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            onClick={() => handleInviteAction('decline', item)}
+                            disabled={!!inviteActingOn}
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+              {inviteError && <p className="text-sm text-rose-400">{inviteError}</p>}
+            </div>
+          )}
+
           {error && <p className="text-sm text-rose-400">{error}</p>}
 
           <div className="flex items-center justify-between gap-3 pt-2">
             <Button
               variant="tertiary"
               onClick={() => setStep((s) => Math.max(0, s - 1))}
-              disabled={step === 0 || submitting}
+              disabled={step === 0 || submitting || step === 2}
             >
               ← Back
             </Button>
-            <Button onClick={handleNext} disabled={submitting}>
-              {step < STEPS.length - 1 ? 'Continue →' : (submitting ? 'Finishing…' : 'Finish')}
+            <Button onClick={handleNext} disabled={submitting || !!inviteActingOn}>
+              {step === 0
+                ? 'Continue →'
+                : step === 1
+                  ? (submitting ? 'Saving…' : 'Finish')
+                  : 'Go to feed →'}
             </Button>
           </div>
         </div>
