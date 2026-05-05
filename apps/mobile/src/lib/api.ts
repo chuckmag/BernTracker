@@ -171,6 +171,60 @@ export interface ResultHistoryItem {
   createdAt: string
 }
 
+export type MovementCategory = 'STRENGTH' | 'ENDURANCE' | 'MACHINE' | 'GYMNASTICS' | 'SKILL'
+
+export interface MovementHistorySet {
+  reps?: string
+  load?: number
+  distance?: number
+  distanceUnit?: string
+  calories?: number
+  seconds?: number
+}
+
+export interface MovementHistoryResult {
+  id: string
+  workout: { id: string; title: string; type: WorkoutType; scheduledAt: string }
+  level: WorkoutLevel
+  loadUnit?: string
+  distanceUnit?: string
+  movementSets: MovementHistorySet[]
+}
+
+export interface StrengthPrEntry {
+  reps: number
+  maxLoad: number
+  unit: string
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface EndurancePrEntry {
+  distance: number
+  distanceUnit: string
+  bestSeconds: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MovementHistoryPage {
+  movementId: string
+  movementName: string
+  category: MovementCategory
+  prTable:
+    | { category: 'STRENGTH'; entries: StrengthPrEntry[] }
+    | { category: 'ENDURANCE'; entries: EndurancePrEntry[] }
+    | { category: 'MACHINE'; outputCapped: { calories: unknown[]; distance: unknown[] }; timeCapped: { calories: unknown[]; distance: unknown[] } }
+    | { category: 'GYMNASTICS' | 'SKILL'; entries: never[] }
+  results: MovementHistoryResult[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
 export interface LogResultInput {
   level: WorkoutLevel
   workoutGender: WorkoutGender
@@ -348,6 +402,13 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+  },
+
+  movements: {
+    myHistory: (movementId: string, page = 1, limit = 10) =>
+      request<MovementHistoryPage>(
+        `/api/movements/${encodeURIComponent(movementId)}/my-history?page=${page}&limit=${limit}`,
+      ),
   },
 
   results: {
