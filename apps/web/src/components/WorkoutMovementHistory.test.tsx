@@ -62,15 +62,23 @@ describe('WorkoutMovementHistory', () => {
 
   it('shows a filled cell for a tested RM and ??? buttons for untested slots', async () => {
     renderComponent()
-    // 5RM is tested (225 lb) — rendered as a static div, not a button
-    const filledLabel = await screen.findByText('5RM')
-    expect(filledLabel.closest('button')).toBeNull()
+    // 5RM is tested (225 lb) — rendered as a clickable button linking to the workout
+    const filledCell = await screen.findByTitle('View your 5RM — 225 LB')
+    expect(filledCell.tagName).toBe('BUTTON')
     expect(screen.getByText('225')).toBeInTheDocument()
 
     // All other 1–10RM slots are untested — rendered as dashed buttons
     const emptySlots = screen.getAllByTitle(/^Log your \d+RM$/)
     expect(emptySlots).toHaveLength(9) // 1,2,3,4,6,7,8,9,10
     emptySlots.forEach((btn) => expect(btn.tagName).toBe('BUTTON'))
+  })
+
+  it('clicking a filled RM cell navigates to the workout without opening the modal', async () => {
+    renderComponent()
+    const filledCell = await screen.findByTitle('View your 5RM — 225 LB')
+    fireEvent.click(filledCell)
+    // Modal should NOT open — clicking a filled slot navigates, doesn't backfill
+    expect(screen.queryByText('5RM — Back Squat')).not.toBeInTheDocument()
   })
 
   it('clicking a ??? button opens the backfill modal with the correct heading', async () => {
