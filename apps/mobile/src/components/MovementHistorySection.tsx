@@ -1,5 +1,18 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native'
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  Alert,
+} from 'react-native'
+import DateTimePicker from '@react-native-community/datetimepicker'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import {
@@ -40,7 +53,12 @@ function bestE1RM(result: MovementHistoryResult): BestSet | null {
 
 const RM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 
-function StrengthPrTable({ entries }: { entries: StrengthPrEntry[] }) {
+interface StrengthPrTableProps {
+  entries: StrengthPrEntry[]
+  onTapEmpty: (rm: number) => void
+}
+
+function StrengthPrTable({ entries, onTapEmpty }: StrengthPrTableProps) {
   const byReps = new Map(entries.map((e) => [e.reps, e]))
   const unit = entries[0]?.unit ?? 'LB'
   return (
@@ -49,13 +67,24 @@ function StrengthPrTable({ entries }: { entries: StrengthPrEntry[] }) {
       <View style={s.rmGrid}>
         {RM_RANGE.map((reps) => {
           const entry = byReps.get(reps)
+          if (entry) {
+            return (
+              <View key={reps} style={s.rmCell}>
+                <Text style={s.rmRep}>{reps}RM</Text>
+                <Text style={s.rmLoad}>{String(entry.maxLoad)}</Text>
+              </View>
+            )
+          }
           return (
-            <View key={reps} style={s.rmCell}>
+            <TouchableOpacity
+              key={reps}
+              style={[s.rmCell, s.rmCellEmpty]}
+              onPress={() => onTapEmpty(reps)}
+              activeOpacity={0.7}
+            >
               <Text style={s.rmRep}>{reps}RM</Text>
-              <Text style={entry ? s.rmLoad : s.rmEmpty}>
-                {entry ? String(entry.maxLoad) : '???'}
-              </Text>
-            </View>
+              <Text style={s.rmEmpty}>???</Text>
+            </TouchableOpacity>
           )
         })}
       </View>
@@ -146,6 +175,146 @@ function PastResultCard({ result, onPress }: PastResultCardProps) {
   )
 }
 
+// ─── PR Backfill Modal ────────────────────────────────────────────────────────
+
+interface BackfillModalProps {
+  movementId: string
+  movementName: string
+  rm: number
+  onClose: () => void
+  onSaved: () => void
+}
+
+function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: BackfillModalProps) {
+  const [loadInput, setLoadInput] = useState('')
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [saving, setSaving] = useState(false)
+  const [showAndroidPicker, setShowAndroidPicker] = useState(false)
+
+  const maxDate = new Date()
+
+  async function handleSave() {
+    const load = parseFloat(loadInput)
+    if (!loadInput || isNaN(load) || load <= 0) {
+      Alert.alert('Enter a load', 'Please enter the weight you lifted.')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const workout = await api.me.personalProgram.workouts.create({
+        title: `${movementName} ${rm}RM`,
+        description: `${rm} × ${load} lb`,
+        type: 'STRENGTH',
+        scheduledAt: selectedDate.toISOString(),
+        movementIds: [movementId],
+      })
+
+      await api.workouts.logResult(workout.id, {
+        level: 'RX',
+        workoutGender: 'OPEN',
+        value: {
+          movementResults: [
+            {
+              workoutMovementId: movementId,
+              loadUnit: 'LB',
+              sets: [{ reps: String(rm), load }],
+            },
+          ],
+        },
+      })
+
+      onSaved()
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Could not save effort.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={s.modalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={s.modalSheet}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Text style={s.modalTitle}>{rm}RM — {movementName}</Text>
+            <Text style={s.modalSubtitle}>Log your max effort for this rep count</Text>
+
+            <Text style={s.fieldLabel}>LOAD (LB)</Text>
+            <TextInput
+              style={s.loadInput}
+              value={loadInput}
+              onChangeText={setLoadInput}
+              keyboardType="decimal-pad"
+              placeholder="e.g. 185"
+              placeholderTextColor="#4b5563"
+              autoFocus
+            />
+
+            <Text style={s.fieldLabel}>DATE</Text>
+            {Platform.OS === 'ios' ? (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="inline"
+                maximumDate={maxDate}
+                onChange={(_, date) => { if (date) setSelectedDate(date) }}
+                style={s.datePicker}
+                themeVariant="dark"
+              />
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={s.dateRow}
+                  onPress={() => setShowAndroidPicker(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.dateLabel}>
+                    {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                </TouchableOpacity>
+                {showAndroidPicker && (
+                  <DateTimePicker
+                    value={selectedDate}
+                    mode="date"
+                    display="default"
+                    maximumDate={maxDate}
+                    onChange={(_, date) => {
+                      setShowAndroidPicker(false)
+                      if (date) setSelectedDate(date)
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </ScrollView>
+
+          <View style={s.modalActions}>
+            <TouchableOpacity style={s.cancelBtn} onPress={onClose} activeOpacity={0.7}>
+              <Text style={s.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.saveBtn, saving && s.saveBtnDisabled]}
+              onPress={handleSave}
+              activeOpacity={0.8}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={s.saveBtnText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+}
+
 // ─── Main exported component ──────────────────────────────────────────────────
 
 interface Props {
@@ -157,14 +326,17 @@ interface Props {
 export default function MovementHistorySection({ movementId, movementName, navigation }: Props) {
   const [data, setData] = useState<MovementHistoryPage | null>(null)
   const [loading, setLoading] = useState(true)
+  const [pendingRm, setPendingRm] = useState<number | null>(null)
 
-  useEffect(() => {
+  function fetchHistory() {
     setLoading(true)
     api.movements.myHistory(movementId, 1, 10)
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false))
-  }, [movementId])
+  }
+
+  useEffect(() => { fetchHistory() }, [movementId])
 
   if (loading) {
     return (
@@ -185,7 +357,10 @@ export default function MovementHistorySection({ movementId, movementName, navig
       <Text style={s.movementName}>{movementName}</Text>
 
       {isStrength && (
-        <StrengthPrTable entries={(data.prTable as { category: 'STRENGTH'; entries: StrengthPrEntry[] }).entries} />
+        <StrengthPrTable
+          entries={(data.prTable as { category: 'STRENGTH'; entries: StrengthPrEntry[] }).entries}
+          onTapEmpty={(rm) => setPendingRm(rm)}
+        />
       )}
 
       {isStrength && hasResults && <E1RMTrend results={data.results} />}
@@ -206,6 +381,19 @@ export default function MovementHistorySection({ movementId, movementName, navig
             />
           ))}
         </View>
+      )}
+
+      {pendingRm !== null && (
+        <BackfillModal
+          movementId={movementId}
+          movementName={movementName}
+          rm={pendingRm}
+          onClose={() => setPendingRm(null)}
+          onSaved={() => {
+            setPendingRm(null)
+            fetchHistory()
+          }}
+        />
       )}
     </View>
   )
@@ -253,6 +441,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     minWidth: 52,
+  },
+  rmCellEmpty: {
+    borderStyle: 'dashed',
+    borderColor: '#374151',
   },
   rmRep: {
     fontSize: 10,
@@ -360,5 +552,107 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: '#4b5563',
     marginTop: 2,
+  },
+
+  // Backfill modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  modalSheet: {
+    backgroundColor: '#111827',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#1f2937',
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 0,
+    maxHeight: '92%',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#f9fafb',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 24,
+  },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#4b5563',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  loadInput: {
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 8,
+    color: '#f9fafb',
+    fontSize: 20,
+    fontWeight: '600',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 20,
+  },
+  datePicker: {
+    marginBottom: 16,
+    marginHorizontal: -8,
+  },
+  dateRow: {
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 20,
+  },
+  dateLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#e5e7eb',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 20,
+    paddingBottom: 36,
+  },
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#9ca3af',
+  },
+  saveBtn: {
+    flex: 2,
+    backgroundColor: '#4f46e5',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  saveBtnDisabled: {
+    opacity: 0.6,
+  },
+  saveBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#ffffff',
   },
 })
