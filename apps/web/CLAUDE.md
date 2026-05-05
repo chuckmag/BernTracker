@@ -86,6 +86,11 @@ When you add a new piece of persisted user state (localStorage / query string / 
   - API: `GET /api/gyms/:gymId/workouts?programIds=id1,id2` (each ID independently access-checked; first failure → 403/404)
   - Mobile: read/write the same storage key (via `AsyncStorage`) and call the same endpoint with the same CSV shape.
 
+- **Theme preference** (`src/context/ThemeContext.tsx`, `src/lib/useTheme.ts`)
+  - Storage: `localStorage["wodalytics-theme"]` → `"light" | "dark" | "system"` (absent = `"system"`)
+  - Web: `ThemeProvider` wraps `App`; `useTheme()` exposes `{ mode, setMode }`. Applies `dark` class to `<html>` via `applyTheme()`. A no-flash inline script in `index.html` applies the class before React mounts.
+  - Mobile: read/write the same key via `AsyncStorage`; apply via React Navigation `theme` prop. Mobile parity tracked in #254.
+
 ### Reference
 
 Visual guide with before/after mockups: `resources/design-guide.html`. Issue #81 has the full implementation plan in 5 PRs.

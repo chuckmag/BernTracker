@@ -9,14 +9,14 @@ describe('Button', () => {
     expect(screen.getByRole('button', { name: 'Go' })).toHaveClass('bg-indigo-600')
 
     rerender(<Button variant="secondary">Go</Button>)
-    expect(screen.getByRole('button', { name: 'Go' })).toHaveClass('bg-gray-800')
+    expect(screen.getByRole('button', { name: 'Go' })).toHaveClass('bg-slate-200')
 
     rerender(<Button variant="tertiary">Go</Button>)
     const tertiary = screen.getByRole('button', { name: 'Go' })
-    expect(tertiary).toHaveClass('text-gray-400')
+    expect(tertiary).toHaveClass('text-slate-500')
     // Tertiary has no default background (only hover:bg-*).
     expect(tertiary.className).not.toMatch(/\bbg-(indigo|rose)-/)
-    expect(tertiary.className).not.toMatch(/(?<!hover:)bg-gray-800/)
+    expect(tertiary.className).not.toMatch(/(?<!hover:)bg-slate-100/)
 
     rerender(<Button variant="destructive">Go</Button>)
     expect(screen.getByRole('button', { name: 'Go' })).toHaveClass('bg-rose-600')
