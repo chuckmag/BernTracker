@@ -45,6 +45,11 @@ function bestE1RM(result: MovementHistoryResult): BestSet | null {
   return best
 }
 
+function todayISODate(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function formatSeconds(sec: number): string {
   const m = Math.floor(sec / 60)
   const s = sec % 60
@@ -81,7 +86,7 @@ function describeSet(set: MovementHistoryResult['movementSets'][number], loadUni
 
 const STRENGTH_RM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 
-function StrengthPrTable({ entries }: { entries: StrengthPrEntry[] }) {
+function StrengthPrTable({ entries, onClickEmpty }: { entries: StrengthPrEntry[]; onClickEmpty: (rm: number) => void }) {
   const byReps = new Map(entries.map((e) => [e.reps, e]))
   const unit = entries[0]?.unit ?? 'LB'
   return (
@@ -92,18 +97,25 @@ function StrengthPrTable({ entries }: { entries: StrengthPrEntry[] }) {
       <div className="flex gap-1 flex-wrap">
         {STRENGTH_RM_RANGE.map((reps) => {
           const entry = byReps.get(reps)
-          return (
+          return entry ? (
             <div
               key={reps}
               className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-gray-700 min-w-[3.5rem]"
             >
               <span className="text-[10px] text-gray-400">{reps}RM</span>
-              {entry ? (
-                <span className="text-sm font-semibold text-white">{entry.maxLoad}</span>
-              ) : (
-                <span className="text-sm font-semibold text-gray-600">???</span>
-              )}
+              <span className="text-sm font-semibold text-white">{entry.maxLoad}</span>
             </div>
+          ) : (
+            <button
+              key={reps}
+              type="button"
+              onClick={() => onClickEmpty(reps)}
+              title={`Log your ${reps}RM`}
+              className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-dashed border-gray-600 min-w-[3.5rem] hover:border-indigo-500 hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            >
+              <span className="text-[10px] text-gray-400">{reps}RM</span>
+              <span className="text-sm font-semibold text-gray-600">???</span>
+            </button>
           )
         })}
       </div>
@@ -320,6 +332,120 @@ function PrChart({ prTable, results }: { prTable: MovementPrTable; results: Move
   return <p className="text-xs text-gray-500">Chart not available for this movement type.</p>
 }
 
+// ─── PR Backfill Modal ────────────────────────────────────────────────────────
+
+interface BackfillModalProps {
+  movementId: string
+  movementName: string
+  rm: number
+  onClose: () => void
+  onSaved: () => void
+}
+
+function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: BackfillModalProps) {
+  const [load, setLoad] = useState('')
+  const [dateStr, setDateStr] = useState(todayISODate)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSave() {
+    const loadNum = parseFloat(load)
+    if (!load || isNaN(loadNum) || loadNum <= 0) {
+      setError('Enter a valid load.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const workout = await api.me.personalProgram.workouts.create({
+        title: `${movementName} ${rm}RM`,
+        description: `${rm} × ${loadNum} lb`,
+        type: 'STRENGTH',
+        scheduledAt: `${dateStr}T12:00:00.000Z`,
+        movementIds: [movementId],
+      })
+      await api.results.create(workout.id, {
+        level: 'RX',
+        workoutGender: 'OPEN',
+        value: {
+          movementResults: [{
+            workoutMovementId: movementId,
+            loadUnit: 'LB',
+            sets: [{ reps: String(rm), load: loadNum }],
+          }],
+        },
+      })
+      onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative z-10 bg-gray-900 border border-gray-800 rounded-xl p-6 w-full max-w-sm space-y-5">
+        <div>
+          <h2 className="text-base font-semibold text-gray-100">{rm}RM — {movementName}</h2>
+          <p className="text-sm text-gray-500 mt-1">Log your max effort for this rep count</p>
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="bf-load" className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+            Load (lb)
+          </label>
+          <input
+            id="bf-load"
+            type="number"
+            min="0"
+            step="2.5"
+            placeholder="e.g. 185"
+            value={load}
+            onChange={(e) => setLoad(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-gray-100 text-xl font-semibold placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            autoFocus
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="bf-date" className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+            Date
+          </label>
+          <input
+            id="bf-date"
+            type="date"
+            max={todayISODate()}
+            value={dateStr}
+            onChange={(e) => setDateStr(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+
+        {error && <p className="text-xs text-rose-400" role="alert">{error}</p>}
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-2.5 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-[2] bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Past result card ─────────────────────────────────────────────────────────
 
 interface PastResultCardProps {
@@ -369,6 +495,8 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
   const [loading, setLoading] = useState(true)
   const [showChart, setShowChart] = useState(false)
   const [page, setPage] = useState(1)
+  const [pendingRm, setPendingRm] = useState<number | null>(null)
+  const [historyKey, setHistoryKey] = useState(0)
 
   useEffect(() => {
     setLoading(true)
@@ -376,7 +504,7 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false))
-  }, [movementId, page])
+  }, [movementId, page, historyKey])
 
   const hasPrTable =
     data &&
@@ -407,7 +535,7 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
 
       {hasPrTable && (
         <div className="rounded-lg bg-gray-900 border border-gray-800 px-4 py-3 space-y-4">
-          {data.prTable.category === 'STRENGTH' && <StrengthPrTable entries={data.prTable.entries} />}
+          {data.prTable.category === 'STRENGTH' && <StrengthPrTable entries={data.prTable.entries} onClickEmpty={setPendingRm} />}
           {data.prTable.category === 'ENDURANCE' && <EndurancePrTable entries={data.prTable.entries} />}
           {data.prTable.category === 'MACHINE' && <MachinePrTable prTable={data.prTable} />}
 
@@ -467,6 +595,18 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
             </div>
           )}
         </div>
+      )}
+      {pendingRm !== null && (
+        <BackfillModal
+          movementId={movementId}
+          movementName={movementName}
+          rm={pendingRm}
+          onClose={() => setPendingRm(null)}
+          onSaved={() => {
+            setPendingRm(null)
+            setHistoryKey((k) => k + 1)
+          }}
+        />
       )}
     </div>
   )

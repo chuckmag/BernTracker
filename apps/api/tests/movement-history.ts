@@ -38,6 +38,18 @@ async function api(method: string, path: string, token?: string) {
   return { status: res.status, body: json as Record<string, unknown> }
 }
 
+async function apiPost(path: string, token: string, body: unknown) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  }
+  const res = await fetch(`${BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) })
+  const text = await res.text()
+  let json: unknown
+  try { json = JSON.parse(text) } catch { json = text }
+  return { status: res.status, body: json as Record<string, unknown> }
+}
+
 const TS = Date.now()
 let gymId = ''
 let memberId = ''
@@ -46,6 +58,7 @@ let movementId = ''
 let workoutId = ''
 let resultId = ''
 let programId = ''
+let backfillWorkoutId = ''
 
 async function setup() {
   const gym = await prisma.gym.create({ data: { name: `MH-Gym-${TS}`, slug: `mh-gym-${TS}`, timezone: 'UTC' } })
@@ -112,6 +125,14 @@ async function setup() {
 
 async function teardown() {
   await prisma.result.deleteMany({ where: { userId: memberId } })
+  // Clean up any personal program created by the backfill test before deleting the user.
+  // User.personalProgram has onDelete:Cascade, but workouts block the cascade, so we
+  // must explicitly clear them first.
+  const pp = await prisma.program.findUnique({ where: { ownerUserId: memberId } }).catch(() => null)
+  if (pp) {
+    await prisma.workout.deleteMany({ where: { programId: pp.id } }).catch(() => {})
+    await prisma.program.delete({ where: { id: pp.id } }).catch(() => {})
+  }
   await prisma.workout.deleteMany({ where: { id: workoutId } })
   await prisma.movement.deleteMany({ where: { id: movementId } })
   await prisma.userGym.deleteMany({ where: { gymId } })
@@ -173,6 +194,47 @@ async function testPaginatedResults() {
   check('workout id matches', workoutId, b.results[0]?.workout.id)
 }
 
+async function testBackfillViaPersonalProgram() {
+  console.log('\nBackfill via personal program — result appears in my-history and updates PR')
+
+  // Create a personal program workout with the movement linked via movementIds
+  const r1 = await apiPost('/me/personal-program/workouts', memberToken, {
+    title: `MH-BackSquat-${TS} 5RM`,
+    description: '5 × 315 lb',
+    type: 'STRENGTH',
+    scheduledAt: '2026-03-01T12:00:00.000Z',
+    movementIds: [movementId],
+  })
+  check('create personal workout status 201', 201, r1.status)
+  backfillWorkoutId = (r1.body as { id: string }).id
+
+  // Log a result against the new workout
+  const r2 = await apiPost(`/workouts/${backfillWorkoutId}/results`, memberToken, {
+    level: 'RX',
+    workoutGender: 'OPEN',
+    value: {
+      movementResults: [{
+        workoutMovementId: movementId,
+        loadUnit: 'LB',
+        sets: [{ reps: '5', load: 315 }],
+      }],
+    },
+  })
+  check('log backfill result status 201', 201, r2.status)
+
+  // Verify it appears in my-history total and updates the 5RM PR
+  const r3 = await api('GET', `/movements/${movementId}/my-history`, memberToken)
+  check('status 200 after backfill', 200, r3.status)
+  const b = r3.body as {
+    total: number
+    results: Array<{ id: string; workout: { id: string } }>
+    prTable: { entries: Array<{ reps: number; maxLoad: number }> }
+  }
+  check('total is now 2 (gym workout + backfill)', 2, b.total)
+  const fiveRm = b.prTable.entries.find((e) => e.reps === 5)
+  check('5RM PR updated to 315', 315, fiveRm?.maxLoad)
+}
+
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
 ;(async () => {
@@ -183,6 +245,7 @@ async function testPaginatedResults() {
     await testEmptyHistory()
     await testStrengthPrTable()
     await testPaginatedResults()
+    await testBackfillViaPersonalProgram()
   } finally {
     await teardown()
     await prisma.$disconnect()
