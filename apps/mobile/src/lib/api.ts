@@ -354,6 +354,7 @@ export const api = {
           description: string
           type: WorkoutType
           scheduledAt: string
+          movementIds?: string[]
         }) =>
           request<Workout>('/api/me/personal-program/workouts', {
             method: 'POST',
