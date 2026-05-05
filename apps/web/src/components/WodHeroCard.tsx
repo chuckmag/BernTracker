@@ -100,7 +100,7 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
 
       {/* Desktop-only workout detail blocks */}
       {!compact && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <div className="grid grid-cols-1 gap-4 mb-5">
           {workout.description && (
             <div className="bg-gray-800/60 rounded-xl border border-gray-800 p-4">
               <p className="text-[10px] font-bold tracking-[0.1em] text-gray-500 uppercase mb-2">Workout</p>
