@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext'
 
 WebBrowser.maybeCompleteAuthSession()
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://qa.wodalytics.com'
 
 export default function LoginScreen() {
   const { login, loginWithGoogle } = useAuth()
