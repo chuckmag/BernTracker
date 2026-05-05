@@ -56,9 +56,10 @@ const RM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 interface StrengthPrTableProps {
   entries: StrengthPrEntry[]
   onTapEmpty: (rm: number) => void
+  onTapFilled: (workoutId: string) => void
 }
 
-function StrengthPrTable({ entries, onTapEmpty }: StrengthPrTableProps) {
+function StrengthPrTable({ entries, onTapEmpty, onTapFilled }: StrengthPrTableProps) {
   const byReps = new Map(entries.map((e) => [e.reps, e]))
   const unit = entries[0]?.unit ?? 'LB'
   return (
@@ -69,10 +70,15 @@ function StrengthPrTable({ entries, onTapEmpty }: StrengthPrTableProps) {
           const entry = byReps.get(reps)
           if (entry) {
             return (
-              <View key={reps} style={s.rmCell}>
+              <TouchableOpacity
+                key={reps}
+                style={s.rmCell}
+                onPress={() => onTapFilled(entry.workoutId)}
+                activeOpacity={0.7}
+              >
                 <Text style={s.rmRep}>{reps}RM</Text>
                 <Text style={s.rmLoad}>{String(entry.maxLoad)}</Text>
-              </View>
+              </TouchableOpacity>
             )
           }
           return (
@@ -187,6 +193,7 @@ interface BackfillModalProps {
 
 function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: BackfillModalProps) {
   const [loadInput, setLoadInput] = useState('')
+  const [notes, setNotes] = useState('')
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [saving, setSaving] = useState(false)
   const [showAndroidPicker, setShowAndroidPicker] = useState(false)
@@ -213,6 +220,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
       await api.workouts.logResult(workout.id, {
         level: 'RX',
         workoutGender: 'OPEN',
+        notes: notes.trim() || undefined,
         value: {
           movementResults: [
             {
@@ -252,6 +260,18 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
               placeholder="e.g. 185"
               placeholderTextColor="#4b5563"
               autoFocus
+            />
+
+            <Text style={s.fieldLabel}>NOTES (OPTIONAL)</Text>
+            <TextInput
+              style={s.notesInput}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="How did it feel? Any context…"
+              placeholderTextColor="#4b5563"
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
             />
 
             <Text style={s.fieldLabel}>DATE</Text>
@@ -360,6 +380,7 @@ export default function MovementHistorySection({ movementId, movementName, navig
         <StrengthPrTable
           entries={(data.prTable as { category: 'STRENGTH'; entries: StrengthPrEntry[] }).entries}
           onTapEmpty={(rm) => setPendingRm(rm)}
+          onTapFilled={(workoutId) => navigation.push('WodDetail', { workoutId, from: 'movement-history' })}
         />
       )}
 
@@ -603,6 +624,18 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 20,
+  },
+  notesInput: {
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#374151',
+    borderRadius: 8,
+    color: '#f9fafb',
+    fontSize: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 20,
+    minHeight: 72,
   },
   datePicker: {
     marginBottom: 16,
