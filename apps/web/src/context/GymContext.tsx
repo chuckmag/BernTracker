@@ -6,6 +6,8 @@ interface GymContextValue {
   gymId: string | null
   gymRole: Role | null
   setGymId: (id: string) => void
+  /** Clear the active gym selection (e.g. after a 403 means the cached id is stale). */
+  clearGymId: () => void
   /** Re-fetch /api/me/gyms — used after a gym mutation that changes a row
    *  the picker renders (e.g. logoUrl, name). */
   refreshGyms: () => Promise<void>
@@ -45,12 +47,17 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
     setGymIdState(id)
   }
 
+  function clearGymId() {
+    localStorage.removeItem('gymId')
+    setGymIdState(null)
+  }
+
   const gymRole: Role | null = gymId
     ? (gyms.find((g) => g.id === gymId)?.role ?? null)
     : null
 
   return (
-    <GymContext.Provider value={{ gyms, gymId, gymRole, setGymId, refreshGyms, loading }}>
+    <GymContext.Provider value={{ gyms, gymId, gymRole, setGymId, clearGymId, refreshGyms, loading }}>
       {children}
     </GymContext.Provider>
   )

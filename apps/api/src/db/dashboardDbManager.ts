@@ -23,12 +23,13 @@ const workoutInclude = {
   _count: { select: { results: true } },
 } as const
 
-async function findTodaysHeroWorkout(gymId: string, userId: string) {
+async function findTodaysHeroWorkout(gymId: string, userId: string, programIds?: string[]) {
   const { dayStart, dayEnd } = todayUtcRange()
 
   const baseWhere = {
     scheduledAt: { gte: dayStart, lt: dayEnd },
     status: 'PUBLISHED' as const,
+    ...(programIds?.length ? { programId: { in: programIds } } : {}),
     OR: [
       { program: { gyms: { some: { gymId } } } },
       {
@@ -54,9 +55,9 @@ async function findTodaysHeroWorkout(gymId: string, userId: string) {
   })
 }
 
-export async function getDashboardToday(gymId: string, userId: string) {
+export async function getDashboardToday(gymId: string, userId: string, programIds?: string[]) {
   const [workout, gymMemberCount] = await Promise.all([
-    findTodaysHeroWorkout(gymId, userId),
+    findTodaysHeroWorkout(gymId, userId, programIds),
     prisma.userGym.count({ where: { gymId } }),
   ])
 

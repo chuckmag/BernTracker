@@ -76,7 +76,10 @@ async function req<T>(path: string, opts: RequestInit & { token?: string } = {})
   }
   if (res.status === 204) return undefined as T
   const data = await res.json()
-  if (!res.ok) throw new Error(data?.error ?? `Request failed: ${res.status}`)
+  if (!res.ok) {
+    const err = Object.assign(new Error(data?.error ?? `Request failed: ${res.status}`), { status: res.status })
+    throw err
+  }
   return data as T
 }
 
@@ -583,7 +586,10 @@ export const api = {
 
   gyms: {
     dashboard: {
-      today: (gymId: string) => req<DashboardToday>(`/api/gyms/${gymId}/dashboard/today`),
+      today: (gymId: string, programIds?: string[]) => {
+        const qs = programIds?.length ? `?programIds=${programIds.join(',')}` : ''
+        return req<DashboardToday>(`/api/gyms/${gymId}/dashboard/today${qs}`)
+      },
     },
 
     create: (data: { name: string; timezone?: string }, token?: string) =>

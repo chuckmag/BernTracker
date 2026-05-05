@@ -6,6 +6,7 @@ import { useGym } from '../context/GymContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 import { makePersonalProgramScope } from '../lib/personalProgramScope.ts'
 import Skeleton from '../components/ui/Skeleton.tsx'
+import Button from '../components/ui/Button.tsx'
 import BarbellIcon from '../components/icons/BarbellIcon.tsx'
 import UsersIcon from '../components/icons/UsersIcon.tsx'
 import PersonalProgramIcon from '../components/icons/PersonalProgramIcon.tsx'
@@ -67,7 +68,7 @@ function formatDayLabel(dateKey: string, todayKey: string): string {
 }
 
 export default function Feed() {
-  const { gymId } = useGym()
+  const { gymId, loading: gymLoading, clearGymId } = useGym()
   const { selected: programIds, available, clear: clearProgramFilter } = useProgramFilter()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [fetchStart, setFetchStart] = useState<Date | null>(null)
@@ -93,7 +94,7 @@ export default function Feed() {
   const programIdsKey = programIds.join(',')
 
   useEffect(() => {
-    if (!gymId) return
+    if (gymLoading || !gymId) return
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -123,10 +124,15 @@ export default function Feed() {
           setFetchEnd(to)
         }
       })
-      .catch((e) => { if (!cancelled) setError((e as Error).message) })
+      .catch((e: Error & { status?: number }) => {
+        if (!cancelled) {
+          if (e.status === 403) { clearGymId(); return }
+          setError(e.message)
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [gymId, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gymId, gymLoading, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Upsert the personal program once per session. Independent of the gym /
   // program-filter loop above so the "+" button is available even before the
@@ -197,11 +203,26 @@ export default function Feed() {
     return () => observer.disconnect()
   }, [loadMore])
 
-  if (!gymId) {
+  if (!gymLoading && !gymId) {
     return (
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold mb-2">Feed</h1>
-        <p className="text-gray-400">Set up your gym in Settings first.</p>
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 flex flex-col items-center text-center gap-4">
+          <div className="text-4xl" aria-hidden="true">🏋️</div>
+          <div>
+            <h2 className="text-base font-semibold text-white mb-1">No workouts yet</h2>
+            <p className="text-sm text-gray-400 max-w-sm">
+              Browse public programs to follow, or add workouts to your personal program.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Button variant="primary">
+              <Link to="/programs" className="contents">Browse programs</Link>
+            </Button>
+            <Button variant="secondary">
+              <Link to="/personal-program" className="contents">Track personal workout</Link>
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }
