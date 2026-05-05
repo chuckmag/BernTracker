@@ -47,6 +47,11 @@ function buildShareMessage(inv: Invitation, gymName: string | null, joinUrl: str
   return `${base}\n\nJoin here: ${joinUrl}`
 }
 
+// sms: deep-links only work on mobile — detect once at render time
+const isMobileDevice =
+  typeof navigator !== 'undefined' &&
+  /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+
 function InviteShareCard({
   inv,
   gymName,
@@ -70,7 +75,8 @@ function InviteShareCard({
   const mailtoHref = inv.email
     ? `mailto:${encodeURIComponent(inv.email)}?subject=${encodeURIComponent('You\'re invited to WODalytics')}&body=${encodeURIComponent(message)}`
     : null
-  const smsHref = inv.phone
+  // sms: only usable on mobile — on desktop we show the message inline for copying
+  const smsHref = inv.phone && isMobileDevice
     ? `sms:${encodeURIComponent(inv.phone)}?body=${encodeURIComponent(message)}`
     : null
 
@@ -83,6 +89,15 @@ function InviteShareCard({
           {inv.email ?? inv.phone} · expires {new Date(inv.expiresAt).toLocaleDateString()}
         </p>
       </div>
+
+      {/* SMS on desktop: show the message text so the sender can copy + forward */}
+      {inv.phone && !isMobileDevice && (
+        <div className="rounded-lg bg-gray-900 border border-gray-700 p-3 space-y-1">
+          <p className="text-xs text-gray-400">Copy and send via SMS</p>
+          <p className="text-xs text-gray-200 whitespace-pre-wrap font-mono">{message}</p>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {mailtoHref && (
           <a
