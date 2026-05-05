@@ -53,7 +53,7 @@ export default function Dashboard() {
       <div className="flex items-start gap-4 mb-6">
         <h1 className="basis-[60%] min-w-0 text-2xl font-bold tracking-tight text-white leading-tight">{greeting}</h1>
         {showPicker && (
-          <div className="basis-[30%] min-w-0">
+          <div className="basis-[40%] min-w-0">
             <select
               value={selectedProgramId}
               onChange={(e) => setSelectedProgramId(e.target.value)}
