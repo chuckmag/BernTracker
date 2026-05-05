@@ -54,23 +54,33 @@ function describeSet(set: MovementHistoryResult['movementSets'][number], loadUni
 
 // ─── PR Table sub-components ──────────────────────────────────────────────────
 
+const STRENGTH_RM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
+
 function StrengthPrTable({ entries }: { entries: StrengthPrEntry[] }) {
-  if (entries.length === 0) return null
+  const byReps = new Map(entries.map((e) => [e.reps, e]))
+  const unit = entries[0]?.unit ?? 'LB'
   return (
     <div>
       <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-2">
-        PR Table · {entries[0]?.unit ?? 'LB'}
+        PR Table · {unit}
       </p>
       <div className="flex gap-1 flex-wrap">
-        {entries.map((e) => (
-          <div
-            key={e.reps}
-            className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-gray-700 min-w-[3.5rem]"
-          >
-            <span className="text-[10px] text-gray-400">{e.reps}RM</span>
-            <span className="text-sm font-semibold text-white">{e.maxLoad}</span>
-          </div>
-        ))}
+        {STRENGTH_RM_RANGE.map((reps) => {
+          const entry = byReps.get(reps)
+          return (
+            <div
+              key={reps}
+              className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-gray-700 min-w-[3.5rem]"
+            >
+              <span className="text-[10px] text-gray-400">{reps}RM</span>
+              {entry ? (
+                <span className="text-sm font-semibold text-white">{entry.maxLoad}</span>
+              ) : (
+                <span className="text-sm font-semibold text-gray-600">???</span>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -320,7 +330,7 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
   const hasPrTable =
     data &&
     (data.prTable.category === 'STRENGTH'
-      ? data.prTable.entries.length > 0
+      ? true
       : data.prTable.category === 'ENDURANCE'
         ? data.prTable.entries.length > 0
         : data.prTable.category === 'MACHINE'
@@ -336,7 +346,7 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
     )
   }
 
-  if (!data || (data.results.length === 0 && !hasPrTable)) return null
+  if (!data || (!hasPrTable && data.results.length === 0)) return null
 
   return (
     <div className="space-y-4 pt-1">

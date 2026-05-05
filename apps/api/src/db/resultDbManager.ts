@@ -196,7 +196,7 @@ function computeStrengthPrTable(movementId: string, results: ResultWithWorkout[]
     for (const set of sets) {
       if (!set.reps || set.load === undefined) continue
       const repCount = parseRepsToInt(set.reps)
-      if (repCount <= 0 || repCount > 100) continue
+      if (repCount <= 0 || repCount > 10) continue
       const existing = byReps.get(repCount)
       if (!existing || set.load > existing.maxLoad) {
         byReps.set(repCount, {
