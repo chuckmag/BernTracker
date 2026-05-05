@@ -249,8 +249,19 @@ interface StrengthChartPoint {
   e1rm: number
 }
 
+function StrengthTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: StrengthChartPoint }> }) {
+  if (!active || !payload?.length) return null
+  const p = payload[0].payload
+  return (
+    <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 6, fontSize: 12, padding: '6px 10px' }}>
+      <p style={{ color: '#e5e7eb', marginBottom: 4 }}>{p.fullDate}</p>
+      <p style={{ color: '#818cf8' }}>{p.effort} lb</p>
+      <p style={{ color: '#818cf8' }}>Est. 1RM: {p.e1rm} lb</p>
+    </div>
+  )
+}
+
 function StrengthChart({ results }: { results: MovementHistoryResult[] }) {
-  const unit = results.find((r) => r.loadUnit)?.loadUnit ?? 'lb'
   // Results arrive newest-first; reverse to chronological for the trend line.
   const chartData: StrengthChartPoint[] = [...results]
     .reverse()
@@ -269,20 +280,11 @@ function StrengthChart({ results }: { results: MovementHistoryResult[] }) {
   if (chartData.length < 2) return <p className="text-xs text-gray-500">Not enough data to chart.</p>
   return (
     <ResponsiveContainer width="100%" height={160}>
-      <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+      <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
         <XAxis dataKey="date" tick={{ fill: '#9ca3af', fontSize: 11 }} />
-        <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} domain={['auto', 'auto']} />
-        <Tooltip
-          contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 6, fontSize: 12 }}
-          labelFormatter={(_label, payload) => (payload?.[0]?.payload as StrengthChartPoint | undefined)?.fullDate ?? _label}
-          labelStyle={{ color: '#e5e7eb' }}
-          formatter={(v, _name, item) => {
-            const p = item.payload as StrengthChartPoint
-            return [`${p.effort}\nEst. 1RM: ${v} ${unit.toLowerCase()}`, '']
-          }}
-          itemStyle={{ color: '#818cf8', whiteSpace: 'pre-line' }}
-        />
+        <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} domain={['auto', 'auto']} unit=" lb" width={64} />
+        <Tooltip content={<StrengthTooltip />} />
         <Line type="monotone" dataKey="e1rm" stroke="#818cf8" strokeWidth={2} dot={{ fill: '#818cf8', r: 3 }} />
       </LineChart>
     </ResponsiveContainer>
