@@ -126,7 +126,14 @@ export default function Feed() {
       })
       .catch((e: Error & { status?: number }) => {
         if (!cancelled) {
-          if (e.status === 403) { clearGymId(); return }
+          if (e.status === 403) {
+            // A 403 with active program filters means an inaccessible programId
+            // was passed — surface an error, don't wipe the user's gym.
+            // A 403 with no filters means the gymId itself is stale — evict it.
+            if (programIds.length) setError(e.message)
+            else clearGymId()
+            return
+          }
           setError(e.message)
         }
       })

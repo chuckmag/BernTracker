@@ -1,10 +1,28 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, ScrollView, RefreshControl, StyleSheet } from 'react-native'
+import {
+  View,
+  Text,
+  ScrollView,
+  RefreshControl,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  Pressable,
+} from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
-import { api, type DashboardToday } from '../lib/api'
+import { api, type DashboardToday, type GymProgram } from '../lib/api'
 import { useGym } from '../context/GymContext'
 import { useAuth } from '../context/AuthContext'
+import { useProgramFilter } from '../context/ProgramFilterContext'
 import WodHeroCard from '../components/WodHeroCard'
+import LeaderboardCard from '../components/LeaderboardCard'
+import UpcomingCard from '../components/UpcomingCard'
+
+function firstNameOf(user: { firstName?: string | null; name?: string | null } | null): string | null {
+  if (user?.firstName) return user.firstName
+  if (user?.name) return user.name.split(' ')[0]
+  return null
+}
 
 function greetingFor(firstName: string | null | undefined): string {
   const hour = new Date().getHours()
@@ -15,6 +33,8 @@ function greetingFor(firstName: string | null | undefined): string {
 export default function HomeScreen() {
   const { activeGym } = useGym()
   const { user } = useAuth()
+  const { available } = useProgramFilter()
+  const [selectedProgramId, setSelectedProgramId] = useState<string>('')
   const [data, setData] = useState<DashboardToday | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -25,7 +45,8 @@ export default function HomeScreen() {
     if (!quiet) setLoading(true)
     setError(null)
     try {
-      const result = await api.gyms.dashboard.today(activeGym.id)
+      const programIds = selectedProgramId ? [selectedProgramId] : undefined
+      const result = await api.gyms.dashboard.today(activeGym.id, programIds)
       setData(result)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
@@ -38,15 +59,20 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       load()
-    }, [activeGym]),
+    }, [activeGym, selectedProgramId]),
   )
+
+  useEffect(() => {
+    if (activeGym) load()
+  }, [selectedProgramId])  // eslint-disable-line react-hooks/exhaustive-deps
 
   function onRefresh() {
     setRefreshing(true)
     load(true)
   }
 
-  const greeting = greetingFor(user?.name)
+  const greeting = greetingFor(firstNameOf(user))
+  const showPicker = available.length > 1
 
   return (
     <ScrollView
@@ -54,7 +80,19 @@ export default function HomeScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
     >
-      <Text style={styles.greeting}>{greeting}</Text>
+      {/* Greeting row: 60% greeting, 30% program picker */}
+      <View style={styles.greetingRow}>
+        <Text style={styles.greeting}>{greeting}</Text>
+        {showPicker && (
+          <View style={styles.pickerSlot}>
+            <DashboardProgramPicker
+              available={available}
+              selectedId={selectedProgramId}
+              onSelect={setSelectedProgramId}
+            />
+          </View>
+        )}
+      </View>
 
       {loading && !refreshing && (
         <View style={styles.loadingCard}>
@@ -70,7 +108,20 @@ export default function HomeScreen() {
       )}
 
       {!loading && data && (
-        <WodHeroCard data={data} />
+        <>
+          <WodHeroCard data={data} />
+          {data.workout && (
+            <LeaderboardCard
+              workoutId={data.workout.id}
+              workoutTitle={data.workout.title}
+              myUserId={user?.id ?? ''}
+            />
+          )}
+        </>
+      )}
+
+      {!loading && activeGym && (
+        <UpcomingCard gymId={activeGym.id} />
       )}
 
       {/* Social feed placeholder — deferred until social features are scoped */}
@@ -78,6 +129,60 @@ export default function HomeScreen() {
         <Text style={styles.socialPlaceholderText}>Social feed coming soon</Text>
       </View>
     </ScrollView>
+  )
+}
+
+function DashboardProgramPicker({
+  available,
+  selectedId,
+  onSelect,
+}: {
+  available: GymProgram[]
+  selectedId: string
+  onSelect: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const label = available.find((gp) => gp.program.id === selectedId)?.program.name ?? 'All programs'
+
+  const options = [
+    { id: '', name: 'All programs' },
+    ...available.map((gp) => ({ id: gp.program.id, name: gp.program.name })),
+  ]
+
+  return (
+    <>
+      <TouchableOpacity
+        style={styles.pickerBtn}
+        onPress={() => setOpen(true)}
+        accessibilityLabel="Filter by program"
+      >
+        <Text style={styles.pickerBtnText}>{label}</Text>
+        <Text style={styles.pickerChevron}>▾</Text>
+      </TouchableOpacity>
+
+      <Modal animationType="fade" transparent visible={open} onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sheetTitle}>Program</Text>
+            {options.map((p) => {
+              const isSelected = selectedId === p.id
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.sheetRow}
+                  onPress={() => { onSelect(p.id); setOpen(false) }}
+                >
+                  <Text style={[styles.sheetRowText, isSelected && styles.sheetRowSelected]}>
+                    {p.name}
+                  </Text>
+                  {isSelected && <Text style={styles.sheetCheckmark}>✓</Text>}
+                </TouchableOpacity>
+              )
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   )
 }
 
@@ -90,12 +195,88 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12,
   },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 4,
+  },
   greeting: {
+    flex: 6,
     fontSize: 20,
     fontWeight: '700',
     color: '#ffffff',
     letterSpacing: -0.3,
-    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  pickerSlot: {
+    flex: 3,
+  },
+  pickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#374151',
+    flexShrink: 1,
+  },
+  pickerBtnText: {
+    color: '#e5e7eb',
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  pickerChevron: {
+    color: '#818cf8',
+    fontSize: 11,
+    marginLeft: 4,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#111827',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingTop: 20,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 12,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2937',
+  },
+  sheetRowText: {
+    fontSize: 15,
+    color: '#d1d5db',
+    flex: 1,
+  },
+  sheetRowSelected: {
+    color: '#818cf8',
+    fontWeight: '600',
+  },
+  sheetCheckmark: {
+    color: '#818cf8',
+    fontSize: 16,
+    fontWeight: '700',
+    marginLeft: 8,
   },
   loadingCard: {
     backgroundColor: '#111827',

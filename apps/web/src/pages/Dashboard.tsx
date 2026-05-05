@@ -5,6 +5,8 @@ import { useGym } from '../context/GymContext.tsx'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 import WodHeroCard from '../components/WodHeroCard.tsx'
+import LeaderboardCard from '../components/LeaderboardCard.tsx'
+import UpcomingCard from '../components/UpcomingCard.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
 import Button from '../components/ui/Button.tsx'
@@ -48,20 +50,22 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
-        <h1 className="text-2xl font-bold tracking-tight text-white">{greeting}</h1>
+      <div className="flex items-start gap-4 mb-6">
+        <h1 className="basis-[60%] min-w-0 text-2xl font-bold tracking-tight text-white leading-tight">{greeting}</h1>
         {showPicker && (
-          <select
-            value={selectedProgramId}
-            onChange={(e) => setSelectedProgramId(e.target.value)}
-            className="text-sm bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-950"
-            aria-label="Filter by program"
-          >
-            <option value="">All programs</option>
-            {available.map(({ program }) => (
-              <option key={program.id} value={program.id}>{program.name}</option>
-            ))}
-          </select>
+          <div className="basis-[40%] min-w-0">
+            <select
+              value={selectedProgramId}
+              onChange={(e) => setSelectedProgramId(e.target.value)}
+              className="w-full text-sm bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-950"
+              aria-label="Filter by program"
+            >
+              <option value="">All programs</option>
+              {available.map(({ program }) => (
+                <option key={program.id} value={program.id}>{program.name}</option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 
@@ -80,12 +84,19 @@ export default function Dashboard() {
           )}
 
           {!gymLoading && !loading && !noGym && !error && data?.workout && (
-            <WodHeroCard
-              workout={data.workout}
-              myResult={data.myResult}
-              leaderboard={data.leaderboard}
-              gymMemberCount={data.gymMemberCount}
-            />
+            <>
+              <WodHeroCard
+                workout={data.workout}
+                myResult={data.myResult}
+                leaderboard={data.leaderboard}
+                gymMemberCount={data.gymMemberCount}
+              />
+              <LeaderboardCard
+                workoutId={data.workout.id}
+                workoutTitle={data.workout.title}
+                myUserId={user?.id ?? ''}
+              />
+            </>
           )}
 
           {!gymLoading && !loading && !noGym && !error && data && !data.workout && (
@@ -99,14 +110,21 @@ export default function Dashboard() {
             />
           )}
 
+          {/* Upcoming card — inline on mobile, hidden on desktop (right rail has it) */}
+          {!noGym && gymId && (
+            <div className="lg:hidden">
+              <UpcomingCard gymId={gymId} />
+            </div>
+          )}
+
           {/* Social feed placeholder — deferred until social features are scoped */}
           {!noGym && <SocialPlaceholder />}
         </div>
 
-        {/* Right rail — Activity and Upcoming cards land here in later slices */}
+        {/* Right rail — desktop only */}
         <div className="hidden lg:flex flex-col gap-5">
           <RailPlaceholder label="Activity" />
-          <RailPlaceholder label="Coming up" />
+          {!noGym && gymId && <UpcomingCard gymId={gymId} />}
         </div>
       </div>
     </div>

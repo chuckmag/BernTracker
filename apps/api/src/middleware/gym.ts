@@ -28,7 +28,7 @@ export async function requireGymMembership(req: Request, res: Response, next: Ne
   }
   const membership = await findGymMembershipByUserAndGym(userId, gymId)
   if (!membership) {
-    res.status(403).json({ error: 'Forbidden' })
+    res.status(403).json({ error: 'Not a member of this gym' })
     return
   }
   next()
@@ -44,7 +44,7 @@ export async function requireGymWriteAccess(req: Request, res: Response, next: N
   }
   const membership = await findGymMembershipByUserAndGym(userId, gymId)
   if (!checkMembershipHasWriteAccessRoles(membership)) {
-    res.status(403).json({ error: 'Forbidden' })
+    res.status(403).json({ error: 'Insufficient role to modify this gym' })
     return
   }
   next()
@@ -60,7 +60,7 @@ export async function requireGymOwner(req: Request, res: Response, next: NextFun
   }
   const membership = await findGymMembershipByUserAndGym(userId, gymId)
   if (membership?.role !== 'OWNER') {
-    res.status(403).json({ error: 'Forbidden' })
+    res.status(403).json({ error: 'Only gym owners can perform this action' })
     return
   }
   next()
