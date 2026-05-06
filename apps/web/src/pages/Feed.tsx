@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { api, type PersonalProgram, type Workout } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
