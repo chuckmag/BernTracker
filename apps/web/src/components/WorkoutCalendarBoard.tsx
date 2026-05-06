@@ -164,11 +164,27 @@ export default function WorkoutCalendarBoard({
     setSelectedWorkoutId(null)
   }
 
+  function jumpToToday() {
+    setYear(today.getFullYear())
+    setMonth(today.getMonth())
+    setStripStartKey(toDateKey(startOfDay(new Date())))
+    setSelectedDate(null)
+    setSelectedWorkoutId(null)
+  }
+
   const stripDays: Date[] = []
   if (isNarrow) {
     const stripStart = new Date(stripStartKey + 'T00:00:00')
     for (let i = 0; i < STRIP_DAYS; i++) stripDays.push(addDays(stripStart, i))
   }
+
+  // "Today" jump only surfaces when the user has paged away from it. For
+  // the strip view that's "today not in the visible 3-day window"; for
+  // the month grid it's "viewing a different month or year." Same callback
+  // for both so the parent owns the only one definition of "go home."
+  const isTodayVisible = isNarrow
+    ? stripDays.some((d) => toDateKey(d) === toDateKey(today))
+    : year === today.getFullYear() && month === today.getMonth()
 
   return (
     <>
@@ -184,15 +200,22 @@ export default function WorkoutCalendarBoard({
           loading={loading}
           onPrev={() => stepStrip(-1)}
           onNext={() => stepStrip(1)}
+          onJumpToToday={isTodayVisible ? undefined : jumpToToday}
           onAddClick={(key) => { setSelectedDate(key); setSelectedWorkoutId(null) }}
           onWorkoutClick={(key, id) => { setSelectedDate(key); setSelectedWorkoutId(id) }}
         />
       ) : (
         <>
           <div className="flex items-center justify-end gap-2 mb-6">
-            <Button variant="tertiary" onClick={prevMonth} aria-label="Previous month">←</Button>
+            {!isTodayVisible && (
+              <Button variant="secondary" onClick={jumpToToday}>Today</Button>
+            )}
+            {/* h-9 on chevrons matches secondary's intrinsic height so the
+                row doesn't flex 32 → 36px when Today toggles (same fix
+                applied to CalendarDayStrip's nav row). */}
+            <Button className="h-9" variant="tertiary" onClick={prevMonth} aria-label="Previous month">←</Button>
             <span className="text-base font-medium w-44 text-center select-none">{monthLabel}</span>
-            <Button variant="tertiary" onClick={nextMonth} aria-label="Next month">→</Button>
+            <Button className="h-9" variant="tertiary" onClick={nextMonth} aria-label="Next month">→</Button>
           </div>
 
           <div className="grid grid-cols-7 mb-px">
