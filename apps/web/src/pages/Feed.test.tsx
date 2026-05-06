@@ -161,34 +161,25 @@ describe('Feed — programIds filter (slice 2)', () => {
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
   })
 
-  it('passes programIds in the filters bag and renders the single-program header', async () => {
+  it('passes programIds in the filters bag when a single program is selected', async () => {
     mockFilter.selected = ['prog-1']
     mockFilter.gymProgramIds = ['prog-1']
     render(<MemoryRouter><Feed /></MemoryRouter>)
     await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
     const lastCall = vi.mocked(api.workouts.list).mock.calls.at(-1)!
     expect(lastCall[3]).toEqual({ programIds: ['prog-1'] })
-    expect(await screen.findByRole('heading', { name: 'Override — March 2026' })).toBeInTheDocument()
+    // Header always shows "Feed" — program selection shown in the inline picker
+    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
   })
 
-  it('renders the multi-program header when 2+ programs are selected', async () => {
+  it('passes programIds in the filters bag when 2+ programs are selected', async () => {
     mockFilter.selected = ['prog-1', 'prog-2']
     mockFilter.gymProgramIds = ['prog-1', 'prog-2']
     render(<MemoryRouter><Feed /></MemoryRouter>)
     await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
     const lastCall = vi.mocked(api.workouts.list).mock.calls.at(-1)!
     expect(lastCall[3]).toEqual({ programIds: ['prog-1', 'prog-2'] })
-    // Plain "Feed" heading + a "Filtered to 2 programs" eyebrow
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
-    expect(screen.getByText('Filtered to 2 programs')).toBeInTheDocument()
-  })
-
-  it('shows a "Back to all workouts" link when any program is selected', async () => {
-    mockFilter.selected = ['prog-1']
-    mockFilter.gymProgramIds = ['prog-1']
-    render(<MemoryRouter><Feed /></MemoryRouter>)
-    await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
-    expect(screen.getByRole('link', { name: /Back to all workouts/ })).toBeInTheDocument()
   })
 })
 

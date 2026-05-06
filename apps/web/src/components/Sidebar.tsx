@@ -1,7 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useGym } from '../context/GymContext.tsx'
-import ProgramFilterPicker from './ProgramFilterPicker.tsx'
 
 // Browse Gyms moved into the TopBar gym picker — no standalone sidebar entry.
 // Calendar is member-visible (#268 unified calendar: personal + gym programs for all roles).
@@ -59,8 +58,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           ×
         </button>
       </div>
-
-      <ProgramFilterPicker />
 
       <nav className="flex-1 px-3 py-4 space-y-1">
         {memberLinks.map(({ to, label, logo }) => (

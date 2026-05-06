@@ -14,7 +14,13 @@ import { useProgramFilter, PERSONAL_PROGRAM_SENTINEL } from '../context/ProgramF
  * See ProgramFilterContext for the full filter contract (URL ↔ localStorage
  * sync, mobile parity).
  */
-export default function ProgramFilterPicker() {
+interface ProgramFilterPickerProps {
+  /** 'sidebar' (default): full-width block with "Programs" label and border-b for the nav sidebar.
+   *  'inline': compact trigger button for page-header rows; dropdown anchors right. */
+  variant?: 'sidebar' | 'inline'
+}
+
+export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilterPickerProps) {
   const { selected, available, loading, toggle, clear } = useProgramFilter()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -59,6 +65,94 @@ export default function ProgramFilterPicker() {
   } else {
     const firstName = isPersonalSelected ? 'Personal' : selectedGymPrograms[0].name
     label = `${firstName} + ${totalSelected - 1} more`
+  }
+
+  if (variant === 'inline') {
+    return (
+      <div ref={containerRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
+        >
+          <span className="truncate max-w-[180px]">{label}</span>
+          <span className="text-xs shrink-0 text-slate-400 dark:text-gray-500">▾</span>
+        </button>
+
+        {open && (
+          <div
+            role="listbox"
+            aria-multiselectable="true"
+            className="absolute right-0 top-full z-50 mt-1 w-64 max-h-72 overflow-y-auto bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-md shadow-2xl"
+          >
+            {/* Personal Program — pinned at top, always visible */}
+            <label className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-800 cursor-pointer border-b border-slate-100 dark:border-gray-800">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                checked={isPersonalSelected}
+                onChange={() => toggle(PERSONAL_PROGRAM_SENTINEL)}
+              />
+              <span className="truncate flex-1">Personal Program</span>
+              <span className="text-xs text-slate-400 dark:text-gray-500 shrink-0">private</span>
+            </label>
+
+            {available.map(({ program }) => {
+              const isSelected = selected.includes(program.id)
+              return (
+                <label
+                  key={program.id}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-800 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                    checked={isSelected}
+                    onChange={() => toggle(program.id)}
+                  />
+                  {program.coverColor && (
+                    <span
+                      aria-hidden="true"
+                      style={{ backgroundColor: program.coverColor }}
+                      className="w-2 h-2 rounded-full shrink-0"
+                    />
+                  )}
+                  <span className="truncate flex-1">{program.name}</span>
+                </label>
+              )
+            })}
+
+            {available.length === 0 && !loading && (
+              <p className="px-3 py-2 text-xs text-slate-500 dark:text-gray-400">No gym programs.</p>
+            )}
+
+            {selected.length > 0 && (
+              <div className="border-t border-slate-200 dark:border-gray-800 px-3 py-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={clear}
+                  className="text-xs text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded px-1"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            <div className="border-t border-slate-200 dark:border-gray-800">
+              <button
+                type="button"
+                onClick={goToBrowse}
+                className="w-full px-3 py-2 text-left text-sm text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-indigo-500 dark:hover:text-indigo-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded"
+              >
+                Browse public programs →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (

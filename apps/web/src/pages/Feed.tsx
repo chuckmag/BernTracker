@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { api, type PersonalProgram, type Workout } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
@@ -11,6 +11,7 @@ import BarbellIcon from '../components/icons/BarbellIcon.tsx'
 import UsersIcon from '../components/icons/UsersIcon.tsx'
 import PersonalProgramIcon from '../components/icons/PersonalProgramIcon.tsx'
 import WorkoutDrawer from '../components/WorkoutDrawer.tsx'
+import ProgramFilterPicker from '../components/ProgramFilterPicker.tsx'
 
 const INITIAL_FUTURE_DAYS = 30
 const INITIAL_PAST_DAYS = 30
@@ -69,7 +70,7 @@ function formatDayLabel(dateKey: string, todayKey: string): string {
 
 export default function Feed() {
   const { gymId, loading: gymLoading, clearGymId } = useGym()
-  const { gymProgramIds: programIds, available, clear: clearProgramFilter } = useProgramFilter()
+  const { gymProgramIds: programIds } = useProgramFilter()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [fetchStart, setFetchStart] = useState<Date | null>(null)
   const [fetchEnd, setFetchEnd] = useState<Date | null>(null)
@@ -247,12 +248,6 @@ export default function Feed() {
 
   const dayBlocks = fetchStart ? buildDayBlocks(workouts, fetchStart, blockEnd) : []
 
-  // Single-program filter gets a featured header (color stripe + name).
-  // Multi-program gets a compact chip pointing at the picker.
-  const singleProgram = programIds.length === 1
-    ? available.find(({ program }) => program.id === programIds[0])?.program ?? null
-    : null
-
   // Workouts on the day the drawer is open for — fed to the drawer's
   // "today's workouts" nav so the user can hop between siblings.
   const drawerWorkoutsOnDay = addingForDate
@@ -263,39 +258,10 @@ export default function Feed() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {programIds.length > 0 && (
-        <div className="mb-4">
-          <Link
-            to="/feed"
-            onClick={(e) => { e.preventDefault(); clearProgramFilter() }}
-            className="text-xs text-primary hover:opacity-80"
-          >
-            ← Back to all workouts
-          </Link>
-        </div>
-      )}
-
-      {singleProgram ? (
-        <div className="flex items-start gap-3 mb-6">
-          <div
-            style={{ backgroundColor: singleProgram.coverColor ?? '#374151' }}
-            className="w-1.5 h-10 rounded-full shrink-0"
-          />
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold truncate">{singleProgram.name}</h1>
-            <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-0.5">Feed</p>
-          </div>
-        </div>
-      ) : programIds.length > 1 ? (
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">Feed</h1>
-          <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-1">
-            Filtered to {programIds.length} programs
-          </p>
-        </div>
-      ) : (
-        <h1 className="text-2xl font-bold mb-6">Feed</h1>
-      )}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Feed</h1>
+        <ProgramFilterPicker variant="inline" />
+      </div>
 
       {error && <p className="text-red-400 mb-4">{error}</p>}
 

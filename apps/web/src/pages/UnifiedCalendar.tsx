@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { api, type PersonalProgram, type Workout } from '../lib/api'
 import { useGym } from '../context/GymContext.tsx'
 import { makeGymProgramScope } from '../lib/gymProgramScope'
@@ -9,12 +8,13 @@ import { useMovements } from '../context/MovementsContext.tsx'
 import { useProgramFilter, PERSONAL_PROGRAM_SENTINEL } from '../context/ProgramFilterContext.tsx'
 import WorkoutCalendarBoard from '../components/WorkoutCalendarBoard'
 import MovementFilterInput from '../components/MovementFilterInput'
+import ProgramFilterPicker from '../components/ProgramFilterPicker'
 import Chip from '../components/ui/Chip'
 
 export default function UnifiedCalendar() {
   const { gymId, gymRole: userGymRole } = useGym()
   const allMovements = useMovements()
-  const { selected, gymProgramIds, available, personalProgramId, clear: clearProgramFilter } = useProgramFilter()
+  const { selected, gymProgramIds } = useProgramFilter()
   const [filterMovementIds, setFilterMovementIds] = useState<string[]>([])
   const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(null)
 
@@ -95,21 +95,14 @@ export default function UnifiedCalendar() {
     return gymScope
   }, [personalProgram, personalScope, gymScope])
 
-  // Header: single-program featured view (color stripe + name) when exactly one
-  // is selected. For the personal-only case show a dedicated label.
   const isPersonalOnlyFilter = selected.length === 1 && selected[0] === PERSONAL_PROGRAM_SENTINEL
-  const singleGymProgram = gymProgramIds.length === 1 && !isPersonalOnlyFilter
-    ? available.find(({ program }) => program.id === gymProgramIds[0])?.program ?? null
-    : null
 
   const defaultProgramId = useMemo(() => {
-    if (gymProgramIds.length === 1 && singleGymProgram) return gymProgramIds[0]
+    if (gymProgramIds.length === 1) return gymProgramIds[0]
     if (isPersonalOnlyFilter && personalProgram) return personalProgram.id
     if (personalProgram) return personalProgram.id
     return undefined
-  }, [gymProgramIds, singleGymProgram, isPersonalOnlyFilter, personalProgram])
-
-  const hasFilters = selected.length > 0
+  }, [gymProgramIds, isPersonalOnlyFilter, personalProgram])
 
   if (!gymId) {
     return (
@@ -122,48 +115,9 @@ export default function UnifiedCalendar() {
 
   return (
     <div>
-      {hasFilters && (
-        <div className="mb-4">
-          <Link
-            to="/calendar"
-            onClick={(e) => { e.preventDefault(); clearProgramFilter() }}
-            className="text-xs text-indigo-400 hover:text-indigo-300"
-          >
-            ← Back to full calendar
-          </Link>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="mb-6">
-        {isPersonalOnlyFilter ? (
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold">Personal Program</h1>
-            <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-0.5">
-              Your private workouts
-            </p>
-          </div>
-        ) : singleGymProgram ? (
-          <div className="flex items-start gap-3 min-w-0">
-            <div
-              style={{ backgroundColor: singleGymProgram.coverColor ?? '#374151' }}
-              className="w-1.5 h-10 rounded-full shrink-0"
-            />
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold truncate">{singleGymProgram.name}</h1>
-              <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-0.5">Calendar</p>
-            </div>
-          </div>
-        ) : selected.length > 1 ? (
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold">Calendar</h1>
-            <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-0.5">
-              Filtered to {selected.length} programs
-            </p>
-          </div>
-        ) : (
-          <h1 className="text-2xl font-bold">Calendar</h1>
-        )}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Calendar</h1>
+        <ProgramFilterPicker variant="inline" />
       </div>
 
       {/* Sticky movement-filter sub-header */}
