@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar'
-import { ActivityIndicator, Image, View } from 'react-native'
+import { ActivityIndicator, Image, Text, View } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createStackNavigator } from '@react-navigation/stack'
@@ -96,7 +96,22 @@ function HistoryStackNavigator() {
 function AnalyticsStackNavigator() {
   return (
     <AnalyticsStack.Navigator screenOptions={stackScreenOptions}>
-      <AnalyticsStack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analytics' }} />
+      <AnalyticsStack.Screen
+        name="Analytics"
+        component={AnalyticsScreen}
+        options={{
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Image
+                source={require('./assets/favicon.png')}
+                style={{ width: 20, height: 20 }}
+                resizeMode="contain"
+              />
+              <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '600' }}>Analytics</Text>
+            </View>
+          ),
+        }}
+      />
     </AnalyticsStack.Navigator>
   )
 }
