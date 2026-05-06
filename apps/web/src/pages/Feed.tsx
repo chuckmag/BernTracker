@@ -268,7 +268,7 @@ export default function Feed() {
           <Link
             to="/feed"
             onClick={(e) => { e.preventDefault(); clearProgramFilter() }}
-            className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
+            className="text-xs text-primary hover:opacity-80"
           >
             ← Back to all workouts
           </Link>
@@ -334,7 +334,7 @@ export default function Feed() {
                     onClick={() => setAddingForDate(dateKey)}
                     aria-label={`Add personal workout on ${formatDayLabel(dateKey, todayKey).toLowerCase()}`}
                     title="Add personal workout"
-                    className="-my-1 -mr-1 w-7 h-7 inline-flex items-center justify-center rounded text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
+                    className="-my-1 -mr-1 w-7 h-7 inline-flex items-center justify-center rounded text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
                   >
                     <span aria-hidden="true" className="text-base leading-none">+</span>
                   </button>
@@ -426,7 +426,7 @@ function FeedTile({ workout, isPersonal = false, onClick }: FeedTileProps) {
         <span className="block text-sm font-medium text-slate-950 dark:text-white break-words">
           {isPersonal && (
             <span
-              className="inline-flex items-center mr-1.5 text-indigo-400 align-text-bottom"
+              className="inline-flex items-center mr-1.5 text-primary align-text-bottom"
               title="Personal Program — your own extra work"
             >
               <PersonalProgramIcon size={14} />
@@ -435,7 +435,7 @@ function FeedTile({ workout, isPersonal = false, onClick }: FeedTileProps) {
           {workout.title}
         </span>
         {workout.namedWorkout && (
-          <span className="text-xs text-indigo-400">● {workout.namedWorkout.name}</span>
+          <span className="text-xs text-primary">● {workout.namedWorkout.name}</span>
         )}
         <FeedTileBadgeRow
           logged={Boolean(workout.myResultId)}
@@ -454,7 +454,7 @@ function FeedTileBadgeRow({ logged, resultCount }: { logged: boolean; resultCoun
   if (!logged && resultCount === 0) return null
   return (
     <span className="mt-1.5 flex items-center gap-3 text-xs">
-      <span className={logged ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-gray-500'}>
+      <span className={logged ? 'text-primary' : 'text-slate-400 dark:text-gray-500'}>
         <BarbellIcon
           loaded={logged}
           size={24}

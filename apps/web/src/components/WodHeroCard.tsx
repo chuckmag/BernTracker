@@ -58,7 +58,7 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
           {typeStyle.abbr}
         </span>
         {workout.namedWorkout?.category === 'BENCHMARK' && (
-          <span className="text-xs font-bold px-2 py-0.5 rounded text-indigo-300 bg-indigo-500/15">
+          <span className="text-xs font-bold px-2 py-0.5 rounded text-primary bg-primary/15">
             BENCHMARK
           </span>
         )}
@@ -70,7 +70,7 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
           <h2 className={`font-bold tracking-tight text-slate-950 dark:text-white leading-tight ${compact ? 'text-2xl' : 'text-3xl md:text-4xl'}`}>
             <Link
               to={`/workouts/${workout.id}`}
-              className="hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 rounded"
+              className="hover:opacity-80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 rounded"
             >
               {workout.title}
             </Link>
@@ -129,7 +129,7 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
       {compact && (
         <Link
           to={`/workouts/${workout.id}`}
-          className="block mb-4 text-sm font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+          className="block mb-4 text-sm font-semibold text-primary hover:text-primary transition-colors"
         >
           View workout details →
         </Link>
@@ -143,7 +143,7 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
         </span>
         <Link
           to={`/workouts/${workout.id}`}
-          className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 rounded"
+          className="font-semibold text-primary hover:opacity-80 transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 rounded"
         >
           See leaderboard →
         </Link>
@@ -179,7 +179,7 @@ function ResultCard({ result, leaderboard, scored, levelLabel, workoutId, compac
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-slate-950 dark:text-white leading-none tabular-nums">{scored ?? '—'}</span>
             {levelLabel && (
-              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-300">{levelLabel}</span>
+              <span className="text-xs font-bold text-primary">{levelLabel}</span>
             )}
           </div>
         </div>
@@ -203,7 +203,7 @@ function ResultCard({ result, leaderboard, scored, levelLabel, workoutId, compac
       <div className="flex items-baseline gap-2 mb-2">
         <span className="text-4xl font-bold text-slate-950 dark:text-white leading-none tabular-nums">{scored ?? '—'}</span>
         {levelLabel && (
-          <span className="text-sm font-bold text-indigo-600 dark:text-indigo-300">{levelLabel}</span>
+          <span className="text-sm font-bold text-primary">{levelLabel}</span>
         )}
       </div>
       {leaderboard?.rank && (
@@ -215,7 +215,7 @@ function ResultCard({ result, leaderboard, scored, levelLabel, workoutId, compac
       <div className="mt-3">
         <Link
           to={`/workouts/${workoutId}`}
-          className="text-sm font-semibold text-indigo-400 hover:text-indigo-300 transition-colors"
+          className="text-sm font-semibold text-primary hover:text-primary transition-colors"
         >
           View board →
         </Link>

@@ -4,7 +4,7 @@ import type { ProgramScope } from '../lib/programScope'
 import Button from './ui/Button'
 
 const COVER_COLORS = [
-  '#6366F1', // indigo
+  '#1E5AA8', // primary
   '#EC4899', // pink
   '#10B981', // emerald
   '#F59E0B', // amber
@@ -142,7 +142,7 @@ export default function ProgramFormDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-400 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors text-xl leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+            className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-400 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors text-xl leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
             aria-label="Close drawer"
           >
             ×
@@ -161,7 +161,7 @@ export default function ProgramFormDrawer({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Override — March 2026"
-              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary"
             />
           </div>
 
@@ -172,7 +172,7 @@ export default function ProgramFormDrawer({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Short description of the program…"
               rows={3}
-              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500 resize-none"
+              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary resize-none"
             />
           </div>
 
@@ -185,7 +185,7 @@ export default function ProgramFormDrawer({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-primary"
               />
             </div>
             <div>
@@ -194,7 +194,7 @@ export default function ProgramFormDrawer({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-primary"
               />
             </div>
           </div>
@@ -209,8 +209,8 @@ export default function ProgramFormDrawer({
                 aria-pressed={coverColor === null}
                 className={[
                   'w-7 h-7 rounded-full border transition-all',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900',
-                  coverColor === null ? 'border-slate-950 dark:border-white ring-2 ring-indigo-500' : 'border-slate-300 dark:border-gray-700 hover:border-slate-500 dark:hover:border-gray-400',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900',
+                  coverColor === null ? 'border-slate-950 dark:border-white ring-2 ring-primary' : 'border-slate-300 dark:border-gray-700 hover:border-slate-500 dark:hover:border-gray-400',
                   'bg-slate-100 dark:bg-gray-800 flex items-center justify-center text-slate-400 dark:text-gray-400 text-xs',
                 ].join(' ')}
               >
@@ -226,7 +226,7 @@ export default function ProgramFormDrawer({
                   style={{ backgroundColor: c }}
                   className={[
                     'w-7 h-7 rounded-full border transition-all',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900',
                     coverColor === c ? 'border-white ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-900 ring-white' : 'border-slate-300 dark:border-gray-700 hover:scale-110',
                   ].join(' ')}
                 />
@@ -254,7 +254,7 @@ export default function ProgramFormDrawer({
                       lockPrivate
                         ? 'border-slate-200 dark:border-gray-800 bg-slate-50 dark:bg-gray-900/50 cursor-not-allowed opacity-60'
                         : checked
-                          ? 'border-indigo-500 bg-indigo-500/10 cursor-pointer'
+                          ? 'border-primary bg-primary/10 cursor-pointer'
                           : 'border-slate-300 dark:border-gray-700 hover:border-slate-400 dark:hover:border-gray-600 cursor-pointer',
                     ].join(' ')}
                   >
@@ -265,7 +265,7 @@ export default function ProgramFormDrawer({
                       checked={checked}
                       disabled={lockPrivate}
                       onChange={() => setVisibility(opt.value)}
-                      className="mt-1 h-4 w-4 border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-500 focus:ring-indigo-500 disabled:cursor-not-allowed"
+                      className="mt-1 h-4 w-4 border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-primary focus:ring-primary disabled:cursor-not-allowed"
                     />
                     <span className="min-w-0">
                       <span className="block text-sm text-slate-950 dark:text-white">{opt.label}</span>

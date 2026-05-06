@@ -39,7 +39,7 @@ export default function CalendarDayStrip({
   const todayKey = toDateKey(today)
 
   return (
-    <div className={loading ? 'opacity-60 pointer-events-none' : ''}>
+    <div data-testid="calendar-day-strip" className={loading ? 'opacity-60 pointer-events-none' : ''}>
       {/* Nav row */}
       <div className="flex items-center justify-between mb-3">
         <Button variant="tertiary" onClick={onPrev} aria-label="Previous days">←</Button>
@@ -66,7 +66,7 @@ export default function CalendarDayStrip({
               className={[
                 'group rounded-lg border p-2 flex flex-col min-h-[160px] transition-colors',
                 isSelected
-                  ? 'border-indigo-500 ring-2 ring-indigo-500'
+                  ? 'border-primary ring-2 ring-primary'
                   : 'border-slate-200 dark:border-gray-800 hover:bg-slate-50 dark:hover:bg-gray-900',
               ].join(' ')}
             >
@@ -79,7 +79,7 @@ export default function CalendarDayStrip({
                   <span
                     className={[
                       'text-sm w-7 h-7 flex items-center justify-center rounded-full font-medium',
-                      isToday ? 'bg-indigo-600 text-white' : 'text-slate-700 dark:text-gray-200',
+                      isToday ? 'bg-primary text-white' : 'text-slate-700 dark:text-gray-200',
                     ].join(' ')}
                   >
                     {date.getDate()}
@@ -108,7 +108,7 @@ export default function CalendarDayStrip({
                       <span className={['text-[10px] shrink-0', w.status === 'PUBLISHED' ? 'text-green-400' : 'text-yellow-400'].join(' ')}>
                         {w.status === 'PUBLISHED' ? '●' : '○'}
                       </span>
-                      <span className="text-[10px] font-mono text-indigo-400 shrink-0 w-4">
+                      <span className={`text-[10px] font-mono ${styles?.tint ?? 'text-slate-500 dark:text-gray-400'} shrink-0 w-4`}>
                         {styles?.abbr ?? '?'}
                       </span>
                       <span className="text-[10px] text-slate-700 dark:text-gray-200 truncate flex-1">{w.title}</span>

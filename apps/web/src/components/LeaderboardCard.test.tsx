@@ -78,7 +78,7 @@ describe('LeaderboardCard', () => {
     vi.mocked(api.results.leaderboard).mockResolvedValue([makeEntry({ userId: 'u1' })])
     renderCard({ myUserId: 'u1' })
     await screen.findByText('Alice Johnson')
-    const myRow = screen.getByText('Alice Johnson').closest('[class*="indigo"]')
+    const myRow = screen.getByText('Alice Johnson').closest('[class*="primary"]')
     expect(myRow).toBeTruthy()
   })
 

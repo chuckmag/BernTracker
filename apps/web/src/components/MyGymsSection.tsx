@@ -12,7 +12,7 @@ const ROLE_LABEL: Record<Role, string> = {
 }
 
 const ROLE_TINT: Record<Role, string> = {
-  OWNER: 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-300',
+  OWNER: 'bg-primary/20 text-primary',
   PROGRAMMER: 'bg-blue-500/20 text-blue-700 dark:text-blue-300',
   COACH: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
   MEMBER: 'bg-slate-200 dark:bg-gray-700 text-slate-600 dark:text-gray-300',
@@ -64,7 +64,7 @@ export default function MyGymsSection() {
       {hasLoaded && gyms.length > 0 && (
         <p className="text-xs text-slate-400 dark:text-gray-500">
           Switch between gyms or find more from the gym picker in the top-right corner. Need to start a new gym?{' '}
-          <Link to="/gyms/new" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">Set one up</Link>.
+          <Link to="/gyms/new" className="text-primary hover:opacity-80">Set one up</Link>.
         </p>
       )}
     </section>

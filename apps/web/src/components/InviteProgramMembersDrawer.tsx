@@ -108,7 +108,7 @@ export default function InviteProgramMembersDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-400 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors text-xl leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+            className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-400 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors text-xl leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
             aria-label="Close drawer"
           >
             ×
@@ -121,7 +121,7 @@ export default function InviteProgramMembersDrawer({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search gym members…"
-            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-400 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-400 focus:outline-none focus:border-primary"
             aria-label="Search gym members"
           />
         </div>
@@ -145,7 +145,7 @@ export default function InviteProgramMembersDrawer({
               >
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                  className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-primary focus:ring-primary"
                   checked={checked}
                   onChange={() => togglePick(m.id)}
                 />

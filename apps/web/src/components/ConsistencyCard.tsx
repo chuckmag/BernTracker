@@ -1,17 +1,19 @@
 import type { ConsistencyData } from '../lib/api.ts'
 import { useTheme } from '../context/ThemeContext.tsx'
 import { resolveTheme } from '../lib/useTheme.ts'
+import { BRAND_TOKENS } from '../lib/designTokens.ts'
 
 const CELL_COLORS = [
   'bg-slate-100 dark:bg-gray-800',  // 0 — empty
-  'bg-indigo-200 dark:bg-indigo-900', // 1
-  'bg-indigo-400 dark:bg-indigo-700', // 2
-  'bg-indigo-600 dark:bg-indigo-500', // 3+
+  'bg-primary/20',  // 1
+  'bg-primary/50',  // 2
+  'bg-primary',     // 3+
 ]
 
-// Raw hex values for the legend swatches — must match CELL_COLORS above
-const LEGEND_COLORS_LIGHT = ['#f1f5f9', '#c7d2fe', '#818cf8', '#4f46e5']
-const LEGEND_COLORS_DARK  = ['#1f2937', '#312e81', '#4338ca', '#6366f1']
+// Raw hex values for legend swatches — computed from BRAND_TOKENS primary
+// at 20% / 50% / 100% opacity blended onto white (light) or gray-900 (dark).
+const LEGEND_COLORS_LIGHT = ['#f1f5f9', '#D2DEEE', '#8FADD4', BRAND_TOKENS.light.primary]
+const LEGEND_COLORS_DARK  = ['#1f2937', '#1F324D', '#365A87', BRAND_TOKENS.dark.primary]
 
 function cellColor(count: number): string {
   if (count === 0) return CELL_COLORS[0]
@@ -36,7 +38,7 @@ function StreakRing({ current, best, size = 64, isDark }: StreakRingProps) {
   const cy = size / 2
 
   const trackColor   = isDark ? '#1f2937' : '#e2e8f0'  // gray-800 | slate-200
-  const fillColor    = isDark ? '#6366f1' : '#4f46e5'  // indigo-500 | indigo-600
+  const fillColor    = isDark ? BRAND_TOKENS.dark.primary : BRAND_TOKENS.light.primary
   const textFill     = isDark ? '#ffffff' : '#020617'  // white | slate-950
 
   return (
@@ -111,7 +113,7 @@ function WorkoutDaysHeatmap({ history, weeks = WEEKS, isDark }: WorkoutDaysHeatm
                 className={[
                   'w-3 h-3 rounded-sm',
                   cellColor(count),
-                  isToday ? 'ring-1 ring-indigo-400 ring-offset-1 ring-offset-white dark:ring-offset-gray-900' : '',
+                  isToday ? 'ring-1 ring-primary ring-offset-1 ring-offset-white dark:ring-offset-gray-900' : '',
                 ].join(' ')}
               />
             ))}

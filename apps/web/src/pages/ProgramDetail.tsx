@@ -78,7 +78,7 @@ export default function ProgramDetail() {
     return (
       <div>
         <p className="text-red-400 mb-3">{error ?? 'Program not found.'}</p>
-        <Link to="/programs" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 text-sm">← Back to Programs</Link>
+        <Link to="/programs" className="text-primary hover:opacity-80 text-sm">← Back to Programs</Link>
       </div>
     )
   }
@@ -89,7 +89,7 @@ export default function ProgramDetail() {
   return (
     <div>
       <div className="mb-4">
-        <Link to="/programs" className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">← Programs</Link>
+        <Link to="/programs" className="text-xs text-primary hover:opacity-80">← Programs</Link>
       </div>
 
       <div className="flex items-start gap-4 mb-6">
@@ -122,9 +122,9 @@ export default function ProgramDetail() {
                 onClick={() => setTab(t)}
                 className={[
                   'px-4 py-2 text-sm font-medium capitalize border-b-2 -mb-px transition-colors flex items-center gap-2',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
                   tab === t
-                    ? 'border-indigo-500 text-slate-950 dark:text-white'
+                    ? 'border-primary text-slate-950 dark:text-white'
                     : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
                 ].join(' ')}
               >

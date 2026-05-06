@@ -58,7 +58,7 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
         </span>
         <Link
           to={`/workouts/${workoutId}`}
-          className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors shrink-0 ml-3"
+          className="text-xs text-primary hover:opacity-80 transition-colors shrink-0 ml-3"
         >
           Full board →
         </Link>
@@ -106,7 +106,7 @@ function ResultRow({ rank, entry, isMe }: { rank: number; entry: WorkoutResult; 
   const score = formatResultValue(entry.value)
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-2.5 ${isMe ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-slate-50 dark:hover:bg-gray-800/40'} transition-colors`}
+      className={`flex items-center gap-3 px-4 py-2.5 ${isMe ? 'bg-primary/5 dark:bg-primary/10' : 'hover:bg-slate-50 dark:hover:bg-gray-800/40'} transition-colors`}
     >
       <span className="w-5 shrink-0 text-right text-xs font-semibold tabular-nums text-slate-400 dark:text-gray-500">{rank}</span>
       <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-gray-700 flex items-center justify-center shrink-0">

@@ -57,7 +57,7 @@ export default function GymPicker() {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 text-sm bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 border border-slate-300 dark:border-gray-700 rounded px-2 py-1 hover:bg-slate-200 dark:hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
+        className="flex items-center gap-1 text-sm bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 border border-slate-300 dark:border-gray-700 rounded px-2 py-1 hover:bg-slate-200 dark:hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
       >
         <span className="max-w-[140px] truncate">{triggerLabel}</span>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
@@ -88,7 +88,7 @@ export default function GymPicker() {
                   >
                     <GymLogo logoUrl={g.logoUrl} name={g.name} size="sm" />
                     <span className="flex-1 truncate">{g.name}</span>
-                    {active && <span className="text-indigo-400 text-xs ml-2" aria-hidden="true">✓</span>}
+                    {active && <span className="text-primary text-xs ml-2" aria-hidden="true">✓</span>}
                   </button>
                 )
               })}
@@ -98,7 +98,7 @@ export default function GymPicker() {
           <button
             role="menuitem"
             onClick={handleBrowse}
-            className="w-full text-left px-3 py-1.5 text-sm text-indigo-600 dark:text-indigo-300 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-indigo-500 dark:hover:text-indigo-200"
+            className="w-full text-left px-3 py-1.5 text-sm text-primary hover:bg-slate-100 dark:hover:bg-gray-800 hover:opacity-80"
           >
             {gyms.length > 0 ? 'Find another gym to join →' : 'Browse gyms to join →'}
           </button>

@@ -719,8 +719,8 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                     <span className={w.status === 'PUBLISHED' ? 'text-green-400' : 'text-yellow-400'}>
                       {w.status === 'PUBLISHED' ? '●' : '○'}
                     </span>
-                    <span className="font-mono text-[10px] text-indigo-400 w-3 shrink-0">
-                      {TYPE_ABBR[w.type] ?? '?'}
+                    <span className={`font-mono text-[10px] ${WORKOUT_TYPE_STYLES[w.type]?.tint ?? 'text-slate-400 dark:text-gray-500'} w-3 shrink-0`}>
+                      {WORKOUT_TYPE_STYLES[w.type]?.abbr ?? '?'}
                     </span>
                     <span className="truncate flex-1">{w.title}</span>
                     {isCurrent && canReorder && (
@@ -761,7 +761,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
               {isEdit && (
                 <button
                   onClick={onNewWorkout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-slate-50 dark:hover:bg-gray-800/40 transition-colors border-t border-slate-200 dark:border-gray-800"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary hover:opacity-80 hover:bg-slate-50 dark:hover:bg-gray-800/40 transition-colors border-t border-slate-200 dark:border-gray-800"
                 >
                   <span className="text-base leading-none">+</span>
                   <span>Add another workout</span>
@@ -785,7 +785,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                 value={programId}
                 onChange={(e) => setProgramId(e.target.value)}
                 disabled={programsLoading}
-                className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+                className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-primary disabled:opacity-50"
               >
                 {programsLoading && <option value="">Loading programs...</option>}
                 {!programsLoading && programs.length === 0 && (
@@ -804,7 +804,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
               id="wd-type"
               value={type}
               onChange={(e) => setType(e.target.value as WorkoutType)}
-              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-primary"
             >
               {WORKOUT_CATEGORIES.map((cat) => {
                 const visibleTypes = typesInCategory(cat).filter(
@@ -839,7 +839,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                   value={timeCapInput}
                   onChange={(e) => setTimeCapInput(e.target.value)}
                   placeholder="20:00"
-                  className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary"
                 />
               </div>
               {type === 'AMRAP' && (
@@ -849,7 +849,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                       type="checkbox"
                       checked={tracksRounds}
                       onChange={(e) => setTracksRounds(e.target.checked)}
-                      className="w-4 h-4 rounded accent-indigo-500"
+                      className="w-4 h-4 rounded accent-primary"
                     />
                     <span className="text-sm text-slate-700 dark:text-gray-300">Track rounds</span>
                   </label>
@@ -865,7 +865,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Fran"
-              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary"
             />
           </div>
 
@@ -881,7 +881,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
               onPaste={handleDescriptionPaste}
               placeholder="Workout details, movements, reps…"
               rows={6}
-              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500 resize-none font-mono"
+              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary resize-none font-mono"
             />
           </div>
 
@@ -903,7 +903,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
               onChange={(e) => setCoachNotes(e.target.value)}
               placeholder="Stimulus, scaling guidance, teaching cues…"
               rows={4}
-              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500 resize-none font-mono"
+              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary resize-none font-mono"
             />
           </div>
 
@@ -914,7 +914,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                 id="wd-named"
                 value={namedWorkoutId ?? ''}
                 onChange={(e) => setNamedWorkoutId(e.target.value || null)}
-                className="flex-1 bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-indigo-500"
+                className="flex-1 bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-primary"
               >
                 <option value="">None</option>
                 {namedWorkouts.map((nw) => (
@@ -991,14 +991,14 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                       return (
                         <span
                           key={id}
-                          className="inline-flex items-center gap-0.5 pl-2.5 pr-0.5 py-0.5 rounded-full text-xs bg-indigo-100 dark:bg-indigo-900/40 border border-indigo-300/50 dark:border-indigo-700/40 text-indigo-700 dark:text-indigo-200"
+                          className="inline-flex items-center gap-0.5 pl-2.5 pr-0.5 py-0.5 rounded-full text-xs bg-primary/10 dark:bg-primary/15 border border-primary/20 dark:border-primary/30 text-primary"
                         >
                           <span className="mr-1">{m.name}</span>
                           <button
                             type="button"
                             onClick={() => acceptSuggestion(id)}
                             aria-label={`Add ${m.name}`}
-                            className="w-7 h-7 inline-flex items-center justify-center rounded-full text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-800 dark:hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+                            className="w-7 h-7 inline-flex items-center justify-center rounded-full text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-800 dark:hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
                           >
                             ✓
                           </button>
@@ -1006,7 +1006,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                             type="button"
                             onClick={() => dismissSuggestion(id)}
                             aria-label={`Dismiss ${m.name}`}
-                            className="w-7 h-7 inline-flex items-center justify-center rounded-full text-rose-500 dark:text-rose-400 hover:bg-rose-500/20 hover:text-rose-700 dark:hover:text-rose-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+                            className="w-7 h-7 inline-flex items-center justify-center rounded-full text-rose-500 dark:text-rose-400 hover:bg-rose-500/20 hover:text-rose-700 dark:hover:text-rose-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
                           >
                             ✗
                           </button>
@@ -1032,7 +1032,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                       }
                     }}
                     placeholder="Search movements to add…"
-                    className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary"
                   />
 
                   {searchOpen && movementSearch.trim() && (
@@ -1076,7 +1076,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                               setSuggestLoading(false)
                             }
                           }}
-                          className="w-full text-left px-3 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors border-t border-slate-200 dark:border-gray-700 disabled:opacity-50"
+                          className="w-full text-left px-3 py-2 text-sm text-primary hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors border-t border-slate-200 dark:border-gray-700 disabled:opacity-50"
                         >
                           {suggestLoading ? 'Suggesting…' : `Suggest "${movementSearch.trim()}" as new movement`}
                         </button>
@@ -1259,7 +1259,7 @@ function PrescriptionRow({ movement, type, prescription, showAllColumns, onChang
             type="checkbox"
             checked={prescription.tracksLoad}
             onChange={(e) => update('tracksLoad', e.target.checked)}
-            className="w-4 h-4 rounded accent-indigo-500"
+            className="w-4 h-4 rounded accent-primary"
           />
           <span>Track load on results</span>
         </label>
@@ -1304,7 +1304,7 @@ function PrescriptionInput({
           value={prescription[field] as string}
           onChange={(e) => onUpdate(field, e.target.value as PrescriptionForm[typeof field])}
           placeholder={placeholder}
-          className="flex-1 min-w-0 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded px-2 py-1 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+          className="flex-1 min-w-0 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded px-2 py-1 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary"
         />
         {unitField === 'loadUnit' && (
           <select
