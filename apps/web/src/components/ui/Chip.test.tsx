@@ -11,10 +11,10 @@ describe('Chip', () => {
 
   it('renders each variant with its own off-state class', () => {
     const { rerender } = render(<Chip variant="neutral">x</Chip>)
-    expect(screen.getByText('x')).toHaveClass('bg-gray-800')
+    expect(screen.getByText('x')).toHaveClass('bg-slate-100')
 
     rerender(<Chip variant="accent">x</Chip>)
-    expect(screen.getByText('x')).toHaveClass('bg-indigo-600')
+    expect(screen.getByText('x')).toHaveClass('bg-primary')
 
     rerender(<Chip variant="status-published">x</Chip>)
     expect(screen.getByText('x').className).toMatch(/emerald/)
@@ -35,7 +35,7 @@ describe('Chip', () => {
     )
     const off = screen.getByRole('button', { name: 'RX' })
     expect(off).toHaveAttribute('aria-pressed', 'false')
-    expect(off).toHaveClass('bg-gray-800')
+    expect(off).toHaveClass('bg-slate-100')
 
     await user.click(off)
     expect(onToggle).toHaveBeenCalledTimes(1)
@@ -43,7 +43,7 @@ describe('Chip', () => {
     rerender(<Chip variant="neutral" toggled onToggle={onToggle}>RX</Chip>)
     const on = screen.getByRole('button', { name: 'RX' })
     expect(on).toHaveAttribute('aria-pressed', 'true')
-    expect(on).toHaveClass('bg-gray-200')
+    expect(on).toHaveClass('bg-slate-800')
   })
 
   it('fires onDismiss and stops propagation to the toggle handler', async () => {

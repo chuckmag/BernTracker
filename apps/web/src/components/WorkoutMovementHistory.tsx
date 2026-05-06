@@ -300,7 +300,7 @@ function StrengthChart({ results }: { results: MovementHistoryResult[] }) {
     })
     .filter((d): d is StrengthChartPoint => d !== null)
 
-  if (chartData.length < 2) return <p className="text-xs text-gray-500">Not enough data to chart.</p>
+  if (chartData.length < 2) return <p className="text-xs text-slate-400 dark:text-gray-500">Not enough data to chart.</p>
   return (
     <ResponsiveContainer width="100%" height={160}>
       <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
@@ -319,7 +319,7 @@ function EnduranceChart({ prTable }: { prTable: Extract<MovementPrTable, { categ
     label: `${e.distance}${e.distanceUnit.toLowerCase()}`,
     seconds: e.bestSeconds,
   }))
-  if (data.length < 2) return <p className="text-xs text-gray-500">Not enough data to chart.</p>
+  if (data.length < 2) return <p className="text-xs text-slate-400 dark:text-gray-500">Not enough data to chart.</p>
   return (
     <ResponsiveContainer width="100%" height={160}>
       <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
@@ -340,7 +340,7 @@ function EnduranceChart({ prTable }: { prTable: Extract<MovementPrTable, { categ
 function PrChart({ prTable, results }: { prTable: MovementPrTable; results: MovementHistoryResult[] }) {
   if (prTable.category === 'STRENGTH') return <StrengthChart results={results} />
   if (prTable.category === 'ENDURANCE') return <EnduranceChart prTable={prTable} />
-  return <p className="text-xs text-gray-500">Chart not available for this movement type.</p>
+  return <p className="text-xs text-slate-400 dark:text-gray-500">Chart not available for this movement type.</p>
 }
 
 // ─── PR Backfill Modal ────────────────────────────────────────────────────────

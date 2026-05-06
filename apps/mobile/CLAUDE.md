@@ -49,9 +49,75 @@ When mobile lacks a screen that web has *and the underlying task is phone-suitab
 
 ## Design system
 
-There is no mobile design system yet. When one is established, document it here — primitives, palette, typography, a11y baseline, and "when to extract" rules — mirroring the structure in `apps/web/CLAUDE.md`. Do **not** copy the web design system wholesale; tokens and primitives need to be re-derived for RN's `StyleSheet` + native components, and the touch-target / contrast baselines should be re-checked against iOS HIG and Material guidelines.
+### Palette — `src/lib/theme.ts`
 
-Until then: keep styles co-located with their component, prefer small composable RN components over deep prop trees, and avoid one-off styling that conflicts with future tokens (e.g. don't hardcode brand colors — pull from a `theme` constant once one exists).
+The app supports light and dark mode. All colors come from `COLORS` in `src/lib/theme.ts`, which is kept in sync with the web's `index.css` CSS custom properties and `designTokens.ts`. **Never hardcode hex values** — always pull from `colors` returned by `useTheme()`.
+
+```ts
+import { useTheme } from '../lib/theme'
+
+function MyComponent() {
+  const { colors, isDark } = useTheme()
+  return <View style={{ backgroundColor: colors.cardBg }}>…</View>
+}
+```
+
+Key color roles:
+
+| Role | Key | Light | Dark |
+|---|---|---|---|
+| Screen background | `colors.screenBg` | `#f8fafc` | `#030712` |
+| Card / panel | `colors.cardBg` | `#ffffff` | `#111827` |
+| Input background | `colors.inputBg` | `#ffffff` | `#1f2937` |
+| Primary text | `colors.textPrimary` | `#020617` | `#ffffff` |
+| Secondary text | `colors.textSecondary` | `#334155` | `#d1d5db` |
+| Muted / caption | `colors.textTertiary` | `#64748b` | `#9ca3af` |
+| Form label | `colors.textLabel` | `#475569` | `#9ca3af` |
+| Placeholder | `colors.textPlaceholder` | `#94a3b8` | `#6b7280` |
+| Subtle border | `colors.borderSubtle` | `#e2e8f0` | `#1f2937` |
+| Interactive border | `colors.borderInteractive` | `#cbd5e1` | `#374151` |
+| Brand primary | `colors.primary` | `#1E5AA8` | `#5B9BE6` |
+| Brand accent (teal) | `colors.accent` | `#2BA8A4` | `#5FD4D0` |
+
+> **Accent text:** use `colors.accentText` (`#020617`) not white — teal has only ~1.7:1 contrast with white.
+
+### Base components — `src/components/Themed*.tsx`
+
+React Native has no CSS inheritance. Use these instead of bare `Text`/`View` to get theme-correct defaults automatically.
+
+**`ThemedText`** — replaces `<Text>`. Applies the right text color for the active theme.
+```tsx
+import ThemedText from '../components/ThemedText'
+
+<ThemedText>Body copy — textPrimary by default</ThemedText>
+<ThemedText variant="secondary">De-emphasised copy</ThemedText>
+<ThemedText variant="tertiary">Caption / metadata</ThemedText>
+<ThemedText variant="label">Form label</ThemedText>
+<ThemedText variant="muted">Disabled / hint</ThemedText>
+<ThemedText style={{ fontSize: 24, fontWeight: 'bold' }}>Heading</ThemedText>
+```
+
+**`ThemedView`** — replaces `<View>` when a background is needed.
+```tsx
+import ThemedView from '../components/ThemedView'
+
+<ThemedView variant="screen" style={styles.fill}>…</ThemedView>  {/* screenBg */}
+<ThemedView variant="card" style={styles.card}>…</ThemedView>    {/* cardBg */}
+<ThemedView variant="input" style={styles.input}>…</ThemedView>  {/* inputBg */}
+<ThemedView>…</ThemedView>  {/* transparent — same as bare View */}
+```
+
+### Theme preference persistence
+
+`useTheme()` currently reads from `useColorScheme()` (OS preference). When #254 (AsyncStorage-backed `wodalytics-theme` preference) lands, update `src/lib/theme.ts` → `useTheme()` to read from the stored value instead, falling back to `useColorScheme()`. The storage key is `AsyncStorage["wodalytics-theme"]` → `"light" | "dark" | "system"`, matching the web contract documented in `apps/web/CLAUDE.md` → *Cross-app contracts*.
+
+### What's still missing
+
+- Typography scale (font sizes, weights, line heights)
+- Touch-target baseline (iOS HIG: 44×44; Material: 48×48)
+- A11y contrast audit against iOS/Android contrast checkers
+- `ThemedInput`, `ThemedButton` primitives (extract when the same pattern appears 3+ times)
+- Navigation theme integration (React Navigation `DarkTheme`/`DefaultTheme` passed to `NavigationContainer`)
 
 ## Testing
 
