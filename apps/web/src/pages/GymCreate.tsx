@@ -61,7 +61,7 @@ export default function GymCreate() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Crossfit Bern"
-            className="w-full bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
 
@@ -71,7 +71,7 @@ export default function GymCreate() {
             id="gym-create-timezone"
             value={timezone}
             onChange={(e) => setTimezone(e.target.value)}
-            className="w-full bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
           >
             {TIMEZONES.map((tz) => (
               <option key={tz} value={tz}>{tz}</option>

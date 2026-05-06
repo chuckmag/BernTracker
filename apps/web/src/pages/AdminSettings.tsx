@@ -65,9 +65,9 @@ export default function AdminSettings() {
               onClick={() => selectTab(t.id)}
               className={[
                 'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
                 tab === t.id
-                  ? 'border-indigo-500 text-slate-950 dark:text-white'
+                  ? 'border-primary text-slate-950 dark:text-white'
                   : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
               ].join(' ')}
             >
@@ -275,7 +275,7 @@ function MovementsTab() {
                     <label className="block text-xs text-slate-600 dark:text-gray-400 mb-1">Parent movement (optional)</label>
                     {selectedParentName ? (
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-600/30 text-indigo-700 dark:text-indigo-300 text-xs">{selectedParentName}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-primary/10 dark:bg-primary/30 text-primary text-xs">{selectedParentName}</span>
                         <button
                           type="button"
                           onClick={() => { setEditParentId(null); setParentSearch('') }}

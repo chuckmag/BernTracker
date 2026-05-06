@@ -78,7 +78,7 @@ export default function BrowseGyms() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Gym name…"
-            className="w-full bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
       </div>

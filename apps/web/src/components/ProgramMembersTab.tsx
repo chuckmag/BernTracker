@@ -125,7 +125,7 @@ export default function ProgramMembersTab({
                     <button
                       type="button"
                       onClick={() => handleRemove(m)}
-                      className="text-rose-400 hover:text-rose-300 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 rounded px-1"
+                      className="text-rose-400 hover:text-rose-300 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 rounded px-1"
                     >
                       Remove
                     </button>

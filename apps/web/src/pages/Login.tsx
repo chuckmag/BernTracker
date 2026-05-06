@@ -43,7 +43,7 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 px-3 py-2 text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 px-3 py-2 text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="you@example.com"
             />
           </div>
@@ -59,7 +59,7 @@ export default function Login() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 px-3 py-2 text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 px-3 py-2 text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="••••••••"
             />
           </div>

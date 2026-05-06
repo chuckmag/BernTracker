@@ -111,7 +111,7 @@ function StrengthPrTable({
               type="button"
               onClick={() => onClickFilled(entry.workoutId, entry.resultId)}
               title={`View your ${reps}RM — ${entry.maxLoad} ${unit}`}
-              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[3.5rem] hover:border-primary hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[3.5rem] hover:border-primary hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <span className="text-[10px] text-slate-500 dark:text-gray-400">{reps}RM</span>
               <span className="text-sm font-semibold text-slate-950 dark:text-white">{entry.maxLoad}</span>
@@ -122,7 +122,7 @@ function StrengthPrTable({
               type="button"
               onClick={() => onClickEmpty(reps)}
               title={`Log your ${reps}RM`}
-              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-dashed border-slate-300 dark:border-gray-600 min-w-[3.5rem] hover:border-primary hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-dashed border-slate-300 dark:border-gray-600 min-w-[3.5rem] hover:border-primary hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <span className="text-[10px] text-slate-500 dark:text-gray-400">{reps}RM</span>
               <span className="text-sm font-semibold text-slate-400 dark:text-gray-600">???</span>
@@ -416,7 +416,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
             placeholder="e.g. 185"
             value={load}
             onChange={(e) => setLoad(e.target.value)}
-            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 text-xl font-semibold placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 text-xl font-semibold placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary"
             autoFocus
           />
         </div>
@@ -431,7 +431,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
             placeholder="How did it feel? Any context…"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary resize-none text-sm"
           />
         </div>
 
@@ -445,7 +445,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
             max={todayISODate()}
             value={dateStr}
             onChange={(e) => setDateStr(e.target.value)}
-            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
 
@@ -580,7 +580,7 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
             <div>
               <button
                 onClick={() => setShowChart((v) => !v)}
-                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                className="text-xs text-primary hover:opacity-80 transition-colors"
               >
                 {showChart ? '▲ Hide trend' : `▼ ${data.prTable.category === 'STRENGTH' ? 'Est. 1RM trend' : 'Show trend'}`}
               </button>

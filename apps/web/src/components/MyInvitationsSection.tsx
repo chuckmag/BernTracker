@@ -52,7 +52,7 @@ export default function MyInvitationsSection() {
               <p className="text-sm text-slate-950 dark:text-white">
                 <span className="font-semibold">{inv.gym.name}</span>
                 <span className="text-slate-500 dark:text-gray-400"> invited you as </span>
-                <span className="text-indigo-600 dark:text-indigo-300">{ROLE_LABEL[inv.roleToGrant] ?? inv.roleToGrant}</span>
+                <span className="text-primary">{ROLE_LABEL[inv.roleToGrant] ?? inv.roleToGrant}</span>
               </p>
               <p className="text-xs text-slate-500 dark:text-gray-400">
                 From {inviterDisplayName(inv.invitedBy)} · {new Date(inv.createdAt).toLocaleDateString()}

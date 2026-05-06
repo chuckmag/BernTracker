@@ -57,7 +57,7 @@ export default function Dashboard() {
             <select
               value={selectedProgramId}
               onChange={(e) => setSelectedProgramId(e.target.value)}
-              className="w-full text-sm bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-950"
+              className="w-full text-sm bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-950"
               aria-label="Filter by program"
             >
               <option value="">All programs</option>

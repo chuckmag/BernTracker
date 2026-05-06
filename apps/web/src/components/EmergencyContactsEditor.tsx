@@ -76,7 +76,7 @@ export default function EmergencyContactsEditor({ contacts, onCreate, onRemove, 
             aria-label="Contact name"
             value={draft.name}
             onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            className="bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <input
             type="text"
@@ -84,7 +84,7 @@ export default function EmergencyContactsEditor({ contacts, onCreate, onRemove, 
             aria-label="Relationship"
             value={draft.relationship ?? ''}
             onChange={(e) => setDraft({ ...draft, relationship: e.target.value })}
-            className="bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <input
             type="tel"
@@ -92,7 +92,7 @@ export default function EmergencyContactsEditor({ contacts, onCreate, onRemove, 
             aria-label="Phone"
             value={draft.phone}
             onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
-            className="bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <input
             type="email"
@@ -100,7 +100,7 @@ export default function EmergencyContactsEditor({ contacts, onCreate, onRemove, 
             aria-label="Email"
             value={draft.email ?? ''}
             onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-            className="bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-white dark:bg-gray-900 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
         {error && <p className="text-xs text-rose-400">{error}</p>}

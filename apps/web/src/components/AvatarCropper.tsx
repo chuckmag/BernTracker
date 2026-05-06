@@ -78,7 +78,7 @@ export default function AvatarCropper({ imageSrc, onSave, onCancel, saving = fal
               value={zoom}
               onChange={(e) => setZoom(Number(e.target.value))}
               aria-label="Zoom"
-              className="flex-1 accent-indigo-500"
+              className="flex-1 accent-primary"
             />
           </label>
         </div>

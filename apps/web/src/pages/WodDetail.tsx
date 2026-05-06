@@ -193,8 +193,8 @@ export default function WodDetail() {
           <h1 className="text-2xl font-bold">{workout.title}</h1>
           {workout.namedWorkout && (
             <span className="flex items-center gap-1.5 ml-1">
-              <span className="text-sm text-indigo-400">● {workout.namedWorkout.name}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-900/50 text-indigo-300 border border-indigo-700/40">
+              <span className="text-sm text-primary">● {workout.namedWorkout.name}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
                 {CATEGORY_LABELS[workout.namedWorkout.category]}
               </span>
             </span>
@@ -217,11 +217,11 @@ export default function WodDetail() {
       */}
       {workout.coachNotes && workout.coachNotes.trim() !== '' && (
         <details
-          className="bg-white dark:bg-gray-900 rounded-lg px-4 py-3 border border-indigo-200 dark:border-indigo-900/40"
+          className="bg-white dark:bg-gray-900 rounded-lg px-4 py-3 border border-primary/30 dark:border-primary/20"
           {...(gymRole && gymRole !== 'MEMBER' ? { open: true } : {})}
           data-testid="coach-notes"
         >
-          <summary className="cursor-pointer text-sm font-semibold text-indigo-600 dark:text-indigo-300 hover:text-indigo-700 dark:hover:text-indigo-200 select-none">
+          <summary className="cursor-pointer text-sm font-semibold text-primary hover:opacity-80 select-none">
             Coach notes
           </summary>
           <div className="mt-2">
@@ -254,7 +254,7 @@ export default function WodDetail() {
           href={cfUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+          className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
         >
           View on CrossFit.com →
         </a>
@@ -269,7 +269,7 @@ export default function WodDetail() {
             <span className="text-xs text-slate-500 dark:text-gray-400">{LEVEL_LABELS[myResult.level]}</span>
             <button
               onClick={() => setShowLogDrawer(true)}
-              className="ml-auto text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              className="ml-auto text-xs text-primary hover:text-primary transition-colors"
             >
               Edit
             </button>
@@ -305,7 +305,7 @@ export default function WodDetail() {
               type="checkbox"
               checked={showAllLevels}
               onChange={(e) => setShowAllLevels(e.target.checked)}
-              className="accent-indigo-500 cursor-pointer"
+              className="accent-primary cursor-pointer"
             />
             Show all levels
           </label>
@@ -342,14 +342,14 @@ export default function WodDetail() {
               type="checkbox"
               checked={showAllDivisions}
               onChange={(e) => setShowAllDivisions(e.target.checked)}
-              className="accent-indigo-500 cursor-pointer"
+              className="accent-primary cursor-pointer"
             />
             All divisions
           </label>
           {!user?.birthday && (
             <span className="text-xs text-slate-500 dark:text-gray-500">
               Add your{' '}
-              <Link to="/profile" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+              <Link to="/profile" className="text-primary hover:text-primary underline underline-offset-2">
                 birthday
               </Link>{' '}
               to auto-select your division
@@ -390,8 +390,8 @@ export default function WodDetail() {
                         }}
                         className={[
                           result.notes ? '' : 'border-b border-slate-100 dark:border-gray-900',
-                          isMe ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-700 dark:text-gray-300',
-                          'cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-900/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
+                          isMe ? 'text-primary' : 'text-slate-700 dark:text-gray-300',
+                          'cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-900/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
                         ].join(' ')}
                       >
                         <td className="py-2.5 pr-4 text-slate-400 dark:text-gray-500">{index + 1}</td>
@@ -405,7 +405,7 @@ export default function WodDetail() {
                               size="sm"
                             />
                             <span>{displayName}</span>
-                            {isMe && <span className="text-xs text-indigo-400">(you)</span>}
+                            {isMe && <span className="text-xs text-primary">(you)</span>}
                           </span>
                         </td>
                         <td className="py-2.5 pr-4 text-slate-500 dark:text-gray-400">{LEVEL_LABELS[result.level]}</td>

@@ -68,7 +68,7 @@ Accent buttons use **`text-slate-900`** (not white) — `#2BA8A4` has only ~1.7:
 
 #### Focus rings
 
-`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950`
+`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950`
 
 Inside drawers: `ring-offset-white dark:ring-offset-gray-900`.
 
@@ -80,7 +80,7 @@ Every interactive element must satisfy these. The primitives above already do �
 
 - **Contrast:** text under 14px (`text-xs`, `text-[10px]`, `text-[11px]`) uses `text-gray-400` or lighter. `text-gray-500` passes contrast only at `text-sm` (14px) and larger — fine for de-emphasized secondary copy. Reserve `text-gray-600` for invisible / disabled / decorative-only states (e.g. `·` separators marked `aria-hidden="true"`); never put it on visible user-facing copy. Lighthouse will flag any of these.
 - **Touch targets:** the WCAG 2.5.8 AA bar is **24×24** (Lighthouse uses this); aim for **28×28** as the team default. Audit candidate: `grep -rE "w-[0-5]\b|h-[0-5]\b" src` — every match should be non-interactive. When you need a bigger hit area without growing the surrounding layout, pair the size bump with a margin clawback: `className="-my-1 -mr-1.5 w-7 h-7 inline-flex items-center justify-center …"`. For checkbox + label pairs, `min-h-7` on the wrapping `<label>` clears the hit area without enlarging the visible checkbox.
-- **Focus rings:** always `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950` (offset color matches the parent surface — use `ring-offset-gray-900` inside a drawer). Use the primitive instead of duplicating this string.
+- **Focus rings:** always `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950` (offset color matches the parent surface — use `ring-offset-gray-900` inside a drawer). Use the primitive instead of duplicating this string.
 - **`title`** attribute on truncated text for hover reveal (e.g. workout pills in calendar cells).
 
 ### ARIA patterns (lessons-learned)

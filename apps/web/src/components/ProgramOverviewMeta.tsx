@@ -38,7 +38,7 @@ export default function ProgramOverviewMeta({ program, onOpenMembers }: ProgramO
             <button
               type="button"
               onClick={onOpenMembers}
-              className="text-slate-950 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 rounded"
+              className="text-slate-950 dark:text-white hover:opacity-80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 rounded"
             >
               {memberCount}
             </button>
