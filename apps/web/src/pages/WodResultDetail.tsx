@@ -186,8 +186,8 @@ export default function WodResultDetail() {
           <h2 className="text-xl font-semibold">{workout.title}</h2>
           {workout.namedWorkout && (
             <span className="flex items-center gap-1.5 ml-1">
-              <span className="text-sm text-indigo-600 dark:text-indigo-400">● {workout.namedWorkout.name}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-300/50 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-700/40">
+              <span className="text-sm text-primary">● {workout.namedWorkout.name}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 dark:bg-primary/15 dark:text-primary dark:border-primary/30">
                 {CATEGORY_LABELS[workout.namedWorkout.category]}
               </span>
             </span>

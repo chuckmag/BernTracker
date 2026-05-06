@@ -109,7 +109,7 @@ export default function AdminProgramDetail() {
     return (
       <div>
         <p className="text-red-400 mb-3">{error ?? 'Program not found.'}</p>
-        <Link to="/admin/settings#programs" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 text-sm">← Back to WODalytics Settings</Link>
+        <Link to="/admin/settings#programs" className="text-primary hover:opacity-80 text-sm">← Back to WODalytics Settings</Link>
       </div>
     )
   }
@@ -119,7 +119,7 @@ export default function AdminProgramDetail() {
   return (
     <div>
       <div className="mb-4">
-        <Link to="/admin/settings#programs" className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">← WODalytics Settings</Link>
+        <Link to="/admin/settings#programs" className="text-xs text-primary hover:opacity-80">← WODalytics Settings</Link>
       </div>
 
       <div className="flex items-start gap-4 mb-6">
@@ -201,7 +201,7 @@ function AdminWorkoutRow({ workout, onClick }: AdminWorkoutRowProps) {
       <button
         type="button"
         onClick={onClick}
-        className="w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-lg p-3 flex items-start gap-3 text-left hover:border-slate-300 dark:hover:border-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
+        className="w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-lg p-3 flex items-start gap-3 text-left hover:border-slate-300 dark:hover:border-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
       >
         <span
           className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-md text-xs font-bold ${style.bg} ${style.tint}`}

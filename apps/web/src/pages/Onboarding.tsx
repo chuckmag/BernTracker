@@ -97,7 +97,7 @@ export default function Onboarding() {
             <li key={label} className="flex items-center gap-2">
               <span className={[
                 'w-6 h-6 rounded-full flex items-center justify-center font-semibold',
-                i === step ? 'bg-indigo-600 text-white' : i < step ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500 dark:bg-gray-800 dark:text-gray-400',
+                i === step ? 'bg-primary text-white' : i < step ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500 dark:bg-gray-800 dark:text-gray-400',
               ].join(' ')}>{i + 1}</span>
               <span className={i === step ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-gray-400'}>{label}</span>
               {i < STEPS.length - 1 && <span className="text-slate-300 dark:text-gray-700 mx-1" aria-hidden="true">·</span>}

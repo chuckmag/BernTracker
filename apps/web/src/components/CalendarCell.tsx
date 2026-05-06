@@ -20,7 +20,7 @@ export default function CalendarCell({ date, isToday, workouts, selected, onAddC
     <div
       className={[
         'group bg-white dark:bg-gray-950 h-[128px] p-1.5 flex flex-col transition-colors',
-        selected ? 'ring-2 ring-inset ring-indigo-500' : 'hover:bg-slate-50 dark:hover:bg-gray-900',
+        selected ? 'ring-2 ring-inset ring-primary' : 'hover:bg-slate-50 dark:hover:bg-gray-900',
       ].join(' ')}
     >
       {/* Date row */}
@@ -28,7 +28,7 @@ export default function CalendarCell({ date, isToday, workouts, selected, onAddC
         <span
           className={[
             'text-xs w-6 h-6 flex items-center justify-center rounded-full',
-            isToday ? 'font-medium bg-indigo-600 text-white' : 'text-slate-500 dark:text-gray-400',
+            isToday ? 'font-medium bg-primary text-white' : 'text-slate-500 dark:text-gray-400',
           ].join(' ')}
         >
           {date.getDate()}
@@ -56,7 +56,7 @@ export default function CalendarCell({ date, isToday, workouts, selected, onAddC
               <span className={['text-[11px] shrink-0', w.status === 'PUBLISHED' ? 'text-green-400' : 'text-yellow-400'].join(' ')}>
                 {w.status === 'PUBLISHED' ? '●' : '○'}
               </span>
-              <span className="text-[11px] font-mono text-indigo-400 shrink-0 w-4">
+              <span className={`text-[11px] font-mono ${styles?.tint ?? 'text-slate-500 dark:text-gray-400'} shrink-0 w-4`}>
                 {styles?.abbr ?? '?'}
               </span>
               <span className="text-[11px] text-slate-700 dark:text-gray-200 truncate flex-1">{w.title}</span>

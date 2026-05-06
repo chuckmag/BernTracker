@@ -11,7 +11,7 @@ export const GENDER_OPTIONS: { value: NonNullable<IdentifiedGender>; label: stri
 ]
 
 const TEXT_INPUT =
-  'w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white'
+  'w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-800 dark:border-gray-700 dark:text-white'
 
 interface NameFieldsProps {
   firstName: string

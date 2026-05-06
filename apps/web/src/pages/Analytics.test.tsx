@@ -25,9 +25,9 @@ const mockTrajectory: StrengthTrajectoryData = {
   currentPr: 225,
   loadUnit: 'LB',
   points: [
-    { date: '2026-02-01', maxLoad: 205, loadUnit: 'LB' },
-    { date: '2026-03-01', maxLoad: 215, loadUnit: 'LB' },
-    { date: '2026-04-01', maxLoad: 225, loadUnit: 'LB' },
+    { date: '2026-02-01', maxLoad: 205, loadUnit: 'LB', effort: '5 × 205', workoutId: 'w-1', resultId: 'r-1' },
+    { date: '2026-03-01', maxLoad: 215, loadUnit: 'LB', effort: '3 × 215', workoutId: 'w-2', resultId: 'r-2' },
+    { date: '2026-04-01', maxLoad: 225, loadUnit: 'LB', effort: '1 × 225', workoutId: 'w-3', resultId: 'r-3' },
   ],
 }
 

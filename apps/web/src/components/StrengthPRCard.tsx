@@ -13,6 +13,7 @@ import {
 import { api, type TrackedMovement, type StrengthTrajectoryData, type StrengthTrajectoryPoint } from '../lib/api.ts'
 import { useTheme } from '../context/ThemeContext.tsx'
 import { resolveTheme } from '../lib/useTheme.ts'
+import { BRAND_TOKENS } from '../lib/designTokens.ts'
 import SegmentedControl from './ui/SegmentedControl.tsx'
 import Skeleton from './ui/Skeleton.tsx'
 import ChartTooltip from './ui/ChartTooltip.tsx'
@@ -73,7 +74,7 @@ function TrajectoryTooltip({ active, payload }: { active?: boolean; payload?: Ar
 }
 
 function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps) {
-  const lineColor = isDark ? '#818cf8' : '#4f46e5'
+  const lineColor = isDark ? BRAND_TOKENS.dark.primary : BRAND_TOKENS.light.primary
   const gridColor = isDark ? '#1f2937' : '#e2e8f0'
   const tickColor = isDark ? '#6b7280' : '#64748b'
 
@@ -229,7 +230,7 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
                   className={[
                     'w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 transition-colors',
                     isSelected
-                      ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-600 dark:bg-indigo-500'
+                      ? 'border-primary bg-primary'
                       : 'border-slate-300 dark:border-gray-600',
                   ].join(' ')}
                   aria-hidden="true"

@@ -16,7 +16,7 @@ export default function ChartTooltip({ date, lines }: ChartTooltipProps) {
         <p
           key={i}
           className={line.accent
-            ? 'text-indigo-600 dark:text-indigo-400 font-medium'
+            ? 'text-primary font-medium'
             : 'text-slate-700 dark:text-gray-300'}
         >
           {line.text}

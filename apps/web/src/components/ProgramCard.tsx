@@ -32,7 +32,7 @@ export default function ProgramCard({ program, to, isDefault }: ProgramCardProps
       <div style={{ backgroundColor: stripe }} className="h-1.5 w-full" />
       <div className="p-4">
         <div className="flex items-start gap-2 flex-wrap">
-          <h3 className="font-semibold text-slate-950 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors flex-1 min-w-0">
+          <h3 className="font-semibold text-slate-950 dark:text-white truncate group-hover:text-primary dark:group-hover:text-primary transition-colors flex-1 min-w-0">
             {program.name}
           </h3>
           {isDefault && <DefaultBadge className="shrink-0" />}

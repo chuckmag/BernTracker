@@ -154,13 +154,13 @@ export default function MembersTab() {
                         {member.programs.map((p) => (
                           <span
                             key={p.id}
-                            className="inline-flex items-center gap-1 bg-indigo-900/60 text-indigo-300 text-xs px-2 py-0.5 rounded-full"
+                            className="inline-flex items-center gap-1 bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full"
                           >
                             {p.name}
                             <button
                               type="button"
                               onClick={() => handleUnsubscribe(member.id, p.id)}
-                              className="text-indigo-400 hover:text-red-400 leading-none"
+                              className="text-primary hover:text-red-400 leading-none"
                               aria-label={`Remove from ${p.name}`}
                             >
                               ×

@@ -101,7 +101,7 @@ export default function GymInvitationsPanel() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="member@example.com"
-                className="w-full bg-white border border-slate-300 dark:bg-gray-900 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white border border-slate-300 dark:bg-gray-900 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </label>
             <label className="block">
@@ -110,7 +110,7 @@ export default function GymInvitationsPanel() {
                 id="invite-role"
                 value={roleToGrant}
                 onChange={(e) => setRoleToGrant(e.target.value as Role)}
-                className="bg-white border border-slate-300 dark:bg-gray-900 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="bg-white border border-slate-300 dark:bg-gray-900 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 {grantable.map((r) => (
                   <option key={r} value={r}>{ROLE_LABEL[r]}</option>
