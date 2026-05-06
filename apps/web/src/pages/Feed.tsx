@@ -69,7 +69,7 @@ function formatDayLabel(dateKey: string, todayKey: string): string {
 
 export default function Feed() {
   const { gymId, loading: gymLoading, clearGymId } = useGym()
-  const { selected: programIds, available, clear: clearProgramFilter } = useProgramFilter()
+  const { gymProgramIds: programIds, available, clear: clearProgramFilter } = useProgramFilter()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [fetchStart, setFetchStart] = useState<Date | null>(null)
   const [fetchEnd, setFetchEnd] = useState<Date | null>(null)

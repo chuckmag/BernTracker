@@ -50,9 +50,10 @@ vi.mock('../context/MovementsContext.tsx', () => ({
 // no-filter rendering path.
 vi.mock('../context/ProgramFilterContext.tsx', () => ({
   useProgramFilter: () => ({
-    selected: [], available: [], loading: false,
+    selected: [], gymProgramIds: [], available: [], personalProgramId: null, loading: false,
     setSelected: vi.fn(), toggle: vi.fn(), clear: vi.fn(),
   }),
+  PERSONAL_PROGRAM_SENTINEL: '__personal__',
   ProgramFilterProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
@@ -68,7 +69,7 @@ vi.mock('../components/LogResultDrawer.tsx', () => ({ default: () => null }))
 
 import { api } from '../lib/api'
 import Feed from '../pages/Feed'
-import Calendar from '../pages/Calendar'
+import UnifiedCalendar from '../pages/UnifiedCalendar'
 import WodDetail from '../pages/WodDetail'
 import History from '../pages/History'
 
@@ -139,7 +140,7 @@ describe('a11y — page renders have no axe violations', () => {
   it('Calendar', async () => {
     const { container } = render(
       <MemoryRouter>
-        <Calendar />
+        <UnifiedCalendar />
       </MemoryRouter>,
     )
     // Wait for the calendar grid to render (day-of-week header is synchronous).
