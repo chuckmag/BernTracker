@@ -66,9 +66,10 @@ test.describe('Gym invitation E2E', () => {
     await expect(ownerPage.getByRole('heading', { name: 'Gym Settings' })).toBeVisible()
     await expect(ownerPage.getByRole('heading', { name: 'Invitations', exact: true })).toBeVisible()
 
-    await ownerPage.getByLabel('Invite by email').fill(f.inviteeEmail)
+    // Channel defaults to EMAIL. Fill the email address field and send.
+    await ownerPage.getByLabel('Email address').fill(f.inviteeEmail)
     // Role select defaults to MEMBER, leave as-is.
-    await ownerPage.getByRole('button', { name: /Send invite/ }).click()
+    await ownerPage.getByRole('button', { name: /^Invite$/ }).click()
 
     // The new invitation row should appear in the pending list.
     await expect(ownerPage.getByText(f.inviteeEmail)).toBeVisible({ timeout: 5_000 })
