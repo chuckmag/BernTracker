@@ -204,7 +204,7 @@ describe('CalendarDayStrip', () => {
     expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument()
   })
 
-  it('renders a Today button left of Previous days when onJumpToToday is provided', () => {
+  it('renders a Today button between the prev arrow and the range label so the arrow stays anchored', () => {
     const onJumpToToday = vi.fn()
     render(
       <CalendarDayStrip
@@ -222,10 +222,18 @@ describe('CalendarDayStrip', () => {
       />,
     )
     const buttons = screen.getAllByRole('button')
-    const todayIdx = buttons.findIndex((b) => b.textContent === 'Today')
     const prevIdx = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Previous days')
-    expect(todayIdx).toBeGreaterThanOrEqual(0)
-    expect(todayIdx).toBeLessThan(prevIdx)
+    const todayIdx = buttons.findIndex((b) => b.textContent === 'Today')
+    const nextIdx = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Next days')
+    // DOM order: ← Today range → — so Today is between prev and next, and
+    // strictly after prev. Asserts the prev arrow keeps its leftmost spot.
+    expect(prevIdx).toBeLessThan(todayIdx)
+    expect(todayIdx).toBeLessThan(nextIdx)
+    // The range label is in the same flex group as Today; its DOM order
+    // is right after Today.
+    const rangeLabel = screen.getByText(/May \d/)
+    expect(buttons[todayIdx].compareDocumentPosition(rangeLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
     fireEvent.click(buttons[todayIdx])
     expect(onJumpToToday).toHaveBeenCalledTimes(1)
   })

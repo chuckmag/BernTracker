@@ -45,18 +45,22 @@ export default function CalendarDayStrip({
 
   return (
     <div data-testid="calendar-day-strip" className={loading ? 'opacity-60 pointer-events-none' : ''}>
-      {/* Nav row */}
+      {/* Nav row. Prev/next arrows are anchored to the row's left/right
+          edges via justify-between so they don't move when the optional
+          Today button toggles. The Today button + range label live in a
+          centered group between them; Today nudges the range text right
+          when present, but the arrows stay fixed. */}
       <div className="flex items-center justify-between mb-3 gap-2">
-        <div className="flex items-center gap-2">
+        <Button variant="tertiary" onClick={onPrev} aria-label="Previous days">←</Button>
+        <div className="flex items-center gap-2 flex-1 justify-center min-w-0">
           {onJumpToToday && (
             <Button variant="secondary" onClick={onJumpToToday}>Today</Button>
           )}
-          <Button variant="tertiary" onClick={onPrev} aria-label="Previous days">←</Button>
+          <span className="text-sm font-medium text-slate-600 dark:text-gray-400 select-none truncate">
+            {days.length > 0 && days[0].toLocaleDateString('default', { month: 'short', day: 'numeric' })}
+            {days.length > 1 && ` – ${days[days.length - 1].toLocaleDateString('default', { month: 'short', day: 'numeric' })}`}
+          </span>
         </div>
-        <span className="text-sm font-medium text-slate-600 dark:text-gray-400 select-none">
-          {days.length > 0 && days[0].toLocaleDateString('default', { month: 'short', day: 'numeric' })}
-          {days.length > 1 && ` – ${days[days.length - 1].toLocaleDateString('default', { month: 'short', day: 'numeric' })}`}
-        </span>
         <Button variant="tertiary" onClick={onNext} aria-label="Next days">→</Button>
       </div>
 
