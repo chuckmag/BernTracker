@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, StyleSheet, TouchableOpacity } from 'react-native'
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg'
+import { useTheme } from '../lib/theme'
+import ThemedText from './ThemedText'
+import ThemedView from './ThemedView'
 import type { TrackedMovement, StrengthTrajectoryData } from '../lib/api'
 import { api } from '../lib/api'
 
@@ -8,13 +11,23 @@ const CHART_W = 220
 const CHART_H = 80
 const PAD = { top: 6, right: 6, bottom: 4, left: 28 }
 
-function TrajectoryChart({ points }: { points: StrengthTrajectoryData['points'] }) {
+interface TrajectoryChartProps {
+  points: StrengthTrajectoryData['points']
+  isDark: boolean
+}
+
+function TrajectoryChart({ points, isDark }: TrajectoryChartProps) {
+  // Mirror the indigo palette used in ConsistencyCard
+  const lineColor = isDark ? '#6366f1' : '#4f46e5'   // indigo-500 | indigo-600
+  const gridColor = isDark ? '#1f2937' : '#e2e8f0'   // gray-800 | slate-200
+  const tickColor = isDark ? '#6b7280' : '#64748b'   // gray-500 | slate-500
+
   if (points.length < 2) {
     return (
       <View style={styles.chartPlaceholder}>
-        <Text style={styles.chartPlaceholderText}>
+        <ThemedText variant="muted" style={styles.chartPlaceholderText}>
           {points.length === 0 ? 'No load data yet' : 'Log more to see a trend'}
-        </Text>
+        </ThemedText>
       </View>
     )
   }
@@ -41,7 +54,7 @@ function TrajectoryChart({ points }: { points: StrengthTrajectoryData['points'] 
           y1={toY(v)}
           x2={CHART_W - PAD.right}
           y2={toY(v)}
-          stroke="#1f2937"
+          stroke={gridColor}
           strokeWidth={1}
         />
       ))}
@@ -52,7 +65,7 @@ function TrajectoryChart({ points }: { points: StrengthTrajectoryData['points'] 
           y={toY(v)}
           textAnchor="end"
           alignmentBaseline="central"
-          fill="#6b7280"
+          fill={tickColor}
           fontSize={8}
         >
           {Math.round(v)}
@@ -61,13 +74,13 @@ function TrajectoryChart({ points }: { points: StrengthTrajectoryData['points'] 
       <Polyline
         points={polyPoints}
         fill="none"
-        stroke="#6366f1"
+        stroke={lineColor}
         strokeWidth={1.5}
         strokeLinejoin="round"
         strokeLinecap="round"
       />
       {points.map((p, i) => (
-        <Circle key={i} cx={toX(i)} cy={toY(p.maxLoad)} r={2.5} fill="#6366f1" />
+        <Circle key={i} cx={toX(i)} cy={toY(p.maxLoad)} r={2.5} fill={lineColor} />
       ))}
     </Svg>
   )
@@ -78,6 +91,7 @@ interface StrengthPRCardProps {
 }
 
 export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
+  const { colors, isDark } = useTheme()
   const [selectedId, setSelectedId] = useState<string>(movements[0]?.movementId ?? '')
   const [trajectory, setTrajectory] = useState<StrengthTrajectoryData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -99,15 +113,15 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
       : null
 
   return (
-    <View style={styles.card}>
+    <ThemedView variant="card" style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.title}>Strength PRs</Text>
-        <Text style={styles.subtitle}>3 months</Text>
+        <ThemedText style={styles.title}>Strength PRs</ThemedText>
+        <ThemedText variant="muted" style={styles.subtitle}>3 months</ThemedText>
       </View>
 
       <View style={styles.body}>
         {/* Radio buttons */}
-        <View style={styles.radioGroup} accessibilityRole="radiogroup" accessibilityLabel="Movement selection">
+        <View accessibilityRole="radiogroup" accessibilityLabel="Movement selection">
           {movements.map((m) => {
             const isSelected = m.movementId === selectedId
             return (
@@ -119,13 +133,20 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
                 accessibilityState={{ checked: isSelected }}
                 accessibilityLabel={m.name}
               >
-                <View style={[styles.radioDot, isSelected && styles.radioDotSelected]} />
-                <Text
-                  style={[styles.radioLabel, isSelected && styles.radioLabelSelected]}
+                <View
+                  style={[
+                    styles.radioDot,
+                    { borderColor: isSelected ? colors.primary : colors.borderInteractive },
+                    isSelected && { backgroundColor: colors.primary },
+                  ]}
+                />
+                <ThemedText
+                  variant={isSelected ? 'primary' : 'tertiary'}
+                  style={styles.radioLabel}
                   numberOfLines={1}
                 >
                   {m.name}
-                </Text>
+                </ThemedText>
               </TouchableOpacity>
             )
           })}
@@ -133,35 +154,39 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
 
         {/* Right: PR stat + chart */}
         <View style={styles.chartArea}>
-          {loading && <Text style={styles.chartPlaceholderText}>Loading…</Text>}
+          {loading && <ThemedText variant="muted" style={styles.chartPlaceholderText}>Loading…</ThemedText>}
           {!loading && trajectory && (
             <>
               <View style={styles.prRow}>
                 {trajectory.currentPr !== null ? (
                   <>
-                    <Text style={styles.prValue}>{trajectory.currentPr} {trajectory.loadUnit}</Text>
+                    <ThemedText style={styles.prValue}>{trajectory.currentPr} {trajectory.loadUnit}</ThemedText>
                     {delta !== null && delta !== 0 && (
-                      <Text style={[styles.delta, delta > 0 ? styles.deltaPos : styles.deltaNeg]}>
+                      <ThemedText
+                        style={[
+                          styles.delta,
+                          { color: delta > 0 ? colors.successText : colors.errorText },
+                        ]}
+                      >
                         {delta > 0 ? '+' : ''}{delta}
-                      </Text>
+                      </ThemedText>
                     )}
                   </>
                 ) : (
-                  <Text style={styles.chartPlaceholderText}>No data yet</Text>
+                  <ThemedText variant="muted" style={styles.chartPlaceholderText}>No data yet</ThemedText>
                 )}
               </View>
-              <TrajectoryChart points={trajectory.points} />
+              <TrajectoryChart points={trajectory.points} isDark={isDark} />
             </>
           )}
         </View>
       </View>
-    </View>
+    </ThemedView>
   )
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#111827',
     borderRadius: 12,
     padding: 16,
     gap: 12,
@@ -172,12 +197,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
   },
   subtitle: {
-    color: '#6b7280',
     fontSize: 12,
   },
   body: {
@@ -185,33 +208,21 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'flex-start',
   },
-  radioGroup: {
-    gap: 6,
-    flexShrink: 0,
-  },
   radioRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 6,
   },
   radioDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#4b5563',
-  },
-  radioDotSelected: {
-    borderColor: '#6366f1',
-    backgroundColor: '#6366f1',
   },
   radioLabel: {
-    color: '#9ca3af',
     fontSize: 12,
     maxWidth: 110,
-  },
-  radioLabelSelected: {
-    color: '#ffffff',
   },
   chartArea: {
     flex: 1,
@@ -223,7 +234,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   prValue: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -231,19 +241,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  deltaPos: {
-    color: '#34d399',
-  },
-  deltaNeg: {
-    color: '#f87171',
-  },
   chartPlaceholder: {
     height: CHART_H,
     justifyContent: 'center',
     alignItems: 'center',
   },
   chartPlaceholderText: {
-    color: '#6b7280',
     fontSize: 11,
   },
 })

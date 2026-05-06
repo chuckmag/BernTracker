@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { ThemeProvider } from '../context/ThemeContext'
 import Analytics from './Analytics'
 import type { ConsistencyData, TrackedMovement, StrengthTrajectoryData } from '../lib/api'
 
@@ -54,11 +55,13 @@ vi.mock('../context/AuthContext', () => ({
 
 function renderAnalytics() {
   return render(
-    <MemoryRouter initialEntries={['/analytics']}>
-      <Routes>
-        <Route path="/analytics" element={<Analytics />} />
-      </Routes>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={['/analytics']}>
+        <Routes>
+          <Route path="/analytics" element={<Analytics />} />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   )
 }
 
