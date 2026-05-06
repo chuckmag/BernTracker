@@ -121,6 +121,7 @@ beforeEach(() => {
   vi.mocked(api.namedWorkouts.list).mockResolvedValue([] as never)
   vi.mocked(api.movements.list).mockResolvedValue([] as never)
   vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('not seeded'))
+  vi.mocked(api.me.personalProgram.workouts.list).mockResolvedValue([] as never)
 })
 
 // ─── Tests ───────────────────────────────────────────────────────────────────

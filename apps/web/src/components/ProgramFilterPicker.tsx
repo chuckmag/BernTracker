@@ -75,7 +75,7 @@ export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilt
           onClick={() => setOpen((o) => !o)}
           aria-haspopup="listbox"
           aria-expanded={open}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
         >
           <span className="truncate max-w-[180px]">{label}</span>
           <span className="text-xs shrink-0 text-slate-400 dark:text-gray-500">▾</span>
@@ -91,7 +91,7 @@ export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilt
             <label className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-800 cursor-pointer border-b border-slate-100 dark:border-gray-800">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-primary focus:ring-primary"
                 checked={isPersonalSelected}
                 onChange={() => toggle(PERSONAL_PROGRAM_SENTINEL)}
               />
@@ -108,7 +108,7 @@ export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilt
                 >
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                    className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-primary focus:ring-primary"
                     checked={isSelected}
                     onChange={() => toggle(program.id)}
                   />
@@ -133,7 +133,7 @@ export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilt
                 <button
                   type="button"
                   onClick={clear}
-                  className="text-xs text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded px-1"
+                  className="text-xs text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1"
                 >
                   Clear all
                 </button>
@@ -144,7 +144,7 @@ export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilt
               <button
                 type="button"
                 onClick={goToBrowse}
-                className="w-full px-3 py-2 text-left text-sm text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-indigo-500 dark:hover:text-indigo-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded"
+                className="w-full px-3 py-2 text-left text-sm text-primary hover:bg-slate-100 dark:hover:bg-gray-800 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
               >
                 Browse public programs →
               </button>
@@ -179,7 +179,7 @@ export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilt
           <label className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-800 cursor-pointer border-b border-slate-100 dark:border-gray-800">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-primary focus:ring-primary"
               checked={isPersonalSelected}
               onChange={() => toggle(PERSONAL_PROGRAM_SENTINEL)}
             />

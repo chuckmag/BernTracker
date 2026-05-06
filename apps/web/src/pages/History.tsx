@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ProgramFilterPicker from '../components/ProgramFilterPicker.tsx'
 import { api, type HistoryResult, type WorkoutLevel, type WorkoutType } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useMovements } from '../context/MovementsContext.tsx'
+import { useProgramFilter, PERSONAL_PROGRAM_SENTINEL } from '../context/ProgramFilterContext.tsx'
 import MovementFilterInput from '../components/MovementFilterInput.tsx'
 import Button from '../components/ui/Button.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
@@ -31,6 +32,7 @@ function shortDate(dateStr: string): string {
 export default function History() {
   const navigate = useNavigate()
   const allMovements = useMovements()
+  const { selected, gymProgramIds, personalProgramId } = useProgramFilter()
   const [results, setResults] = useState<HistoryResult[]>([])
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
@@ -38,16 +40,40 @@ export default function History() {
   const [error, setError] = useState<string | null>(null)
   const [filterMovementIds, setFilterMovementIds] = useState<string[]>([])
 
+  // Resolve the effective program IDs to filter by, substituting the personal
+  // program sentinel for the real DB id so the API receives only real ids.
+  const historyProgramIds = useMemo(() => {
+    if (selected.length === 0) return []
+    const ids = [...gymProgramIds]
+    if (selected.includes(PERSONAL_PROGRAM_SENTINEL) && personalProgramId) {
+      ids.push(personalProgramId)
+    }
+    return ids
+  }, [selected, gymProgramIds, personalProgramId])
+
+  const filterProgramIdsKey = historyProgramIds.join(',')
+
+  // Reset to page 1 when the program filter changes (skip on initial mount).
+  const didMountRef = useRef(false)
+  useEffect(() => {
+    if (!didMountRef.current) { didMountRef.current = true; return }
+    setPage(1)
+  }, [filterProgramIdsKey])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
-    api.results.history(page, filterMovementIds.length ? filterMovementIds : undefined)
+    api.results.history(
+      page,
+      filterMovementIds.length ? filterMovementIds : undefined,
+      historyProgramIds.length ? historyProgramIds : undefined,
+    )
       .then((data) => { if (!cancelled) { setResults(data.results); setPages(data.pages) } })
       .catch((e) => { if (!cancelled) setError((e as Error).message) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [page, filterMovementIds])
+  }, [page, filterMovementIds, filterProgramIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Group results by month
   const groups: { month: string; rows: HistoryResult[] }[] = []

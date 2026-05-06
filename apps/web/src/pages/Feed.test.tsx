@@ -136,8 +136,11 @@ function renderFeed() {
 // Most existing specs don't care about the personal-program upsert; default
 // it to a rejection so the page renders the same as before (add button stays
 // hidden). The personal-program-specific specs further down override this.
+// workouts.list must always return an array (never undefined) because the
+// Feed now spreads personal workouts into allWorkouts.
 beforeEach(() => {
   vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('not seeded'))
+  vi.mocked(api.me.personalProgram.workouts.list).mockResolvedValue([] as never)
 })
 
 describe('Feed — programIds filter (slice 2)', () => {
@@ -410,7 +413,9 @@ describe('Feed — personal program', () => {
       title: 'My extra row',
       programId: 'pp-1',
     }
-    vi.mocked(api.workouts.list).mockResolvedValue([gymWorkout, personalWorkout] as never)
+    // Gym workout comes from the gym API; personal workout from the personal API.
+    vi.mocked(api.workouts.list).mockResolvedValue([gymWorkout] as never)
+    vi.mocked(api.me.personalProgram.workouts.list).mockResolvedValue([personalWorkout] as never)
     renderFeed()
 
     // Both tiles render
