@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar'
-import { ActivityIndicator, View } from 'react-native'
+import { ActivityIndicator, Image, View } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createStackNavigator } from '@react-navigation/stack'
@@ -114,7 +114,20 @@ function MainTabs() {
       <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Today' }} />
       <Tab.Screen name="FeedTab" component={FeedStackNavigator} options={{ title: 'Feed' }} />
       <Tab.Screen name="HistoryTab" component={HistoryStackNavigator} options={{ title: 'History' }} />
-      <Tab.Screen name="AnalyticsTab" component={AnalyticsStackNavigator} options={{ title: 'Analytics' }} />
+      <Tab.Screen
+        name="AnalyticsTab"
+        component={AnalyticsStackNavigator}
+        options={{
+          title: 'Analytics',
+          tabBarIcon: ({ focused, size }) => (
+            <Image
+              source={require('./assets/favicon.png')}
+              style={{ width: size, height: size, opacity: focused ? 1 : 0.5 }}
+              resizeMode="contain"
+            />
+          ),
+        }}
+      />
     </Tab.Navigator>
   )
 }

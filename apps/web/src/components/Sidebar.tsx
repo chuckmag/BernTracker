@@ -4,12 +4,12 @@ import { useGym } from '../context/GymContext.tsx'
 import ProgramFilterPicker from './ProgramFilterPicker.tsx'
 
 // Browse Gyms moved into the TopBar gym picker — no standalone sidebar entry.
-const memberLinks = [
+const memberLinks: { to: string; label: string; logo?: string }[] = [
   { to: '/dashboard',        label: 'Dashboard'        },
   { to: '/feed',             label: 'Feed'             },
   { to: '/history',          label: 'History'          },
   { to: '/personal-program', label: 'Personal Program' },
-  { to: '/analytics',        label: 'WODalytics'       },
+  { to: '/analytics',        label: 'WODalytics',      logo: '/favicon-96x96.png' },
 ]
 
 // Members consolidated into /gym-settings#members (slice D1) — no standalone link.
@@ -62,20 +62,21 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <ProgramFilterPicker />
 
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {memberLinks.map(({ to, label }) => (
+        {memberLinks.map(({ to, label, logo }) => (
           <NavLink
             key={to}
             to={to}
             onClick={onClose}
             className={({ isActive }) =>
               [
-                'flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors',
                 isActive
                   ? 'bg-gray-800 text-white'
                   : 'text-gray-400 hover:bg-gray-800 hover:text-white',
               ].join(' ')
             }
           >
+            {logo && <img src={logo} alt="" aria-hidden="true" className="w-4 h-4 rounded-sm object-contain flex-shrink-0" />}
             {label}
           </NavLink>
         ))}
