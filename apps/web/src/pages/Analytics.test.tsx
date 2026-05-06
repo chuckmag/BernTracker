@@ -56,9 +56,9 @@ vi.mock('../context/AuthContext', () => ({
 function renderAnalytics() {
   return render(
     <ThemeProvider>
-      <MemoryRouter initialEntries={['/analytics']}>
+      <MemoryRouter initialEntries={['/wodalytics']}>
         <Routes>
-          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/wodalytics" element={<Analytics />} />
         </Routes>
       </MemoryRouter>
     </ThemeProvider>,

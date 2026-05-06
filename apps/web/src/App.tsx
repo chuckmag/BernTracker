@@ -77,7 +77,7 @@ function AppLayout() {
               <Route path="/history" element={<History />} />
               <Route path="/personal-program" element={<PersonalProgram />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/wodalytics" element={<Analytics />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/programs" element={<ProgramsIndex />} />
               <Route path="/programs/:id" element={<ProgramDetail />} />
