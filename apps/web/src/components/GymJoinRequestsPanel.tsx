@@ -69,11 +69,11 @@ export default function GymJoinRequestsPanel() {
           {requests.map((r) => (
             <li
               key={r.id}
-              className="flex items-center justify-between gap-3 rounded-lg bg-gray-900 border border-gray-800 px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-lg bg-white border border-slate-200 dark:bg-gray-900 dark:border-gray-800 px-4 py-3"
             >
               <div className="min-w-0">
-                <p className="text-sm text-white truncate">{requesterDisplayName(r.user)}</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-sm text-slate-950 dark:text-white truncate">{requesterDisplayName(r.user)}</p>
+                <p className="text-xs text-slate-500 dark:text-gray-400">
                   {r.user?.email ?? '—'} · requested {new Date(r.createdAt).toLocaleDateString()}
                 </p>
               </div>

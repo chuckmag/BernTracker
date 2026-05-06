@@ -49,10 +49,10 @@ export default function AvatarCropper({ imageSrc, onSave, onCancel, saving = fal
       aria-label="Crop your photo"
       className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
     >
-      <div className="bg-gray-900 border border-gray-800 rounded-xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden">
         <div className="px-5 pt-4 pb-2">
-          <h2 className="text-base font-semibold text-white">Crop your photo</h2>
-          <p className="text-xs text-gray-400">Drag to position, scroll or use the slider to zoom.</p>
+          <h2 className="text-base font-semibold text-slate-950 dark:text-white">Crop your photo</h2>
+          <p className="text-xs text-slate-500 dark:text-gray-400">Drag to position, scroll or use the slider to zoom.</p>
         </div>
         <div className="relative bg-black h-80">
           <Cropper
@@ -67,8 +67,8 @@ export default function AvatarCropper({ imageSrc, onSave, onCancel, saving = fal
             onCropComplete={onCropComplete}
           />
         </div>
-        <div className="px-5 py-3 border-t border-gray-800 flex items-center gap-3">
-          <label className="flex-1 flex items-center gap-2 text-xs text-gray-400">
+        <div className="px-5 py-3 border-t border-slate-200 dark:border-gray-800 flex items-center gap-3">
+          <label className="flex-1 flex items-center gap-2 text-xs text-slate-500 dark:text-gray-400">
             <span className="shrink-0">Zoom</span>
             <input
               type="range"
@@ -82,7 +82,7 @@ export default function AvatarCropper({ imageSrc, onSave, onCancel, saving = fal
             />
           </label>
         </div>
-        <div className="px-5 py-3 border-t border-gray-800 flex justify-end gap-2">
+        <div className="px-5 py-3 border-t border-slate-200 dark:border-gray-800 flex justify-end gap-2">
           <Button type="button" variant="tertiary" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>

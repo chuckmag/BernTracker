@@ -107,7 +107,7 @@ export default function WodResultDetail() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto">
-        <p className="text-gray-400">Loading...</p>
+        <p className="text-slate-500 dark:text-gray-400">Loading...</p>
       </div>
     )
   }
@@ -122,7 +122,7 @@ export default function WodResultDetail() {
               ? navigate(`/workouts/${originWorkoutId}`)
               : navigate(id ? `/workouts/${id}` : '/feed')
           }
-          className="mt-4 text-sm text-gray-400 hover:text-white transition-colors"
+          className="mt-4 text-sm text-slate-500 hover:text-slate-950 dark:text-gray-400 dark:hover:text-white transition-colors"
         >
           ← Back to WOD
         </button>
@@ -155,7 +155,7 @@ export default function WodResultDetail() {
             ? navigate(`/workouts/${originWorkoutId}`)
             : navigate(`/workouts/${workout.id}`)
         }
-        className="text-sm text-gray-400 hover:text-white transition-colors"
+        className="text-sm text-slate-500 hover:text-slate-950 dark:text-gray-400 dark:hover:text-white transition-colors"
       >
         ← Back to WOD
       </button>
@@ -181,18 +181,18 @@ export default function WodResultDetail() {
           <h2 className="text-xl font-semibold">{workout.title}</h2>
           {workout.namedWorkout && (
             <span className="flex items-center gap-1.5 ml-1">
-              <span className="text-sm text-indigo-400">● {workout.namedWorkout.name}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-900/50 text-indigo-300 border border-indigo-700/40">
+              <span className="text-sm text-indigo-600 dark:text-indigo-400">● {workout.namedWorkout.name}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-300/50 dark:bg-indigo-900/50 dark:text-indigo-300 dark:border-indigo-700/40">
                 {CATEGORY_LABELS[workout.namedWorkout.category]}
               </span>
             </span>
           )}
         </div>
-        <p className="text-sm text-gray-500 ml-11">{scheduledDate}</p>
+        <p className="text-sm text-slate-500 dark:text-gray-500 ml-11">{scheduledDate}</p>
       </div>
 
       {workout.description && (
-        <div className="bg-gray-900 rounded-lg px-4 py-3">
+        <div className="bg-slate-100 dark:bg-gray-900 rounded-lg px-4 py-3">
           <MarkdownDescription source={workout.description} />
         </div>
       )}
@@ -200,7 +200,7 @@ export default function WodResultDetail() {
       {(workout.workoutMovements?.length ?? 0) > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {workout.workoutMovements?.map((wm) => (
-            <span key={wm.movement.id} className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300 border border-gray-700">
+            <span key={wm.movement.id} className="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
               {wm.movement.name}
             </span>
           ))}
@@ -208,12 +208,12 @@ export default function WodResultDetail() {
       )}
 
       {/* Result block */}
-      <div className="px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 space-y-3">
+      <div className="px-4 py-3 rounded-lg bg-white border border-slate-200 dark:bg-gray-900 dark:border-gray-700 space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Result</span>
-          <span className="text-base font-medium text-white font-mono">{formatResultValue(result)}</span>
-          <span className="text-xs text-gray-400">{LEVEL_LABELS[result.level]}</span>
-          <span className="text-xs text-gray-500">{WORKOUT_GENDER_LABELS[result.workoutGender]}</span>
+          <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Result</span>
+          <span className="text-base font-medium text-slate-950 dark:text-white font-mono">{formatResultValue(result)}</span>
+          <span className="text-xs text-slate-500 dark:text-gray-400">{LEVEL_LABELS[result.level]}</span>
+          <span className="text-xs text-slate-500 dark:text-gray-500">{WORKOUT_GENDER_LABELS[result.workoutGender]}</span>
         </div>
         {movementResults.length > 0 && (
           <div className="space-y-3 pt-1">
@@ -221,14 +221,14 @@ export default function WodResultDetail() {
               const name = (mr.workoutMovementId && movementNameById.get(mr.workoutMovementId)) || 'Movement'
               return (
                 <div key={mr.workoutMovementId ?? mIdx}>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">{name}</p>
+                  <p className="text-[11px] font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">{name}</p>
                   <ol className="space-y-1">
                     {(mr.sets ?? []).map((set, sIdx) => (
                       <li
                         key={sIdx}
-                        className="flex items-baseline gap-3 text-sm text-gray-200"
+                        className="flex items-baseline gap-3 text-sm text-slate-800 dark:text-gray-200"
                       >
-                        <span className="text-xs text-gray-400 font-mono w-12 shrink-0">Set {sIdx + 1}</span>
+                        <span className="text-xs text-slate-500 dark:text-gray-400 font-mono w-12 shrink-0">Set {sIdx + 1}</span>
                         <span className="font-mono">{describeSet(set, mr.loadUnit, mr.distanceUnit)}</span>
                       </li>
                     ))}
@@ -240,11 +240,11 @@ export default function WodResultDetail() {
         )}
         {result.notes ? (
           <div>
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Notes</p>
-            <p className="text-sm text-gray-300 whitespace-pre-wrap">{result.notes}</p>
+            <p className="text-[11px] font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wide mb-1">Notes</p>
+            <p className="text-sm text-slate-700 dark:text-gray-300 whitespace-pre-wrap">{result.notes}</p>
           </div>
         ) : (
-          <p className="text-sm text-gray-500 italic">No notes for this result.</p>
+          <p className="text-sm text-slate-500 dark:text-gray-500 italic">No notes for this result.</p>
         )}
       </div>
     </div>

@@ -68,21 +68,21 @@ export default function MovementFilterInput({
             }
           }}
           placeholder={selectedIds.length === 0 ? placeholder : 'Add movement…'}
-          className="bg-transparent text-sm text-white placeholder-gray-600 outline-none w-36 focus:w-48 transition-all"
+          className="bg-transparent text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 outline-none w-36 focus:w-48 transition-all"
         />
 
         {open && searchResults.length > 0 && (
-          <div className="absolute left-0 top-full mt-1 z-50 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-xl overflow-hidden">
+          <div className="absolute left-0 top-full mt-1 z-50 w-56 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden">
             {searchResults.map((m) => (
               <button
                 key={m.id}
                 type="button"
                 onMouseDown={() => select(m)}
-                className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+                className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
               >
                 {m.name}
                 {m.parentId && (
-                  <span className="ml-1 text-gray-400 text-xs">
+                  <span className="ml-1 text-slate-400 dark:text-gray-400 text-xs">
                     ({allMovements.find((x) => x.id === m.parentId)?.name ?? 'variation'})
                   </span>
                 )}
@@ -96,7 +96,7 @@ export default function MovementFilterInput({
         <button
           type="button"
           onClick={() => onChange([])}
-          className="text-xs text-gray-400 hover:text-gray-200 transition-colors ml-1"
+          className="text-xs text-slate-400 dark:text-gray-400 hover:text-slate-950 dark:hover:text-gray-200 transition-colors ml-1"
         >
           Clear
         </button>

@@ -76,7 +76,7 @@ export default function BrowsePrograms() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-1">Browse programs</h1>
-      <p className="text-sm text-gray-400 mb-6">
+      <p className="text-sm text-slate-500 dark:text-gray-400 mb-6">
         Find programs to follow — popular public programs like the CrossFit Mainsite WOD,
         plus public programs from your gym.
       </p>
@@ -145,7 +145,7 @@ function BrowseSection({ title, subtitle, loading, emptyTitle, emptyBody, childr
   return (
     <section>
       <h2 className="text-lg font-semibold mb-1">{title}</h2>
-      <p className="text-sm text-gray-400 mb-4">{subtitle}</p>
+      <p className="text-sm text-slate-500 dark:text-gray-400 mb-4">{subtitle}</p>
 
       {loading && <Skeleton variant="feed-row" count={3} />}
 
@@ -171,17 +171,17 @@ function ProgramCard({ program, isDefault, joining, onJoin }: ProgramCardProps) 
   const stripe = program.coverColor ?? '#374151'
   const memberCount = program._count?.members ?? 0
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden flex flex-col">
+    <div className="bg-white border border-slate-200 dark:bg-gray-900 dark:border-gray-800 rounded-lg overflow-hidden flex flex-col">
       <div style={{ backgroundColor: stripe }} className="h-1.5 w-full" />
       <div className="p-4 flex-1 flex flex-col">
         <div className="flex items-start gap-2 flex-wrap">
-          <h3 className="font-semibold text-white truncate flex-1 min-w-0">{program.name}</h3>
+          <h3 className="font-semibold text-slate-950 dark:text-white truncate flex-1 min-w-0">{program.name}</h3>
           {isDefault && <DefaultBadge className="shrink-0" />}
         </div>
         {program.description && (
-          <p className="mt-1 text-xs text-gray-400 line-clamp-3">{program.description}</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-gray-400 line-clamp-3">{program.description}</p>
         )}
-        <p className="mt-3 text-xs text-gray-400">
+        <p className="mt-3 text-xs text-slate-500 dark:text-gray-400">
           {memberCount} {memberCount === 1 ? 'member' : 'members'}
         </p>
         <div className="mt-4 flex">

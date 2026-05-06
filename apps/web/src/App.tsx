@@ -37,8 +37,8 @@ export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknow
   const message = error instanceof Error ? error.message : String(error)
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
-      <p className="text-gray-400 text-sm">Something went wrong on this page.</p>
-      <p className="text-gray-400 text-xs font-mono">{message}</p>
+      <p className="text-slate-500 dark:text-gray-400 text-sm">Something went wrong on this page.</p>
+      <p className="text-slate-500 dark:text-gray-400 text-xs font-mono">{message}</p>
       <div className="flex gap-3">
         <button
           onClick={resetErrorBoundary}
@@ -48,7 +48,7 @@ export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknow
         </button>
         <button
           onClick={() => { resetErrorBoundary(); navigate('/feed') }}
-          className="px-4 py-2 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
+          className="px-4 py-2 text-sm rounded bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors"
         >
           Back to Feed
         </button>
