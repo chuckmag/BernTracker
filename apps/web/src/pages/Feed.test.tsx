@@ -38,14 +38,18 @@ vi.mock('../context/GymContext.tsx', () => ({
 // `beforeEach` / inside an `it` block to drive the picker selection.
 const mockFilter: {
   selected: string[]
+  gymProgramIds: string[]
   available: GymProgram[]
+  personalProgramId: string | null
   loading: boolean
   setSelected: ReturnType<typeof vi.fn>
   toggle: ReturnType<typeof vi.fn>
   clear: ReturnType<typeof vi.fn>
 } = {
   selected: [],
+  gymProgramIds: [],
   available: [],
+  personalProgramId: null,
   loading: false,
   setSelected: vi.fn(),
   toggle: vi.fn(),
@@ -54,6 +58,7 @@ const mockFilter: {
 vi.mock('../context/ProgramFilterContext.tsx', () => ({
   useProgramFilter: () => mockFilter,
   ProgramFilterProvider: ({ children }: { children: React.ReactNode }) => children,
+  PERSONAL_PROGRAM_SENTINEL: '__personal__',
 }))
 
 import { api } from '../lib/api'
@@ -131,8 +136,11 @@ function renderFeed() {
 // Most existing specs don't care about the personal-program upsert; default
 // it to a rejection so the page renders the same as before (add button stays
 // hidden). The personal-program-specific specs further down override this.
+// workouts.list must always return an array (never undefined) because the
+// Feed now spreads personal workouts into allWorkouts.
 beforeEach(() => {
   vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('not seeded'))
+  vi.mocked(api.me.personalProgram.workouts.list).mockResolvedValue([] as never)
 })
 
 describe('Feed — programIds filter (slice 2)', () => {
@@ -156,31 +164,25 @@ describe('Feed — programIds filter (slice 2)', () => {
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
   })
 
-  it('passes programIds in the filters bag and renders the single-program header', async () => {
+  it('passes programIds in the filters bag when a single program is selected', async () => {
     mockFilter.selected = ['prog-1']
+    mockFilter.gymProgramIds = ['prog-1']
     render(<MemoryRouter><Feed /></MemoryRouter>)
     await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
     const lastCall = vi.mocked(api.workouts.list).mock.calls.at(-1)!
     expect(lastCall[3]).toEqual({ programIds: ['prog-1'] })
-    expect(await screen.findByRole('heading', { name: 'Override — March 2026' })).toBeInTheDocument()
+    // Header always shows "Feed" — program selection shown in the inline picker
+    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
   })
 
-  it('renders the multi-program header when 2+ programs are selected', async () => {
+  it('passes programIds in the filters bag when 2+ programs are selected', async () => {
     mockFilter.selected = ['prog-1', 'prog-2']
+    mockFilter.gymProgramIds = ['prog-1', 'prog-2']
     render(<MemoryRouter><Feed /></MemoryRouter>)
     await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
     const lastCall = vi.mocked(api.workouts.list).mock.calls.at(-1)!
     expect(lastCall[3]).toEqual({ programIds: ['prog-1', 'prog-2'] })
-    // Plain "Feed" heading + a "Filtered to 2 programs" eyebrow
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
-    expect(screen.getByText('Filtered to 2 programs')).toBeInTheDocument()
-  })
-
-  it('shows a "Back to all workouts" link when any program is selected', async () => {
-    mockFilter.selected = ['prog-1']
-    render(<MemoryRouter><Feed /></MemoryRouter>)
-    await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
-    expect(screen.getByRole('link', { name: /Back to all workouts/ })).toBeInTheDocument()
   })
 })
 
@@ -411,7 +413,9 @@ describe('Feed — personal program', () => {
       title: 'My extra row',
       programId: 'pp-1',
     }
-    vi.mocked(api.workouts.list).mockResolvedValue([gymWorkout, personalWorkout] as never)
+    // Gym workout comes from the gym API; personal workout from the personal API.
+    vi.mocked(api.workouts.list).mockResolvedValue([gymWorkout] as never)
+    vi.mocked(api.me.personalProgram.workouts.list).mockResolvedValue([personalWorkout] as never)
     renderFeed()
 
     // Both tiles render

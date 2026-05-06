@@ -46,8 +46,15 @@ interface WorkoutCalendarBoardProps {
    * multiple programs. Wrapping that here lets each caller adapt freely.
    */
   loadWorkouts: (fromIso: string, toIso: string) => Promise<Workout[]>
-  /** Forwarded to WorkoutDrawer — drives create/update/delete + program picker. */
+  /** Default scope — used for creating new workouts and as fallback when resolveScope is absent. */
   scope: ProgramScope
+  /**
+   * Optional per-workout scope resolver. When provided, opening an existing
+   * workout derives the scope from the workout rather than using the default
+   * `scope`. Used by the unified calendar to route gym workouts to gymScope
+   * and personal workouts to personalScope so edit controls match permissions.
+   */
+  resolveScope?: (workout: Workout) => ProgramScope
   /** Forwarded to WorkoutDrawer for the role-gated reorder controls. */
   userGymRole?: Role | null
   /** Forwarded to WorkoutDrawer's program picker default selection. */
@@ -64,6 +71,7 @@ interface WorkoutCalendarBoardProps {
 export default function WorkoutCalendarBoard({
   loadWorkouts,
   scope,
+  resolveScope,
   userGymRole,
   defaultProgramId,
 }: WorkoutCalendarBoardProps) {
@@ -254,7 +262,7 @@ export default function WorkoutCalendarBoard({
       )}
 
       <WorkoutDrawer
-        scope={scope}
+        scope={selectedWorkout && resolveScope ? resolveScope(selectedWorkout) : scope}
         dateKey={selectedDate}
         workout={selectedWorkout}
         workoutsOnDay={workoutsOnDay}

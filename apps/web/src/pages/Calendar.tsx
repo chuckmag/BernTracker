@@ -16,7 +16,7 @@ export default function Calendar() {
     [gymId, userGymRole],
   )
   const allMovements = useMovements()
-  const { selected: programIds, available, clear: clearProgramFilter } = useProgramFilter()
+  const { gymProgramIds: programIds, available, clear: clearProgramFilter } = useProgramFilter()
   const [filterMovementIds, setFilterMovementIds] = useState<string[]>([])
 
   const programIdsKey = programIds.join(',')

@@ -1031,8 +1031,11 @@ export const api = {
     delete: (resultId: string, token?: string) =>
       req<void>(`/api/results/${resultId}`, { method: 'DELETE', token }),
 
-    history: (page = 1, movementIds?: string[], token?: string) => {
-      const qs = movementIds?.length ? `&${movementIds.map((id) => `movementIds=${encodeURIComponent(id)}`).join('&')}` : ''
+    history: (page = 1, movementIds?: string[], programIds?: string[], token?: string) => {
+      const parts: string[] = []
+      if (movementIds?.length) parts.push(...movementIds.map((id) => `movementIds=${encodeURIComponent(id)}`))
+      if (programIds?.length) parts.push(...programIds.map((id) => `programIds=${encodeURIComponent(id)}`))
+      const qs = parts.length ? `&${parts.join('&')}` : ''
       return req<ResultHistoryPage>(`/api/me/results?page=${page}${qs}`, { token })
     },
   },
