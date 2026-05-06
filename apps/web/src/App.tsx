@@ -31,6 +31,7 @@ import History from './pages/History.tsx'
 import AdminSettings from './pages/AdminSettings.tsx'
 import PersonalProgram from './pages/PersonalProgram.tsx'
 import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
+import Analytics from './pages/Analytics.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
   const navigate = useNavigate()
@@ -76,6 +77,7 @@ function AppLayout() {
               <Route path="/history" element={<History />} />
               <Route path="/personal-program" element={<PersonalProgram />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/analytics" element={<Analytics />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/programs" element={<ProgramsIndex />} />
               <Route path="/programs/:id" element={<ProgramDetail />} />
