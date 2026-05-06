@@ -52,7 +52,7 @@ describe('Analytics', () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.me.analytics.consistency).mockResolvedValue(mockConsistency)
     renderAnalytics()
-    expect(screen.getByText('Analytics')).toBeInTheDocument()
+    expect(screen.getByText('WODalytics')).toBeInTheDocument()
   })
 
   it('renders disabled Compare and Export buttons', async () => {
