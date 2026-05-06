@@ -261,7 +261,7 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
               <TrajectoryChart
                 points={trajectory.points}
                 isDark={isDark}
-                onClickPoint={(p) => navigate(`/workouts/${p.workoutId}/results/${p.resultId}`)}
+                onClickPoint={(p) => navigate(`/workouts/${p.workoutId}/results/${p.resultId}`, { state: { from: 'wodalytics' } })}
               />
             </>
           )}

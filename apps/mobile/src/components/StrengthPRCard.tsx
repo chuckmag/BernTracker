@@ -253,7 +253,7 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
       {selectedPoint && (
         <PointCallout
           point={selectedPoint}
-          onNavigate={() => navigation.navigate('WodDetail', { workoutId: selectedPoint.workoutId, from: 'movement-history' })}
+          onNavigate={() => navigation.navigate('WodDetail', { workoutId: selectedPoint.workoutId, from: 'wodalytics' })}
         />
       )}
     </ThemedView>

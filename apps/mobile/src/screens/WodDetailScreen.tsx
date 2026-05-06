@@ -238,8 +238,8 @@ export default function WodDetailScreen({ route, navigation }: Props) {
         </TouchableOpacity>
       )}
 
-      {/* Your History — hidden when arriving from a past-result link to prevent nesting */}
-      {user && route.params.from !== 'movement-history' && workout.workoutMovements.length > 0 && (
+      {/* Your History — hidden when arriving from movement-history or WODalytics to prevent nesting */}
+      {user && route.params.from !== 'movement-history' && route.params.from !== 'wodalytics' && workout.workoutMovements.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>YOUR HISTORY</Text>
           {workout.workoutMovements.map((wm) => (
