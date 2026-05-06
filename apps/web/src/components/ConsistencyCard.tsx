@@ -1,12 +1,17 @@
 import type { ConsistencyData } from '../lib/api.ts'
+import { useTheme } from '../context/ThemeContext.tsx'
+import { resolveTheme } from '../lib/useTheme.ts'
 
-const WEEKS = 16
 const CELL_COLORS = [
-  'bg-gray-800',    // 0
-  'bg-indigo-900',  // 1
-  'bg-indigo-700',  // 2
-  'bg-indigo-500',  // 3+
+  'bg-slate-100 dark:bg-gray-800',  // 0 — empty
+  'bg-indigo-200 dark:bg-indigo-900', // 1
+  'bg-indigo-400 dark:bg-indigo-700', // 2
+  'bg-indigo-600 dark:bg-indigo-500', // 3+
 ]
+
+// Raw hex values for the legend swatches — must match CELL_COLORS above
+const LEGEND_COLORS_LIGHT = ['#f1f5f9', '#c7d2fe', '#818cf8', '#4f46e5']
+const LEGEND_COLORS_DARK  = ['#1f2937', '#312e81', '#4338ca', '#6366f1']
 
 function cellColor(count: number): string {
   if (count === 0) return CELL_COLORS[0]
@@ -19,9 +24,10 @@ interface StreakRingProps {
   current: number
   best: number
   size?: number
+  isDark: boolean
 }
 
-function StreakRing({ current, best, size = 64 }: StreakRingProps) {
+function StreakRing({ current, best, size = 64, isDark }: StreakRingProps) {
   const radius = (size - 8) / 2
   const circumference = 2 * Math.PI * radius
   const progress = best > 0 ? Math.min(current / best, 1) : 0
@@ -29,28 +35,32 @@ function StreakRing({ current, best, size = 64 }: StreakRingProps) {
   const cx = size / 2
   const cy = size / 2
 
+  const trackColor   = isDark ? '#1f2937' : '#e2e8f0'  // gray-800 | slate-200
+  const fillColor    = isDark ? '#6366f1' : '#4f46e5'  // indigo-500 | indigo-600
+  const textFill     = isDark ? '#ffffff' : '#020617'  // white | slate-950
+
   return (
     <div className="flex flex-col items-center gap-1">
       <svg width={size} height={size} aria-label={`Current streak: ${current} days`} role="img">
-        <circle cx={cx} cy={cy} r={radius} fill="none" stroke="#1f2937" strokeWidth={7} />
+        <circle cx={cx} cy={cy} r={radius} fill="none" stroke={trackColor} strokeWidth={7} />
         <circle
           cx={cx}
           cy={cy}
           r={radius}
           fill="none"
-          stroke="#6366f1"
+          stroke={fillColor}
           strokeWidth={7}
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
           strokeLinecap="round"
           transform={`rotate(-90 ${cx} ${cy})`}
         />
-        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fill="white" fontSize={size < 60 ? 14 : 18} fontWeight="700">
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fill={textFill} fontSize={size < 60 ? 14 : 18} fontWeight="700">
           {current}
         </text>
       </svg>
-      <span className="text-xs text-gray-400">streak</span>
-      <span className="text-xs text-gray-500">Best: {best}d</span>
+      <span className="text-xs text-slate-500 dark:text-gray-400">streak</span>
+      <span className="text-xs text-slate-400 dark:text-gray-500">Best: {best}d</span>
     </div>
   )
 }
@@ -58,18 +68,20 @@ function StreakRing({ current, best, size = 64 }: StreakRingProps) {
 interface WorkoutDaysHeatmapProps {
   history: ConsistencyData['history']
   weeks?: number
+  isDark: boolean
 }
 
-function WorkoutDaysHeatmap({ history, weeks = WEEKS }: WorkoutDaysHeatmapProps) {
+const WEEKS = 16
+
+function WorkoutDaysHeatmap({ history, weeks = WEEKS, isDark }: WorkoutDaysHeatmapProps) {
   const countByDate: Record<string, number> = {}
   for (const { date, count } of history) {
     countByDate[date] = count
   }
 
-  // Build cells: weeks columns × 7 rows. Start from Sunday of the current week.
   const today = new Date()
   const todayUtc = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, '0')}-${String(today.getUTCDate()).padStart(2, '0')}`
-  const dayOfWeek = today.getUTCDay() // 0=Sun
+  const dayOfWeek = today.getUTCDay()
   const startDate = new Date(today)
   startDate.setUTCDate(today.getUTCDate() - dayOfWeek - (weeks - 1) * 7)
 
@@ -85,6 +97,8 @@ function WorkoutDaysHeatmap({ history, weeks = WEEKS }: WorkoutDaysHeatmapProps)
     columns.push(col)
   }
 
+  const legendColors = isDark ? LEGEND_COLORS_DARK : LEGEND_COLORS_LIGHT
+
   return (
     <div className="flex flex-col gap-1">
       <div className="flex gap-0.5" aria-label="Workout days heatmap">
@@ -97,7 +111,7 @@ function WorkoutDaysHeatmap({ history, weeks = WEEKS }: WorkoutDaysHeatmapProps)
                 className={[
                   'w-3 h-3 rounded-sm',
                   cellColor(count),
-                  isToday ? 'ring-1 ring-indigo-400 ring-offset-1 ring-offset-gray-900' : '',
+                  isToday ? 'ring-1 ring-indigo-400 ring-offset-1 ring-offset-white dark:ring-offset-gray-900' : '',
                 ].join(' ')}
               />
             ))}
@@ -105,11 +119,11 @@ function WorkoutDaysHeatmap({ history, weeks = WEEKS }: WorkoutDaysHeatmapProps)
         ))}
       </div>
       <div className="flex items-center gap-1 mt-1" aria-hidden="true">
-        <span className="text-[10px] text-gray-500">Less</span>
-        {CELL_COLORS.map((c, i) => (
-          <div key={i} className={`w-2.5 h-2.5 rounded-sm ${c}`} />
+        <span className="text-[10px] text-slate-400 dark:text-gray-500">Less</span>
+        {legendColors.map((color, i) => (
+          <div key={i} className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
         ))}
-        <span className="text-[10px] text-gray-500">More</span>
+        <span className="text-[10px] text-slate-400 dark:text-gray-500">More</span>
       </div>
     </div>
   )
@@ -121,16 +135,19 @@ interface ConsistencyCardProps {
 }
 
 export default function ConsistencyCard({ data, weeks = WEEKS }: ConsistencyCardProps) {
+  const { mode } = useTheme()
+  const isDark = resolveTheme(mode) === 'dark'
+
   return (
-    <div className="bg-gray-900 rounded-xl p-5 flex flex-col gap-4">
+    <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-xl p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">Consistency</h2>
-        <span className="text-xs text-gray-500">Last {weeks} weeks</span>
+        <h2 className="text-sm font-semibold text-slate-950 dark:text-white">Consistency</h2>
+        <span className="text-xs text-slate-400 dark:text-gray-500">Last {weeks} weeks</span>
       </div>
 
       <div className="flex items-start gap-6">
-        <StreakRing current={data.currentStreak} best={data.longestStreak} size={64} />
-        <WorkoutDaysHeatmap history={data.history} weeks={weeks} />
+        <StreakRing current={data.currentStreak} best={data.longestStreak} size={64} isDark={isDark} />
+        <WorkoutDaysHeatmap history={data.history} weeks={weeks} isDark={isDark} />
       </div>
     </div>
   )

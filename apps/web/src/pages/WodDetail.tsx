@@ -132,7 +132,7 @@ export default function WodDetail() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto">
-        <p className="text-gray-400">Loading...</p>
+        <p className="text-slate-500 dark:text-gray-400">Loading...</p>
       </div>
     )
   }
@@ -143,7 +143,7 @@ export default function WodDetail() {
         <p className="text-red-400">{error ?? 'Workout not found.'}</p>
         <button
           onClick={() => navigate('/feed')}
-          className="mt-4 text-sm text-gray-400 hover:text-white transition-colors"
+          className="mt-4 text-sm text-slate-500 hover:text-slate-950 dark:text-gray-400 dark:hover:text-white transition-colors"
         >
           ← Back to Feed
         </button>
@@ -200,7 +200,7 @@ export default function WodDetail() {
             </span>
           )}
         </div>
-        <p className="text-sm text-gray-500 ml-11">{scheduledDate}</p>
+        <p className="text-sm text-slate-500 dark:text-gray-500 ml-11">{scheduledDate}</p>
       </div>
 
       {/*
@@ -347,7 +347,7 @@ export default function WodDetail() {
             All divisions
           </label>
           {!user?.birthday && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-slate-500 dark:text-gray-500">
               Add your{' '}
               <Link to="/profile" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
                 birthday

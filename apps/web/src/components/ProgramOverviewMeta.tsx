@@ -24,21 +24,21 @@ export default function ProgramOverviewMeta({ program, onOpenMembers }: ProgramO
   return (
     <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm mb-8">
       <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Start date</dt>
-        <dd className="text-white">{fmt(program.startDate)}</dd>
+        <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1">Start date</dt>
+        <dd className="text-slate-950 dark:text-white">{fmt(program.startDate)}</dd>
       </div>
       <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">End date</dt>
-        <dd className="text-white">{fmt(program.endDate)}</dd>
+        <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1">End date</dt>
+        <dd className="text-slate-950 dark:text-white">{fmt(program.endDate)}</dd>
       </div>
       <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Members</dt>
-        <dd className="text-white">
+        <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1">Members</dt>
+        <dd className="text-slate-950 dark:text-white">
           {onOpenMembers ? (
             <button
               type="button"
               onClick={onOpenMembers}
-              className="text-white hover:text-indigo-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 rounded"
+              className="text-slate-950 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 rounded"
             >
               {memberCount}
             </button>
@@ -48,8 +48,8 @@ export default function ProgramOverviewMeta({ program, onOpenMembers }: ProgramO
         </dd>
       </div>
       <div>
-        <dt className="text-xs uppercase tracking-wider text-gray-400 mb-1">Workouts</dt>
-        <dd className="text-white">{workoutCount}</dd>
+        <dt className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-1">Workouts</dt>
+        <dd className="text-slate-950 dark:text-white">{workoutCount}</dd>
       </div>
     </dl>
   )

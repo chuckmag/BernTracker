@@ -39,7 +39,7 @@ export default function PersonalProgramPage() {
     return (
       <div className="max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold mb-2">Personal Program</h1>
-        <p className="text-gray-400 text-sm">Loading…</p>
+        <p className="text-slate-400 dark:text-gray-400 text-sm">Loading…</p>
       </div>
     )
   }
@@ -48,7 +48,7 @@ export default function PersonalProgramPage() {
     <div>
       <header className="mb-6">
         <h1 className="text-2xl font-bold">Personal Program</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
           Your private workouts — only you can see or edit these. Click any day to plan a workout.
         </p>
       </header>

@@ -19,7 +19,7 @@ export default function Analytics() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-white">Analytics</h1>
+        <h1 className="text-2xl font-bold tracking-tight">WODalytics</h1>
         <div className="flex gap-2">
           <Button variant="secondary" disabled>Compare</Button>
           <Button variant="secondary" disabled>Export</Button>

@@ -3,6 +3,18 @@
 /* Class-based dark mode: `dark:` utilities apply when <html> has class="dark". */
 @variant dark (&:where(.dark, .dark *));
 
+/* Base element defaults — CSS `color` inherits, so every p/div/span picks up
+   the right text color without explicit classes. Background-color does NOT
+   inherit (stays transparent), so cards still need their own bg class. */
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-950;
+  }
+  .dark body {
+    @apply bg-gray-950 text-white;
+  }
+}
+
 /* Brand color tokens — runtime-switchable via .dark class on <html>. */
 :root {
   --color-primary-val:       #1E5AA8;

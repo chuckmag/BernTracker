@@ -40,7 +40,7 @@ export default function Avatar({
       <img
         src={avatarUrl}
         alt={alt ?? `${firstName ?? email} avatar`}
-        className={[sizeClass, 'rounded-full object-cover bg-gray-800 shrink-0'].join(' ')}
+        className={[sizeClass, 'rounded-full object-cover bg-slate-200 dark:bg-gray-800 shrink-0'].join(' ')}
         loading="lazy"
         decoding="async"
       />

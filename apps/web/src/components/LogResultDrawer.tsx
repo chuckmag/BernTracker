@@ -283,21 +283,21 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
     <div className="fixed inset-0 z-40 flex justify-end">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
 
-      <div className="relative z-10 w-full max-w-md bg-gray-900 flex flex-col shadow-2xl">
+      <div className="relative z-10 w-full max-w-md bg-white dark:bg-gray-900 flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-gray-800">
           <div className="flex items-center gap-2">
             <span className={`w-7 h-7 flex items-center justify-center rounded text-xs font-bold ${styles.bg} ${styles.tint}`}>
               {TYPE_ABBR[workout.type]}
             </span>
             <div>
-              <p className="text-sm font-semibold text-white leading-tight">
+              <p className="text-sm font-semibold text-slate-950 dark:text-white leading-tight">
                 {isEdit ? 'Edit Result' : 'Log Result'}
               </p>
-              <p className="text-xs text-gray-400 leading-tight truncate max-w-[220px]">{workout.title}</p>
+              <p className="text-xs text-slate-500 dark:text-gray-400 leading-tight truncate max-w-[220px]">{workout.title}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white text-xl leading-none transition-colors -my-1 -mr-1.5 w-7 h-7 inline-flex items-center justify-center" aria-label="Close">×</button>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-950 dark:text-gray-500 dark:hover:text-white text-xl leading-none transition-colors -my-1 -mr-1.5 w-7 h-7 inline-flex items-center justify-center" aria-label="Close">×</button>
         </div>
 
         {/* Body */}
@@ -307,7 +307,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
 
           {/* Level */}
           <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Level</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide mb-2">Level</p>
             <div className="flex gap-1.5 flex-wrap">
               {LEVELS.map(({ value: v, label }) => (
                 <button
@@ -316,7 +316,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
                   onClick={() => setLevel(v)}
                   className={[
                     'px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-                    level === v ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white',
+                    level === v ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-gray-700 hover:text-slate-950 dark:hover:text-white',
                   ].join(' ')}
                 >
                   {label}
@@ -339,7 +339,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
                       onClick={() => setActiveMovement(i)}
                       className={[
                         'px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors',
-                        i === activeMovement ? 'bg-gray-700 text-white' : 'bg-gray-800 text-gray-400 hover:text-white',
+                        i === activeMovement ? 'bg-slate-200 dark:bg-gray-700 text-slate-950 dark:text-white' : 'bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
                       ].join(' ')}
                     >
                       {m.movementName}
@@ -372,7 +372,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
           )}
 
           {mode === 'notes-only' && (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-slate-500 dark:text-gray-400">
               This workout type doesn't have a structured score. Add notes below
               to record what you did.
             </p>
@@ -380,11 +380,11 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 uppercase tracking-wide mb-1.5">
               Notes <span className="normal-case font-normal">(optional)</span>
             </label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="How'd it go?"
-              className="w-full bg-gray-800 text-white text-sm rounded-md px-3 py-2 border border-gray-700 focus:outline-none focus:border-indigo-500 resize-none" />
+              className="w-full bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded-md px-3 py-2 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-indigo-500 resize-none" />
           </div>
 
           {/* Delete confirmation */}
@@ -401,7 +401,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 py-1.5 rounded-md bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium transition-colors"
+                  className="flex-1 py-1.5 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white text-xs font-medium transition-colors"
                 >
                   Cancel
                 </button>
@@ -411,7 +411,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-gray-800 space-y-2">
+        <div className="px-5 py-4 border-t border-slate-200 dark:border-gray-800 space-y-2">
           <button
             onClick={handleSubmit}
             disabled={submitting || alreadyLogged}
@@ -522,7 +522,7 @@ function SetsTable({
   return (
     <div className="space-y-2">
       {/* Unit pickers — only render when load or distance is in play */}
-      <div className="flex gap-3 text-xs text-gray-400">
+      <div className="flex gap-3 text-xs text-slate-500 dark:text-gray-400">
         {visible.has('load') && (
           <label className="flex items-center gap-1.5">
             Load:
@@ -530,7 +530,7 @@ function SetsTable({
               aria-label={`Load unit for ${movement.movementName}`}
               value={movement.loadUnit}
               onChange={(e) => onUnitChange(movementIdx, 'loadUnit', e.target.value as LoadUnit)}
-              className="bg-gray-800 text-white rounded px-1.5 py-0.5 border border-gray-700"
+              className="bg-white dark:bg-gray-800 text-slate-950 dark:text-white rounded px-1.5 py-0.5 border border-slate-200 dark:border-gray-700"
             >
               <option value="LB">lb</option>
               <option value="KG">kg</option>
@@ -544,7 +544,7 @@ function SetsTable({
               aria-label={`Distance unit for ${movement.movementName}`}
               value={movement.distanceUnit}
               onChange={(e) => onUnitChange(movementIdx, 'distanceUnit', e.target.value as DistanceUnit)}
-              className="bg-gray-800 text-white rounded px-1.5 py-0.5 border border-gray-700"
+              className="bg-white dark:bg-gray-800 text-slate-950 dark:text-white rounded px-1.5 py-0.5 border border-slate-200 dark:border-gray-700"
             >
               <option value="M">m</option>
               <option value="KM">km</option>
@@ -558,7 +558,7 @@ function SetsTable({
 
       <table className="w-full text-sm" aria-label={`Sets for ${movement.movementName}`}>
         <thead>
-          <tr className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">
+          <tr className="text-[11px] font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide">
             <th className="w-10 text-left pb-1.5">Set</th>
             {showColumns.map((c) => (
               <th key={c.key} className="text-left pb-1.5">{c.label}</th>
@@ -569,7 +569,7 @@ function SetsTable({
         <tbody>
           {movement.sets.map((s, sIdx) => (
             <tr key={sIdx}>
-              <td className="text-xs text-gray-500 pr-2 align-middle">{sIdx + 1}</td>
+              <td className="text-xs text-slate-400 dark:text-gray-500 pr-2 align-middle">{sIdx + 1}</td>
               {showColumns.map((c) => (
                 <td key={c.key} className="pr-1.5 pb-1.5">
                   <input
@@ -579,7 +579,7 @@ function SetsTable({
                     value={s[c.key]}
                     onChange={(e) => onUpdate(movementIdx, sIdx, c.key, e.target.value)}
                     placeholder={c.placeholder}
-                    className="w-full bg-gray-800 text-white text-sm rounded px-2 py-1.5 border border-gray-700 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded px-2 py-1.5 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-indigo-500"
                   />
                 </td>
               ))}
@@ -589,7 +589,7 @@ function SetsTable({
                     type="button"
                     onClick={() => onRemoveSet(movementIdx, sIdx)}
                     aria-label={`Remove set ${sIdx + 1}`}
-                    className="-my-1 -mr-1.5 w-7 h-7 inline-flex items-center justify-center text-gray-500 hover:text-red-400 transition-colors"
+                    className="-my-1 -mr-1.5 w-7 h-7 inline-flex items-center justify-center text-slate-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                   >
                     ×
                   </button>
@@ -604,7 +604,7 @@ function SetsTable({
         <button
           type="button"
           onClick={() => onAddSet(movementIdx)}
-          className="px-3 py-1.5 rounded-md bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-300 transition-colors"
+          className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-xs font-medium text-slate-700 dark:text-gray-300 transition-colors"
         >
           + Add set
         </button>
@@ -616,7 +616,7 @@ function SetsTable({
             // first row reveals the column. We surface a button per hidden
             // column to make discovery obvious.
             onClick={() => onUpdate(movementIdx, 0, c.key, c.placeholder.split(' ')[0])}
-            className="px-3 py-1.5 rounded-md bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-400 hover:text-white transition-colors"
+            className="px-3 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-xs font-medium text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white transition-colors"
           >
             + {c.label}
           </button>
@@ -674,18 +674,18 @@ function ScoreFields({
   if (kind === 'ROUNDS_REPS') {
     return (
       <div className="space-y-3">
-        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Score</p>
+        <p className="text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide">Score</p>
         {workout.tracksRounds && (
           <div>
-            <label htmlFor="lr-rounds" className="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Rounds</label>
+            <label htmlFor="lr-rounds" className="block text-xs font-medium text-slate-600 dark:text-gray-400 uppercase tracking-wide mb-1.5">Rounds</label>
             <input id="lr-rounds" type="number" min="0" value={fields.rounds} onChange={(e) => update('rounds', e.target.value)} placeholder="0"
-              className="w-full bg-gray-800 text-white text-sm rounded-md px-3 py-2 border border-gray-700 focus:outline-none focus:border-indigo-500" />
+              className="w-full bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded-md px-3 py-2 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-indigo-500" />
           </div>
         )}
         <div>
-          <label htmlFor="lr-reps" className="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Reps</label>
+          <label htmlFor="lr-reps" className="block text-xs font-medium text-slate-600 dark:text-gray-400 uppercase tracking-wide mb-1.5">Reps</label>
           <input id="lr-reps" type="number" min="0" value={fields.reps} onChange={(e) => update('reps', e.target.value)} placeholder="0"
-            className="w-full bg-gray-800 text-white text-sm rounded-md px-3 py-2 border border-gray-700 focus:outline-none focus:border-indigo-500" />
+            className="w-full bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded-md px-3 py-2 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-indigo-500" />
         </div>
       </div>
     )
@@ -693,24 +693,24 @@ function ScoreFields({
   if (kind === 'TIME') {
     return (
       <div className="space-y-3">
-        <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Time</p>
+        <p className="text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wide">Time</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="lr-min" className="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Min</label>
+            <label htmlFor="lr-min" className="block text-xs font-medium text-slate-600 dark:text-gray-400 uppercase tracking-wide mb-1.5">Min</label>
             <input id="lr-min" type="number" min="0" value={fields.minutes} onChange={(e) => update('minutes', e.target.value)} placeholder="0"
               disabled={fields.cappedOut}
-              className="w-full bg-gray-800 text-white text-sm rounded-md px-3 py-2 border border-gray-700 focus:outline-none focus:border-indigo-500 disabled:opacity-40" />
+              className="w-full bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded-md px-3 py-2 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-indigo-500 disabled:opacity-40" />
           </div>
           <div>
-            <label htmlFor="lr-sec" className="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Sec</label>
+            <label htmlFor="lr-sec" className="block text-xs font-medium text-slate-600 dark:text-gray-400 uppercase tracking-wide mb-1.5">Sec</label>
             <input id="lr-sec" type="number" min="0" max="59" value={fields.seconds} onChange={(e) => update('seconds', e.target.value)} placeholder="0"
               disabled={fields.cappedOut}
-              className="w-full bg-gray-800 text-white text-sm rounded-md px-3 py-2 border border-gray-700 focus:outline-none focus:border-indigo-500 disabled:opacity-40" />
+              className="w-full bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded-md px-3 py-2 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-indigo-500 disabled:opacity-40" />
           </div>
         </div>
         <label className="flex items-center gap-2 cursor-pointer min-h-7">
           <input type="checkbox" checked={fields.cappedOut} onChange={(e) => update('cappedOut', e.target.checked)} className="w-4 h-4 rounded accent-indigo-500" />
-          <span className="text-sm text-gray-300">Time capped</span>
+          <span className="text-sm text-slate-700 dark:text-gray-300">Time capped</span>
         </label>
       </div>
     )
@@ -718,12 +718,12 @@ function ScoreFields({
   if (kind === 'DISTANCE') {
     return (
       <div className="space-y-3">
-        <label htmlFor="lr-distance" className="block text-xs font-medium text-gray-400 uppercase tracking-wide">Distance</label>
+        <label htmlFor="lr-distance" className="block text-xs font-medium text-slate-600 dark:text-gray-400 uppercase tracking-wide">Distance</label>
         <div className="flex gap-2">
           <input id="lr-distance" type="number" min="0" value={fields.distance} onChange={(e) => update('distance', e.target.value)} placeholder="0"
-            className="flex-1 bg-gray-800 text-white text-sm rounded-md px-3 py-2 border border-gray-700 focus:outline-none focus:border-indigo-500" />
+            className="flex-1 bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded-md px-3 py-2 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-indigo-500" />
           <select aria-label="Distance unit" value={fields.distanceUnit} onChange={(e) => update('distanceUnit', e.target.value as DistanceUnit)}
-            className="bg-gray-800 text-white rounded-md px-2 border border-gray-700">
+            className="bg-white dark:bg-gray-800 text-slate-950 dark:text-white rounded-md px-2 border border-slate-300 dark:border-gray-700">
             <option value="M">m</option>
             <option value="KM">km</option>
             <option value="MI">mi</option>
@@ -737,9 +737,9 @@ function ScoreFields({
   // CALORIES
   return (
     <div className="space-y-3">
-      <label htmlFor="lr-cals" className="block text-xs font-medium text-gray-400 uppercase tracking-wide">Calories</label>
+      <label htmlFor="lr-cals" className="block text-xs font-medium text-slate-600 dark:text-gray-400 uppercase tracking-wide">Calories</label>
       <input id="lr-cals" type="number" min="0" value={fields.calories} onChange={(e) => update('calories', e.target.value)} placeholder="0"
-        className="w-full bg-gray-800 text-white text-sm rounded-md px-3 py-2 border border-gray-700 focus:outline-none focus:border-indigo-500" />
+        className="w-full bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded-md px-3 py-2 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-indigo-500" />
     </div>
   )
 }

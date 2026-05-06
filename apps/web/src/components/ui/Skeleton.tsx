@@ -7,9 +7,9 @@ interface SkeletonProps {
 }
 
 const VARIANT_SHAPE: Record<SkeletonVariant, string> = {
-  'feed-row':      'h-[60px] rounded-lg bg-gray-900',
-  'history-row':   'h-[52px] rounded-lg bg-gray-900',
-  'calendar-cell': 'h-24 rounded bg-gray-900',
+  'feed-row':      'h-[60px] rounded-lg bg-slate-200 dark:bg-gray-900',
+  'history-row':   'h-[52px] rounded-lg bg-slate-200 dark:bg-gray-900',
+  'calendar-cell': 'h-24 rounded bg-slate-200 dark:bg-gray-900',
 }
 
 const VARIANT_GAP: Record<SkeletonVariant, string> = {

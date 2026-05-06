@@ -106,8 +106,8 @@ export default function AvatarUploader({ size = 'lg', helper }: AvatarUploaderPr
           size={size}
         />
         <div className="flex-1 space-y-2">
-          {helper ?? <p className="text-sm text-white">Profile photo</p>}
-          <p className="text-xs text-gray-400">JPEG, PNG, WebP, or HEIC. Up to 20MB. You'll crop it to a square before saving.</p>
+          {helper ?? <p className="text-sm text-slate-950 dark:text-white">Profile photo</p>}
+          <p className="text-xs text-slate-500 dark:text-gray-400">JPEG, PNG, WebP, or HEIC. Up to 20MB. You'll crop it to a square before saving.</p>
           <div className="flex flex-wrap gap-2">
             <input {...inputProps} />
             <Button
