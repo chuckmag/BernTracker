@@ -17,7 +17,7 @@ import Register from './pages/Register.tsx'
 import Onboarding from './pages/Onboarding.tsx'
 import Profile from './pages/Profile.tsx'
 import Dashboard from './pages/Dashboard.tsx'
-import Calendar from './pages/Calendar.tsx'
+import UnifiedCalendar from './pages/UnifiedCalendar.tsx'
 import ProgramsIndex from './pages/ProgramsIndex.tsx'
 import ProgramDetail from './pages/ProgramDetail.tsx'
 import BrowsePrograms from './pages/BrowsePrograms.tsx'
@@ -29,7 +29,7 @@ import WodDetail from './pages/WodDetail.tsx'
 import WodResultDetail from './pages/WodResultDetail.tsx'
 import History from './pages/History.tsx'
 import AdminSettings from './pages/AdminSettings.tsx'
-import PersonalProgram from './pages/PersonalProgram.tsx'
+// PersonalProgram page replaced by UnifiedCalendar (#268). Route now redirects.
 import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
 import Analytics from './pages/Analytics.tsx'
 
@@ -75,10 +75,10 @@ function AppLayout() {
               <Route path="/workouts/:id" element={<WodDetail />} />
               <Route path="/workouts/:id/results/:resultId" element={<WodResultDetail />} />
               <Route path="/history" element={<History />} />
-              <Route path="/personal-program" element={<PersonalProgram />} />
+              <Route path="/personal-program" element={<Navigate to="/calendar" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/wodalytics" element={<Analytics />} />
-              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/calendar" element={<UnifiedCalendar />} />
               <Route path="/programs" element={<ProgramsIndex />} />
               <Route path="/programs/:id" element={<ProgramDetail />} />
               <Route path="/browse-programs" element={<BrowsePrograms />} />
