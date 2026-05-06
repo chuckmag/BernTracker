@@ -51,7 +51,7 @@ export default function ProgramsIndex() {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-2">Programs</h1>
-        <p className="text-gray-400">Set up your gym in Settings first.</p>
+        <p className="text-slate-500 dark:text-gray-400">Set up your gym in Settings first.</p>
       </div>
     )
   }
@@ -61,7 +61,7 @@ export default function ProgramsIndex() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Programs</h1>
-          <span className="bg-gray-700 text-sm px-2 py-0.5 rounded-full">{gymPrograms.length}</span>
+          <span className="bg-slate-200 dark:bg-gray-700 text-sm px-2 py-0.5 rounded-full">{gymPrograms.length}</span>
         </div>
         {canWrite && (
           <Button variant="primary" onClick={() => setDrawerOpen(true)}>
