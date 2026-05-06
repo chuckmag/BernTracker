@@ -197,14 +197,13 @@ export async function getStrengthPRTrajectoryForUser(
     },
     select: {
       id: true,
-      createdAt: true,
       value: true,
-      workout: { select: { id: true } },
+      workout: { select: { id: true, scheduledAt: true } },
     },
-    orderBy: { createdAt: 'asc' },
   })
 
-  // Aggregate max-load result per UTC calendar date
+  // Aggregate max-load result per workout scheduledAt UTC calendar date, then
+  // sort ascending so the polyline runs oldest → newest.
   const byDate = new Map<string, { maxLoad: number; loadUnit: string; effort: string; workoutId: string; resultId: string }>()
   let currentPr: number | null = null
   let latestUnit: string | null = null
@@ -216,7 +215,7 @@ export async function getStrengthPRTrajectoryForUser(
     const bestSet = setsWithLoad.reduce((best, s) => (s.load! > best.load!) ? s : best, setsWithLoad[0])
     const maxLoad = bestSet.load!
     const effort = bestSet.reps ? `${bestSet.reps} × ${maxLoad}` : `${maxLoad}`
-    const dateKey = toUtcDateKey(result.createdAt)
+    const dateKey = toUtcDateKey(result.workout.scheduledAt)
     const u = unit ?? 'LB'
     if (latestUnit === null) latestUnit = u
     const existing = byDate.get(dateKey)

@@ -288,9 +288,8 @@ function StrengthTooltip({ active, payload }: { active?: boolean; payload?: Arra
 }
 
 function StrengthChart({ results }: { results: MovementHistoryResult[] }) {
-  // Results arrive newest-first; reverse to chronological for the trend line.
   const chartData: StrengthChartPoint[] = [...results]
-    .reverse()
+    .sort((a, b) => a.workout.scheduledAt.localeCompare(b.workout.scheduledAt))
     .map((r) => {
       const best = bestE1RM(r)
       if (best === null) return null
