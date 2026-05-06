@@ -312,7 +312,7 @@ function MovementsTab() {
                     <button
                       onClick={() => handleSaveEdit(m.id)}
                       disabled={savingEdit || !mvEditName.trim()}
-                      className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors"
+                      className="px-3 py-1 text-xs rounded bg-primary hover:bg-primary-hover text-white disabled:opacity-50 transition-colors"
                     >
                       {savingEdit ? 'Saving…' : 'Save'}
                     </button>

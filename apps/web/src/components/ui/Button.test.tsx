@@ -6,7 +6,7 @@ import Button from './Button'
 describe('Button', () => {
   it('renders each variant with its own style class', () => {
     const { rerender } = render(<Button variant="primary">Go</Button>)
-    expect(screen.getByRole('button', { name: 'Go' })).toHaveClass('bg-indigo-600')
+    expect(screen.getByRole('button', { name: 'Go' })).toHaveClass('bg-primary')
 
     rerender(<Button variant="secondary">Go</Button>)
     expect(screen.getByRole('button', { name: 'Go' })).toHaveClass('bg-slate-200')
@@ -24,7 +24,7 @@ describe('Button', () => {
 
   it('defaults to primary when variant is omitted', () => {
     render(<Button>Default</Button>)
-    expect(screen.getByRole('button', { name: 'Default' })).toHaveClass('bg-indigo-600')
+    expect(screen.getByRole('button', { name: 'Default' })).toHaveClass('bg-primary')
   })
 
   it('applies disabled styling and blocks clicks when disabled', async () => {

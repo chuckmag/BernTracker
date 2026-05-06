@@ -436,7 +436,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex-[2] bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
+            className="flex-[2] bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
           >
             {saving ? 'Saving…' : 'Save'}
           </button>

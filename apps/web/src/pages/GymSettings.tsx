@@ -173,7 +173,7 @@ export default function GymSettings() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white"
+            className="bg-primary hover:bg-primary-hover disabled:opacity-50 px-4 py-2 rounded text-white"
           >
             {loading ? 'Creating…' : 'Create Gym'}
           </button>
@@ -259,7 +259,7 @@ export default function GymSettings() {
               <button
                 type="submit"
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white"
+                className="bg-primary hover:bg-primary-hover disabled:opacity-50 px-4 py-2 rounded text-white"
               >
                 {saving ? 'Saving…' : 'Save'}
               </button>
@@ -328,7 +328,7 @@ export default function GymSettings() {
             <button
               type="submit"
               disabled={addingProg}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white text-sm"
+              className="bg-primary hover:bg-primary-hover disabled:opacity-50 px-4 py-2 rounded text-white text-sm"
             >
               {addingProg ? 'Adding…' : 'Add Program'}
             </button>

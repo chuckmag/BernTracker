@@ -415,7 +415,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
           <button
             onClick={handleSubmit}
             disabled={submitting || alreadyLogged}
-            className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+            className="w-full py-2.5 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 font-semibold text-sm transition-colors"
           >
             {submitting ? 'Saving…' : isEdit ? 'Update Result' : 'Save Result'}
           </button>
