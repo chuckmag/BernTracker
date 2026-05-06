@@ -44,17 +44,17 @@ export default function MyInvitationsSection() {
 
   return (
     <section id="invitations" className="space-y-3 scroll-mt-16">
-      <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Invitations</h2>
+      <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wide">Invitations</h2>
       <ul className="space-y-2">
         {invitations.map((inv) => (
-          <li key={inv.id} className="rounded-xl bg-gray-900 border border-gray-800 p-4 space-y-3">
+          <li key={inv.id} className="rounded-xl bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-4 space-y-3">
             <div className="space-y-1">
-              <p className="text-sm text-white">
+              <p className="text-sm text-slate-950 dark:text-white">
                 <span className="font-semibold">{inv.gym.name}</span>
-                <span className="text-gray-400"> invited you as </span>
-                <span className="text-indigo-300">{ROLE_LABEL[inv.roleToGrant] ?? inv.roleToGrant}</span>
+                <span className="text-slate-500 dark:text-gray-400"> invited you as </span>
+                <span className="text-indigo-600 dark:text-indigo-300">{ROLE_LABEL[inv.roleToGrant] ?? inv.roleToGrant}</span>
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-500 dark:text-gray-400">
                 From {inviterDisplayName(inv.invitedBy)} · {new Date(inv.createdAt).toLocaleDateString()}
               </p>
             </div>

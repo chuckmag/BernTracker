@@ -12,10 +12,10 @@ const ROLE_LABEL: Record<Role, string> = {
 }
 
 const ROLE_TINT: Record<Role, string> = {
-  OWNER: 'bg-indigo-500/20 text-indigo-300',
-  PROGRAMMER: 'bg-blue-500/20 text-blue-300',
-  COACH: 'bg-emerald-500/20 text-emerald-300',
-  MEMBER: 'bg-gray-700 text-gray-300',
+  OWNER: 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-300',
+  PROGRAMMER: 'bg-blue-500/20 text-blue-700 dark:text-blue-300',
+  COACH: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
+  MEMBER: 'bg-slate-200 dark:bg-gray-700 text-slate-600 dark:text-gray-300',
 }
 
 // Lists the gyms the user is a member of on the /profile Memberships tab.
@@ -37,7 +37,7 @@ export default function MyGymsSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Your gyms</h2>
+      <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wide">Your gyms</h2>
       {error && <p className="text-sm text-rose-400">{error}</p>}
       {!hasLoaded ? (
         <Skeleton variant="history-row" count={2} />
@@ -51,9 +51,9 @@ export default function MyGymsSection() {
           {gyms.map((g) => (
             <li
               key={g.id}
-              className="flex items-center justify-between gap-3 rounded-lg bg-gray-900 border border-gray-800 px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 px-4 py-3"
             >
-              <p className="text-sm text-white truncate">{g.name}</p>
+              <p className="text-sm text-slate-950 dark:text-white truncate">{g.name}</p>
               <span className={['text-xs px-2 py-0.5 rounded-full shrink-0', ROLE_TINT[g.role]].join(' ')}>
                 {ROLE_LABEL[g.role]}
               </span>
@@ -62,7 +62,7 @@ export default function MyGymsSection() {
         </ul>
       )}
       {hasLoaded && gyms.length > 0 && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-slate-400 dark:text-gray-500">
           Switch between gyms or find more from the gym picker in the top-right corner. Need to start a new gym?{' '}
           <Link to="/gyms/new" className="text-indigo-400 hover:text-indigo-300">Set one up</Link>.
         </p>
