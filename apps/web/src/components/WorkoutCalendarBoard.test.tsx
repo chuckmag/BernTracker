@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import WorkoutCalendarBoard from './WorkoutCalendarBoard'
 import { makePersonalProgramScope } from '../lib/personalProgramScope'
@@ -93,5 +93,48 @@ describe('WorkoutCalendarBoard responsive switch', () => {
       (new Date(wideTo as string).getTime() - new Date(wideFrom as string).getTime()) / (1000 * 60 * 60 * 24)
     expect(wideSpanDays).toBeGreaterThan(27.9)
     expect(wideSpanDays).toBeLessThan(31)
+  })
+
+  it('hides the Today button on the month grid while viewing the current month', async () => {
+    mockMatchMediaMatches(false)
+    const loadWorkouts = vi.fn().mockResolvedValue([])
+    render(<WorkoutCalendarBoard loadWorkouts={loadWorkouts} scope={personalScope} />)
+    await waitFor(() => expect(loadWorkouts).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument()
+  })
+
+  it('reveals the Today button on the month grid after paging away, then jumps back on click', async () => {
+    mockMatchMediaMatches(false)
+    const loadWorkouts = vi.fn().mockResolvedValue([])
+    render(<WorkoutCalendarBoard loadWorkouts={loadWorkouts} scope={personalScope} />)
+    await waitFor(() => expect(loadWorkouts).toHaveBeenCalled())
+    // Step forward one month — now viewing a non-current month.
+    fireEvent.click(screen.getByLabelText('Next month'))
+    const todayBtn = await screen.findByRole('button', { name: 'Today' })
+    fireEvent.click(todayBtn)
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument()
+    })
+  })
+
+  it('hides the Today button on the strip while today is in the visible window', async () => {
+    mockMatchMediaMatches(true)
+    const loadWorkouts = vi.fn().mockResolvedValue([])
+    render(<WorkoutCalendarBoard loadWorkouts={loadWorkouts} scope={personalScope} />)
+    await waitFor(() => expect(loadWorkouts).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument()
+  })
+
+  it('reveals the Today button on the strip after paging away, then jumps back on click', async () => {
+    mockMatchMediaMatches(true)
+    const loadWorkouts = vi.fn().mockResolvedValue([])
+    render(<WorkoutCalendarBoard loadWorkouts={loadWorkouts} scope={personalScope} />)
+    await waitFor(() => expect(loadWorkouts).toHaveBeenCalled())
+    fireEvent.click(screen.getByLabelText('Next days'))
+    const todayBtn = await screen.findByRole('button', { name: 'Today' })
+    fireEvent.click(todayBtn)
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument()
+    })
   })
 })

@@ -21,6 +21,10 @@ interface CalendarDayStripProps {
   loading: boolean
   onPrev: () => void
   onNext: () => void
+  /** When set, render a "Today" jump button left of the prev chevron.
+   *  Parent controls visibility — passes undefined when today is already
+   *  in the visible window. */
+  onJumpToToday?: () => void
   onAddClick: (dateKey: string) => void
   onWorkoutClick: (dateKey: string, workoutId: string) => void
 }
@@ -33,6 +37,7 @@ export default function CalendarDayStrip({
   loading,
   onPrev,
   onNext,
+  onJumpToToday,
   onAddClick,
   onWorkoutClick,
 }: CalendarDayStripProps) {
@@ -41,8 +46,13 @@ export default function CalendarDayStrip({
   return (
     <div data-testid="calendar-day-strip" className={loading ? 'opacity-60 pointer-events-none' : ''}>
       {/* Nav row */}
-      <div className="flex items-center justify-between mb-3">
-        <Button variant="tertiary" onClick={onPrev} aria-label="Previous days">←</Button>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="flex items-center gap-2">
+          {onJumpToToday && (
+            <Button variant="secondary" onClick={onJumpToToday}>Today</Button>
+          )}
+          <Button variant="tertiary" onClick={onPrev} aria-label="Previous days">←</Button>
+        </div>
         <span className="text-sm font-medium text-slate-600 dark:text-gray-400 select-none">
           {days.length > 0 && days[0].toLocaleDateString('default', { month: 'short', day: 'numeric' })}
           {days.length > 1 && ` – ${days[days.length - 1].toLocaleDateString('default', { month: 'short', day: 'numeric' })}`}

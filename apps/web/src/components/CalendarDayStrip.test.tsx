@@ -185,4 +185,48 @@ describe('CalendarDayStrip', () => {
     expect(onPrev).toHaveBeenCalledTimes(1)
     expect(onNext).toHaveBeenCalledTimes(1)
   })
+
+  it('omits the Today button when onJumpToToday is not provided', () => {
+    render(
+      <CalendarDayStrip
+        days={buildDays(TODAY, 3)}
+        today={TODAY}
+        workoutsByDate={{}}
+        selectedDate={null}
+        selectedWorkoutId={null}
+        loading={false}
+        onPrev={noop}
+        onNext={noop}
+        onAddClick={noop}
+        onWorkoutClick={noop}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument()
+  })
+
+  it('renders a Today button left of Previous days when onJumpToToday is provided', () => {
+    const onJumpToToday = vi.fn()
+    render(
+      <CalendarDayStrip
+        days={buildDays(TODAY, 3)}
+        today={TODAY}
+        workoutsByDate={{}}
+        selectedDate={null}
+        selectedWorkoutId={null}
+        loading={false}
+        onPrev={noop}
+        onNext={noop}
+        onJumpToToday={onJumpToToday}
+        onAddClick={noop}
+        onWorkoutClick={noop}
+      />,
+    )
+    const buttons = screen.getAllByRole('button')
+    const todayIdx = buttons.findIndex((b) => b.textContent === 'Today')
+    const prevIdx = buttons.findIndex((b) => b.getAttribute('aria-label') === 'Previous days')
+    expect(todayIdx).toBeGreaterThanOrEqual(0)
+    expect(todayIdx).toBeLessThan(prevIdx)
+    fireEvent.click(buttons[todayIdx])
+    expect(onJumpToToday).toHaveBeenCalledTimes(1)
+  })
 })
