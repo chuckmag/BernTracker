@@ -1,4 +1,5 @@
 import { prisma } from '@wodalytics/db'
+import { extractMovementSets } from './resultDbManager.js'
 
 export interface ConsistencyData {
   currentStreak: number
@@ -87,4 +88,146 @@ function computeStreaks(
   }
 
   return { currentStreak, longestStreak }
+}
+
+// ─── Strength PR trajectory ────────────────────────────────────────────────────
+
+export interface TrackedMovement {
+  movementId: string
+  name: string
+  count: number
+}
+
+export interface StrengthTrajectoryPoint {
+  date: string
+  maxLoad: number
+  loadUnit: string
+  effort: string    // best set for this date, e.g. "3 × 225"
+  workoutId: string
+  resultId: string
+}
+
+export interface StrengthTrajectoryData {
+  movementId: string
+  name: string
+  currentPr: number | null
+  loadUnit: string | null
+  points: StrengthTrajectoryPoint[]
+}
+
+type TrajectoryRange = '1M' | '3M' | '6M' | '1Y'
+
+function rangeToDays(range: TrajectoryRange): number {
+  switch (range) {
+    case '1M': return 30
+    case '3M': return 90
+    case '6M': return 180
+    case '1Y': return 365
+  }
+}
+
+export async function getTopStrengthMovementsForUser(
+  userId: string,
+  days = 60,
+  limit = 5,
+): Promise<TrackedMovement[]> {
+  const startDate = new Date()
+  startDate.setUTCDate(startDate.getUTCDate() - days)
+  startDate.setUTCHours(0, 0, 0, 0)
+
+  const results = await prisma.result.findMany({
+    where: { userId, createdAt: { gte: startDate } },
+    select: {
+      value: true,
+      workout: {
+        select: {
+          workoutMovements: {
+            select: {
+              movement: { select: { id: true, name: true, category: true } },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  const countByMovement = new Map<string, { name: string; count: number }>()
+  for (const result of results) {
+    const seen = new Set<string>()
+    for (const wm of result.workout.workoutMovements) {
+      if (wm.movement.category !== 'STRENGTH') continue
+      if (seen.has(wm.movement.id)) continue
+      seen.add(wm.movement.id)
+      const existing = countByMovement.get(wm.movement.id)
+      countByMovement.set(wm.movement.id, {
+        name: wm.movement.name,
+        count: (existing?.count ?? 0) + 1,
+      })
+    }
+  }
+
+  return [...countByMovement.entries()]
+    .map(([movementId, { name, count }]) => ({ movementId, name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
+}
+
+export async function getStrengthPRTrajectoryForUser(
+  userId: string,
+  movementId: string,
+  range: TrajectoryRange,
+): Promise<StrengthTrajectoryData> {
+  const movement = await prisma.movement.findUnique({
+    where: { id: movementId },
+    select: { id: true, name: true, category: true },
+  })
+  if (!movement || movement.category !== 'STRENGTH') {
+    return { movementId, name: movement?.name ?? '', currentPr: null, loadUnit: null, points: [] }
+  }
+
+  const startDate = new Date()
+  startDate.setUTCDate(startDate.getUTCDate() - rangeToDays(range))
+  startDate.setUTCHours(0, 0, 0, 0)
+
+  const results = await prisma.result.findMany({
+    where: {
+      userId,
+      createdAt: { gte: startDate },
+      workout: { workoutMovements: { some: { movementId } } },
+    },
+    select: {
+      id: true,
+      value: true,
+      workout: { select: { id: true, scheduledAt: true } },
+    },
+  })
+
+  // Aggregate max-load result per workout scheduledAt UTC calendar date, then
+  // sort ascending so the polyline runs oldest → newest.
+  const byDate = new Map<string, { maxLoad: number; loadUnit: string; effort: string; workoutId: string; resultId: string }>()
+  let currentPr: number | null = null
+  let latestUnit: string | null = null
+
+  for (const result of results) {
+    const { sets, loadUnit: unit } = extractMovementSets(result.value, movementId)
+    const setsWithLoad = sets.filter((s) => s.load !== undefined && s.load > 0)
+    if (!setsWithLoad.length) continue
+    const bestSet = setsWithLoad.reduce((best, s) => (s.load! > best.load!) ? s : best, setsWithLoad[0])
+    const maxLoad = bestSet.load!
+    const effort = bestSet.reps ? `${bestSet.reps} × ${maxLoad}` : `${maxLoad}`
+    const dateKey = toUtcDateKey(result.workout.scheduledAt)
+    const u = unit ?? 'LB'
+    if (latestUnit === null) latestUnit = u
+    const existing = byDate.get(dateKey)
+    if (!existing || maxLoad > existing.maxLoad) {
+      byDate.set(dateKey, { maxLoad, loadUnit: u, effort, workoutId: result.workout.id, resultId: result.id })
+    }
+    if (currentPr === null || maxLoad > currentPr) currentPr = maxLoad
+  }
+
+  const points = [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, { maxLoad, loadUnit, effort, workoutId, resultId }]) => ({ date, maxLoad, loadUnit, effort, workoutId, resultId }))
+
+  return { movementId, name: movement.name, currentPr, loadUnit: latestUnit, points }
 }

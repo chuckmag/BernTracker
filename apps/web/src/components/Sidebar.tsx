@@ -9,7 +9,7 @@ const memberLinks: { to: string; label: string; logo?: string }[] = [
   { to: '/feed',             label: 'Feed'             },
   { to: '/history',          label: 'History'          },
   { to: '/personal-program', label: 'Personal Program' },
-  { to: '/analytics',        label: 'WODalytics',      logo: '/favicon-96x96.png' },
+  { to: '/wodalytics',       label: 'WODalytics',      logo: '/favicon-96x96.png' },
 ]
 
 // Members consolidated into /gym-settings#members (slice D1) — no standalone link.

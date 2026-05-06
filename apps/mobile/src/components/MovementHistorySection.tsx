@@ -102,7 +102,7 @@ function StrengthPrTable({ entries, onTapEmpty, onTapFilled }: StrengthPrTablePr
 
 function E1RMTrend({ results }: { results: MovementHistoryResult[] }) {
   const points = [...results]
-    .reverse()
+    .sort((a, b) => a.workout.scheduledAt.localeCompare(b.workout.scheduledAt))
     .map((r) => {
       const best = bestE1RM(r)
       if (!best) return null

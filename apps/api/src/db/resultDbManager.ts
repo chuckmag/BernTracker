@@ -164,7 +164,7 @@ interface MovementResultEntry {
   sets?: SetEntry[]
 }
 
-function extractMovementSets(
+export function extractMovementSets(
   value: Prisma.JsonValue,
   movementId: string,
 ): { sets: SetEntry[]; loadUnit?: string; distanceUnit?: string } {
@@ -173,7 +173,7 @@ function extractMovementSets(
   return { sets: mr?.sets ?? [], loadUnit: mr?.loadUnit, distanceUnit: mr?.distanceUnit }
 }
 
-function parseRepsToInt(reps: string): number {
+export function parseRepsToInt(reps: string): number {
   return reps.split('.').reduce((sum, part) => sum + (parseInt(part, 10) || 0), 0)
 }
 
