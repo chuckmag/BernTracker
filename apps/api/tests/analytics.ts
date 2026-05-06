@@ -1,5 +1,6 @@
 /**
- * Integration tests for GET /api/me/analytics/consistency (#228).
+ * Integration tests for GET /api/me/analytics/consistency (#228)
+ * and GET /api/me/analytics/tracked-movements + strength-trajectory (#229).
  *
  * Requires: API running on localhost:3000 (or API_URL), DB accessible via DATABASE_URL.
  * Run from apps/api/: npx tsx tests/analytics.ts
@@ -44,6 +45,7 @@ const createdResultIds: string[] = []
 const extraWorkoutIds: string[] = []
 let workoutId = ''
 let programId = ''
+let movementId = ''   // a STRENGTH movement created during setup
 
 async function setup() {
   console.log('\n=== Setup ===')
@@ -68,13 +70,24 @@ async function setup() {
   })
   workoutId = workout.id
 
+  // Create a STRENGTH movement and attach it to the base workout
+  const movement = await prisma.movement.create({
+    data: { name: `BackSquat-${TS}`, category: 'STRENGTH' },
+  })
+  movementId = movement.id
+  await prisma.workoutMovement.create({
+    data: { workoutId, movementId, displayOrder: 0 },
+  })
+
   console.log('  done')
 }
 
 async function teardown() {
   console.log('\n=== Teardown ===')
   await prisma.result.deleteMany({ where: { id: { in: createdResultIds } } })
+  // WorkoutMovements cascade-delete with workouts
   await prisma.workout.deleteMany({ where: { id: { in: [workoutId, ...extraWorkoutIds] } } })
+  await prisma.movement.deleteMany({ where: { id: movementId } })
   await prisma.program.deleteMany({ where: { id: programId } })
   await prisma.user.deleteMany({ where: { id: userId } })
   console.log('  done')
@@ -105,7 +118,48 @@ async function seedResult(offsetDays: number) {
     },
   })
   createdResultIds.push(r.id)
-  // Track the extra workout for cleanup
+  extraWorkoutIds.push(wod.id)
+  return r
+}
+
+// Seeds a STRENGTH result for the test movement with a logged load value.
+// Creates a workout with the test movement attached so tracked-movements picks it up.
+async function seedStrengthResult(offsetDays: number, load: number) {
+  const createdAt = new Date()
+  createdAt.setUTCDate(createdAt.getUTCDate() - offsetDays)
+  const wod = await prisma.workout.create({
+    data: {
+      title: `STR-${TS}-d${offsetDays}`,
+      description: '',
+      type: 'STRENGTH',
+      scheduledAt: createdAt,
+      status: 'PUBLISHED',
+      programId,
+    },
+  })
+  await prisma.workoutMovement.create({
+    data: { workoutId: wod.id, movementId, displayOrder: 0 },
+  })
+  const value = {
+    movementResults: [
+      {
+        workoutMovementId: movementId,
+        loadUnit: 'LB',
+        sets: [{ reps: '1', load }],
+      },
+    ],
+  }
+  const r = await prisma.result.create({
+    data: {
+      userId,
+      workoutId: wod.id,
+      level: 'RX',
+      workoutGender: 'OPEN',
+      value,
+      createdAt,
+    },
+  })
+  createdResultIds.push(r.id)
   extraWorkoutIds.push(wod.id)
   return r
 }
@@ -155,6 +209,61 @@ async function testDefaultWeeks() {
   check('status 200', 200, res.status)
 }
 
+async function testTrackedMovementsAuth401() {
+  console.log('\n=== tracked-movements 401 when unauthenticated ===')
+  const res = await api('GET', '/me/analytics/tracked-movements')
+  check('status 401', 401, res.status)
+}
+
+async function testTrackedMovementsEmpty() {
+  console.log('\n=== tracked-movements empty state ===')
+  const res = await api('GET', '/me/analytics/tracked-movements', token)
+  check('status 200', 200, res.status)
+  check('returns array', true, Array.isArray(res.body))
+  check('empty when no strength results', 0, (res.body as unknown[]).length)
+}
+
+async function testTrackedMovementsWithData() {
+  console.log('\n=== tracked-movements with seeded STRENGTH results ===')
+  await seedStrengthResult(5, 200)
+  await seedStrengthResult(10, 210)
+  await seedStrengthResult(15, 220)
+
+  const res = await api('GET', '/me/analytics/tracked-movements', token)
+  check('status 200', 200, res.status)
+  const body = res.body as { movementId: string; name: string; count: number }[]
+  check('returns at least one movement', true, Array.isArray(body) && body.length >= 1)
+  check('top movement has correct movementId', movementId, body[0]?.movementId)
+  check('top movement count >= 3', true, body[0]?.count >= 3)
+}
+
+async function testStrengthTrajectoryAuth401() {
+  console.log('\n=== strength-trajectory 401 when unauthenticated ===')
+  const res = await api('GET', `/me/analytics/strength-trajectory?movementId=${movementId}&range=3M`)
+  check('status 401', 401, res.status)
+}
+
+async function testStrengthTrajectoryMissingParam() {
+  console.log('\n=== strength-trajectory 400 when movementId missing ===')
+  const res = await api('GET', '/me/analytics/strength-trajectory', token)
+  check('status 400', 400, res.status)
+}
+
+async function testStrengthTrajectoryData() {
+  console.log('\n=== strength-trajectory returns chronological points ===')
+  const res = await api('GET', `/me/analytics/strength-trajectory?movementId=${movementId}&range=3M`, token)
+  check('status 200', 200, res.status)
+  const body = res.body as { movementId: string; currentPr: number | null; points: { date: string; maxLoad: number }[] }
+  check('movementId matches', movementId, body.movementId)
+  check('has points (strength results were seeded)', true, Array.isArray(body.points) && body.points.length >= 1)
+  check('currentPr is a number', true, typeof body.currentPr === 'number')
+  check('currentPr >= 200', true, (body.currentPr ?? 0) >= 200)
+  // Points should be sorted ascending by date
+  const dates = body.points.map((p) => p.date)
+  const sorted = [...dates].sort()
+  check('points are chronological', String(sorted), String(dates))
+}
+
 // ─── Run ──────────────────────────────────────────────────────────────────────
 
 ;(async () => {
@@ -165,6 +274,12 @@ async function testDefaultWeeks() {
     await testStreakComputation()
     await testWeeksParam()
     await testDefaultWeeks()
+    await testTrackedMovementsAuth401()
+    await testTrackedMovementsEmpty()
+    await testTrackedMovementsWithData()
+    await testStrengthTrajectoryAuth401()
+    await testStrengthTrajectoryMissingParam()
+    await testStrengthTrajectoryData()
   } finally {
     await teardown()
     console.log(`\n=== Results: ${pass} passed, ${fail} failed ===\n`)

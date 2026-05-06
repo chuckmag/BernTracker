@@ -376,6 +376,26 @@ export interface ConsistencyData {
   history: { date: string; count: number }[]
 }
 
+export interface TrackedMovement {
+  movementId: string
+  name: string
+  count: number
+}
+
+export interface StrengthTrajectoryPoint {
+  date: string
+  maxLoad: number
+  loadUnit: string
+}
+
+export interface StrengthTrajectoryData {
+  movementId: string
+  name: string
+  currentPr: number | null
+  loadUnit: string | null
+  points: StrengthTrajectoryPoint[]
+}
+
 export interface Gym {
   id: string
   name: string
@@ -751,6 +771,10 @@ export const api = {
         const qs = weeks ? `?weeks=${weeks}` : ''
         return req<ConsistencyData>(`/api/me/analytics/consistency${qs}`)
       },
+      trackedMovements: (days = 60, limit = 5) =>
+        req<TrackedMovement[]>(`/api/me/analytics/tracked-movements?days=${days}&limit=${limit}`),
+      strengthTrajectory: (movementId: string, range: '1M' | '3M' | '6M' | '1Y') =>
+        req<StrengthTrajectoryData>(`/api/me/analytics/strength-trajectory?movementId=${encodeURIComponent(movementId)}&range=${range}`),
     },
   },
 
