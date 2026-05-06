@@ -125,6 +125,20 @@ describe('WorkoutCalendarBoard responsive switch', () => {
     expect(screen.queryByRole('button', { name: 'Today' })).not.toBeInTheDocument()
   })
 
+  it('keeps the desktop month-grid chevrons at h-9 so the row does not stutter when Today toggles', async () => {
+    mockMatchMediaMatches(false)
+    const loadWorkouts = vi.fn().mockResolvedValue([])
+    render(<WorkoutCalendarBoard loadWorkouts={loadWorkouts} scope={personalScope} />)
+    await waitFor(() => expect(loadWorkouts).toHaveBeenCalled())
+    expect(screen.getByLabelText('Previous month').className).toMatch(/\bh-9\b/)
+    expect(screen.getByLabelText('Next month').className).toMatch(/\bh-9\b/)
+
+    fireEvent.click(screen.getByLabelText('Next month'))
+    // Same chevron height after Today appears.
+    expect(screen.getByLabelText('Previous month').className).toMatch(/\bh-9\b/)
+    expect(screen.getByLabelText('Next month').className).toMatch(/\bh-9\b/)
+  })
+
   it('reveals the Today button on the strip after paging away, then jumps back on click', async () => {
     mockMatchMediaMatches(true)
     const loadWorkouts = vi.fn().mockResolvedValue([])

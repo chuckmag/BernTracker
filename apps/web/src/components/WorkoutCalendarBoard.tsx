@@ -210,9 +210,12 @@ export default function WorkoutCalendarBoard({
             {!isTodayVisible && (
               <Button variant="secondary" onClick={jumpToToday}>Today</Button>
             )}
-            <Button variant="tertiary" onClick={prevMonth} aria-label="Previous month">←</Button>
+            {/* h-9 on chevrons matches secondary's intrinsic height so the
+                row doesn't flex 32 → 36px when Today toggles (same fix
+                applied to CalendarDayStrip's nav row). */}
+            <Button className="h-9" variant="tertiary" onClick={prevMonth} aria-label="Previous month">←</Button>
             <span className="text-base font-medium w-44 text-center select-none">{monthLabel}</span>
-            <Button variant="tertiary" onClick={nextMonth} aria-label="Next month">→</Button>
+            <Button className="h-9" variant="tertiary" onClick={nextMonth} aria-label="Next month">→</Button>
           </div>
 
           <div className="grid grid-cols-7 mb-px">
