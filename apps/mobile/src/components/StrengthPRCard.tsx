@@ -1,26 +1,41 @@
 import { useEffect, useState } from 'react'
-import { View, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native'
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg'
+import { useNavigation } from '@react-navigation/native'
+import type { StackNavigationProp } from '@react-navigation/stack'
+import type { RootStackParamList } from '../../../App'
 import { useTheme } from '../lib/theme'
 import ThemedText from './ThemedText'
 import ThemedView from './ThemedView'
-import type { TrackedMovement, StrengthTrajectoryData } from '../lib/api'
+import type { TrackedMovement, StrengthTrajectoryData, StrengthTrajectoryPoint } from '../lib/api'
 import { api } from '../lib/api'
+
+type RootNav = StackNavigationProp<RootStackParamList>
 
 const CHART_W = 220
 const CHART_H = 80
 const PAD = { top: 6, right: 6, bottom: 4, left: 28 }
+const DOT_HIT_R = 12
+
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
+
+function fullDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
 
 interface TrajectoryChartProps {
   points: StrengthTrajectoryData['points']
   isDark: boolean
+  selectedIndex: number | null
+  onSelectIndex: (i: number | null) => void
 }
 
-function TrajectoryChart({ points, isDark }: TrajectoryChartProps) {
-  // Mirror the indigo palette used in ConsistencyCard
-  const lineColor = isDark ? '#6366f1' : '#4f46e5'   // indigo-500 | indigo-600
-  const gridColor = isDark ? '#1f2937' : '#e2e8f0'   // gray-800 | slate-200
-  const tickColor = isDark ? '#6b7280' : '#64748b'   // gray-500 | slate-500
+function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: TrajectoryChartProps) {
+  const lineColor = isDark ? '#818cf8' : '#4f46e5'
+  const gridColor = isDark ? '#1f2937' : '#e2e8f0'
+  const tickColor = isDark ? '#6b7280' : '#64748b'
 
   if (points.length < 2) {
     return (
@@ -79,10 +94,53 @@ function TrajectoryChart({ points, isDark }: TrajectoryChartProps) {
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      {points.map((p, i) => (
-        <Circle key={i} cx={toX(i)} cy={toY(p.maxLoad)} r={2.5} fill={lineColor} />
-      ))}
+      {points.map((p, i) => {
+        const isSelected = selectedIndex === i
+        return (
+          <Circle
+            key={i}
+            cx={toX(i)}
+            cy={toY(p.maxLoad)}
+            r={DOT_HIT_R}
+            fill="transparent"
+            onPress={() => onSelectIndex(isSelected ? null : i)}
+          />
+        )
+      })}
+      {points.map((p, i) => {
+        const isSelected = selectedIndex === i
+        return (
+          <Circle
+            key={`dot-${i}`}
+            cx={toX(i)}
+            cy={toY(p.maxLoad)}
+            r={isSelected ? 4 : 2.5}
+            fill={lineColor}
+            stroke={isSelected ? (isDark ? '#ffffff' : '#1e293b') : 'none'}
+            strokeWidth={isSelected ? 1.5 : 0}
+          />
+        )
+      })}
     </Svg>
+  )
+}
+
+interface PointCalloutProps {
+  point: StrengthTrajectoryPoint
+  onNavigate: () => void
+}
+
+function PointCallout({ point, onNavigate }: PointCalloutProps) {
+  return (
+    <View style={styles.callout}>
+      <View style={styles.calloutLeft}>
+        <Text style={styles.calloutDate}>{fullDate(point.date)}</Text>
+        <Text style={styles.calloutEffort}>{point.effort} {point.loadUnit}</Text>
+      </View>
+      <TouchableOpacity onPress={onNavigate} activeOpacity={0.7} style={styles.calloutLink}>
+        <Text style={styles.calloutLinkText}>View →</Text>
+      </TouchableOpacity>
+    </View>
   )
 }
 
@@ -92,14 +150,17 @@ interface StrengthPRCardProps {
 
 export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
   const { colors, isDark } = useTheme()
+  const navigation = useNavigation<RootNav>()
   const [selectedId, setSelectedId] = useState<string>(movements[0]?.movementId ?? '')
   const [trajectory, setTrajectory] = useState<StrengthTrajectoryData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [selectedDotIndex, setSelectedDotIndex] = useState<number | null>(null)
 
   useEffect(() => {
     if (!selectedId) return
     setLoading(true)
     setTrajectory(null)
+    setSelectedDotIndex(null)
     api.analytics.strengthTrajectory(selectedId, '3M')
       .then(setTrajectory)
       .finally(() => setLoading(false))
@@ -111,6 +172,8 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
     trajectory && trajectory.points.length >= 2
       ? trajectory.points[trajectory.points.length - 1].maxLoad - trajectory.points[0].maxLoad
       : null
+
+  const selectedPoint = selectedDotIndex !== null ? trajectory?.points[selectedDotIndex] ?? null : null
 
   return (
     <ThemedView variant="card" style={styles.card}>
@@ -176,11 +239,23 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
                   <ThemedText variant="muted" style={styles.chartPlaceholderText}>No data yet</ThemedText>
                 )}
               </View>
-              <TrajectoryChart points={trajectory.points} isDark={isDark} />
+              <TrajectoryChart
+                points={trajectory.points}
+                isDark={isDark}
+                selectedIndex={selectedDotIndex}
+                onSelectIndex={setSelectedDotIndex}
+              />
             </>
           )}
         </View>
       </View>
+
+      {selectedPoint && (
+        <PointCallout
+          point={selectedPoint}
+          onNavigate={() => navigation.navigate('WodDetail', { workoutId: selectedPoint.workoutId, from: 'movement-history' })}
+        />
+      )}
     </ThemedView>
   )
 }
@@ -248,5 +323,36 @@ const styles = StyleSheet.create({
   },
   chartPlaceholderText: {
     fontSize: 11,
+  },
+  callout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(129,140,248,0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  calloutLeft: {
+    gap: 2,
+  },
+  calloutDate: {
+    fontSize: 11,
+    color: '#9ca3af',
+  },
+  calloutEffort: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#818cf8',
+  },
+  calloutLink: {
+    paddingVertical: 4,
+    paddingLeft: 8,
+  },
+  calloutLinkText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#818cf8',
   },
 })

@@ -250,6 +250,9 @@ export interface StrengthTrajectoryPoint {
   date: string
   maxLoad: number
   loadUnit: string
+  effort: string
+  workoutId: string
+  resultId: string
 }
 
 export interface StrengthTrajectoryData {

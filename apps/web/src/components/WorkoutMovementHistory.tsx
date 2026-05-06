@@ -17,6 +17,7 @@ import type {
   EndurancePrEntry,
   MovementHistoryResult,
 } from '../lib/api.ts'
+import ChartTooltip from './ui/ChartTooltip.tsx'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -276,11 +277,13 @@ function StrengthTooltip({ active, payload }: { active?: boolean; payload?: Arra
   if (!active || !payload?.length) return null
   const p = payload[0].payload
   return (
-    <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 6, fontSize: 12, padding: '6px 10px' }}>
-      <p style={{ color: '#e5e7eb', marginBottom: 4 }}>{p.fullDate}</p>
-      <p style={{ color: '#818cf8' }}>{p.effort} lb</p>
-      <p style={{ color: '#818cf8' }}>Est. 1RM: {p.e1rm} lb</p>
-    </div>
+    <ChartTooltip
+      date={p.fullDate}
+      lines={[
+        { text: `${p.effort} lb`, accent: true },
+        { text: `Est. 1RM: ${p.e1rm} lb`, accent: true },
+      ]}
+    />
   )
 }
 

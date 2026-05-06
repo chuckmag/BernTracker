@@ -102,6 +102,9 @@ export interface StrengthTrajectoryPoint {
   date: string
   maxLoad: number
   loadUnit: string
+  effort: string    // best set for this date, e.g. "3 × 225"
+  workoutId: string
+  resultId: string
 }
 
 export interface StrengthTrajectoryData {
@@ -192,33 +195,40 @@ export async function getStrengthPRTrajectoryForUser(
       createdAt: { gte: startDate },
       workout: { workoutMovements: { some: { movementId } } },
     },
-    select: { id: true, createdAt: true, value: true },
+    select: {
+      id: true,
+      createdAt: true,
+      value: true,
+      workout: { select: { id: true } },
+    },
     orderBy: { createdAt: 'asc' },
   })
 
-  // Aggregate max load per UTC calendar date
-  const byDate = new Map<string, { maxLoad: number; loadUnit: string }>()
+  // Aggregate max-load result per UTC calendar date
+  const byDate = new Map<string, { maxLoad: number; loadUnit: string; effort: string; workoutId: string; resultId: string }>()
   let currentPr: number | null = null
   let latestUnit: string | null = null
 
   for (const result of results) {
     const { sets, loadUnit: unit } = extractMovementSets(result.value, movementId)
-    const loads = sets.filter((s) => s.load !== undefined && s.load > 0).map((s) => s.load!)
-    if (!loads.length) continue
-    const maxLoad = Math.max(...loads)
+    const setsWithLoad = sets.filter((s) => s.load !== undefined && s.load > 0)
+    if (!setsWithLoad.length) continue
+    const bestSet = setsWithLoad.reduce((best, s) => (s.load! > best.load!) ? s : best, setsWithLoad[0])
+    const maxLoad = bestSet.load!
+    const effort = bestSet.reps ? `${bestSet.reps} × ${maxLoad}` : `${maxLoad}`
     const dateKey = toUtcDateKey(result.createdAt)
     const u = unit ?? 'LB'
     if (latestUnit === null) latestUnit = u
     const existing = byDate.get(dateKey)
     if (!existing || maxLoad > existing.maxLoad) {
-      byDate.set(dateKey, { maxLoad, loadUnit: u })
+      byDate.set(dateKey, { maxLoad, loadUnit: u, effort, workoutId: result.workout.id, resultId: result.id })
     }
     if (currentPr === null || maxLoad > currentPr) currentPr = maxLoad
   }
 
   const points = [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, { maxLoad, loadUnit }]) => ({ date, maxLoad, loadUnit }))
+    .map(([date, { maxLoad, loadUnit, effort, workoutId, resultId }]) => ({ date, maxLoad, loadUnit, effort, workoutId, resultId }))
 
   return { movementId, name: movement.name, currentPr, loadUnit: latestUnit, points }
 }
