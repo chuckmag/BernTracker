@@ -47,7 +47,7 @@ export default function Calendar() {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-2">Calendar</h1>
-        <p className="text-gray-400">Set up your gym in Settings first.</p>
+        <p className="text-slate-500 dark:text-gray-400">Set up your gym in Settings first.</p>
       </div>
     )
   }
@@ -76,13 +76,13 @@ export default function Calendar() {
             />
             <div className="min-w-0">
               <h1 className="text-2xl font-bold truncate">{singleProgram.name}</h1>
-              <p className="text-xs uppercase tracking-wider text-gray-400 mt-0.5">Calendar</p>
+              <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-0.5">Calendar</p>
             </div>
           </div>
         ) : programIds.length > 1 ? (
           <div className="min-w-0">
             <h1 className="text-2xl font-bold">Calendar</h1>
-            <p className="text-xs uppercase tracking-wider text-gray-400 mt-0.5">
+            <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-0.5">
               Filtered to {programIds.length} programs
             </p>
           </div>
@@ -93,7 +93,7 @@ export default function Calendar() {
 
       {/* Sticky movement-filter sub-header */}
       {allMovements.length > 0 && (
-        <div className="sticky top-0 z-20 -mx-4 px-4 py-2 mb-4 bg-gray-950/90 backdrop-blur supports-[backdrop-filter]:bg-gray-950/70 border-b border-gray-800">
+        <div className="sticky top-0 z-20 -mx-4 px-4 py-2 mb-4 bg-white/90 dark:bg-gray-950/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:supports-[backdrop-filter]:bg-gray-950/70 border-b border-slate-200 dark:border-gray-800">
           {/* Wide layout: full chip row */}
           <div className="hidden min-[520px]:block">
             <MovementFilterInput

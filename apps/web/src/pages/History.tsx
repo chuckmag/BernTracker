@@ -66,7 +66,7 @@ export default function History() {
 
       {/* Movement filter */}
       {allMovements.length > 0 && (
-        <div className="px-3 py-2 bg-gray-900 rounded-lg border border-gray-800">
+        <div className="px-3 py-2 bg-white dark:bg-gray-900 rounded-lg border border-slate-200 dark:border-gray-800">
           <MovementFilterInput
             allMovements={allMovements}
             selectedIds={filterMovementIds}
@@ -75,7 +75,7 @@ export default function History() {
         </div>
       )}
 
-      {loading && <p className="text-gray-400">Loading…</p>}
+      {loading && <p className="text-slate-500 dark:text-gray-400">Loading…</p>}
       {error && <p className="text-red-400">{error}</p>}
 
       {!loading && !error && results.length === 0 && (
@@ -88,8 +88,8 @@ export default function History() {
       {groups.map(({ month, rows }) => (
         <div key={month}>
           <div className="flex items-center gap-3 mb-3">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">{month}</h2>
-            <hr className="flex-1 border-gray-800" />
+            <h2 className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-widest">{month}</h2>
+            <hr className="flex-1 border-slate-200 dark:border-gray-800" />
           </div>
           <div className="space-y-1">
             {rows.map((r) => {
@@ -98,15 +98,15 @@ export default function History() {
               <button
                 key={r.id}
                 onClick={() => navigate(`/workouts/${r.workout.id}`, { state: { from: 'history' } })}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-white dark:bg-gray-900 hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors text-left"
               >
-                <span className="text-xs text-gray-400 w-14 shrink-0">{shortDate(r.workout.scheduledAt)}</span>
+                <span className="text-xs text-slate-500 dark:text-gray-400 w-14 shrink-0">{shortDate(r.workout.scheduledAt)}</span>
                 <span className={`w-7 h-6 flex items-center justify-center rounded text-xs font-bold shrink-0 ${styles.bg} ${styles.tint}`}>
                   {styles.abbr}
                 </span>
-                <span className="flex-1 text-sm font-medium text-white truncate">{r.workout.title}</span>
-                <span className="font-mono text-sm text-gray-300 shrink-0">{formatResultValue(r)}</span>
-                <span className="text-xs text-gray-400 w-16 text-right shrink-0">{LEVEL_LABELS[r.level]}</span>
+                <span className="flex-1 text-sm font-medium text-slate-950 dark:text-white truncate">{r.workout.title}</span>
+                <span className="font-mono text-sm text-slate-600 dark:text-gray-300 shrink-0">{formatResultValue(r)}</span>
+                <span className="text-xs text-slate-500 dark:text-gray-400 w-16 text-right shrink-0">{LEVEL_LABELS[r.level]}</span>
               </button>
               )
             })}
@@ -120,7 +120,7 @@ export default function History() {
           <Button variant="tertiary" onClick={() => setPage((p) => p - 1)} disabled={page <= 1}>
             ← Prev
           </Button>
-          <span className="text-xs text-gray-400">Page {page} of {pages}</span>
+          <span className="text-xs text-slate-500 dark:text-gray-400">Page {page} of {pages}</span>
           <Button variant="tertiary" onClick={() => setPage((p) => p + 1)} disabled={page >= pages}>
             Next →
           </Button>

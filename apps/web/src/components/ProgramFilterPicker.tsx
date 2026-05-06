@@ -52,35 +52,35 @@ export default function ProgramFilterPicker() {
   else label = `${selectedPrograms[0].name} + ${selectedPrograms.length - 1} more`
 
   return (
-    <div ref={containerRef} className="relative px-3 py-3 border-b border-gray-800">
-      <span className="block text-xs uppercase tracking-widest text-gray-400 mb-1">Programs</span>
+    <div ref={containerRef} className="relative px-3 py-3 border-b border-slate-200 dark:border-gray-800">
+      <span className="block text-xs uppercase tracking-widest text-slate-500 dark:text-gray-400 mb-1">Programs</span>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md text-sm text-left bg-gray-800 text-gray-200 hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md text-sm text-left bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
       >
         <span className="truncate">{label}</span>
-        <span className="text-gray-400 text-xs shrink-0">▾</span>
+        <span className="text-slate-500 dark:text-gray-400 text-xs shrink-0">▾</span>
       </button>
 
       {open && (
         <div
           role="listbox"
           aria-multiselectable="true"
-          className="absolute z-50 left-3 right-3 mt-1 max-h-72 overflow-y-auto bg-gray-900 border border-gray-700 rounded-md shadow-2xl"
+          className="absolute z-50 left-3 right-3 mt-1 max-h-72 overflow-y-auto bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-md shadow-2xl"
         >
           {available.map(({ program }) => {
             const isSelected = selected.includes(program.id)
             return (
               <label
                 key={program.id}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800 cursor-pointer"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-800 cursor-pointer"
               >
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                  className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-indigo-500 focus:ring-indigo-500"
                   checked={isSelected}
                   onChange={() => toggle(program.id)}
                 />
@@ -97,15 +97,15 @@ export default function ProgramFilterPicker() {
           })}
 
           {available.length === 0 && !loading && (
-            <p className="px-3 py-2 text-xs text-gray-400">No programs yet.</p>
+            <p className="px-3 py-2 text-xs text-slate-500 dark:text-gray-400">No programs yet.</p>
           )}
 
           {selected.length > 0 && (
-            <div className="border-t border-gray-800 px-3 py-2 flex justify-end">
+            <div className="border-t border-slate-200 dark:border-gray-800 px-3 py-2 flex justify-end">
               <button
                 type="button"
                 onClick={clear}
-                className="text-xs text-gray-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded px-1"
+                className="text-xs text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 rounded px-1"
               >
                 Clear all
               </button>
@@ -114,11 +114,11 @@ export default function ProgramFilterPicker() {
 
           {/* Discovery entry point for the Browse page — primary path now that
               the standalone sidebar link has been retired. */}
-          <div className="border-t border-gray-800">
+          <div className="border-t border-slate-200 dark:border-gray-800">
             <button
               type="button"
               onClick={goToBrowse}
-              className="w-full px-3 py-2 text-left text-sm text-indigo-400 hover:bg-gray-800 hover:text-indigo-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
+              className="w-full px-3 py-2 text-left text-sm text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-indigo-500 dark:hover:text-indigo-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
             >
               Browse public programs →
             </button>

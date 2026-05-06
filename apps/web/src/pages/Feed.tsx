@@ -213,11 +213,11 @@ export default function Feed() {
   if (!gymLoading && !gymId) {
     return (
       <div className="max-w-2xl mx-auto">
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 flex flex-col items-center text-center gap-4">
+        <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-8 flex flex-col items-center text-center gap-4">
           <div className="text-4xl" aria-hidden="true">🏋️</div>
           <div>
-            <h2 className="text-base font-semibold text-white mb-1">No workouts yet</h2>
-            <p className="text-sm text-gray-400 max-w-sm">
+            <h2 className="text-base font-semibold text-slate-950 dark:text-white mb-1">No workouts yet</h2>
+            <p className="text-sm text-slate-500 dark:text-gray-400 max-w-sm">
               Browse public programs to follow, or add workouts to your personal program.
             </p>
           </div>
@@ -283,13 +283,13 @@ export default function Feed() {
           />
           <div className="min-w-0">
             <h1 className="text-2xl font-bold truncate">{singleProgram.name}</h1>
-            <p className="text-xs uppercase tracking-wider text-gray-400 mt-0.5">Feed</p>
+            <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-0.5">Feed</p>
           </div>
         </div>
       ) : programIds.length > 1 ? (
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Feed</h1>
-          <p className="text-xs uppercase tracking-wider text-gray-400 mt-1">
+          <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-1">
             Filtered to {programIds.length} programs
           </p>
         </div>
@@ -324,17 +324,17 @@ export default function Feed() {
           return (
             <div key={dateKey}>
               <div className="flex items-center gap-3 mb-3">
-                <span className="text-xs font-semibold tracking-widest text-gray-400">
+                <span className="text-xs font-semibold tracking-widest text-slate-500 dark:text-gray-400">
                   {formatDayLabel(dateKey, todayKey)}
                 </span>
-                <hr className="flex-1 border-gray-800" />
+                <hr className="flex-1 border-slate-200 dark:border-gray-800" />
                 {personalScope && (
                   <button
                     type="button"
                     onClick={() => setAddingForDate(dateKey)}
                     aria-label={`Add personal workout on ${formatDayLabel(dateKey, todayKey).toLowerCase()}`}
                     title="Add personal workout"
-                    className="-my-1 -mr-1 w-7 h-7 inline-flex items-center justify-center rounded text-gray-400 hover:text-white hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+                    className="-my-1 -mr-1 w-7 h-7 inline-flex items-center justify-center rounded text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
                   >
                     <span aria-hidden="true" className="text-base leading-none">+</span>
                   </button>
@@ -342,7 +342,7 @@ export default function Feed() {
               </div>
 
               {gymTiles.length === 0 && personalTiles.length === 0 ? (
-                <p className="text-sm text-gray-500 pl-1">No workouts planned</p>
+                <p className="text-sm text-slate-400 dark:text-gray-500 pl-1">No workouts planned</p>
               ) : (
                 <div className="space-y-2">
                   {gymTiles.map((workout) => (
@@ -356,12 +356,12 @@ export default function Feed() {
                           className="flex items-center gap-2 pt-2 pb-0.5"
                           aria-hidden="true"
                         >
-                          <span className="h-px flex-1 bg-gray-800" />
-                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-gray-500">
+                          <span className="h-px flex-1 bg-slate-200 dark:bg-gray-800" />
+                          <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest text-slate-400 dark:text-gray-500">
                             <PersonalProgramIcon size={12} />
                             Extra work
                           </span>
-                          <span className="h-px flex-1 bg-gray-800" />
+                          <span className="h-px flex-1 bg-slate-200 dark:bg-gray-800" />
                         </div>
                       )}
                       {personalTiles.map((workout) => (
@@ -417,13 +417,13 @@ function FeedTile({ workout, isPersonal = false, onClick }: FeedTileProps) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors text-left group border-l-4 ${styles.accentBar}`}
+      className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg bg-white dark:bg-gray-900 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors text-left group border-l-4 ${styles.accentBar}`}
     >
       <span className={`shrink-0 mt-0.5 w-7 h-6 flex items-center justify-center rounded text-xs font-bold ${styles.bg} ${styles.tint}`}>
         {styles.abbr}
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-medium text-white break-words">
+        <span className="block text-sm font-medium text-slate-950 dark:text-white break-words">
           {isPersonal && (
             <span
               className="inline-flex items-center mr-1.5 text-indigo-400 align-text-bottom"
@@ -442,7 +442,7 @@ function FeedTile({ workout, isPersonal = false, onClick }: FeedTileProps) {
           resultCount={workout._count.results}
         />
       </span>
-      <span className="shrink-0 mt-0.5 text-gray-400 group-hover:text-white transition-colors">›</span>
+      <span className="shrink-0 mt-0.5 text-slate-500 dark:text-gray-400 group-hover:text-slate-950 dark:group-hover:text-white transition-colors">›</span>
     </button>
   )
 }
@@ -454,7 +454,7 @@ function FeedTileBadgeRow({ logged, resultCount }: { logged: boolean; resultCoun
   if (!logged && resultCount === 0) return null
   return (
     <span className="mt-1.5 flex items-center gap-3 text-xs">
-      <span className={logged ? 'text-indigo-400' : 'text-gray-500'}>
+      <span className={logged ? 'text-indigo-500 dark:text-indigo-400' : 'text-slate-400 dark:text-gray-500'}>
         <BarbellIcon
           loaded={logged}
           size={24}
@@ -462,7 +462,7 @@ function FeedTileBadgeRow({ logged, resultCount }: { logged: boolean; resultCoun
         />
       </span>
       {resultCount > 0 && (
-        <span className="inline-flex items-center gap-1.5 text-gray-400" title={`${resultCount} result${resultCount === 1 ? '' : 's'} on the leaderboard`}>
+        <span className="inline-flex items-center gap-1.5 text-slate-500 dark:text-gray-400" title={`${resultCount} result${resultCount === 1 ? '' : 's'} on the leaderboard`}>
           <UsersIcon size={16} />
           <span>{resultCount}</span>
         </span>

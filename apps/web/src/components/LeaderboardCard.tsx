@@ -51,9 +51,9 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
   const myRowBelow = myEntry && myRank >= 5
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">
+    <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-gray-800">
+        <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider truncate">
           Today · &ldquo;{workoutTitle}&rdquo;
         </span>
         <Link
@@ -72,7 +72,7 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
 
       {!loading && entries.length === 0 && (
         <div className="px-4 py-6 text-center">
-          <p className="text-sm text-gray-500">No results yet — be the first to log!</p>
+          <p className="text-sm text-slate-400 dark:text-gray-500">No results yet — be the first to log!</p>
         </div>
       )}
 
@@ -84,7 +84,7 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
 
           {myRowBelow && (
             <>
-              <div className="px-4 py-0.5 text-center text-xs text-gray-600 tracking-widest border-t border-gray-800">
+              <div className="px-4 py-0.5 text-center text-xs text-slate-400 dark:text-gray-600 tracking-widest border-t border-slate-200 dark:border-gray-800">
                 ···
               </div>
               <ResultRow rank={myRank + 1} entry={myEntry} isMe />
@@ -92,7 +92,7 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
           )}
 
           {!myEntry && (
-            <p className="px-4 py-2.5 text-xs text-gray-600 text-center border-t border-gray-800">
+            <p className="px-4 py-2.5 text-xs text-slate-400 dark:text-gray-600 text-center border-t border-slate-200 dark:border-gray-800">
               Log your result to appear on the board
             </p>
           )}
@@ -106,20 +106,20 @@ function ResultRow({ rank, entry, isMe }: { rank: number; entry: WorkoutResult; 
   const score = formatResultValue(entry.value)
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-2.5 ${isMe ? 'bg-indigo-950' : 'hover:bg-gray-800/40'} transition-colors`}
+      className={`flex items-center gap-3 px-4 py-2.5 ${isMe ? 'bg-indigo-50 dark:bg-indigo-950' : 'hover:bg-slate-50 dark:hover:bg-gray-800/40'} transition-colors`}
     >
-      <span className="w-5 shrink-0 text-right text-xs font-semibold tabular-nums text-gray-500">{rank}</span>
-      <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
-        <span className="text-[10px] font-semibold text-gray-300">{initials(entry.user)}</span>
+      <span className="w-5 shrink-0 text-right text-xs font-semibold tabular-nums text-slate-400 dark:text-gray-500">{rank}</span>
+      <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
+        <span className="text-[10px] font-semibold text-slate-600 dark:text-gray-300">{initials(entry.user)}</span>
       </div>
-      <span className="flex-1 min-w-0 text-sm font-medium text-white truncate">{displayName(entry.user)}</span>
+      <span className="flex-1 min-w-0 text-sm font-medium text-slate-950 dark:text-white truncate">{displayName(entry.user)}</span>
       <span
-        className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-700 text-gray-400"
+        className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-gray-700 text-slate-500 dark:text-gray-400"
         aria-label={`Level: ${entry.level}`}
       >
         {LEVEL_LABEL[entry.level] ?? entry.level}
       </span>
-      <span className="shrink-0 text-sm tabular-nums text-gray-200">{score}</span>
+      <span className="shrink-0 text-sm tabular-nums text-slate-700 dark:text-gray-200">{score}</span>
     </div>
   )
 }

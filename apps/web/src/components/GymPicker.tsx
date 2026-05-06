@@ -57,7 +57,7 @@ export default function GymPicker() {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 text-sm bg-gray-800 text-gray-200 border border-gray-700 rounded px-2 py-1 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+        className="flex items-center gap-1 text-sm bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 border border-slate-300 dark:border-gray-700 rounded px-2 py-1 hover:bg-slate-200 dark:hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
       >
         <span className="max-w-[140px] truncate">{triggerLabel}</span>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
@@ -68,11 +68,11 @@ export default function GymPicker() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-1 min-w-[220px] rounded-lg bg-gray-900 border border-gray-700 shadow-xl py-1 z-50"
+          className="absolute right-0 mt-1 min-w-[220px] rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 shadow-xl py-1 z-50"
         >
           {gyms.length > 0 && (
             <>
-              <p className="px-3 pt-1 pb-0.5 text-[11px] uppercase tracking-wider text-gray-500">Your gyms</p>
+              <p className="px-3 pt-1 pb-0.5 text-[11px] uppercase tracking-wider text-slate-400 dark:text-gray-500">Your gyms</p>
               {gyms.map((g) => {
                 const active = g.id === gymId
                 return (
@@ -83,7 +83,7 @@ export default function GymPicker() {
                     onClick={() => handleSelectGym(g.id)}
                     className={[
                       'w-full text-left px-3 py-1.5 text-sm flex items-center gap-2',
-                      active ? 'text-white bg-gray-800' : 'text-gray-300 hover:bg-gray-800',
+                      active ? 'text-slate-950 dark:text-white bg-slate-100 dark:bg-gray-800' : 'text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800',
                     ].join(' ')}
                   >
                     <GymLogo logoUrl={g.logoUrl} name={g.name} size="sm" />
@@ -92,20 +92,20 @@ export default function GymPicker() {
                   </button>
                 )
               })}
-              <div className="my-1 border-t border-gray-800" aria-hidden="true" />
+              <div className="my-1 border-t border-slate-200 dark:border-gray-800" aria-hidden="true" />
             </>
           )}
           <button
             role="menuitem"
             onClick={handleBrowse}
-            className="w-full text-left px-3 py-1.5 text-sm text-indigo-300 hover:bg-gray-800 hover:text-indigo-200"
+            className="w-full text-left px-3 py-1.5 text-sm text-indigo-600 dark:text-indigo-300 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-indigo-500 dark:hover:text-indigo-200"
           >
             {gyms.length > 0 ? 'Find another gym to join →' : 'Browse gyms to join →'}
           </button>
           <button
             role="menuitem"
             onClick={handleCreate}
-            className="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800 hover:text-white"
+            className="w-full text-left px-3 py-1.5 text-sm text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-slate-950 dark:hover:text-white"
           >
             Set up a new gym
           </button>

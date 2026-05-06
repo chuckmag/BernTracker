@@ -42,7 +42,7 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
 
   return (
     <article
-      className={`bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden ${compact ? 'p-4' : 'p-6 md:p-7'}`}
+      className={`bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl overflow-hidden ${compact ? 'p-4' : 'p-6 md:p-7'}`}
       aria-label={`Today's workout: ${workout.title}`}
     >
       {/* Accent strip */}
@@ -50,7 +50,7 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
 
       {/* Header row: date + badges */}
       <div className="flex items-center gap-2 flex-wrap mb-3">
-        <span className="text-[11px] font-bold tracking-[0.1em] text-gray-400 uppercase">
+        <span className="text-[11px] font-bold tracking-[0.1em] text-slate-500 dark:text-gray-400 uppercase">
           {formatDateHeader(workout.scheduledAt)}
         </span>
         <span className={`text-xs font-bold px-2 py-0.5 rounded ${typeStyle.tint} ${typeStyle.bg}`}>
@@ -66,19 +66,19 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
       {/* Title row */}
       <div className={`flex items-start justify-between gap-4 ${compact ? 'flex-col' : 'md:flex-row flex-col'} mb-4`}>
         <div className="min-w-0">
-          <h2 className={`font-bold tracking-tight text-white leading-tight ${compact ? 'text-2xl' : 'text-3xl md:text-4xl'}`}>
+          <h2 className={`font-bold tracking-tight text-slate-950 dark:text-white leading-tight ${compact ? 'text-2xl' : 'text-3xl md:text-4xl'}`}>
             <Link
               to={`/workouts/${workout.id}`}
-              className="hover:text-indigo-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 rounded"
+              className="hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 rounded"
             >
               {workout.title}
             </Link>
           </h2>
           {workout.timeCapSeconds && (
-            <p className="mt-1 text-sm text-gray-400">{formatCap(workout.timeCapSeconds)}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">{formatCap(workout.timeCapSeconds)}</p>
           )}
           {workout.program && (
-            <p className="mt-1 text-sm text-gray-500">via {workout.program.name}</p>
+            <p className="mt-1 text-sm text-slate-400 dark:text-gray-500">via {workout.program.name}</p>
           )}
         </div>
 
@@ -101,21 +101,21 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
       {!compact && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
           {workout.description && (
-            <div className="bg-gray-800/60 rounded-xl border border-gray-800 p-4">
-              <p className="text-[10px] font-bold tracking-[0.1em] text-gray-500 uppercase mb-2">Workout</p>
-              <p className="text-sm text-gray-200 whitespace-pre-line leading-relaxed">{workout.description}</p>
+            <div className="bg-slate-100 dark:bg-gray-800/60 rounded-xl border border-slate-200 dark:border-gray-800 p-4">
+              <p className="text-[10px] font-bold tracking-[0.1em] text-slate-400 dark:text-gray-500 uppercase mb-2">Workout</p>
+              <p className="text-sm text-slate-700 dark:text-gray-200 whitespace-pre-line leading-relaxed">{workout.description}</p>
             </div>
           )}
           {workout.workoutMovements.length > 0 && (
-            <div className="bg-gray-800/60 rounded-xl border border-gray-800 p-4">
-              <p className="text-[10px] font-bold tracking-[0.1em] text-gray-500 uppercase mb-2">Movements</p>
+            <div className="bg-slate-100 dark:bg-gray-800/60 rounded-xl border border-slate-200 dark:border-gray-800 p-4">
+              <p className="text-[10px] font-bold tracking-[0.1em] text-slate-400 dark:text-gray-500 uppercase mb-2">Movements</p>
               <ul className="space-y-1">
                 {workout.workoutMovements.map((wm) => (
-                  <li key={wm.movement.id} className="text-sm text-gray-200 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gray-600 flex-shrink-0" aria-hidden="true" />
+                  <li key={wm.movement.id} className="text-sm text-slate-700 dark:text-gray-200 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-gray-600 flex-shrink-0" aria-hidden="true" />
                     {wm.movement.name}
-                    {wm.sets && <span className="text-gray-500">{wm.sets}×{wm.reps ?? '?'}</span>}
-                    {wm.load && <span className="text-gray-500">{wm.load} {wm.loadUnit?.toLowerCase()}</span>}
+                    {wm.sets && <span className="text-slate-400 dark:text-gray-500">{wm.sets}×{wm.reps ?? '?'}</span>}
+                    {wm.load && <span className="text-slate-400 dark:text-gray-500">{wm.load} {wm.loadUnit?.toLowerCase()}</span>}
                   </li>
                 ))}
               </ul>
@@ -135,14 +135,14 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
       )}
 
       {/* Participant footer */}
-      <div className="flex items-center justify-between gap-2 pt-4 border-t border-gray-800 text-sm text-gray-400 flex-wrap">
+      <div className="flex items-center justify-between gap-2 pt-4 border-t border-slate-200 dark:border-gray-800 text-sm text-slate-500 dark:text-gray-400 flex-wrap">
         <span>
-          <span className="text-white font-semibold">{leaderboard?.totalLogged ?? 0}</span>
+          <span className="text-slate-950 dark:text-white font-semibold">{leaderboard?.totalLogged ?? 0}</span>
           {gymMemberCount > 0 ? ` of ${gymMemberCount}` : ''} member{gymMemberCount !== 1 ? 's' : ''} logged today
         </span>
         <Link
           to={`/workouts/${workout.id}`}
-          className="font-semibold text-indigo-400 hover:text-indigo-300 transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-gray-900 rounded"
+          className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 rounded"
         >
           See leaderboard →
         </Link>
@@ -168,24 +168,24 @@ function ResultCard({ result, leaderboard, scored, levelLabel, workoutId, compac
 
   if (compact) {
     return (
-      <div className="w-full bg-gray-800/60 rounded-xl border border-gray-700 px-4 py-3 flex items-center justify-between gap-3">
+      <div className="w-full bg-slate-100 dark:bg-gray-800/60 rounded-xl border border-slate-300 dark:border-gray-700 px-4 py-3 flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-bold tracking-[0.08em] text-emerald-400 uppercase">
+            <span className="text-[10px] font-bold tracking-[0.08em] text-emerald-600 dark:text-emerald-400 uppercase">
               ✓ Logged {loggedTime}
             </span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-white leading-none tabular-nums">{scored ?? '—'}</span>
+            <span className="text-2xl font-bold text-slate-950 dark:text-white leading-none tabular-nums">{scored ?? '—'}</span>
             {levelLabel && (
-              <span className="text-xs font-bold text-indigo-300">{levelLabel}</span>
+              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-300">{levelLabel}</span>
             )}
           </div>
         </div>
         {leaderboard?.rank && (
           <div className="text-right flex-shrink-0">
-            <div className="text-base font-bold text-white">#{leaderboard.rank}</div>
-            <div className="text-xs text-gray-400">of {leaderboard.totalLogged}</div>
+            <div className="text-base font-bold text-slate-950 dark:text-white">#{leaderboard.rank}</div>
+            <div className="text-xs text-slate-500 dark:text-gray-400">of {leaderboard.totalLogged}</div>
           </div>
         )}
       </div>
@@ -193,21 +193,21 @@ function ResultCard({ result, leaderboard, scored, levelLabel, workoutId, compac
   }
 
   return (
-    <div className="flex-shrink-0 bg-gray-800/60 rounded-xl border border-gray-700 p-5 min-w-[220px] max-w-[280px]">
+    <div className="flex-shrink-0 bg-slate-100 dark:bg-gray-800/60 rounded-xl border border-slate-300 dark:border-gray-700 p-5 min-w-[220px] max-w-[280px]">
       <div className="flex items-center gap-2 flex-wrap mb-3">
-        <span className="text-xs font-bold tracking-[0.08em] text-emerald-400 uppercase">
+        <span className="text-xs font-bold tracking-[0.08em] text-emerald-600 dark:text-emerald-400 uppercase">
           ✓ Logged · {loggedTime}
         </span>
       </div>
       <div className="flex items-baseline gap-2 mb-2">
-        <span className="text-4xl font-bold text-white leading-none tabular-nums">{scored ?? '—'}</span>
+        <span className="text-4xl font-bold text-slate-950 dark:text-white leading-none tabular-nums">{scored ?? '—'}</span>
         {levelLabel && (
-          <span className="text-sm font-bold text-indigo-300">{levelLabel}</span>
+          <span className="text-sm font-bold text-indigo-600 dark:text-indigo-300">{levelLabel}</span>
         )}
       </div>
       {leaderboard?.rank && (
-        <div className="text-sm text-gray-400">
-          Rank <span className="text-white font-semibold">#{leaderboard.rank}</span> of {leaderboard.totalLogged} today
+        <div className="text-sm text-slate-500 dark:text-gray-400">
+          Rank <span className="text-slate-950 dark:text-white font-semibold">#{leaderboard.rank}</span> of {leaderboard.totalLogged} today
           {leaderboard.percentile !== null && ` · top ${100 - leaderboard.percentile}%`}
         </div>
       )}
