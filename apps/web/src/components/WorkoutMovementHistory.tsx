@@ -86,7 +86,15 @@ function describeSet(set: MovementHistoryResult['movementSets'][number], loadUni
 
 const STRENGTH_RM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 
-function StrengthPrTable({ entries, onClickEmpty }: { entries: StrengthPrEntry[]; onClickEmpty: (rm: number) => void }) {
+function StrengthPrTable({
+  entries,
+  onClickEmpty,
+  onClickFilled,
+}: {
+  entries: StrengthPrEntry[]
+  onClickEmpty: (rm: number) => void
+  onClickFilled: (workoutId: string, resultId: string) => void
+}) {
   const byReps = new Map(entries.map((e) => [e.reps, e]))
   const unit = entries[0]?.unit ?? 'LB'
   return (
@@ -98,13 +106,16 @@ function StrengthPrTable({ entries, onClickEmpty }: { entries: StrengthPrEntry[]
         {STRENGTH_RM_RANGE.map((reps) => {
           const entry = byReps.get(reps)
           return entry ? (
-            <div
+            <button
               key={reps}
-              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[3.5rem]"
+              type="button"
+              onClick={() => onClickFilled(entry.workoutId, entry.resultId)}
+              title={`View your ${reps}RM — ${entry.maxLoad} ${unit}`}
+              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[3.5rem] hover:border-primary hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
               <span className="text-[10px] text-slate-500 dark:text-gray-400">{reps}RM</span>
               <span className="text-sm font-semibold text-slate-950 dark:text-white">{entry.maxLoad}</span>
-            </div>
+            </button>
           ) : (
             <button
               key={reps}
@@ -344,6 +355,7 @@ interface BackfillModalProps {
 
 function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: BackfillModalProps) {
   const [load, setLoad] = useState('')
+  const [notes, setNotes] = useState('')
   const [dateStr, setDateStr] = useState(todayISODate)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -367,6 +379,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
       await api.results.create(workout.id, {
         level: 'RX',
         workoutGender: 'OPEN',
+        notes: notes.trim() || undefined,
         value: {
           movementResults: [{
             workoutMovementId: movementId,
@@ -405,6 +418,20 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
             onChange={(e) => setLoad(e.target.value)}
             className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 text-xl font-semibold placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             autoFocus
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="bf-notes" className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">
+            Notes (optional)
+          </label>
+          <textarea
+            id="bf-notes"
+            rows={3}
+            placeholder="How did it feel? Any context…"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
           />
         </div>
 
@@ -535,7 +562,17 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
 
       {hasPrTable && (
         <div className="rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 px-4 py-3 space-y-4">
-          {data.prTable.category === 'STRENGTH' && <StrengthPrTable entries={data.prTable.entries} onClickEmpty={setPendingRm} />}
+          {data.prTable.category === 'STRENGTH' && (
+            <StrengthPrTable
+              entries={data.prTable.entries}
+              onClickEmpty={setPendingRm}
+              onClickFilled={(workoutId, resultId) =>
+                navigate(`/workouts/${workoutId}/results/${resultId}`, {
+                  state: { from: 'movement-history', originWorkoutId: currentWorkoutId },
+                })
+              }
+            />
+          )}
           {data.prTable.category === 'ENDURANCE' && <EndurancePrTable entries={data.prTable.entries} />}
           {data.prTable.category === 'MACHINE' && <MachinePrTable prTable={data.prTable} />}
 
