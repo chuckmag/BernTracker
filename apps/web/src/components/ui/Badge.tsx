@@ -7,8 +7,8 @@ interface BadgeProps {
 }
 
 const VARIANTS: Record<BadgeVariant, string> = {
-  neutral: 'bg-gray-700 text-gray-200',
-  accent:  'bg-indigo-600 text-white',
+  neutral: 'bg-slate-200 text-slate-700 dark:bg-gray-700 dark:text-gray-200',
+  accent:  'bg-primary text-white',
 }
 
 export default function Badge({ count, variant = 'accent', className = '' }: BadgeProps) {

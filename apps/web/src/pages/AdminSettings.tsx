@@ -55,7 +55,7 @@ export default function AdminSettings() {
     <div className="space-y-8">
       <h1 className="text-2xl font-bold">WODalytics Settings</h1>
 
-      <div className="border-b border-gray-800">
+      <div className="border-b border-slate-200 dark:border-gray-800">
         <nav className="flex gap-1" role="tablist">
           {tabs.map((t) => (
             <button
@@ -65,10 +65,10 @@ export default function AdminSettings() {
               onClick={() => selectTab(t.id)}
               className={[
                 'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
                 tab === t.id
-                  ? 'border-indigo-500 text-white'
-                  : 'border-transparent text-gray-400 hover:text-white',
+                  ? 'border-indigo-500 text-slate-950 dark:text-white'
+                  : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
               ].join(' ')}
             >
               {t.label}
@@ -121,9 +121,9 @@ function ProgramsTab() {
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold">Programs</h2>
-            <span className="bg-gray-700 text-sm px-2 py-0.5 rounded-full">{programs.length}</span>
+            <span className="bg-slate-200 dark:bg-gray-700 text-slate-700 dark:text-gray-200 text-sm px-2 py-0.5 rounded-full">{programs.length}</span>
           </div>
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">
             Unaffiliated programs surfaced from public sources (e.g. CrossFit Mainsite). Editable by WODalytics staff.
           </p>
         </div>
@@ -235,7 +235,7 @@ function MovementsTab() {
             </span>
           )}
         </div>
-        <p className="mt-1 text-sm text-gray-400">
+        <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">
           Member-suggested movements awaiting review. Approve to make them available across all gyms, edit to fix the name or parent before approving, or reject to discard.
         </p>
       </div>
@@ -262,31 +262,31 @@ function MovementsTab() {
 
             if (isEditing) {
               return (
-                <div key={m.id} className="px-4 py-3 rounded-lg bg-gray-900 space-y-3">
+                <div key={m.id} className="px-4 py-3 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 space-y-3">
                   <div>
-                    <label className="block text-xs text-gray-400 mb-1">Name</label>
+                    <label className="block text-xs text-slate-600 dark:text-gray-400 mb-1">Name</label>
                     <input
-                      className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white"
+                      className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-slate-950 dark:text-white"
                       value={mvEditName}
                       onChange={(e) => setMvEditName(e.target.value)}
                     />
                   </div>
                   <div className="relative">
-                    <label className="block text-xs text-gray-400 mb-1">Parent movement (optional)</label>
+                    <label className="block text-xs text-slate-600 dark:text-gray-400 mb-1">Parent movement (optional)</label>
                     {selectedParentName ? (
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-full bg-indigo-600/30 text-indigo-300 text-xs">{selectedParentName}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-600/30 text-indigo-700 dark:text-indigo-300 text-xs">{selectedParentName}</span>
                         <button
                           type="button"
                           onClick={() => { setEditParentId(null); setParentSearch('') }}
-                          className="text-xs text-gray-400 hover:text-gray-200"
+                          className="text-xs text-slate-400 dark:text-gray-400 hover:text-slate-950 dark:hover:text-gray-200"
                         >
                           ×
                         </button>
                       </div>
                     ) : (
                       <input
-                        className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white"
+                        className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500"
                         placeholder="Search movements…"
                         value={parentSearch}
                         onChange={(e) => { setParentSearch(e.target.value); setParentDropdownOpen(true) }}
@@ -295,12 +295,12 @@ function MovementsTab() {
                       />
                     )}
                     {parentDropdownOpen && parentSearchResults.length > 0 && (
-                      <ul className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-700 rounded shadow-lg max-h-48 overflow-y-auto">
+                      <ul className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded shadow-lg max-h-48 overflow-y-auto">
                         {parentSearchResults.map((a) => (
                           <li
                             key={a.id}
                             onMouseDown={() => { setEditParentId(a.id); setParentSearch(a.name); setParentDropdownOpen(false) }}
-                            className="px-3 py-2 text-sm text-white hover:bg-gray-700 cursor-pointer"
+                            className="px-3 py-2 text-sm text-slate-950 dark:text-white hover:bg-slate-100 dark:hover:bg-gray-700 cursor-pointer"
                           >
                             {a.name}
                           </li>
@@ -319,7 +319,7 @@ function MovementsTab() {
                     <button
                       onClick={cancelEditing}
                       disabled={savingEdit}
-                      className="px-3 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50 transition-colors"
+                      className="px-3 py-1 text-xs rounded bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 text-slate-700 dark:text-gray-300 disabled:opacity-50 transition-colors"
                     >
                       Cancel
                     </button>
@@ -329,11 +329,11 @@ function MovementsTab() {
             }
 
             return (
-              <div key={m.id} className="flex items-center justify-between px-4 py-3 rounded-lg bg-gray-900">
+              <div key={m.id} className="flex items-center justify-between px-4 py-3 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800">
                 <div>
-                  <span className="text-sm text-white">{m.name}</span>
+                  <span className="text-sm text-slate-950 dark:text-white">{m.name}</span>
                   {m.parentId && (
-                    <span className="ml-2 text-xs text-gray-400">
+                    <span className="ml-2 text-xs text-slate-500 dark:text-gray-400">
                       variation of {allMovements.find((a) => a.id === m.parentId)?.name ?? 'unknown'}
                     </span>
                   )}
@@ -342,7 +342,7 @@ function MovementsTab() {
                   <button
                     onClick={() => startEditing(m)}
                     disabled={reviewingId === m.id}
-                    className="px-3 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50 transition-colors"
+                    className="px-3 py-1 text-xs rounded bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 text-slate-700 dark:text-gray-300 disabled:opacity-50 transition-colors"
                   >
                     Edit
                   </button>
@@ -356,7 +356,7 @@ function MovementsTab() {
                   <button
                     onClick={() => handleReview(m.id, 'REJECTED')}
                     disabled={reviewingId === m.id}
-                    className="px-3 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-300 disabled:opacity-50 transition-colors"
+                    className="px-3 py-1 text-xs rounded bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 text-slate-700 dark:text-gray-300 disabled:opacity-50 transition-colors"
                   >
                     Reject
                   </button>
