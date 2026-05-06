@@ -17,7 +17,7 @@ function makeWorkout(overrides: Partial<Workout>): Workout {
   } as Workout
 }
 
-const TODAY = new Date(2026, 4, 4) // May 4, 2026
+const TODAY = new Date(2026, 4, 4) // May 4, 2026 (Mon)
 
 function buildDays(start: Date, count: number): Date[] {
   const days: Date[] = []
@@ -32,7 +32,7 @@ function buildDays(start: Date, count: number): Date[] {
 const noop = () => {}
 
 describe('CalendarDayStrip', () => {
-  it('renders one card per day with the right relative labels', () => {
+  it('renders one column per day with weekday + date number', () => {
     render(
       <CalendarDayStrip
         days={buildDays(TODAY, 3)}
@@ -40,20 +40,24 @@ describe('CalendarDayStrip', () => {
         workoutsByDate={{}}
         selectedDate={null}
         selectedWorkoutId={null}
+        loading={false}
         onPrev={noop}
         onNext={noop}
         onAddClick={noop}
         onWorkoutClick={noop}
       />,
     )
-    expect(screen.getByText('Today')).toBeInTheDocument()
-    expect(screen.getByText('Tomorrow')).toBeInTheDocument()
-    // Third day uses an absolute label ("Wednesday, May 6"); we only assert
-    // something day-shaped renders to avoid timezone churn.
-    expect(screen.getAllByText(/May (4|5|6)/).length).toBeGreaterThan(0)
+    // May 4 is Monday → DAY_LABELS[1] = 'Mon'. Three days starting Mon
+    // gives Mon, Tue, Wed; assert each weekday label and date number.
+    expect(screen.getByText('Mon')).toBeInTheDocument()
+    expect(screen.getByText('Tue')).toBeInTheDocument()
+    expect(screen.getByText('Wed')).toBeInTheDocument()
+    expect(screen.getByText('4')).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument()
+    expect(screen.getByText('6')).toBeInTheDocument()
   })
 
-  it('shows "No workouts planned" for empty days', () => {
+  it('renders the date-range label in the nav row', () => {
     render(
       <CalendarDayStrip
         days={buildDays(TODAY, 3)}
@@ -61,13 +65,14 @@ describe('CalendarDayStrip', () => {
         workoutsByDate={{}}
         selectedDate={null}
         selectedWorkoutId={null}
+        loading={false}
         onPrev={noop}
         onNext={noop}
         onAddClick={noop}
         onWorkoutClick={noop}
       />,
     )
-    expect(screen.getAllByText('No workouts planned.')).toHaveLength(3)
+    expect(screen.getByText(/May 4.*May 6/)).toBeInTheDocument()
   })
 
   it('renders workouts for matching days using YYYY-MM-DD keys', () => {
@@ -81,6 +86,7 @@ describe('CalendarDayStrip', () => {
         }}
         selectedDate={null}
         selectedWorkoutId={null}
+        loading={false}
         onPrev={noop}
         onNext={noop}
         onAddClick={noop}
@@ -89,6 +95,30 @@ describe('CalendarDayStrip', () => {
     )
     expect(screen.getByText('Fran')).toBeInTheDocument()
     expect(screen.getByText('Cindy')).toBeInTheDocument()
+  })
+
+  it('truncates to MAX_VISIBLE workouts and shows the +N more overflow', () => {
+    // Component caps visible workouts per day at 4 (MAX_VISIBLE in source).
+    // With 6 on a single day we expect 4 rendered + "+2 more".
+    const six = Array.from({ length: 6 }, (_, i) => makeWorkout({ id: `w-${i}`, title: `Workout ${i}` }))
+    render(
+      <CalendarDayStrip
+        days={buildDays(TODAY, 3)}
+        today={TODAY}
+        workoutsByDate={{ '2026-05-04': six }}
+        selectedDate={null}
+        selectedWorkoutId={null}
+        loading={false}
+        onPrev={noop}
+        onNext={noop}
+        onAddClick={noop}
+        onWorkoutClick={noop}
+      />,
+    )
+    expect(screen.getByText('Workout 0')).toBeInTheDocument()
+    expect(screen.getByText('Workout 3')).toBeInTheDocument()
+    expect(screen.queryByText('Workout 4')).not.toBeInTheDocument()
+    expect(screen.getByText('+2 more')).toBeInTheDocument()
   })
 
   it('emits onAddClick with the day key when the + button fires', () => {
@@ -100,13 +130,14 @@ describe('CalendarDayStrip', () => {
         workoutsByDate={{}}
         selectedDate={null}
         selectedWorkoutId={null}
+        loading={false}
         onPrev={noop}
         onNext={noop}
         onAddClick={onAddClick}
         onWorkoutClick={noop}
       />,
     )
-    fireEvent.click(screen.getByLabelText('Add workout on Today'))
+    fireEvent.click(screen.getByLabelText('Add workout on 2026-05-04'))
     expect(onAddClick).toHaveBeenCalledWith('2026-05-04')
   })
 
@@ -121,6 +152,7 @@ describe('CalendarDayStrip', () => {
         }}
         selectedDate={null}
         selectedWorkoutId={null}
+        loading={false}
         onPrev={noop}
         onNext={noop}
         onAddClick={noop}
@@ -141,6 +173,7 @@ describe('CalendarDayStrip', () => {
         workoutsByDate={{}}
         selectedDate={null}
         selectedWorkoutId={null}
+        loading={false}
         onPrev={onPrev}
         onNext={onNext}
         onAddClick={noop}
