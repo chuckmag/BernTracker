@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { type Role, type Workout } from '../lib/api'
 import type { ProgramScope } from '../lib/programScope'
+import { useMediaQuery, MOBILE_VIEWPORT_QUERY } from '../lib/useMediaQuery'
 import CalendarCell from './CalendarCell'
+import CalendarDayStrip from './CalendarDayStrip'
 import WorkoutDrawer from './WorkoutDrawer'
 import Button from './ui/Button'
 
@@ -13,6 +15,24 @@ function toDateKey(date: Date): string {
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  return x
+}
+
+function addDays(d: Date, days: number): Date {
+  const x = new Date(d)
+  x.setDate(x.getDate() + days)
+  return x
+}
+
+// Width of the strip view in days. Kept short for phone ergonomics: 3 days
+// is enough to plan around "today + tomorrow + the day after," and any
+// longer turns the page into a scroll well on a small screen. Matches the
+// "1-3 day calendar" framing in #240.
+const STRIP_DAYS = 3
 
 interface WorkoutCalendarBoardProps {
   /**
@@ -47,9 +67,14 @@ export default function WorkoutCalendarBoard({
   userGymRole,
   defaultProgramId,
 }: WorkoutCalendarBoardProps) {
+  const isNarrow = useMediaQuery(MOBILE_VIEWPORT_QUERY)
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
+  // Strip mode tracks the start date of the visible 3-day window. Kept as
+  // a dateKey rather than a Date so prev/next don't accidentally change it
+  // by anything other than ±STRIP_DAYS. Re-evaluated to "today" on mount.
+  const [stripStartKey, setStripStartKey] = useState(() => toDateKey(startOfDay(new Date())))
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,8 +85,21 @@ export default function WorkoutCalendarBoard({
     setLoading(true)
     setError(null)
     try {
-      const from = new Date(year, month, 1).toISOString()
-      const to = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString()
+      // Fetch range follows the active view. Strip mode fetches just the
+      // 3-day window (which can straddle month boundaries — month fetch
+      // would miss the overflow). Wide mode keeps the full-month behavior
+      // unchanged. Refetches automatically when isNarrow flips because
+      // it's in the dep list.
+      let from: string
+      let to: string
+      if (isNarrow) {
+        const stripStart = new Date(stripStartKey + 'T00:00:00')
+        from = stripStart.toISOString()
+        to = new Date(addDays(stripStart, STRIP_DAYS - 1).setHours(23, 59, 59, 999)).toISOString()
+      } else {
+        from = new Date(year, month, 1).toISOString()
+        to = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString()
+      }
       const data = await loadWorkouts(from, to)
       if (!signal?.cancelled) setWorkouts(data)
     } catch (e) {
@@ -69,7 +107,7 @@ export default function WorkoutCalendarBoard({
     } finally {
       if (!signal?.cancelled) setLoading(false)
     }
-  }, [year, month, loadWorkouts])
+  }, [isNarrow, year, month, stripStartKey, loadWorkouts])
 
   useEffect(() => {
     const signal = { cancelled: false }
@@ -119,48 +157,78 @@ export default function WorkoutCalendarBoard({
     setSelectedWorkoutId(null)
   }
 
+  function stepStrip(dir: -1 | 1) {
+    const start = new Date(stripStartKey + 'T00:00:00')
+    setStripStartKey(toDateKey(addDays(start, dir * STRIP_DAYS)))
+    setSelectedDate(null)
+    setSelectedWorkoutId(null)
+  }
+
+  const stripDays: Date[] = []
+  if (isNarrow) {
+    const stripStart = new Date(stripStartKey + 'T00:00:00')
+    for (let i = 0; i < STRIP_DAYS; i++) stripDays.push(addDays(stripStart, i))
+  }
+
   return (
     <>
-      <div className="flex items-center justify-end gap-2 mb-6">
-        <Button variant="tertiary" onClick={prevMonth} aria-label="Previous month">←</Button>
-        <span className="text-base font-medium w-44 text-center select-none">{monthLabel}</span>
-        <Button variant="tertiary" onClick={nextMonth} aria-label="Next month">→</Button>
-      </div>
-
       {error && <p className="text-red-400 mb-4">{error}</p>}
 
-      <div className="grid grid-cols-7 mb-px">
-        {DAY_HEADERS.map((d) => (
-          <div key={d} className="text-center text-xs text-slate-500 dark:text-gray-400 py-1">{d}</div>
-        ))}
-      </div>
+      {isNarrow ? (
+        <CalendarDayStrip
+          days={stripDays}
+          today={today}
+          workoutsByDate={workoutsByDate}
+          selectedDate={selectedDate}
+          selectedWorkoutId={selectedWorkoutId}
+          loading={loading}
+          onPrev={() => stepStrip(-1)}
+          onNext={() => stepStrip(1)}
+          onAddClick={(key) => { setSelectedDate(key); setSelectedWorkoutId(null) }}
+          onWorkoutClick={(key, id) => { setSelectedDate(key); setSelectedWorkoutId(id) }}
+        />
+      ) : (
+        <>
+          <div className="flex items-center justify-end gap-2 mb-6">
+            <Button variant="tertiary" onClick={prevMonth} aria-label="Previous month">←</Button>
+            <span className="text-base font-medium w-44 text-center select-none">{monthLabel}</span>
+            <Button variant="tertiary" onClick={nextMonth} aria-label="Next month">→</Button>
+          </div>
 
-      <div
-        className={[
-          'grid grid-cols-7 gap-px bg-slate-200 dark:bg-gray-800 border border-slate-200 dark:border-gray-800 rounded-lg overflow-hidden',
-          loading ? 'opacity-60 pointer-events-none' : '',
-        ].join(' ')}
-      >
-        {weeks.map((week, wi) =>
-          week.map((date, di) => {
-            if (!date) {
-              return <div key={`empty-${wi}-${di}`} className="bg-slate-50 dark:bg-gray-950 h-[128px]" />
-            }
-            const key = toDateKey(date)
-            return (
-              <CalendarCell
-                key={key}
-                date={date}
-                isToday={key === todayKey}
-                workouts={workoutsByDate[key] ?? []}
-                selected={key === selectedDate}
-                onAddClick={() => { setSelectedDate(key); setSelectedWorkoutId(null) }}
-                onWorkoutClick={(id) => { setSelectedDate(key); setSelectedWorkoutId(id) }}
-              />
-            )
-          }),
-        )}
-      </div>
+          <div className="grid grid-cols-7 mb-px">
+            {DAY_HEADERS.map((d) => (
+              <div key={d} className="text-center text-xs text-slate-500 dark:text-gray-400 py-1">{d}</div>
+            ))}
+          </div>
+
+          <div
+            className={[
+              'grid grid-cols-7 gap-px bg-slate-200 dark:bg-gray-800 border border-slate-200 dark:border-gray-800 rounded-lg overflow-hidden',
+              loading ? 'opacity-60 pointer-events-none' : '',
+            ].join(' ')}
+          >
+            {weeks.map((week, wi) =>
+              week.map((date, di) => {
+                if (!date) {
+                  return <div key={`empty-${wi}-${di}`} className="bg-slate-50 dark:bg-gray-950 h-[128px]" />
+                }
+                const key = toDateKey(date)
+                return (
+                  <CalendarCell
+                    key={key}
+                    date={date}
+                    isToday={key === todayKey}
+                    workouts={workoutsByDate[key] ?? []}
+                    selected={key === selectedDate}
+                    onAddClick={() => { setSelectedDate(key); setSelectedWorkoutId(null) }}
+                    onWorkoutClick={(id) => { setSelectedDate(key); setSelectedWorkoutId(id) }}
+                  />
+                )
+              }),
+            )}
+          </div>
+        </>
+      )}
 
       <WorkoutDrawer
         scope={scope}

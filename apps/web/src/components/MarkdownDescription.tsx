@@ -24,15 +24,15 @@ export default function MarkdownDescription({ source }: MarkdownDescriptionProps
           strong: ({ children }) => <strong className="font-semibold text-slate-950 dark:text-white">{children}</strong>,
           em: ({ children }) => <em className="italic">{children}</em>,
           a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noreferrer noopener" className="text-indigo-600 dark:text-indigo-400 underline">
+            <a href={href} target="_blank" rel="noreferrer noopener" className="text-accent underline hover:opacity-80 transition-opacity">
               {children}
             </a>
           ),
           code: ({ children }) => (
-            <code className="bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+            <code className="bg-slate-100 dark:bg-gray-800 text-slate-800 dark:text-gray-200 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
           ),
           pre: ({ children }) => (
-            <pre className="bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-200 p-3 rounded text-xs font-mono overflow-x-auto mb-2 last:mb-0">
+            <pre className="bg-slate-100 dark:bg-gray-800 text-slate-800 dark:text-gray-200 p-3 rounded text-xs font-mono overflow-x-auto mb-2 last:mb-0">
               {children}
             </pre>
           ),

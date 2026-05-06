@@ -234,6 +234,12 @@ export interface LogResultInput {
   notes?: string
 }
 
+export interface ConsistencyData {
+  currentStreak: number
+  longestStreak: number
+  history: { date: string; count: number }[]
+}
+
 // ── Token storage ────────────────────────────────────────────────────────────
 
 export async function storeTokens(accessToken: string, refreshToken: string) {
@@ -428,5 +434,12 @@ export const api = {
 
     delete: (resultId: string) =>
       request<void>(`/api/results/${resultId}`, { method: 'DELETE' }),
+  },
+
+  analytics: {
+    consistency: (weeks?: number) => {
+      const qs = weeks ? `?weeks=${weeks}` : ''
+      return request<ConsistencyData>(`/api/me/analytics/consistency${qs}`)
+    },
   },
 }

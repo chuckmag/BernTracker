@@ -660,7 +660,10 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
 
       <div
         className={[
-          'fixed top-0 right-0 h-full w-96 bg-white dark:bg-gray-900 border-l border-slate-200 dark:border-gray-800 z-40',
+          // Phone (≤md): full-screen overlay, no left border (#241).
+          // ≥md: right-anchored 384px panel with the existing slide-in.
+          'fixed inset-0 md:inset-auto md:top-0 md:right-0 md:h-full md:w-96 md:border-l md:border-slate-200 dark:md:border-gray-800',
+          'bg-white dark:bg-gray-900 z-40',
           'flex flex-col shadow-2xl transition-transform duration-300',
           isOpen ? 'translate-x-0' : 'translate-x-full',
         ].join(' ')}

@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar'
-import { ActivityIndicator, View } from 'react-native'
+import { ActivityIndicator, Image, Text, View } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createStackNavigator } from '@react-navigation/stack'
@@ -13,6 +13,7 @@ import WodDetailScreen from './src/screens/WodDetailScreen'
 import HistoryScreen from './src/screens/HistoryScreen'
 import LogResultScreen from './src/screens/LogResultScreen'
 import AddPersonalWorkoutScreen from './src/screens/AddPersonalWorkoutScreen'
+import AnalyticsScreen from './src/screens/AnalyticsScreen'
 import type { LeaderboardEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -33,6 +34,11 @@ export type MainTabParamList = {
   HomeTab: undefined
   FeedTab: undefined
   HistoryTab: undefined
+  AnalyticsTab: undefined
+}
+
+export type AnalyticsStackParamList = {
+  Analytics: undefined
 }
 
 export type HomeStackParamList = {
@@ -54,6 +60,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>()
 const HomeStack = createStackNavigator<HomeStackParamList>()
 const FeedStack = createStackNavigator<FeedStackParamList>()
 const HistoryStack = createStackNavigator<HistoryStackParamList>()
+const AnalyticsStack = createStackNavigator<AnalyticsStackParamList>()
 
 const stackScreenOptions = {
   headerStyle: { backgroundColor: '#111827' },
@@ -86,6 +93,29 @@ function HistoryStackNavigator() {
   )
 }
 
+function AnalyticsStackNavigator() {
+  return (
+    <AnalyticsStack.Navigator screenOptions={stackScreenOptions}>
+      <AnalyticsStack.Screen
+        name="Analytics"
+        component={AnalyticsScreen}
+        options={{
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Image
+                source={require('./assets/favicon.png')}
+                style={{ width: 36, height: 36 }}
+                resizeMode="contain"
+              />
+              <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '600' }}>WODalytics</Text>
+            </View>
+          ),
+        }}
+      />
+    </AnalyticsStack.Navigator>
+  )
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -99,6 +129,20 @@ function MainTabs() {
       <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Today' }} />
       <Tab.Screen name="FeedTab" component={FeedStackNavigator} options={{ title: 'Feed' }} />
       <Tab.Screen name="HistoryTab" component={HistoryStackNavigator} options={{ title: 'History' }} />
+      <Tab.Screen
+        name="AnalyticsTab"
+        component={AnalyticsStackNavigator}
+        options={{
+          title: 'Analytics',
+          tabBarIcon: ({ focused, size }) => (
+            <Image
+              source={require('./assets/favicon.png')}
+              style={{ width: size, height: size, opacity: focused ? 1 : 0.5 }}
+              resizeMode="contain"
+            />
+          ),
+        }}
+      />
     </Tab.Navigator>
   )
 }
