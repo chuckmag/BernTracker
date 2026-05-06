@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
+import { useTheme } from '../context/ThemeContext.tsx'
 import {
   api,
   type IdentifiedGender,
   type UserProfile,
 } from '../lib/api'
 import Button from '../components/ui/Button'
+import SegmentedControl from '../components/ui/SegmentedControl'
 import AvatarUploader from '../components/AvatarUploader'
 import EmergencyContactsEditor from '../components/EmergencyContactsEditor'
 import MyInvitationsSection from '../components/MyInvitationsSection'
@@ -18,6 +20,13 @@ import {
   GenderField,
   GENDER_OPTIONS,
 } from '../components/ProfileFields'
+import type { ThemeMode } from '../lib/useTheme'
+
+const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
+  { value: 'light',  label: 'Light'  },
+  { value: 'dark',   label: 'Dark'   },
+  { value: 'system', label: 'System' },
+]
 
 type Tab = 'details' | 'memberships'
 
@@ -32,6 +41,7 @@ function readTabFromHash(): Tab {
 
 export default function Profile() {
   const { user, logout } = useAuth()
+  const { mode: themeMode, setMode: setThemeMode } = useTheme()
   const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [firstName, setFirstName] = useState('')
@@ -95,7 +105,7 @@ export default function Profile() {
   }
 
   if (!profile) {
-    return <p className="text-gray-400">Loading…</p>
+    return <p className="text-slate-400 dark:text-gray-400">Loading…</p>
   }
 
   const tabs: { id: Tab; label: string }[] = [
@@ -107,10 +117,10 @@ export default function Profile() {
     <div className="max-w-2xl space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">Your profile</h1>
-        <p className="text-sm text-gray-400">Personal information used for results tracking and emergency contact.</p>
+        <p className="text-sm text-slate-500 dark:text-gray-400">Personal information used for results tracking and emergency contact.</p>
       </header>
 
-      <div className="border-b border-gray-800">
+      <div className="border-b border-slate-200 dark:border-gray-800">
         <nav className="flex gap-1" role="tablist">
           {tabs.map((t) => (
             <button
@@ -120,10 +130,10 @@ export default function Profile() {
               onClick={() => selectTab(t.id)}
               className={[
                 'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
                 tab === t.id
-                  ? 'border-indigo-500 text-white'
-                  : 'border-transparent text-gray-400 hover:text-white',
+                  ? 'border-indigo-500 text-slate-950 dark:text-white'
+                  : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
               ].join(' ')}
             >
               {t.label}
@@ -134,13 +144,13 @@ export default function Profile() {
 
       {tab === 'details' && (
         <div className="space-y-8">
-          <section className="rounded-xl bg-gray-900 p-4 border border-gray-800">
+          <section className="rounded-xl bg-slate-100 dark:bg-gray-900 p-4 border border-slate-200 dark:border-gray-800">
             <AvatarUploader />
           </section>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <section className="space-y-4">
-              <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Personal info</h2>
+              <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wide">Personal info</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <NameFields
                   firstName={firstName}
@@ -156,8 +166,8 @@ export default function Profile() {
               </div>
             </section>
 
-            {error && <p className="text-sm text-rose-400">{error}</p>}
-            {savedAt && !error && <p className="text-sm text-emerald-400">Saved.</p>}
+            {error && <p className="text-sm text-rose-500 dark:text-rose-400">{error}</p>}
+            {savedAt && !error && <p className="text-sm text-emerald-600 dark:text-emerald-400">Saved.</p>}
 
             <Button type="submit" disabled={saving}>
               {saving ? 'Saving…' : 'Save'}
@@ -165,8 +175,21 @@ export default function Profile() {
           </form>
 
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Emergency contacts</h2>
-            <p className="text-xs text-gray-400">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wide">Appearance</h2>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-600 dark:text-gray-400">Theme</span>
+              <SegmentedControl
+                aria-label="Color theme"
+                options={THEME_OPTIONS}
+                value={themeMode}
+                onChange={setThemeMode}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wide">Emergency contacts</h2>
+            <p className="text-xs text-slate-500 dark:text-gray-400">
               Optional. Stored on your account today; gym-specific contacts will come with the gym onboarding flow.
             </p>
             <EmergencyContactsEditor
@@ -182,7 +205,7 @@ export default function Profile() {
             />
           </section>
 
-          <section className="pt-6 border-t border-gray-800">
+          <section className="pt-6 border-t border-slate-200 dark:border-gray-800">
             <Button variant="secondary" onClick={handleSignOut}>
               Sign out
             </Button>

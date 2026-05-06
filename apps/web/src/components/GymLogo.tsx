@@ -28,7 +28,7 @@ export default function GymLogo({ logoUrl, name, size = 'md' }: GymLogoProps) {
       <img
         src={logoUrl}
         alt={`${name} logo`}
-        className={[sizeClass, 'rounded-lg object-cover bg-gray-800 shrink-0'].join(' ')}
+        className={[sizeClass, 'rounded-lg object-cover bg-slate-200 dark:bg-gray-800 shrink-0'].join(' ')}
         loading="lazy"
         decoding="async"
       />
@@ -38,7 +38,7 @@ export default function GymLogo({ logoUrl, name, size = 'md' }: GymLogoProps) {
     <div
       className={[
         sizeClass,
-        'rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center font-semibold text-gray-200 shrink-0',
+        'rounded-lg bg-gradient-to-br from-slate-300 to-slate-400 dark:from-slate-700 dark:to-slate-900 flex items-center justify-center font-semibold text-slate-700 dark:text-gray-200 shrink-0',
       ].join(' ')}
       aria-hidden="true"
     >

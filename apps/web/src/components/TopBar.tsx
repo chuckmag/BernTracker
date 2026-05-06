@@ -13,10 +13,10 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
   const displayName = user?.firstName || user?.name?.split(' ')[0] || user?.email || 'You'
 
   return (
-    <header className="h-12 flex items-center px-4 border-b border-gray-800 bg-gray-950 shrink-0">
+    <header className="h-12 flex items-center px-4 border-b border-slate-200 dark:border-gray-800 bg-white dark:bg-gray-950 shrink-0">
       <button
         onClick={onMenuClick}
-        className="md:hidden mr-3 p-1 text-gray-400 hover:text-white transition-colors"
+        className="md:hidden mr-3 p-1 text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white transition-colors"
         aria-label="Open menu"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
@@ -34,10 +34,10 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
             to="/profile"
             aria-label="Your profile"
             title={displayName}
-            className="flex items-center gap-2 rounded-full pl-1 pr-3 py-0.5 hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+            className="flex items-center gap-2 rounded-full pl-1 pr-3 py-0.5 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
           >
             <Avatar avatarUrl={user.avatarUrl} firstName={user.firstName} lastName={user.lastName} email={user.email} size="sm" />
-            <span className="hidden sm:inline text-sm text-gray-300">{displayName}</span>
+            <span className="hidden sm:inline text-sm text-slate-600 dark:text-gray-300">{displayName}</span>
           </Link>
         )}
       </div>

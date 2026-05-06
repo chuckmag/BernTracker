@@ -41,7 +41,7 @@ export default function MyJoinRequestsSection() {
   if (!hasLoaded) {
     return (
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Outgoing requests</h2>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wide">Outgoing requests</h2>
         <Skeleton variant="history-row" count={1} />
       </section>
     )
@@ -51,15 +51,15 @@ export default function MyJoinRequestsSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Outgoing requests</h2>
+      <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wide">Outgoing requests</h2>
       <ul className="space-y-2">
         {requests.map((r) => (
-          <li key={r.id} className="rounded-xl bg-gray-900 border border-gray-800 p-4 space-y-3">
+          <li key={r.id} className="rounded-xl bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-4 space-y-3">
             <div className="space-y-1">
-              <p className="text-sm text-white">
+              <p className="text-sm text-slate-950 dark:text-white">
                 Pending request to join <span className="font-semibold">{r.gym.name}</span>
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-500 dark:text-gray-400">
                 Sent {new Date(r.createdAt).toLocaleDateString()}
               </p>
             </div>

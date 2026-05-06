@@ -76,8 +76,8 @@ export default function GymLogoUploader({ gymId, logoUrl, name, onChange }: GymL
     <div className="flex items-start gap-4">
       <GymLogo logoUrl={logoUrl} name={name} size="lg" />
       <div className="flex-1 space-y-2">
-        <p className="text-sm text-white">Gym logo</p>
-        <p className="text-xs text-gray-400">JPEG, PNG, or WebP. Up to 20MB. Resized and cropped to a square.</p>
+        <p className="text-sm text-slate-950 dark:text-white">Gym logo</p>
+        <p className="text-xs text-slate-500 dark:text-gray-400">JPEG, PNG, or WebP. Up to 20MB. Resized and cropped to a square.</p>
         <div className="flex flex-wrap gap-2">
           <input {...inputProps} />
           <Button
@@ -100,7 +100,7 @@ export default function GymLogoUploader({ gymId, logoUrl, name, onChange }: GymL
           )}
         </div>
         <form onSubmit={handleUseLink} className="flex flex-wrap items-center gap-2 pt-1">
-          <label htmlFor={`gym-logo-url-${gymId}`} className="text-xs text-gray-400">
+          <label htmlFor={`gym-logo-url-${gymId}`} className="text-xs text-slate-500 dark:text-gray-400">
             Or paste a link:
           </label>
           <input
@@ -111,7 +111,7 @@ export default function GymLogoUploader({ gymId, logoUrl, name, onChange }: GymL
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
             disabled={busy !== null}
-            className="flex-1 min-w-[12rem] rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-white placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+            className="flex-1 min-w-[12rem] rounded border border-slate-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
           />
           <Button
             type="submit"

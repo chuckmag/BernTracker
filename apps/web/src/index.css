@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+/* Class-based dark mode: `dark:` utilities apply when <html> has class="dark". */
+@variant dark (&:where(.dark, .dark *));
+
+/* Brand color tokens — runtime-switchable via .dark class on <html>. */
+:root {
+  --color-primary-val:       #1E5AA8;
+  --color-primary-hover-val: #1A4D90;
+  --color-accent-val:        #2BA8A4;
+  --color-accent-hover-val:  #238F8B;
+}
+.dark {
+  --color-primary-val:       #5B9BE6;
+  --color-primary-hover-val: #7AB0EE;
+  --color-accent-val:        #5FD4D0;
+  --color-accent-hover-val:  #7AE4E0;
+}
+
+/* @theme inline emits var() references so utilities resolve at runtime. */
+@theme inline {
+  --color-primary:       var(--color-primary-val);
+  --color-primary-hover: var(--color-primary-hover-val);
+  --color-accent:        var(--color-accent-val);
+  --color-accent-hover:  var(--color-accent-hover-val);
+}

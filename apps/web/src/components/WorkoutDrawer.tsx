@@ -1146,7 +1146,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
                 <button
                   onClick={handleSaveDraft}
                   disabled={saving}
-                  className="flex-1 bg-indigo-700 hover:bg-indigo-600 text-white text-sm py-2 rounded transition-colors disabled:opacity-50"
+                  className="flex-1 bg-primary hover:bg-primary-hover text-white text-sm py-2 rounded transition-colors disabled:opacity-50"
                 >
                   {saving ? 'Saving...' : 'Save as Draft'}
                 </button>

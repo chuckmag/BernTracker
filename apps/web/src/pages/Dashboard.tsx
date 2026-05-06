@@ -51,13 +51,13 @@ export default function Dashboard() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex items-start gap-4 mb-6">
-        <h1 className="basis-[60%] min-w-0 text-2xl font-bold tracking-tight text-white leading-tight">{greeting}</h1>
+        <h1 className="basis-[60%] min-w-0 text-2xl font-bold tracking-tight text-slate-950 dark:text-white leading-tight">{greeting}</h1>
         {showPicker && (
           <div className="basis-[40%] min-w-0">
             <select
               value={selectedProgramId}
               onChange={(e) => setSelectedProgramId(e.target.value)}
-              className="w-full text-sm bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-950"
+              className="w-full text-sm bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-950"
               aria-label="Filter by program"
             >
               <option value="">All programs</option>
@@ -78,7 +78,7 @@ export default function Dashboard() {
           {!gymLoading && !loading && noGym && <NoGymCard />}
 
           {!gymLoading && !loading && error && (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 text-gray-400 text-sm">
+            <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-6 text-slate-500 dark:text-gray-400 text-sm">
               {error}
             </div>
           )}
@@ -145,11 +145,11 @@ function greetingFor(firstName: string | null): string {
 
 function NoGymCard() {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 flex flex-col items-center text-center gap-4">
+    <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-8 flex flex-col items-center text-center gap-4">
       <div className="text-4xl" aria-hidden="true">🏋️</div>
       <div>
-        <h2 className="text-base font-semibold text-white mb-1">You're not part of a gym yet</h2>
-        <p className="text-sm text-gray-400 max-w-sm">
+        <h2 className="text-base font-semibold text-slate-950 dark:text-white mb-1">You're not part of a gym yet</h2>
+        <p className="text-sm text-slate-500 dark:text-gray-400 max-w-sm">
           Browse public programs to follow, or start tracking your own workouts in your personal program.
         </p>
       </div>
@@ -167,17 +167,17 @@ function NoGymCard() {
 
 function SocialPlaceholder() {
   return (
-    <div className="bg-gray-900 border border-gray-800 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2 text-center min-h-[120px]">
-      <p className="text-sm font-medium text-gray-500">Social feed coming soon</p>
-      <p className="text-xs text-gray-600">See how your gym mates are doing</p>
+    <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2 text-center min-h-[120px]">
+      <p className="text-sm font-medium text-slate-400 dark:text-gray-500">Social feed coming soon</p>
+      <p className="text-xs text-slate-300 dark:text-gray-600">See how your gym mates are doing</p>
     </div>
   )
 }
 
 function RailPlaceholder({ label }: { label: string }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 border-dashed rounded-xl p-4 min-h-[80px] flex items-center justify-center">
-      <span className="text-xs text-gray-600">{label}</span>
+    <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 border-dashed rounded-xl p-4 min-h-[80px] flex items-center justify-center">
+      <span className="text-xs text-slate-300 dark:text-gray-600">{label}</span>
     </div>
   )
 }

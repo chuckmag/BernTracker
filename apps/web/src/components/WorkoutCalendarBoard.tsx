@@ -131,20 +131,20 @@ export default function WorkoutCalendarBoard({
 
       <div className="grid grid-cols-7 mb-px">
         {DAY_HEADERS.map((d) => (
-          <div key={d} className="text-center text-xs text-gray-400 py-1">{d}</div>
+          <div key={d} className="text-center text-xs text-slate-500 dark:text-gray-400 py-1">{d}</div>
         ))}
       </div>
 
       <div
         className={[
-          'grid grid-cols-7 gap-px bg-gray-800 border border-gray-800 rounded-lg overflow-hidden',
+          'grid grid-cols-7 gap-px bg-slate-200 dark:bg-gray-800 border border-slate-200 dark:border-gray-800 rounded-lg overflow-hidden',
           loading ? 'opacity-60 pointer-events-none' : '',
         ].join(' ')}
       >
         {weeks.map((week, wi) =>
           week.map((date, di) => {
             if (!date) {
-              return <div key={`empty-${wi}-${di}`} className="bg-gray-950 h-[128px]" />
+              return <div key={`empty-${wi}-${di}`} className="bg-slate-50 dark:bg-gray-950 h-[128px]" />
             }
             const key = toDateKey(date)
             return (

@@ -11,7 +11,7 @@ export const GENDER_OPTIONS: { value: NonNullable<IdentifiedGender>; label: stri
 ]
 
 const TEXT_INPUT =
-  'w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500'
+  'w-full bg-white border border-slate-300 rounded px-3 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white'
 
 interface NameFieldsProps {
   firstName: string
@@ -31,7 +31,7 @@ export function NameFields({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <label className="block">
-        <span className="text-xs text-gray-400 mb-1 block">First name</span>
+        <span className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">First name</span>
         <input
           type="text"
           autoFocus={autoFocus}
@@ -41,7 +41,7 @@ export function NameFields({
         />
       </label>
       <label className="block">
-        <span className="text-xs text-gray-400 mb-1 block">Last name</span>
+        <span className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Last name</span>
         <input
           type="text"
           value={lastName}
@@ -62,14 +62,14 @@ interface BirthdayFieldProps {
 export function BirthdayField({ value, onChange, helperText }: BirthdayFieldProps) {
   return (
     <label className="block">
-      <span className="text-xs text-gray-400 mb-1 block">Birthday</span>
+      <span className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Birthday</span>
       <input
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={TEXT_INPUT}
       />
-      {helperText && <span className="text-xs text-gray-500 mt-1 block">{helperText}</span>}
+      {helperText && <span className="text-xs text-slate-400 dark:text-gray-500 mt-1 block">{helperText}</span>}
     </label>
   )
 }
@@ -83,7 +83,7 @@ interface GenderFieldProps {
 export function GenderField({ value, onChange, helperText }: GenderFieldProps) {
   return (
     <div>
-      <span className="text-xs text-gray-400 mb-1 block">Gender</span>
+      <span className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Gender</span>
       <SegmentedControl
         aria-label="Identified gender"
         options={GENDER_OPTIONS}
@@ -91,7 +91,7 @@ export function GenderField({ value, onChange, helperText }: GenderFieldProps) {
         onChange={onChange}
         className="flex-wrap"
       />
-      {helperText && <span className="text-xs text-gray-500 mt-1 block">{helperText}</span>}
+      {helperText && <span className="text-xs text-slate-400 dark:text-gray-500 mt-1 block">{helperText}</span>}
     </div>
   )
 }

@@ -150,18 +150,18 @@ export default function GymSettings() {
         {error && <p className="text-red-400 mb-4">{error}</p>}
         <form onSubmit={handleCreateGym} className="space-y-4 max-w-sm">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Gym Name</label>
+            <label className="block text-sm text-slate-500 dark:text-gray-400 mb-1">Gym Name</label>
             <input
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-slate-950 dark:text-white"
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Timezone</label>
+            <label className="block text-sm text-slate-500 dark:text-gray-400 mb-1">Timezone</label>
             <select
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-slate-950 dark:text-white"
               value={createTz}
               onChange={(e) => setCreateTz(e.target.value)}
             >
@@ -173,7 +173,7 @@ export default function GymSettings() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white"
+            className="bg-primary hover:bg-primary-hover disabled:opacity-50 px-4 py-2 rounded text-white"
           >
             {loading ? 'Creating…' : 'Create Gym'}
           </button>
@@ -183,7 +183,7 @@ export default function GymSettings() {
   }
 
   if (loading && !gym) {
-    return <p className="text-gray-400">Loading…</p>
+    return <p className="text-slate-500 dark:text-gray-400">Loading…</p>
   }
 
   const tabs: { id: Tab; label: string }[] = [
@@ -197,7 +197,7 @@ export default function GymSettings() {
       {error && <p className="text-red-400">{error}</p>}
 
       {/* Tabs */}
-      <div className="border-b border-gray-800">
+      <div className="border-b border-slate-200 dark:border-gray-800">
         <nav className="flex gap-1" role="tablist">
           {tabs.map((t) => (
             <button
@@ -207,10 +207,10 @@ export default function GymSettings() {
               onClick={() => selectTab(t.id)}
               className={[
                 'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
                 tab === t.id
-                  ? 'border-indigo-500 text-white'
-                  : 'border-transparent text-gray-400 hover:text-white',
+                  ? 'border-indigo-500 text-slate-950 dark:text-white'
+                  : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
               ].join(' ')}
             >
               {t.label}
@@ -222,7 +222,7 @@ export default function GymSettings() {
       {tab === 'details' && (
         <div className="space-y-8">
           {gym && (
-            <section className="rounded-xl bg-gray-900 p-4 border border-gray-800">
+            <section className="rounded-xl bg-white dark:bg-gray-900 p-4 border border-slate-200 dark:border-gray-800">
               <GymLogoUploader
                 gymId={gym.id}
                 logoUrl={gym.logoUrl}
@@ -236,18 +236,18 @@ export default function GymSettings() {
             <h2 className="text-lg font-semibold mb-4">Gym Details</h2>
             <form onSubmit={handleSaveGym} className="space-y-4 max-w-sm">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Gym Name</label>
+                <label className="block text-sm text-slate-500 dark:text-gray-400 mb-1">Gym Name</label>
                 <input
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                  className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-slate-950 dark:text-white"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Timezone</label>
+                <label className="block text-sm text-slate-500 dark:text-gray-400 mb-1">Timezone</label>
                 <select
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white"
+                  className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-slate-950 dark:text-white"
                   value={editTz}
                   onChange={(e) => setEditTz(e.target.value)}
                 >
@@ -259,7 +259,7 @@ export default function GymSettings() {
               <button
                 type="submit"
                 disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white"
+                className="bg-primary hover:bg-primary-hover disabled:opacity-50 px-4 py-2 rounded text-white"
               >
                 {saving ? 'Saving…' : 'Save'}
               </button>
@@ -281,46 +281,46 @@ export default function GymSettings() {
           <h2 className="text-lg font-semibold">Programs</h2>
           <button
             onClick={() => setShowProgramForm((v) => !v)}
-            className="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-sm"
+            className="bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 text-slate-700 dark:text-white px-3 py-1.5 rounded text-sm"
           >
             {showProgramForm ? 'Cancel' : 'Add Program'}
           </button>
         </div>
 
         {showProgramForm && (
-          <form onSubmit={handleAddProgram} className="space-y-3 max-w-sm mb-6 p-4 bg-gray-800 rounded">
+          <form onSubmit={handleAddProgram} className="space-y-3 max-w-sm mb-6 p-4 bg-slate-100 dark:bg-gray-800 rounded">
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Name</label>
+              <label className="block text-sm text-slate-500 dark:text-gray-400 mb-1">Name</label>
               <input
-                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                className="w-full bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded px-3 py-2 text-slate-950 dark:text-white"
                 value={progName}
                 onChange={(e) => setProgName(e.target.value)}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Description</label>
+              <label className="block text-sm text-slate-500 dark:text-gray-400 mb-1">Description</label>
               <input
-                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                className="w-full bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded px-3 py-2 text-slate-950 dark:text-white"
                 value={progDesc}
                 onChange={(e) => setProgDesc(e.target.value)}
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Start Date</label>
+              <label className="block text-sm text-slate-500 dark:text-gray-400 mb-1">Start Date</label>
               <input
                 type="date"
-                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                className="w-full bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded px-3 py-2 text-slate-950 dark:text-white"
                 value={progStart}
                 onChange={(e) => setProgStart(e.target.value)}
                 required
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1">End Date (optional)</label>
+              <label className="block text-sm text-slate-500 dark:text-gray-400 mb-1">End Date (optional)</label>
               <input
                 type="date"
-                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                className="w-full bg-white dark:bg-gray-700 border border-slate-300 dark:border-gray-600 rounded px-3 py-2 text-slate-950 dark:text-white"
                 value={progEnd}
                 onChange={(e) => setProgEnd(e.target.value)}
               />
@@ -328,7 +328,7 @@ export default function GymSettings() {
             <button
               type="submit"
               disabled={addingProg}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded text-white text-sm"
+              className="bg-primary hover:bg-primary-hover disabled:opacity-50 px-4 py-2 rounded text-white text-sm"
             >
               {addingProg ? 'Adding…' : 'Add Program'}
             </button>
@@ -336,11 +336,11 @@ export default function GymSettings() {
         )}
 
         {programs.length === 0 ? (
-          <p className="text-gray-500 text-sm">No programs yet.</p>
+          <p className="text-slate-400 dark:text-gray-500 text-sm">No programs yet.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-gray-400 border-b border-gray-700">
+              <tr className="text-slate-500 dark:text-gray-400 border-b border-slate-300 dark:border-gray-700">
                 <th className="text-left py-2 pr-4">Name</th>
                 <th className="text-left py-2 pr-4">Start Date</th>
                 <th className="text-left py-2">End Date</th>
@@ -348,7 +348,7 @@ export default function GymSettings() {
             </thead>
             <tbody>
               {programs.map(({ program }) => (
-                <tr key={program.id} className="border-b border-gray-800">
+                <tr key={program.id} className="border-b border-slate-200 dark:border-gray-800">
                   <td className="py-2 pr-4">{program.name}</td>
                   <td className="py-2 pr-4">{new Date(program.startDate).toLocaleDateString()}</td>
                   <td className="py-2">

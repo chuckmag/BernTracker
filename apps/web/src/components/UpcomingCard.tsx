@@ -52,9 +52,9 @@ export default function UpcomingCard({ gymId }: Props) {
     .slice(0, MAX_DAYS)
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-800">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Coming up</span>
+    <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-slate-200 dark:border-gray-800">
+        <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wider">Coming up</span>
       </div>
 
       {loading && (
@@ -65,14 +65,14 @@ export default function UpcomingCard({ gymId }: Props) {
 
       {!loading && days.length === 0 && (
         <div className="px-4 py-6 text-center">
-          <p className="text-sm text-gray-500">Nothing scheduled in the next 5 days</p>
+          <p className="text-sm text-slate-400 dark:text-gray-500">Nothing scheduled in the next 5 days</p>
         </div>
       )}
 
       {!loading && days.map(([dateKey, dayWorkouts]) => (
-        <div key={dateKey} className="border-b border-gray-800 last:border-b-0">
+        <div key={dateKey} className="border-b border-slate-200 dark:border-gray-800 last:border-b-0">
           <div className="px-4 pt-2.5 pb-1">
-            <span className="text-[10px] font-semibold tracking-widest text-gray-500">
+            <span className="text-[10px] font-semibold tracking-widest text-slate-400 dark:text-gray-500">
               {formatDayLabel(dateKey)}
             </span>
           </div>
@@ -82,14 +82,14 @@ export default function UpcomingCard({ gymId }: Props) {
               <button
                 key={workout.id}
                 onClick={() => navigate(`/workouts/${workout.id}`)}
-                className={`w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-800/40 transition-colors border-l-4 ${ts?.accentBar ?? 'border-gray-700'}`}
+                className={`w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-gray-800/40 transition-colors border-l-4 ${ts?.accentBar ?? 'border-slate-300 dark:border-gray-700'}`}
               >
                 <span
-                  className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${ts?.bg ?? 'bg-gray-700'} ${ts?.tint ?? 'text-gray-400'}`}
+                  className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${ts?.bg ?? 'bg-slate-200 dark:bg-gray-700'} ${ts?.tint ?? 'text-slate-500 dark:text-gray-400'}`}
                 >
                   {ts?.abbr ?? '?'}
                 </span>
-                <span className="flex-1 min-w-0 text-sm text-white truncate">{workout.title}</span>
+                <span className="flex-1 min-w-0 text-sm text-slate-950 dark:text-white truncate">{workout.title}</span>
               </button>
             )
           })}

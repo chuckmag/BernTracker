@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { ErrorBoundary } from 'react-error-boundary'
+import { ThemeProvider } from './context/ThemeContext.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { GymProvider } from './context/GymContext.tsx'
 import { MovementsProvider } from './context/MovementsContext.tsx'
@@ -41,7 +42,7 @@ export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknow
       <div className="flex gap-3">
         <button
           onClick={resetErrorBoundary}
-          className="px-4 py-2 text-sm rounded bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+          className="px-4 py-2 text-sm rounded bg-primary hover:bg-primary-hover text-white transition-colors"
         >
           Try again
         </button>
@@ -60,7 +61,7 @@ function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
-    <div className="flex h-screen w-full overflow-x-hidden bg-gray-950 text-white">
+    <div className="flex h-screen w-full overflow-x-hidden bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-white">
       <Sidebar isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
         <TopBar onMenuClick={() => setMobileNavOpen(true)} />
@@ -108,6 +109,7 @@ function AppLayout() {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -133,5 +135,6 @@ export default function App() {
         />
       </Routes>
     </AuthProvider>
+    </ThemeProvider>
   )
 }

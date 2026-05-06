@@ -99,7 +99,7 @@ function StrengthPrTable({
   const unit = entries[0]?.unit ?? 'LB'
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-2">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500 mb-2">
         PR Table · {unit}
       </p>
       <div className="flex gap-1 flex-wrap">
@@ -111,10 +111,10 @@ function StrengthPrTable({
               type="button"
               onClick={() => onClickFilled(entry.workoutId, entry.resultId)}
               title={`View your ${reps}RM — ${entry.maxLoad} ${unit}`}
-              className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-gray-700 min-w-[3.5rem] hover:border-indigo-500 hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[3.5rem] hover:border-primary hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
-              <span className="text-[10px] text-gray-400">{reps}RM</span>
-              <span className="text-sm font-semibold text-white">{entry.maxLoad}</span>
+              <span className="text-[10px] text-slate-500 dark:text-gray-400">{reps}RM</span>
+              <span className="text-sm font-semibold text-slate-950 dark:text-white">{entry.maxLoad}</span>
             </button>
           ) : (
             <button
@@ -122,10 +122,10 @@ function StrengthPrTable({
               type="button"
               onClick={() => onClickEmpty(reps)}
               title={`Log your ${reps}RM`}
-              className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-dashed border-gray-600 min-w-[3.5rem] hover:border-indigo-500 hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-dashed border-slate-300 dark:border-gray-600 min-w-[3.5rem] hover:border-primary hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
-              <span className="text-[10px] text-gray-400">{reps}RM</span>
-              <span className="text-sm font-semibold text-gray-600">???</span>
+              <span className="text-[10px] text-slate-500 dark:text-gray-400">{reps}RM</span>
+              <span className="text-sm font-semibold text-slate-400 dark:text-gray-600">???</span>
             </button>
           )
         })}
@@ -138,7 +138,7 @@ function EndurancePrTable({ entries }: { entries: EndurancePrEntry[] }) {
   if (entries.length === 0) return null
   return (
     <div>
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-2">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500 mb-2">
         PR Table · Best Times
       </p>
       <div className="flex gap-1 flex-wrap">
@@ -147,10 +147,10 @@ function EndurancePrTable({ entries }: { entries: EndurancePrEntry[] }) {
           return (
             <div
               key={label}
-              className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-gray-700 min-w-[4.5rem]"
+              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[4.5rem]"
             >
-              <span className="text-[10px] text-gray-400 text-center">{label}</span>
-              <span className="text-sm font-semibold text-white">{formatSeconds(e.bestSeconds)}</span>
+              <span className="text-[10px] text-slate-500 dark:text-gray-400 text-center">{label}</span>
+              <span className="text-sm font-semibold text-slate-950 dark:text-white">{formatSeconds(e.bestSeconds)}</span>
             </div>
           )
         })}
@@ -181,7 +181,7 @@ function MachinePrTable({ prTable }: { prTable: Extract<MovementPrTable, { categ
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">PR Table</p>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">PR Table</p>
         {hasOutput && hasTime && (
           <div role="radiogroup" aria-label="Machine PR view" className="flex gap-1 ml-auto">
             {(['all', 'output', 'time'] as MachineView[]).map((v) => (
@@ -193,8 +193,8 @@ function MachinePrTable({ prTable }: { prTable: Extract<MovementPrTable, { categ
                 className={[
                   'text-[10px] px-2 py-0.5 rounded font-medium transition-colors',
                   view === v
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-gray-200',
+                    ? 'bg-primary text-white'
+                    : 'bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-gray-200',
                 ].join(' ')}
               >
                 {v === 'all' ? 'All' : v === 'output' ? 'Output target' : 'Time target'}
@@ -206,12 +206,12 @@ function MachinePrTable({ prTable }: { prTable: Extract<MovementPrTable, { categ
 
       {showOutput && calOutput.length > 0 && (
         <div>
-          <p className="text-[10px] text-gray-500 mb-1">Output-capped — best time</p>
+          <p className="text-[10px] text-slate-500 dark:text-gray-500 mb-1">Output-capped — best time</p>
           <div className="flex gap-1 flex-wrap">
             {calOutput.map((e) => (
-              <div key={e.calories} className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-gray-700 min-w-[4rem]">
-                <span className="text-[10px] text-gray-400">{e.calories} cal</span>
-                <span className="text-sm font-semibold text-white">{formatSeconds(e.bestSeconds)}</span>
+              <div key={e.calories} className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[4rem]">
+                <span className="text-[10px] text-slate-500 dark:text-gray-400">{e.calories} cal</span>
+                <span className="text-sm font-semibold text-slate-950 dark:text-white">{formatSeconds(e.bestSeconds)}</span>
               </div>
             ))}
           </div>
@@ -220,12 +220,12 @@ function MachinePrTable({ prTable }: { prTable: Extract<MovementPrTable, { categ
 
       {showOutput && distOutput.length > 0 && (
         <div>
-          <p className="text-[10px] text-gray-500 mb-1">Output-capped — best time</p>
+          <p className="text-[10px] text-slate-500 dark:text-gray-500 mb-1">Output-capped — best time</p>
           <div className="flex gap-1 flex-wrap">
             {distOutput.map((e) => (
-              <div key={`${e.distance}${e.distanceUnit}`} className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-gray-700 min-w-[4.5rem]">
-                <span className="text-[10px] text-gray-400">{e.distance} {e.distanceUnit.toLowerCase()}</span>
-                <span className="text-sm font-semibold text-white">{formatSeconds(e.bestSeconds)}</span>
+              <div key={`${e.distance}${e.distanceUnit}`} className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[4.5rem]">
+                <span className="text-[10px] text-slate-500 dark:text-gray-400">{e.distance} {e.distanceUnit.toLowerCase()}</span>
+                <span className="text-sm font-semibold text-slate-950 dark:text-white">{formatSeconds(e.bestSeconds)}</span>
               </div>
             ))}
           </div>
@@ -234,12 +234,12 @@ function MachinePrTable({ prTable }: { prTable: Extract<MovementPrTable, { categ
 
       {showTime && calTime.length > 0 && (
         <div>
-          <p className="text-[10px] text-gray-500 mb-1">Time-capped — best output</p>
+          <p className="text-[10px] text-slate-500 dark:text-gray-500 mb-1">Time-capped — best output</p>
           <div className="flex gap-1 flex-wrap">
             {calTime.map((e) => (
-              <div key={e.seconds} className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-gray-700 min-w-[4rem]">
-                <span className="text-[10px] text-gray-400">{formatSeconds(e.seconds)}</span>
-                <span className="text-sm font-semibold text-white">{e.bestCalories} cal</span>
+              <div key={e.seconds} className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[4rem]">
+                <span className="text-[10px] text-slate-500 dark:text-gray-400">{formatSeconds(e.seconds)}</span>
+                <span className="text-sm font-semibold text-slate-950 dark:text-white">{e.bestCalories} cal</span>
               </div>
             ))}
           </div>
@@ -248,12 +248,12 @@ function MachinePrTable({ prTable }: { prTable: Extract<MovementPrTable, { categ
 
       {showTime && distTime.length > 0 && (
         <div>
-          <p className="text-[10px] text-gray-500 mb-1">Time-capped — best output</p>
+          <p className="text-[10px] text-slate-500 dark:text-gray-500 mb-1">Time-capped — best output</p>
           <div className="flex gap-1 flex-wrap">
             {distTime.map((e) => (
-              <div key={e.seconds} className="flex flex-col items-center px-3 py-2 rounded bg-gray-800 border border-gray-700 min-w-[4.5rem]">
-                <span className="text-[10px] text-gray-400">{formatSeconds(e.seconds)}</span>
-                <span className="text-sm font-semibold text-white">{e.bestDistance} {e.distanceUnit.toLowerCase()}</span>
+              <div key={e.seconds} className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[4.5rem]">
+                <span className="text-[10px] text-slate-500 dark:text-gray-400">{formatSeconds(e.seconds)}</span>
+                <span className="text-sm font-semibold text-slate-950 dark:text-white">{e.bestDistance} {e.distanceUnit.toLowerCase()}</span>
               </div>
             ))}
           </div>
@@ -398,14 +398,14 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative z-10 bg-gray-900 border border-gray-800 rounded-xl p-6 w-full max-w-sm space-y-5">
+      <div className="relative z-10 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-xl p-6 w-full max-w-sm space-y-5">
         <div>
-          <h2 className="text-base font-semibold text-gray-100">{rm}RM — {movementName}</h2>
-          <p className="text-sm text-gray-500 mt-1">Log your max effort for this rep count</p>
+          <h2 className="text-base font-semibold text-slate-950 dark:text-gray-100">{rm}RM — {movementName}</h2>
+          <p className="text-sm text-slate-500 dark:text-gray-500 mt-1">Log your max effort for this rep count</p>
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="bf-load" className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+          <label htmlFor="bf-load" className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">
             Load (lb)
           </label>
           <input
@@ -416,13 +416,13 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
             placeholder="e.g. 185"
             value={load}
             onChange={(e) => setLoad(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-gray-100 text-xl font-semibold placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 text-xl font-semibold placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             autoFocus
           />
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="bf-notes" className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+          <label htmlFor="bf-notes" className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">
             Notes (optional)
           </label>
           <textarea
@@ -431,12 +431,12 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
             placeholder="How did it feel? Any context…"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-gray-100 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="bf-date" className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+          <label htmlFor="bf-date" className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">
             Date
           </label>
           <input
@@ -445,7 +445,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
             max={todayISODate()}
             value={dateStr}
             onChange={(e) => setDateStr(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
 
@@ -455,7 +455,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-2.5 rounded-lg transition-colors"
+            className="flex-1 bg-slate-200 dark:bg-gray-800 hover:bg-slate-300 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 font-semibold py-2.5 rounded-lg transition-colors"
           >
             Cancel
           </button>
@@ -463,7 +463,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex-[2] bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
+            className="flex-[2] bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -485,22 +485,22 @@ function PastResultCard({ result, onClick }: PastResultCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left rounded-lg bg-gray-900 border border-gray-800 hover:border-gray-600 transition-colors overflow-hidden"
+      className="w-full text-left rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 hover:border-slate-400 dark:hover:border-gray-600 transition-colors overflow-hidden"
     >
-      <div className="px-3 py-2 text-sm font-medium text-gray-200 border-b border-gray-800">
+      <div className="px-3 py-2 text-sm font-medium text-slate-800 dark:text-gray-200 border-b border-slate-200 dark:border-gray-800">
         {formatDate(result.workout.scheduledAt)}
       </div>
-      <div className="px-3 py-2 bg-gray-800/50">
-        <p className="text-xs font-medium text-gray-300 mb-1.5 truncate">{result.workout.title}</p>
+      <div className="px-3 py-2 bg-slate-50 dark:bg-gray-800/50">
+        <p className="text-xs font-medium text-slate-700 dark:text-gray-300 mb-1.5 truncate">{result.workout.title}</p>
         <ol className="space-y-0.5">
           {result.movementSets.slice(0, 6).map((set, i) => (
-            <li key={i} className="flex items-baseline gap-2 text-xs text-gray-300">
-              <span className="text-gray-500 font-mono w-6 shrink-0 text-right">{i + 1}</span>
+            <li key={i} className="flex items-baseline gap-2 text-xs text-slate-700 dark:text-gray-300">
+              <span className="text-slate-400 dark:text-gray-500 font-mono w-6 shrink-0 text-right">{i + 1}</span>
               <span className="font-mono">{describeSet(set, result.loadUnit, result.distanceUnit)}</span>
             </li>
           ))}
           {result.movementSets.length > 6 && (
-            <li className="text-xs text-gray-500 pl-8">+{result.movementSets.length - 6} more sets</li>
+            <li className="text-xs text-slate-400 dark:text-gray-500 pl-8">+{result.movementSets.length - 6} more sets</li>
           )}
         </ol>
       </div>
@@ -546,8 +546,8 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
   if (loading && !data) {
     return (
       <div className="space-y-2 animate-pulse">
-        <div className="h-4 w-24 bg-gray-800 rounded" />
-        <div className="h-16 bg-gray-800 rounded" />
+        <div className="h-4 w-24 bg-slate-200 dark:bg-gray-800 rounded" />
+        <div className="h-16 bg-slate-200 dark:bg-gray-800 rounded" />
       </div>
     )
   }
@@ -556,12 +556,12 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
 
   return (
     <div className="space-y-4 pt-1">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">
         {movementName} — Your History
       </p>
 
       {hasPrTable && (
-        <div className="rounded-lg bg-gray-900 border border-gray-800 px-4 py-3 space-y-4">
+        <div className="rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 px-4 py-3 space-y-4">
           {data.prTable.category === 'STRENGTH' && (
             <StrengthPrTable
               entries={data.prTable.entries}
@@ -580,7 +580,7 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
             <div>
               <button
                 onClick={() => setShowChart((v) => !v)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
               >
                 {showChart ? '▲ Hide trend' : `▼ ${data.prTable.category === 'STRENGTH' ? 'Est. 1RM trend' : 'Show trend'}`}
               </button>
@@ -596,7 +596,7 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
 
       {data.results.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">Past Results</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">Past Results</p>
           <div className="space-y-2">
             {data.results.map((r) => (
               <PastResultCard
@@ -617,15 +617,15 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
               <button
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
-                className="text-xs text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="text-xs text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 ← Prev
               </button>
-              <span className="text-xs text-gray-500">{page} / {data.pages}</span>
+              <span className="text-xs text-slate-500 dark:text-gray-500">{page} / {data.pages}</span>
               <button
                 disabled={page >= data.pages}
                 onClick={() => setPage((p) => p + 1)}
-                className="text-xs text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="text-xs text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Next →
               </button>

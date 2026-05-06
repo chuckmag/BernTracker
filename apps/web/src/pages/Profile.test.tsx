@@ -84,11 +84,17 @@ vi.mock('../context/AuthContext.tsx', () => ({
   }),
 }))
 
+vi.mock('../context/ThemeContext.tsx', () => ({
+  useTheme: () => ({ mode: 'system', setMode: vi.fn() }),
+}))
+
 import { api } from '../lib/api'
 
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.users.me.profile.get).mockResolvedValue(baseProfile)
+  // Reset hash so each test starts on the Details tab regardless of order.
+  window.history.replaceState(null, '', '/profile')
 })
 
 describe('Profile page', () => {
@@ -132,6 +138,16 @@ describe('Profile page', () => {
     expect(await screen.findByText('Crossfit Bern')).toBeInTheDocument()
     // Personal info from the Details tab should not be rendered now.
     expect(screen.queryByDisplayValue('Alice')).not.toBeInTheDocument()
+  })
+
+  it('renders the Appearance section with a theme toggle on the Details tab', async () => {
+    render(<MemoryRouter><Profile /></MemoryRouter>)
+    await screen.findByRole('heading', { name: 'Your profile' })
+    expect(screen.getByRole('heading', { name: /appearance/i })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: /color theme/i })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Light' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Dark' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'System' })).toBeInTheDocument()
   })
 
   it('hides the Invitations and Outgoing requests sections when there are none', async () => {
