@@ -76,8 +76,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               ].join(' ')
             }
           >
-            {logo && <img src={logo} alt="" aria-hidden="true" className="w-4 h-4 rounded-sm object-contain flex-shrink-0" />}
-            {label}
+            {logo
+              ? <img src={logo} alt={label} className="-my-2 h-9 w-9 object-contain flex-shrink-0" />
+              : label
+            }
           </NavLink>
         ))}
 

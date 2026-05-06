@@ -104,10 +104,10 @@ function AnalyticsStackNavigator() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Image
                 source={require('./assets/favicon.png')}
-                style={{ width: 20, height: 20 }}
+                style={{ width: 36, height: 36 }}
                 resizeMode="contain"
               />
-              <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '600' }}>Analytics</Text>
+              <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '600' }}>WODalytics</Text>
             </View>
           ),
         }}
