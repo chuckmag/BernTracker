@@ -59,7 +59,7 @@ export default function Calendar() {
           <Link
             to="/calendar"
             onClick={(e) => { e.preventDefault(); clearProgramFilter() }}
-            className="text-xs text-indigo-400 hover:text-indigo-300"
+            className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
           >
             ← Back to full calendar
           </Link>

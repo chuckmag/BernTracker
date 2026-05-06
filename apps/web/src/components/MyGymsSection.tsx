@@ -64,7 +64,7 @@ export default function MyGymsSection() {
       {hasLoaded && gyms.length > 0 && (
         <p className="text-xs text-slate-400 dark:text-gray-500">
           Switch between gyms or find more from the gym picker in the top-right corner. Need to start a new gym?{' '}
-          <Link to="/gyms/new" className="text-indigo-400 hover:text-indigo-300">Set one up</Link>.
+          <Link to="/gyms/new" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300">Set one up</Link>.
         </p>
       )}
     </section>

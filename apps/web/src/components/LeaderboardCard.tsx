@@ -58,7 +58,7 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
         </span>
         <Link
           to={`/workouts/${workoutId}`}
-          className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors shrink-0 ml-3"
+          className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors shrink-0 ml-3"
         >
           Full board →
         </Link>
@@ -84,7 +84,7 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
 
           {myRowBelow && (
             <>
-              <div className="px-4 py-0.5 text-center text-xs text-slate-400 dark:text-gray-600 tracking-widest border-t border-slate-200 dark:border-gray-800">
+              <div className="px-4 py-0.5 text-center text-xs text-slate-400 dark:text-gray-500 tracking-widest border-t border-slate-200 dark:border-gray-800">
                 ···
               </div>
               <ResultRow rank={myRank + 1} entry={myEntry} isMe />
@@ -92,7 +92,7 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
           )}
 
           {!myEntry && (
-            <p className="px-4 py-2.5 text-xs text-slate-400 dark:text-gray-600 text-center border-t border-slate-200 dark:border-gray-800">
+            <p className="px-4 py-2.5 text-xs text-slate-400 dark:text-gray-500 text-center border-t border-slate-200 dark:border-gray-800">
               Log your result to appear on the board
             </p>
           )}
