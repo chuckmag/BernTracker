@@ -370,6 +370,12 @@ export interface MyGym {
   role: Role
 }
 
+export interface ConsistencyData {
+  currentStreak: number
+  longestStreak: number
+  history: { date: string; count: number }[]
+}
+
 export interface Gym {
   id: string
   name: string
@@ -737,6 +743,13 @@ export const api = {
             body: JSON.stringify(data),
             token,
           }),
+      },
+    },
+
+    analytics: {
+      consistency: (weeks?: number) => {
+        const qs = weeks ? `?weeks=${weeks}` : ''
+        return req<ConsistencyData>(`/api/me/analytics/consistency${qs}`)
       },
     },
   },

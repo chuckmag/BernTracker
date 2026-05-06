@@ -13,6 +13,7 @@ import WodDetailScreen from './src/screens/WodDetailScreen'
 import HistoryScreen from './src/screens/HistoryScreen'
 import LogResultScreen from './src/screens/LogResultScreen'
 import AddPersonalWorkoutScreen from './src/screens/AddPersonalWorkoutScreen'
+import AnalyticsScreen from './src/screens/AnalyticsScreen'
 import type { LeaderboardEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -33,6 +34,11 @@ export type MainTabParamList = {
   HomeTab: undefined
   FeedTab: undefined
   HistoryTab: undefined
+  AnalyticsTab: undefined
+}
+
+export type AnalyticsStackParamList = {
+  Analytics: undefined
 }
 
 export type HomeStackParamList = {
@@ -54,6 +60,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>()
 const HomeStack = createStackNavigator<HomeStackParamList>()
 const FeedStack = createStackNavigator<FeedStackParamList>()
 const HistoryStack = createStackNavigator<HistoryStackParamList>()
+const AnalyticsStack = createStackNavigator<AnalyticsStackParamList>()
 
 const stackScreenOptions = {
   headerStyle: { backgroundColor: '#111827' },
@@ -86,6 +93,14 @@ function HistoryStackNavigator() {
   )
 }
 
+function AnalyticsStackNavigator() {
+  return (
+    <AnalyticsStack.Navigator screenOptions={stackScreenOptions}>
+      <AnalyticsStack.Screen name="Analytics" component={AnalyticsScreen} options={{ title: 'Analytics' }} />
+    </AnalyticsStack.Navigator>
+  )
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -99,6 +114,7 @@ function MainTabs() {
       <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Today' }} />
       <Tab.Screen name="FeedTab" component={FeedStackNavigator} options={{ title: 'Feed' }} />
       <Tab.Screen name="HistoryTab" component={HistoryStackNavigator} options={{ title: 'History' }} />
+      <Tab.Screen name="AnalyticsTab" component={AnalyticsStackNavigator} options={{ title: 'Analytics' }} />
     </Tab.Navigator>
   )
 }
