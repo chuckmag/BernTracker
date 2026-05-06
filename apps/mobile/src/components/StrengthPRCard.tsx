@@ -33,7 +33,8 @@ interface TrajectoryChartProps {
 }
 
 function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: TrajectoryChartProps) {
-  const lineColor = isDark ? '#818cf8' : '#4f46e5'
+  const { colors } = useTheme()
+  const lineColor = colors.primary
   const gridColor = isDark ? '#1f2937' : '#e2e8f0'
   const tickColor = isDark ? '#6b7280' : '#64748b'
 
@@ -47,18 +48,18 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
     )
   }
 
-  const loads = points.map((p) => p.maxLoad)
-  const minLoad = Math.min(...loads)
-  const maxLoad = Math.max(...loads)
-  const loadRange = maxLoad - minLoad || 1
+  const values = points.map((p) => p.e1rm ?? p.maxLoad)
+  const minVal = Math.min(...values)
+  const maxVal = Math.max(...values)
+  const valRange = maxVal - minVal || 1
   const innerW = CHART_W - PAD.left - PAD.right
   const innerH = CHART_H - PAD.top - PAD.bottom
 
   const toX = (i: number) => PAD.left + (i / (points.length - 1)) * innerW
-  const toY = (load: number) => PAD.top + innerH - ((load - minLoad) / loadRange) * innerH
+  const toY = (val: number) => PAD.top + innerH - ((val - minVal) / valRange) * innerH
 
-  const polyPoints = points.map((p, i) => `${toX(i)},${toY(p.maxLoad)}`).join(' ')
-  const yTicks = [minLoad, maxLoad]
+  const polyPoints = points.map((p, i) => `${toX(i)},${toY(p.e1rm ?? p.maxLoad)}`).join(' ')
+  const yTicks = [minVal, maxVal]
 
   return (
     <Svg width={CHART_W} height={CHART_H} accessibilityLabel="Strength PR trajectory chart">
@@ -83,7 +84,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
           fill={tickColor}
           fontSize={8}
         >
-          {Math.round(v)}
+          {Math.round(v * 10) / 10}
         </SvgText>
       ))}
       <Polyline
@@ -100,7 +101,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
           <Circle
             key={i}
             cx={toX(i)}
-            cy={toY(p.maxLoad)}
+            cy={toY(p.e1rm ?? p.maxLoad)}
             r={DOT_HIT_R}
             fill="transparent"
             onPress={() => onSelectIndex(isSelected ? null : i)}
@@ -113,7 +114,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
           <Circle
             key={`dot-${i}`}
             cx={toX(i)}
-            cy={toY(p.maxLoad)}
+            cy={toY(p.e1rm ?? p.maxLoad)}
             r={isSelected ? 4 : 2.5}
             fill={lineColor}
             stroke={isSelected ? (isDark ? '#ffffff' : '#1e293b') : 'none'}
@@ -131,14 +132,18 @@ interface PointCalloutProps {
 }
 
 function PointCallout({ point, onNavigate }: PointCalloutProps) {
+  const { colors } = useTheme()
   return (
-    <View style={styles.callout}>
+    <View style={[styles.callout, { backgroundColor: `${colors.primary}1a` }]}>
       <View style={styles.calloutLeft}>
         <Text style={styles.calloutDate}>{fullDate(point.date)}</Text>
-        <Text style={styles.calloutEffort}>{point.effort} {point.loadUnit}</Text>
+        <Text style={[styles.calloutEffort, { color: colors.primary }]}>{point.effort} {point.loadUnit}</Text>
+        {point.e1rm !== null && (
+          <Text style={[styles.calloutE1rm, { color: colors.primary }]}>Est. 1RM: {point.e1rm} {point.loadUnit}</Text>
+        )}
       </View>
       <TouchableOpacity onPress={onNavigate} activeOpacity={0.7} style={styles.calloutLink}>
-        <Text style={styles.calloutLinkText}>View →</Text>
+        <Text style={[styles.calloutLinkText, { color: colors.primary }]}>View →</Text>
       </TouchableOpacity>
     </View>
   )
@@ -328,7 +333,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(129,140,248,0.1)',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -344,7 +348,9 @@ const styles = StyleSheet.create({
   calloutEffort: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#818cf8',
+  },
+  calloutE1rm: {
+    fontSize: 11,
   },
   calloutLink: {
     paddingVertical: 4,
@@ -353,6 +359,5 @@ const styles = StyleSheet.create({
   calloutLinkText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#818cf8',
   },
 })

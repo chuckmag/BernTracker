@@ -98,11 +98,30 @@ export interface TrackedMovement {
   count: number
 }
 
+// Repetition percentages of 1RM (strengthlevel.com)
+const E1RM_PCT: Record<number, number> = {
+  1: 1.00, 2: 0.97, 3: 0.94, 4: 0.92, 5: 0.89,
+  6: 0.86, 7: 0.83, 8: 0.81, 9: 0.78, 10: 0.75,
+  11: 0.73, 12: 0.71, 13: 0.70, 14: 0.68, 15: 0.67,
+  16: 0.65, 17: 0.64, 18: 0.63, 19: 0.61, 20: 0.60,
+  21: 0.59, 22: 0.58, 23: 0.57, 24: 0.56, 25: 0.55,
+  26: 0.54, 27: 0.53, 28: 0.52, 29: 0.51, 30: 0.50,
+}
+
+function computeE1RM(reps: string | undefined, load: number): number | null {
+  if (!reps) return null
+  const r = parseInt(reps, 10)
+  const pct = E1RM_PCT[r]
+  if (!pct) return null
+  return Math.round((load / pct) * 10) / 10
+}
+
 export interface StrengthTrajectoryPoint {
   date: string
   maxLoad: number
   loadUnit: string
   effort: string    // best set for this date, e.g. "3 × 225"
+  e1rm: number | null
   workoutId: string
   resultId: string
 }
@@ -202,9 +221,9 @@ export async function getStrengthPRTrajectoryForUser(
     },
   })
 
-  // Aggregate max-load result per workout scheduledAt UTC calendar date, then
+  // Aggregate best-e1RM result per workout scheduledAt UTC calendar date, then
   // sort ascending so the polyline runs oldest → newest.
-  const byDate = new Map<string, { maxLoad: number; loadUnit: string; effort: string; workoutId: string; resultId: string }>()
+  const byDate = new Map<string, { maxLoad: number; loadUnit: string; effort: string; e1rm: number | null; workoutId: string; resultId: string }>()
   let currentPr: number | null = null
   let latestUnit: string | null = null
 
@@ -212,22 +231,44 @@ export async function getStrengthPRTrajectoryForUser(
     const { sets, loadUnit: unit } = extractMovementSets(result.value, movementId)
     const setsWithLoad = sets.filter((s) => s.load !== undefined && s.load > 0)
     if (!setsWithLoad.length) continue
-    const bestSet = setsWithLoad.reduce((best, s) => (s.load! > best.load!) ? s : best, setsWithLoad[0])
+
+    // Pick the set with the highest estimated 1RM; fall back to highest load
+    let bestSet = setsWithLoad[0]
+    let bestE1rm: number | null = computeE1RM(setsWithLoad[0].reps, setsWithLoad[0].load!)
+    for (const s of setsWithLoad.slice(1)) {
+      const e1rm = computeE1RM(s.reps, s.load!)
+      const betterE1rm = (e1rm !== null && bestE1rm !== null && e1rm > bestE1rm) || (e1rm !== null && bestE1rm === null)
+      const betterLoad = e1rm === null && bestE1rm === null && s.load! > bestSet.load!
+      if (betterE1rm || betterLoad) {
+        bestSet = s
+        bestE1rm = e1rm
+      }
+    }
+
     const maxLoad = bestSet.load!
     const effort = bestSet.reps ? `${bestSet.reps} × ${maxLoad}` : `${maxLoad}`
     const dateKey = toUtcDateKey(result.workout.scheduledAt)
     const u = unit ?? 'LB'
     if (latestUnit === null) latestUnit = u
+
+    // Replace the date's entry if this result has a better e1rm (or load if no e1rm)
     const existing = byDate.get(dateKey)
-    if (!existing || maxLoad > existing.maxLoad) {
-      byDate.set(dateKey, { maxLoad, loadUnit: u, effort, workoutId: result.workout.id, resultId: result.id })
+    const existingE1rm = existing?.e1rm ?? null
+    const existingLoad = existing?.maxLoad ?? 0
+    const betterThanExisting =
+      !existing ||
+      (bestE1rm !== null && (existingE1rm === null || bestE1rm > existingE1rm)) ||
+      (bestE1rm === null && existingE1rm === null && maxLoad > existingLoad)
+
+    if (betterThanExisting) {
+      byDate.set(dateKey, { maxLoad, loadUnit: u, effort, e1rm: bestE1rm, workoutId: result.workout.id, resultId: result.id })
     }
     if (currentPr === null || maxLoad > currentPr) currentPr = maxLoad
   }
 
   const points = [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, { maxLoad, loadUnit, effort, workoutId, resultId }]) => ({ date, maxLoad, loadUnit, effort, workoutId, resultId }))
+    .map(([date, { maxLoad, loadUnit, effort, e1rm, workoutId, resultId }]) => ({ date, maxLoad, loadUnit, effort, e1rm, workoutId, resultId }))
 
   return { movementId, name: movement.name, currentPr, loadUnit: latestUnit, points }
 }

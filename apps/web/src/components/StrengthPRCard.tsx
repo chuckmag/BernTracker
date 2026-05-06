@@ -52,7 +52,9 @@ interface TrajectoryChartProps {
 interface ChartPoint {
   shortDate: string
   fullDate: string
+  chartValue: number   // e1rm when available, otherwise maxLoad
   maxLoad: number
+  e1rm: number | null
   effort: string
   loadUnit: string
   workoutId: string
@@ -62,15 +64,15 @@ interface ChartPoint {
 function TrajectoryTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartPoint }> }) {
   if (!active || !payload?.length) return null
   const p = payload[0].payload
-  return (
-    <ChartTooltip
-      date={p.fullDate}
-      lines={[
+  const lines = p.e1rm !== null
+    ? [
         { text: `${p.effort} ${p.loadUnit}`, accent: true },
-        { text: `Max: ${p.maxLoad} ${p.loadUnit}` },
-      ]}
-    />
-  )
+        { text: `Est. 1RM: ${p.e1rm} ${p.loadUnit}` },
+      ]
+    : [
+        { text: `${p.effort} ${p.loadUnit}`, accent: true },
+      ]
+  return <ChartTooltip date={p.fullDate} lines={lines} />
 }
 
 function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps) {
@@ -96,7 +98,9 @@ function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps)
   const chartData: ChartPoint[] = points.map((p) => ({
     shortDate: formatUtcShort(p.date),
     fullDate: formatUtcDate(p.date),
+    chartValue: p.e1rm ?? p.maxLoad,
     maxLoad: p.maxLoad,
+    e1rm: p.e1rm,
     effort: p.effort,
     loadUnit: p.loadUnit,
     workoutId: p.workoutId,
@@ -112,7 +116,7 @@ function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps)
         <Tooltip content={<TrajectoryTooltip />} />
         <Line
           type="monotone"
-          dataKey="maxLoad"
+          dataKey="chartValue"
           stroke={lineColor}
           strokeWidth={2}
           dot={(props) => {
@@ -140,11 +144,12 @@ function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps)
 
 function ImprovementChip({ points }: { points: StrengthTrajectoryData['points'] }) {
   if (points.length < 2) return null
-  const first = points[0].maxLoad
-  const last = points[points.length - 1].maxLoad
-  const delta = last - first
+  const firstVal = points[0].e1rm ?? points[0].maxLoad
+  const lastVal = points[points.length - 1].e1rm ?? points[points.length - 1].maxLoad
+  const delta = Math.round((lastVal - firstVal) * 10) / 10
   if (delta === 0) return null
   const positive = delta > 0
+  const label = points[0].e1rm !== null ? 'e1RM' : points[0].loadUnit
   return (
     <span
       className={[
@@ -154,7 +159,7 @@ function ImprovementChip({ points }: { points: StrengthTrajectoryData['points'] 
           : 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
       ].join(' ')}
     >
-      {positive ? '+' : ''}{delta} {points[0].loadUnit}
+      {positive ? '+' : ''}{delta} {label}
     </span>
   )
 }
