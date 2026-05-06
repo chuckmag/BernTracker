@@ -229,12 +229,52 @@ describe('CalendarDayStrip', () => {
     // strictly after prev. Asserts the prev arrow keeps its leftmost spot.
     expect(prevIdx).toBeLessThan(todayIdx)
     expect(todayIdx).toBeLessThan(nextIdx)
-    // The range label is in the same flex group as Today; its DOM order
-    // is right after Today.
+    // Range label sits in the next grid cell after Today.
     const rangeLabel = screen.getByText(/May \d/)
     expect(buttons[todayIdx].compareDocumentPosition(rangeLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
     fireEvent.click(buttons[todayIdx])
     expect(onJumpToToday).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps prev/next chevrons at h-9 so the row height does not stutter when Today toggles', () => {
+    // Regression guard: tertiary buttons are intrinsically 32px (py-1.5),
+    // secondary is 36px (py-2). Without an explicit h-9 on the chevrons,
+    // adding the Today button would flex the row from 32 → 36px.
+    const { rerender } = render(
+      <CalendarDayStrip
+        days={buildDays(TODAY, 3)}
+        today={TODAY}
+        workoutsByDate={{}}
+        selectedDate={null}
+        selectedWorkoutId={null}
+        loading={false}
+        onPrev={noop}
+        onNext={noop}
+        onAddClick={noop}
+        onWorkoutClick={noop}
+      />,
+    )
+    expect(screen.getByLabelText('Previous days').className).toMatch(/\bh-9\b/)
+    expect(screen.getByLabelText('Next days').className).toMatch(/\bh-9\b/)
+
+    rerender(
+      <CalendarDayStrip
+        days={buildDays(TODAY, 3)}
+        today={TODAY}
+        workoutsByDate={{}}
+        selectedDate={null}
+        selectedWorkoutId={null}
+        loading={false}
+        onPrev={noop}
+        onNext={noop}
+        onJumpToToday={noop}
+        onAddClick={noop}
+        onWorkoutClick={noop}
+      />,
+    )
+    // Same chevron height with Today present.
+    expect(screen.getByLabelText('Previous days').className).toMatch(/\bh-9\b/)
+    expect(screen.getByLabelText('Next days').className).toMatch(/\bh-9\b/)
   })
 })

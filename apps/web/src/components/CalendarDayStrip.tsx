@@ -45,23 +45,30 @@ export default function CalendarDayStrip({
 
   return (
     <div data-testid="calendar-day-strip" className={loading ? 'opacity-60 pointer-events-none' : ''}>
-      {/* Nav row. Prev/next arrows are anchored to the row's left/right
-          edges via justify-between so they don't move when the optional
-          Today button toggles. The Today button + range label live in a
-          centered group between them; Today nudges the range text right
-          when present, but the arrows stay fixed. */}
-      <div className="flex items-center justify-between mb-3 gap-2">
-        <Button variant="tertiary" onClick={onPrev} aria-label="Previous days">←</Button>
-        <div className="flex items-center gap-2 flex-1 justify-center min-w-0">
+      {/* Nav row.
+          - 3-column grid (1fr auto 1fr) keeps the range label geometrically
+            centered no matter what's in the side cells: the two `1fr`
+            cells always claim equal width, so the auto cell sits centered.
+          - Prev/next arrows pinned to the row edges via justify-self.
+          - Today (when present) sits immediately right of the prev arrow
+            inside the left cell — appears/disappears without nudging the
+            range label or the arrows.
+          - All three buttons forced to h-9 so the row height stays 36px
+            regardless of whether Today is rendered (tertiary's intrinsic
+            height is 32px, secondary's is 36px — without h-9 the row
+            stuttered between the two when Today toggled). */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 justify-self-start">
+          <Button className="h-9" variant="tertiary" onClick={onPrev} aria-label="Previous days">←</Button>
           {onJumpToToday && (
             <Button variant="secondary" onClick={onJumpToToday}>Today</Button>
           )}
-          <span className="text-sm font-medium text-slate-600 dark:text-gray-400 select-none truncate">
-            {days.length > 0 && days[0].toLocaleDateString('default', { month: 'short', day: 'numeric' })}
-            {days.length > 1 && ` – ${days[days.length - 1].toLocaleDateString('default', { month: 'short', day: 'numeric' })}`}
-          </span>
         </div>
-        <Button variant="tertiary" onClick={onNext} aria-label="Next days">→</Button>
+        <span className="text-sm font-medium text-slate-600 dark:text-gray-400 select-none truncate text-center">
+          {days.length > 0 && days[0].toLocaleDateString('default', { month: 'short', day: 'numeric' })}
+          {days.length > 1 && ` – ${days[days.length - 1].toLocaleDateString('default', { month: 'short', day: 'numeric' })}`}
+        </span>
+        <Button className="h-9 justify-self-end" variant="tertiary" onClick={onNext} aria-label="Next days">→</Button>
       </div>
 
       {/* Day columns */}
