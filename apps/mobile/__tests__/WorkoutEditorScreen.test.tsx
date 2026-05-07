@@ -406,7 +406,8 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
 
     fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
     expect(queryByTestId('suggested-movement-mv-thr')).toBeNull()
-    expect(queryByTestId('selected-movement-mv-thr')).toBeTruthy()
+    // Slice 3b replaced the simple selected-pill with a prescription card.
+    expect(queryByTestId('prescription-card-mv-thr')).toBeTruthy()
   })
 
   test('dismissing a suggestion removes the pill and keeps it out of subsequent detects', async () => {
@@ -450,7 +451,14 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
     fireEvent.press(getByTestId('save-button'))
     await waitFor(() => {
       expect(api.me.personalProgram.workouts.create).toHaveBeenCalledWith(
-        expect.objectContaining({ movementIds: ['mv-thr', 'mv-pu'] }),
+        // Slice 3b switched the payload from `movementIds` to `movements`
+        // (per-movement prescription). Display order still matters.
+        expect.objectContaining({
+          movements: [
+            expect.objectContaining({ movementId: 'mv-thr', displayOrder: 0 }),
+            expect.objectContaining({ movementId: 'mv-pu', displayOrder: 1 }),
+          ],
+        }),
       )
       expect(navigation.goBack).toHaveBeenCalled()
     })
@@ -460,8 +468,10 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
     ;(api.workouts.get as jest.Mock).mockResolvedValue({
       ...EXISTING_WORKOUT,
       workoutMovements: [
-        { movement: FRAN_THRUSTER },
-        { movement: FRAN_PULLUP },
+        // Server hydration shape carries the prescription per row; for slice
+        // 3a-style assertions we only care that the cards mount.
+        { movement: FRAN_THRUSTER, displayOrder: 0, sets: null, reps: null, load: null, loadUnit: null, tracksLoad: true, tempo: null, distance: null, distanceUnit: null, calories: null, seconds: null },
+        { movement: FRAN_PULLUP, displayOrder: 1, sets: null, reps: null, load: null, loadUnit: null, tracksLoad: true, tempo: null, distance: null, distanceUnit: null, calories: null, seconds: null },
       ],
     })
     const { findByDisplayValue, getByTestId } = render(
@@ -471,19 +481,21 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
       />,
     )
     await findByDisplayValue('Easy row')
-    expect(getByTestId('selected-movement-mv-thr')).toBeTruthy()
-    expect(getByTestId('selected-movement-mv-pu')).toBeTruthy()
-    // Hydration alone shouldn't trigger an autosave (snapshot baseline includes movementIds).
+    // Cards exist for each hydrated movement; the snapshot baseline
+    // includes the full per-movement payload so loading doesn't trigger an
+    // autosave PATCH.
+    expect(getByTestId('prescription-card-mv-thr')).toBeTruthy()
+    expect(getByTestId('prescription-card-mv-pu')).toBeTruthy()
     await act(async () => { jest.advanceTimersByTime(2000) })
     expect(api.workouts.update).not.toHaveBeenCalled()
   })
 
-  test('removing a selected movement triggers an autosave with the trimmed id list', async () => {
+  test('removing a selected movement triggers an autosave with the trimmed payload', async () => {
     ;(api.workouts.get as jest.Mock).mockResolvedValue({
       ...EXISTING_WORKOUT,
       workoutMovements: [
-        { movement: FRAN_THRUSTER },
-        { movement: FRAN_PULLUP },
+        { movement: FRAN_THRUSTER, displayOrder: 0, sets: null, reps: null, load: null, loadUnit: null, tracksLoad: true, tempo: null, distance: null, distanceUnit: null, calories: null, seconds: null },
+        { movement: FRAN_PULLUP, displayOrder: 1, sets: null, reps: null, load: null, loadUnit: null, tracksLoad: true, tempo: null, distance: null, distanceUnit: null, calories: null, seconds: null },
       ],
     })
     ;(api.workouts.update as jest.Mock).mockResolvedValue({})
@@ -499,7 +511,147 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
     await waitFor(() => {
       expect(api.workouts.update).toHaveBeenCalledWith(
         'w-1',
-        expect.objectContaining({ movementIds: ['mv-thr'] }),
+        expect.objectContaining({
+          movements: [expect.objectContaining({ movementId: 'mv-thr', displayOrder: 0 })],
+        }),
+      )
+    })
+  })
+})
+
+describe('WorkoutEditorScreen — per-movement prescription (slice 3b)', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    jest.clearAllMocks()
+    ;(useMovements as jest.Mock).mockReturnValue(CATALOG)
+  })
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  test('a Metcon workout shows sets/reps/load by default; Strength hides load', async () => {
+    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
+    const { getByTestId, queryByTestId, findByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('description-input'), 'thrusters')
+    await act(async () => { jest.advanceTimersByTime(900) })
+    fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
+
+    // Default type is METCON → sets, reps, load visible by default.
+    expect(getByTestId('prescription-input-mv-thr-sets')).toBeTruthy()
+    expect(getByTestId('prescription-input-mv-thr-reps')).toBeTruthy()
+    expect(getByTestId('prescription-input-mv-thr-load')).toBeTruthy()
+
+    // Switch to a Strength type via the picker → load column drops out
+    // (availablePrescriptionColumns excludes it for Strength).
+    fireEvent.press(getByTestId('type-select-button'))
+    fireEvent.press(getByTestId('type-chip-WEIGHT_LIFTING'))
+    expect(queryByTestId('prescription-input-mv-thr-load')).toBeNull()
+    // Strength defaults: sets/reps/tempo.
+    expect(getByTestId('prescription-input-mv-thr-tempo')).toBeTruthy()
+  })
+
+  test('typing in a prescription input flows into the autosave payload (numbers coerced, units kept)', async () => {
+    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
+    ;(api.me.personalProgram.workouts.create as jest.Mock).mockResolvedValue({ id: 'w-new' })
+    const { getByTestId, findByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('title-input'), 'Heavy day')
+    fireEvent.changeText(getByTestId('description-input'), 'thrusters')
+    await act(async () => { jest.advanceTimersByTime(900) })
+    fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
+
+    fireEvent.changeText(getByTestId('prescription-input-mv-thr-sets'), '5')
+    fireEvent.changeText(getByTestId('prescription-input-mv-thr-reps'), '5')
+    fireEvent.changeText(getByTestId('prescription-input-mv-thr-load'), '225')
+
+    await act(async () => { jest.advanceTimersByTime(2000) })
+    await waitFor(() => {
+      expect(api.me.personalProgram.workouts.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          movements: [
+            expect.objectContaining({
+              movementId: 'mv-thr',
+              sets: 5,
+              reps: '5',
+              load: 225,
+              loadUnit: 'LB',
+              tracksLoad: true,
+            }),
+          ],
+        }),
+      )
+    })
+  })
+
+  test('toggling tracksLoad flips the per-movement boolean in the payload', async () => {
+    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
+    ;(api.me.personalProgram.workouts.create as jest.Mock).mockResolvedValue({ id: 'w-new' })
+    const { getByTestId, findByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('title-input'), 'Heavy day')
+    fireEvent.changeText(getByTestId('description-input'), 'thrusters')
+    await act(async () => { jest.advanceTimersByTime(900) })
+    fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
+
+    // Default tracksLoad = true; tap once → false.
+    fireEvent.press(getByTestId('tracks-load-toggle-mv-thr'))
+
+    await act(async () => { jest.advanceTimersByTime(2000) })
+    await waitFor(() => {
+      expect(api.me.personalProgram.workouts.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          movements: [expect.objectContaining({ movementId: 'mv-thr', tracksLoad: false })],
+        }),
+      )
+    })
+  })
+
+  test('tracksRounds toggle is hidden for non-AMRAP types', () => {
+    const { queryByTestId, getByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    // Default is METCON → no toggle.
+    expect(queryByTestId('tracks-rounds-toggle')).toBeNull()
+    // Switch to AMRAP → toggle appears.
+    fireEvent.press(getByTestId('type-select-button'))
+    fireEvent.press(getByTestId('type-chip-AMRAP'))
+    expect(queryByTestId('tracks-rounds-toggle')).toBeTruthy()
+  })
+
+  test('tracksRounds=true on an AMRAP workout flows into the payload', async () => {
+    ;(api.me.personalProgram.workouts.create as jest.Mock).mockResolvedValue({ id: 'w-new' })
+    const { getByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('title-input'), 'Cindy')
+    fireEvent.changeText(getByTestId('description-input'), 'AMRAP 20: 5/10/15')
+    fireEvent.press(getByTestId('type-select-button'))
+    fireEvent.press(getByTestId('type-chip-AMRAP'))
+    fireEvent.press(getByTestId('tracks-rounds-toggle'))
+
+    await act(async () => { jest.advanceTimersByTime(2000) })
+    await waitFor(() => {
+      expect(api.me.personalProgram.workouts.create).toHaveBeenCalledWith(
+        expect.objectContaining({ tracksRounds: true }),
       )
     })
   })
