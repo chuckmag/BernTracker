@@ -590,6 +590,74 @@ async function runTests() {
   await prisma.user.deleteMany({
     where: { id: { in: [orphanProgrammer.id, orphanMember.id] } },
   })
+
+  // ── canEdit projection on GET /api/workouts/:id (#242 slice 2b) ───────────
+  // Server-derived "may the viewer edit this workout?" — same source of
+  // truth as requireWorkoutWriteAccess. Mobile's WodDetailScreen Edit
+  // affordance now reads this field instead of a personal-program check.
+  // Seeds a fresh workout because the primary `workoutId` was deleted by
+  // the earlier DELETE-as-PROGRAMMER test.
+  console.log('\n=== canEdit projection on GET workout ===')
+  const canEditWorkout = await prisma.workout.create({
+    data: {
+      title: 'canEdit projection fixture',
+      description: 'desc',
+      type: 'AMRAP',
+      status: 'PUBLISHED',
+      scheduledAt: new Date('2026-04-10T12:00:00Z'),
+      programId,
+    },
+  })
+  {
+    // Programmer (gym staff with PROGRAMMER role on a gym-linked program) → canEdit=true.
+    const r = await api('GET', `/workouts/${canEditWorkout.id}`, programmerToken)
+    check('Gym-linked + PROGRAMMER role → 200', 200, r.status)
+    check('Gym-linked + PROGRAMMER role → canEdit=true', true, r.body.canEdit)
+  }
+  {
+    // Member (read access via UserProgram subscription, no write role) → canEdit=false.
+    const r = await api('GET', `/workouts/${canEditWorkout.id}`, memberToken)
+    check('Gym-linked subscriber (member) → 200', 200, r.status)
+    check('Gym-linked subscriber (member) → canEdit=false', false, r.body.canEdit)
+  }
+  await prisma.workout.delete({ where: { id: canEditWorkout.id } })
+  {
+    // Personal-program owner — set up an isolated user + their personal
+    // program + a workout in it; the owner has UserProgram.PROGRAMMER role
+    // on the unaffiliated program → canEdit=true.
+    const ppOwner = await prisma.user.create({ data: { email: `at-pp-${TS}@test.com` } })
+    const { accessToken: ppToken } = await signTokenPair(ppOwner.id, ppOwner.email)
+    const ppProgram = await prisma.program.create({
+      data: {
+        name: 'Personal Program',
+        startDate: new Date('2026-01-01'),
+        ownerUserId: ppOwner.id,
+        visibility: 'PRIVATE',
+      },
+    })
+    await prisma.userProgram.create({
+      data: { userId: ppOwner.id, programId: ppProgram.id, role: ProgramRole.PROGRAMMER },
+    })
+    const ppWorkout = await prisma.workout.create({
+      data: {
+        title: 'Personal extra',
+        description: 'Easy row',
+        type: 'METCON',
+        status: 'DRAFT',
+        scheduledAt: new Date('2026-03-15T12:00:00Z'),
+        programId: ppProgram.id,
+      },
+    })
+
+    const r = await api('GET', `/workouts/${ppWorkout.id}`, ppToken)
+    check('Personal-program owner → 200', 200, r.status)
+    check('Personal-program owner → canEdit=true', true, r.body.canEdit)
+
+    await prisma.workout.delete({ where: { id: ppWorkout.id } })
+    await prisma.userProgram.deleteMany({ where: { programId: ppProgram.id } })
+    await prisma.program.delete({ where: { id: ppProgram.id } })
+    await prisma.user.delete({ where: { id: ppOwner.id } })
+  }
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────

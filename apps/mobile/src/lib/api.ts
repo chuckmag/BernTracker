@@ -122,6 +122,11 @@ export interface Workout {
   timeCapSeconds: number | null
   tracksRounds: boolean
   externalSourceId: string | null
+  // Server-derived "may the viewer edit this workout?" — same source of
+  // truth as the requireWorkoutWriteAccess middleware on PATCH/DELETE
+  // (#242 slice 2b). Optional so a mobile build pinned to an older API
+  // doesn't break the type; treat undefined as "unknown → hide editor."
+  canEdit?: boolean
 }
 
 export interface DashboardTodayResult {

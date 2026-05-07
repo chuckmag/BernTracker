@@ -24,13 +24,25 @@ const writeGymRoles: Role[] = ['OWNER', 'PROGRAMMER', 'COACH']
 //                          marker, not a staff-write gate.
 //   unaffiliated  → read  = any UserProgram row;
 //                   write = UserProgram.role = PROGRAMMER.
-type AccessContext =
+export type AccessContext =
   | { kind: 'not-found' }
   | { kind: 'no-program' }
   | { kind: 'gym-linked'; gymRoles: Role[]; programRole: ProgramRole | null }
   | { kind: 'unaffiliated'; programRole: ProgramRole | null }
 
-async function loadWorkoutAccess(workoutId: string, userId: string): Promise<AccessContext> {
+/**
+ * Pure boolean form of `requireWorkoutWriteAccess` — same gates, no Express.
+ * Read-access route handlers use this to project a `canEdit` field into the
+ * workout response so clients can show/hide editor affordances without a
+ * second HTTP round-trip (#242 slice 2b).
+ */
+export function hasWorkoutWriteAccess(ctx: AccessContext): boolean {
+  if (ctx.kind === 'gym-linked') return ctx.gymRoles.some((r) => writeGymRoles.includes(r))
+  if (ctx.kind === 'unaffiliated') return ctx.programRole === ProgramRole.PROGRAMMER
+  return false
+}
+
+export async function loadWorkoutAccess(workoutId: string, userId: string): Promise<AccessContext> {
   const workout = await findWorkoutWithProgramGyms(workoutId)
   if (!workout) return { kind: 'not-found' }
   if (!workout.programId || !workout.program) return { kind: 'no-program' }

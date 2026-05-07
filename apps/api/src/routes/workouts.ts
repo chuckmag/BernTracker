@@ -9,6 +9,8 @@ import {
 import {
   requireWorkoutReadAccess,
   requireWorkoutWriteAccess,
+  loadWorkoutAccess,
+  hasWorkoutWriteAccess,
 } from '../middleware/workout.js'
 import {
   createWorkoutForProgram as createWorkoutForProgramDb,
@@ -151,10 +153,19 @@ async function batchPublishWorkoutsForGym(req: Request, res: Response) {
 }
 
 async function getWorkoutById(req: Request, res: Response) {
-  const workout = await findWorkoutById(req.params.id as string)
+  const id = req.params.id as string
+  const workout = await findWorkoutById(id)
   if (!workout) return res.status(404).json({ error: 'Workout not found' })
+  // requireWorkoutReadAccess already gated this route, so loadWorkoutAccess
+  // can never resolve to 'not-found' or 'no-program' here. We re-derive it
+  // only to project canEdit (#242 slice 2b) — same source of truth as
+  // requireWorkoutWriteAccess so the boolean can never disagree with the
+  // gate that fires on PATCH/DELETE.
+  const userId = req.user!.id
+  const ctx = await loadWorkoutAccess(id, userId)
+  const canEdit = hasWorkoutWriteAccess(ctx)
   const { program, ...rest } = workout
-  res.json({ ...rest, program: program ? { id: program.id, name: program.name } : null })
+  res.json({ ...rest, program: program ? { id: program.id, name: program.name } : null, canEdit })
 }
 
 async function patchWorkout(req: Request, res: Response) {
