@@ -223,6 +223,7 @@ model User {
   // user touches the feature for the first time.
   personalProgram       Program?               @relation("UserPersonalProgram")
   results               Result[]
+  movementPrs           MovementPR[]
   emergencyContacts     EmergencyContact[]
   membershipRequests    GymMembershipRequest[] @relation("UserRequests")
   membershipInvitesSent GymMembershipRequest[] @relation("InvitedBy")
@@ -504,8 +505,9 @@ model Result {
   primaryScoreValue Float?
   createdAt         DateTime      @default(now())
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workout     Workout      @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  movementPrs MovementPR[]
 
   @@unique([userId, workoutId])
   @@index([workoutId, primaryScoreKind, primaryScoreValue])
@@ -533,6 +535,7 @@ model Movement {
   parent     Movement?         @relation("MovementVariations", fields: [parentId], references: [id])
   variations Movement[]        @relation("MovementVariations")
   workouts   WorkoutMovement[]
+  prs        MovementPR[]
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
@@ -573,4 +576,26 @@ model WorkoutMovement {
   @@id([workoutId, movementId])
   @@index([movementId])
   @@index([workoutId, displayOrder])
+}
+
+// Best-ever load per user × movement × rep count. Written (upserted) at result
+// creation time for STRENGTH-category workouts. The repCount=1 row is also the
+// canonical 1RM; estimated 1RM for other rep counts uses the Epley formula at
+// read time.
+model MovementPR {
+  id         String   @id @default(cuid())
+  userId     String
+  movementId String
+  repCount   Int
+  load       Float
+  loadUnit   LoadUnit
+  resultId   String
+  achievedAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movement Movement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  result   Result   @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, movementId, repCount])
+  @@index([userId, movementId])
 }
