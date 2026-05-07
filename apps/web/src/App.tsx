@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { ErrorBoundary } from 'react-error-boundary'
+import { ThemeProvider } from './context/ThemeContext.tsx'
 import { AuthProvider } from './context/AuthContext.tsx'
 import { GymProvider } from './context/GymContext.tsx'
 import { MovementsProvider } from './context/MovementsContext.tsx'
@@ -16,7 +17,7 @@ import Register from './pages/Register.tsx'
 import Onboarding from './pages/Onboarding.tsx'
 import Profile from './pages/Profile.tsx'
 import Dashboard from './pages/Dashboard.tsx'
-import Calendar from './pages/Calendar.tsx'
+import UnifiedCalendar from './pages/UnifiedCalendar.tsx'
 import ProgramsIndex from './pages/ProgramsIndex.tsx'
 import ProgramDetail from './pages/ProgramDetail.tsx'
 import BrowsePrograms from './pages/BrowsePrograms.tsx'
@@ -27,27 +28,29 @@ import Feed from './pages/Feed.tsx'
 import WodDetail from './pages/WodDetail.tsx'
 import WodResultDetail from './pages/WodResultDetail.tsx'
 import History from './pages/History.tsx'
-import AdminProgramsIndex from './pages/AdminProgramsIndex.tsx'
+import AdminSettings from './pages/AdminSettings.tsx'
+// PersonalProgram page replaced by UnifiedCalendar (#268). Route now redirects.
 import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
 import JoinInvitation from './pages/JoinInvitation.tsx'
+import Analytics from './pages/Analytics.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
   const navigate = useNavigate()
   const message = error instanceof Error ? error.message : String(error)
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
-      <p className="text-gray-400 text-sm">Something went wrong on this page.</p>
-      <p className="text-gray-400 text-xs font-mono">{message}</p>
+      <p className="text-slate-500 dark:text-gray-400 text-sm">Something went wrong on this page.</p>
+      <p className="text-slate-500 dark:text-gray-400 text-xs font-mono">{message}</p>
       <div className="flex gap-3">
         <button
           onClick={resetErrorBoundary}
-          className="px-4 py-2 text-sm rounded bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+          className="px-4 py-2 text-sm rounded bg-primary hover:bg-primary-hover text-white transition-colors"
         >
           Try again
         </button>
         <button
           onClick={() => { resetErrorBoundary(); navigate('/feed') }}
-          className="px-4 py-2 text-sm rounded bg-gray-800 hover:bg-gray-700 text-gray-300 transition-colors"
+          className="px-4 py-2 text-sm rounded bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors"
         >
           Back to Feed
         </button>
@@ -60,7 +63,7 @@ function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
-    <div className="flex h-screen w-full overflow-x-hidden bg-gray-950 text-white">
+    <div className="flex h-screen w-full overflow-x-hidden bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-white">
       <Sidebar isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col min-h-0">
         <TopBar onMenuClick={() => setMobileNavOpen(true)} />
@@ -68,13 +71,15 @@ function AppLayout() {
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">
           <ErrorBoundary FallbackComponent={PageErrorFallback} resetKeys={[window.location.pathname]}>
             <Routes>
-              <Route path="/" element={<Navigate to="/feed" replace />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/feed" element={<Feed />} />
               <Route path="/workouts/:id" element={<WodDetail />} />
               <Route path="/workouts/:id/results/:resultId" element={<WodResultDetail />} />
               <Route path="/history" element={<History />} />
+              <Route path="/personal-program" element={<Navigate to="/calendar" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/wodalytics" element={<Analytics />} />
+              <Route path="/calendar" element={<UnifiedCalendar />} />
               <Route path="/programs" element={<ProgramsIndex />} />
               <Route path="/programs/:id" element={<ProgramDetail />} />
               <Route path="/browse-programs" element={<BrowsePrograms />} />
@@ -89,8 +94,11 @@ function AppLayout() {
                 * the page shell, then 403 on the API call and surface the
                 * error inline (no redirect — failure is visible).
                 */}
-              <Route path="/admin/programs" element={<AdminProgramsIndex />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/programs/:id" element={<AdminProgramDetail />} />
+              {/* Legacy aliases — early admin work used split routes. */}
+              <Route path="/admin/programs" element={<Navigate to="/admin/settings#programs" replace />} />
+              <Route path="/admin/movements" element={<Navigate to="/admin/settings#movements" replace />} />
               {/* Legacy aliases — old bookmarks and deep links still resolve. */}
               <Route path="/settings" element={<Navigate to="/gym-settings" replace />} />
               <Route path="/members" element={<Navigate to="/gym-settings#members" replace />} />
@@ -104,6 +112,7 @@ function AppLayout() {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -130,5 +139,6 @@ export default function App() {
         />
       </Routes>
     </AuthProvider>
+    </ThemeProvider>
   )
 }

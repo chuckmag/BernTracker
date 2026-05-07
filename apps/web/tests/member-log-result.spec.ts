@@ -88,6 +88,14 @@ async function seedMemberFixture(): Promise<MemberFixture> {
 
 async function teardown(f: MemberFixture) {
   await prisma.result.deleteMany({ where: { workoutId: { in: [f.amrapWorkoutId, f.forTimeWorkoutId, f.strengthWorkoutId] } } }).catch(() => {})
+  // Clean up any personal program created by the backfill test. User.personalProgram
+  // has onDelete:Cascade, but workouts block that cascade, so clear them first.
+  const pp = await prisma.program.findUnique({ where: { ownerUserId: f.memberUserId } }).catch(() => null)
+  if (pp) {
+    await prisma.result.deleteMany({ where: { workout: { programId: pp.id } } }).catch(() => {})
+    await prisma.workout.deleteMany({ where: { programId: pp.id } }).catch(() => {})
+    await prisma.program.delete({ where: { id: pp.id } }).catch(() => {})
+  }
   await prisma.workout.deleteMany({ where: { programId: f.programId } }).catch(() => {})
   await prisma.program.delete({ where: { id: f.programId } }).catch(() => {})
   await prisma.user.delete({ where: { id: f.memberUserId } }).catch(() => {})
@@ -280,5 +288,35 @@ test.describe('Member result-logging E2E', () => {
     await row.click()
     await page.waitForURL(`**/workouts/${f.amrapWorkoutId}`)
     await expect(page.locator('h1', { hasText: titleRegex })).toBeVisible()
+  })
+
+  test('PR backfill: clicking ??? cell opens modal, saving fills the slot and refreshes the trend', async ({ page }) => {
+    await loginMember(page, f)
+    await page.goto(`/workouts/${f.strengthWorkoutId}`)
+    await page.waitForSelector('h1')
+
+    // The movement history section loads asynchronously. Wait for a ??? button.
+    const emptySlot = page.locator('button[title^="Log your"]').first()
+    await expect(emptySlot).toBeVisible({ timeout: 8000 })
+
+    // Capture which RM slot we're about to fill so we can assert afterwards.
+    const slotTitle = await emptySlot.getAttribute('title') // e.g. "Log your 1RM"
+    const rm = slotTitle?.match(/Log your (\d+)RM/)?.[1] ?? '1'
+
+    await emptySlot.click()
+
+    // Modal opens with the movement name in its heading.
+    await expect(page.getByText(`${rm}RM — Back Squat`)).toBeVisible()
+
+    // Fill in the load and leave the date at today's default.
+    await page.getByLabel('Load (lb)').fill('315')
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    // Modal closes after save.
+    await expect(page.getByText(`${rm}RM — Back Squat`)).not.toBeVisible({ timeout: 6000 })
+
+    // The PR slot now shows the load (no longer a ??? button).
+    await expect(page.getByText('315')).toBeVisible({ timeout: 6000 })
+    await expect(page.locator('button[title^="Log your"]').filter({ hasText: '???' }).locator(`text=${rm}RM`)).toHaveCount(0)
   })
 })

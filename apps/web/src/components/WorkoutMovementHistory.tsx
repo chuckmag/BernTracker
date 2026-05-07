@@ -1,0 +1,637 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from 'recharts'
+import { api } from '../lib/api.ts'
+import type {
+  MovementHistoryPage,
+  MovementPrTable,
+  StrengthPrEntry,
+  EndurancePrEntry,
+  MovementHistoryResult,
+} from '../lib/api.ts'
+import ChartTooltip from './ui/ChartTooltip.tsx'
+import { bestE1RMFromSets } from '../lib/e1rm.ts'
+import { useTheme } from '../context/ThemeContext.tsx'
+import { resolveTheme } from '../lib/useTheme.ts'
+import { BRAND_TOKENS } from '../lib/designTokens.ts'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function todayISODate(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function formatSeconds(sec: number): string {
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+function describeSet(set: MovementHistoryResult['movementSets'][number], loadUnit?: string, distanceUnit?: string): string {
+  const parts: string[] = []
+  if (set.load !== undefined) {
+    const unit = loadUnit ? ` ${loadUnit.toLowerCase()}` : ''
+    parts.push(`${set.reps ?? '?'} × ${set.load}${unit}`)
+  } else if (set.reps) {
+    parts.push(`${set.reps} reps`)
+  }
+  if (set.distance !== undefined) {
+    const unit = distanceUnit ? ` ${distanceUnit.toLowerCase()}` : ''
+    parts.push(`${set.distance}${unit}`)
+  }
+  if (set.calories !== undefined) parts.push(`${set.calories} cal`)
+  if (set.seconds !== undefined) parts.push(formatSeconds(set.seconds))
+  return parts.join(' · ') || '—'
+}
+
+// ─── PR Table sub-components ──────────────────────────────────────────────────
+
+const STRENGTH_RM_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
+
+function StrengthPrTable({
+  entries,
+  onClickEmpty,
+  onClickFilled,
+}: {
+  entries: StrengthPrEntry[]
+  onClickEmpty: (rm: number) => void
+  onClickFilled: (workoutId: string, resultId: string) => void
+}) {
+  const byReps = new Map(entries.map((e) => [e.reps, e]))
+  const unit = entries[0]?.unit ?? 'LB'
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500 mb-2">
+        PR Table · {unit}
+      </p>
+      <div className="flex gap-1 flex-wrap">
+        {STRENGTH_RM_RANGE.map((reps) => {
+          const entry = byReps.get(reps)
+          return entry ? (
+            <button
+              key={reps}
+              type="button"
+              onClick={() => onClickFilled(entry.workoutId, entry.resultId)}
+              title={`View your ${reps}RM — ${entry.maxLoad} ${unit}`}
+              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[3.5rem] hover:border-primary hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span className="text-[10px] text-slate-500 dark:text-gray-400">{reps}RM</span>
+              <span className="text-sm font-semibold text-slate-950 dark:text-white">{entry.maxLoad}</span>
+            </button>
+          ) : (
+            <button
+              key={reps}
+              type="button"
+              onClick={() => onClickEmpty(reps)}
+              title={`Log your ${reps}RM`}
+              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-dashed border-slate-300 dark:border-gray-600 min-w-[3.5rem] hover:border-primary hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span className="text-[10px] text-slate-500 dark:text-gray-400">{reps}RM</span>
+              <span className="text-sm font-semibold text-slate-400 dark:text-gray-600">???</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function EndurancePrTable({ entries }: { entries: EndurancePrEntry[] }) {
+  if (entries.length === 0) return null
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500 mb-2">
+        PR Table · Best Times
+      </p>
+      <div className="flex gap-1 flex-wrap">
+        {entries.map((e) => {
+          const label = `${e.distance} ${e.distanceUnit.toLowerCase()}`
+          return (
+            <div
+              key={label}
+              className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[4.5rem]"
+            >
+              <span className="text-[10px] text-slate-500 dark:text-gray-400 text-center">{label}</span>
+              <span className="text-sm font-semibold text-slate-950 dark:text-white">{formatSeconds(e.bestSeconds)}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+type MachineView = 'all' | 'output' | 'time'
+
+function MachinePrTable({ prTable }: { prTable: Extract<MovementPrTable, { category: 'MACHINE' }> }) {
+  const [view, setView] = useState<MachineView>('all')
+
+  const calOutput = prTable.outputCapped.calories
+  const distOutput = prTable.outputCapped.distance
+  const calTime = prTable.timeCapped.calories
+  const distTime = prTable.timeCapped.distance
+
+  const hasOutput = calOutput.length > 0 || distOutput.length > 0
+  const hasTime = calTime.length > 0 || distTime.length > 0
+  const hasAny = hasOutput || hasTime
+
+  if (!hasAny) return null
+
+  const showOutput = view === 'all' || view === 'output'
+  const showTime = view === 'all' || view === 'time'
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">PR Table</p>
+        {hasOutput && hasTime && (
+          <div role="radiogroup" aria-label="Machine PR view" className="flex gap-1 ml-auto">
+            {(['all', 'output', 'time'] as MachineView[]).map((v) => (
+              <button
+                key={v}
+                role="radio"
+                aria-checked={view === v}
+                onClick={() => setView(v)}
+                className={[
+                  'text-[10px] px-2 py-0.5 rounded font-medium transition-colors',
+                  view === v
+                    ? 'bg-primary text-white'
+                    : 'bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-gray-200',
+                ].join(' ')}
+              >
+                {v === 'all' ? 'All' : v === 'output' ? 'Output target' : 'Time target'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showOutput && calOutput.length > 0 && (
+        <div>
+          <p className="text-[10px] text-slate-500 dark:text-gray-500 mb-1">Output-capped — best time</p>
+          <div className="flex gap-1 flex-wrap">
+            {calOutput.map((e) => (
+              <div key={e.calories} className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[4rem]">
+                <span className="text-[10px] text-slate-500 dark:text-gray-400">{e.calories} cal</span>
+                <span className="text-sm font-semibold text-slate-950 dark:text-white">{formatSeconds(e.bestSeconds)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showOutput && distOutput.length > 0 && (
+        <div>
+          <p className="text-[10px] text-slate-500 dark:text-gray-500 mb-1">Output-capped — best time</p>
+          <div className="flex gap-1 flex-wrap">
+            {distOutput.map((e) => (
+              <div key={`${e.distance}${e.distanceUnit}`} className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[4.5rem]">
+                <span className="text-[10px] text-slate-500 dark:text-gray-400">{e.distance} {e.distanceUnit.toLowerCase()}</span>
+                <span className="text-sm font-semibold text-slate-950 dark:text-white">{formatSeconds(e.bestSeconds)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showTime && calTime.length > 0 && (
+        <div>
+          <p className="text-[10px] text-slate-500 dark:text-gray-500 mb-1">Time-capped — best output</p>
+          <div className="flex gap-1 flex-wrap">
+            {calTime.map((e) => (
+              <div key={e.seconds} className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[4rem]">
+                <span className="text-[10px] text-slate-500 dark:text-gray-400">{formatSeconds(e.seconds)}</span>
+                <span className="text-sm font-semibold text-slate-950 dark:text-white">{e.bestCalories} cal</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showTime && distTime.length > 0 && (
+        <div>
+          <p className="text-[10px] text-slate-500 dark:text-gray-500 mb-1">Time-capped — best output</p>
+          <div className="flex gap-1 flex-wrap">
+            {distTime.map((e) => (
+              <div key={e.seconds} className="flex flex-col items-center px-3 py-2 rounded bg-slate-100 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 min-w-[4.5rem]">
+                <span className="text-[10px] text-slate-500 dark:text-gray-400">{formatSeconds(e.seconds)}</span>
+                <span className="text-sm font-semibold text-slate-950 dark:text-white">{e.bestDistance} {e.distanceUnit.toLowerCase()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Chart sub-component ──────────────────────────────────────────────────────
+
+interface StrengthChartPoint {
+  date: string
+  fullDate: string
+  effort: string   // e.g. "5 × 505"
+  e1rm: number
+}
+
+function StrengthTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: StrengthChartPoint }> }) {
+  if (!active || !payload?.length) return null
+  const p = payload[0].payload
+  return (
+    <ChartTooltip
+      date={p.fullDate}
+      lines={[
+        { text: `${p.effort} lb`, accent: true },
+        { text: `Est. 1RM: ${p.e1rm} lb`, accent: true },
+      ]}
+    />
+  )
+}
+
+function StrengthChart({ results }: { results: MovementHistoryResult[] }) {
+  const { mode } = useTheme()
+  const isDark = resolveTheme(mode) === 'dark'
+  const lineColor = isDark ? BRAND_TOKENS.dark.primary : BRAND_TOKENS.light.primary
+  const gridColor = isDark ? '#1f2937' : '#e2e8f0'
+  const tickColor = isDark ? '#6b7280' : '#64748b'
+
+  const chartData: StrengthChartPoint[] = [...results]
+    .sort((a, b) => a.workout.scheduledAt.localeCompare(b.workout.scheduledAt))
+    .map((r) => {
+      const best = bestE1RMFromSets(r.movementSets)
+      if (best === null) return null
+      return {
+        date: new Date(r.workout.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+        fullDate: new Date(r.workout.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }),
+        effort: `${best.reps} × ${best.load}`,
+        e1rm: best.e1rm,
+      }
+    })
+    .filter((d): d is StrengthChartPoint => d !== null)
+
+  if (chartData.length < 2) return <p className="text-xs text-slate-400 dark:text-gray-500">Not enough data to chart.</p>
+  return (
+    <ResponsiveContainer width="100%" height={160}>
+      <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey="date" tick={{ fill: tickColor, fontSize: 11 }} />
+        <YAxis tick={{ fill: tickColor, fontSize: 11 }} domain={['auto', 'auto']} unit=" lb" width={64} />
+        <Tooltip content={<StrengthTooltip />} />
+        <Line type="monotone" dataKey="e1rm" stroke={lineColor} strokeWidth={2} dot={{ fill: lineColor, r: 3 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}
+
+function EnduranceChart({ prTable }: { prTable: Extract<MovementPrTable, { category: 'ENDURANCE' }> }) {
+  const data = prTable.entries.map((e) => ({
+    label: `${e.distance}${e.distanceUnit.toLowerCase()}`,
+    seconds: e.bestSeconds,
+  }))
+  if (data.length < 2) return <p className="text-xs text-slate-400 dark:text-gray-500">Not enough data to chart.</p>
+  return (
+    <ResponsiveContainer width="100%" height={160}>
+      <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+        <XAxis dataKey="label" tick={{ fill: '#9ca3af', fontSize: 11 }} />
+        <YAxis tickFormatter={formatSeconds} tick={{ fill: '#9ca3af', fontSize: 11 }} />
+        <Tooltip
+          contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 6, fontSize: 12 }}
+          labelStyle={{ color: '#e5e7eb' }}
+          formatter={(v) => [formatSeconds(Number(v)), 'Time']}
+        />
+        <Line type="monotone" dataKey="seconds" stroke="#818cf8" strokeWidth={2} dot={{ fill: '#818cf8', r: 3 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}
+
+function PrChart({ prTable, results }: { prTable: MovementPrTable; results: MovementHistoryResult[] }) {
+  if (prTable.category === 'STRENGTH') return <StrengthChart results={results} />
+  if (prTable.category === 'ENDURANCE') return <EnduranceChart prTable={prTable} />
+  return <p className="text-xs text-slate-400 dark:text-gray-500">Chart not available for this movement type.</p>
+}
+
+// ─── PR Backfill Modal ────────────────────────────────────────────────────────
+
+interface BackfillModalProps {
+  movementId: string
+  movementName: string
+  rm: number
+  onClose: () => void
+  onSaved: () => void
+}
+
+function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: BackfillModalProps) {
+  const [load, setLoad] = useState('')
+  const [notes, setNotes] = useState('')
+  const [dateStr, setDateStr] = useState(todayISODate)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSave() {
+    const loadNum = parseFloat(load)
+    if (!load || isNaN(loadNum) || loadNum <= 0) {
+      setError('Enter a valid load.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const workout = await api.me.personalProgram.workouts.create({
+        title: `${movementName} ${rm}RM`,
+        description: `${rm} × ${loadNum} lb`,
+        type: 'STRENGTH',
+        scheduledAt: `${dateStr}T12:00:00.000Z`,
+        movementIds: [movementId],
+      })
+      await api.results.create(workout.id, {
+        level: 'RX',
+        workoutGender: 'OPEN',
+        notes: notes.trim() || undefined,
+        value: {
+          movementResults: [{
+            workoutMovementId: movementId,
+            loadUnit: 'LB',
+            sets: [{ reps: String(rm), load: loadNum }],
+          }],
+        },
+      })
+      onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative z-10 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-xl p-6 w-full max-w-sm space-y-5">
+        <div>
+          <h2 className="text-base font-semibold text-slate-950 dark:text-gray-100">{rm}RM — {movementName}</h2>
+          <p className="text-sm text-slate-500 dark:text-gray-500 mt-1">Log your max effort for this rep count</p>
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="bf-load" className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">
+            Load (lb)
+          </label>
+          <input
+            id="bf-load"
+            type="number"
+            min="0"
+            step="2.5"
+            placeholder="e.g. 185"
+            value={load}
+            onChange={(e) => setLoad(e.target.value)}
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 text-xl font-semibold placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary"
+            autoFocus
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="bf-notes" className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">
+            Notes (optional)
+          </label>
+          <textarea
+            id="bf-notes"
+            rows={3}
+            placeholder="How did it feel? Any context…"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary resize-none text-sm"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="bf-date" className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">
+            Date
+          </label>
+          <input
+            id="bf-date"
+            type="date"
+            max={todayISODate()}
+            value={dateStr}
+            onChange={(e) => setDateStr(e.target.value)}
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded-lg px-3 py-2.5 text-slate-950 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+
+        {error && <p className="text-xs text-rose-400" role="alert">{error}</p>}
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 bg-slate-200 dark:bg-gray-800 hover:bg-slate-300 dark:hover:bg-gray-700 text-slate-700 dark:text-gray-300 font-semibold py-2.5 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-[2] bg-primary hover:bg-primary-hover disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Past result card ─────────────────────────────────────────────────────────
+
+interface PastResultCardProps {
+  result: MovementHistoryResult
+  currentWorkoutId: string
+  onClick: () => void
+}
+
+function PastResultCard({ result, onClick }: PastResultCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 hover:border-slate-400 dark:hover:border-gray-600 transition-colors overflow-hidden"
+    >
+      <div className="px-3 py-2 text-sm font-medium text-slate-800 dark:text-gray-200 border-b border-slate-200 dark:border-gray-800">
+        {formatDate(result.workout.scheduledAt)}
+      </div>
+      <div className="px-3 py-2 bg-slate-50 dark:bg-gray-800/50">
+        <p className="text-xs font-medium text-slate-700 dark:text-gray-300 mb-1.5 truncate">{result.workout.title}</p>
+        <ol className="space-y-0.5">
+          {result.movementSets.slice(0, 6).map((set, i) => (
+            <li key={i} className="flex items-baseline gap-2 text-xs text-slate-700 dark:text-gray-300">
+              <span className="text-slate-400 dark:text-gray-500 font-mono w-6 shrink-0 text-right">{i + 1}</span>
+              <span className="font-mono">{describeSet(set, result.loadUnit, result.distanceUnit)}</span>
+            </li>
+          ))}
+          {result.movementSets.length > 6 && (
+            <li className="text-xs text-slate-400 dark:text-gray-500 pl-8">+{result.movementSets.length - 6} more sets</li>
+          )}
+        </ol>
+      </div>
+    </button>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+interface Props {
+  movementId: string
+  movementName: string
+  currentWorkoutId: string
+}
+
+export default function WorkoutMovementHistory({ movementId, movementName, currentWorkoutId }: Props) {
+  const navigate = useNavigate()
+  const [data, setData] = useState<MovementHistoryPage | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [showChart, setShowChart] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pendingRm, setPendingRm] = useState<number | null>(null)
+  const [historyKey, setHistoryKey] = useState(0)
+
+  useEffect(() => {
+    setLoading(true)
+    api.movements.myHistory(movementId, page)
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false))
+  }, [movementId, page, historyKey])
+
+  const hasPrTable =
+    data &&
+    (data.prTable.category === 'STRENGTH'
+      ? true
+      : data.prTable.category === 'ENDURANCE'
+        ? data.prTable.entries.length > 0
+        : data.prTable.category === 'MACHINE'
+          ? data.prTable.outputCapped.calories.length > 0 || data.prTable.outputCapped.distance.length > 0 || data.prTable.timeCapped.calories.length > 0 || data.prTable.timeCapped.distance.length > 0
+          : false)
+
+  if (loading && !data) {
+    return (
+      <div className="space-y-2 animate-pulse">
+        <div className="h-4 w-24 bg-slate-200 dark:bg-gray-800 rounded" />
+        <div className="h-16 bg-slate-200 dark:bg-gray-800 rounded" />
+      </div>
+    )
+  }
+
+  if (!data || (!hasPrTable && data.results.length === 0)) return null
+
+  return (
+    <div className="space-y-4 pt-1">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">
+        {movementName} — Your History
+      </p>
+
+      {hasPrTable && (
+        <div className="rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 px-4 py-3 space-y-4">
+          {data.prTable.category === 'STRENGTH' && (
+            <StrengthPrTable
+              entries={data.prTable.entries}
+              onClickEmpty={setPendingRm}
+              onClickFilled={(workoutId, resultId) =>
+                navigate(`/workouts/${workoutId}/results/${resultId}`, {
+                  state: { from: 'movement-history', originWorkoutId: currentWorkoutId },
+                })
+              }
+            />
+          )}
+          {data.prTable.category === 'ENDURANCE' && <EndurancePrTable entries={data.prTable.entries} />}
+          {data.prTable.category === 'MACHINE' && <MachinePrTable prTable={data.prTable} />}
+
+          {(data.prTable.category === 'STRENGTH' || data.prTable.category === 'ENDURANCE') && (
+            <div>
+              <button
+                onClick={() => setShowChart((v) => !v)}
+                className="text-xs text-primary hover:opacity-80 transition-colors"
+              >
+                {showChart ? '▲ Hide trend' : `▼ ${data.prTable.category === 'STRENGTH' ? 'Est. 1RM trend' : 'Show trend'}`}
+              </button>
+              {showChart && (
+                <div className="mt-3">
+                  <PrChart prTable={data.prTable} results={data.results} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {data.results.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-gray-500">Past Results</p>
+          <div className="space-y-2">
+            {data.results.map((r) => (
+              <PastResultCard
+                key={r.id}
+                result={r}
+                currentWorkoutId={currentWorkoutId}
+                onClick={() =>
+                  navigate(`/workouts/${r.workout.id}/results/${r.id}`, {
+                    state: { from: 'movement-history', originWorkoutId: currentWorkoutId },
+                  })
+                }
+              />
+            ))}
+          </div>
+
+          {data.pages > 1 && (
+            <div className="flex items-center gap-3 justify-center pt-1">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+                className="text-xs text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                ← Prev
+              </button>
+              <span className="text-xs text-slate-500 dark:text-gray-500">{page} / {data.pages}</span>
+              <button
+                disabled={page >= data.pages}
+                onClick={() => setPage((p) => p + 1)}
+                className="text-xs text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      {pendingRm !== null && (
+        <BackfillModal
+          movementId={movementId}
+          movementName={movementName}
+          rm={pendingRm}
+          onClose={() => setPendingRm(null)}
+          onSaved={() => {
+            setPendingRm(null)
+            setHistoryKey((k) => k + 1)
+          }}
+        />
+      )}
+    </div>
+  )
+}

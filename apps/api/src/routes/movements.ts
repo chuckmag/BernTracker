@@ -9,19 +9,21 @@ import {
   updatePendingMovementById,
   detectMovementsInText,
 } from '../db/movementDbManager.js'
+import { findMovementPrAndHistoryForUser } from '../db/resultDbManager.js'
 import { SuggestMovementSchema, ReviewMovementSchema, UpdatePendingMovementSchema } from '@wodalytics/types'
 
 const router = Router()
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-// /pending must be registered before /:id to avoid Express treating "pending" as an ID
+// /pending and /detect must be registered before /:id to avoid Express treating them as IDs
 router.get('/movements', requireAuth, getMovements)
 router.post('/movements/suggest', requireAuth, suggestMovement)
 router.get('/movements/pending', requireAuth, requireWodalyticsAdmin, getPendingMovements)
+router.post('/movements/detect', requireAuth, detectMovements)
+router.get('/movements/:id/my-history', requireAuth, getMyMovementHistory)
 router.patch('/movements/:id/review', requireAuth, requireWodalyticsAdmin, reviewMovement)
 router.patch('/movements/:id', requireAuth, requireWodalyticsAdmin, updatePendingMovement)
-router.post('/movements/detect', requireAuth, detectMovements)
 
 export default router
 
@@ -104,4 +106,19 @@ async function detectMovements(req: Request, res: Response) {
 
   const movements = await detectMovementsInText(description)
   res.json(movements)
+}
+
+async function getMyMovementHistory(req: Request, res: Response) {
+  const movementId = req.params.id as string
+  const page = Math.max(1, parseInt(req.query.page as string) || 1)
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10))
+
+  try {
+    const data = await findMovementPrAndHistoryForUser(req.user!.id, movementId, { page, limit })
+    res.json(data)
+  } catch (err) {
+    const statusCode = (err as { statusCode?: number }).statusCode
+    if (statusCode) return res.status(statusCode).json({ error: err instanceof Error ? err.message : 'Error' })
+    throw err
+  }
 }

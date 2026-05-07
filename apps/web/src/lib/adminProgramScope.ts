@@ -28,5 +28,6 @@ export const adminProgramScope: ProgramScope = {
 
   createWorkout: (programId, data) => api.admin.programs.createWorkout(programId, data),
   updateWorkout: (workoutId, data) => api.admin.workouts.update(workoutId, data),
+  publishWorkout: (workoutId) => api.admin.workouts.publish(workoutId),
   deleteWorkout: (workoutId) => api.admin.workouts.delete(workoutId),
 }

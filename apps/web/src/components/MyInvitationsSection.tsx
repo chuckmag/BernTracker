@@ -44,18 +44,18 @@ function InvitationCard({
   onDecline: () => void
 }) {
   return (
-    <li className="rounded-xl bg-gray-900 border border-gray-800 p-4 space-y-3">
+    <li className="rounded-xl bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 p-4 space-y-3">
       <div className="space-y-1">
         {gymName ? (
-          <p className="text-sm text-white">
+          <p className="text-sm text-slate-950 dark:text-white">
             <span className="font-semibold">{gymName}</span>
-            <span className="text-gray-400"> invited you as </span>
-            <span className="text-indigo-300">{ROLE_LABEL[roleToGrant] ?? roleToGrant}</span>
+            <span className="text-slate-500 dark:text-gray-400"> invited you as </span>
+            <span className="text-primary">{ROLE_LABEL[roleToGrant] ?? roleToGrant}</span>
           </p>
         ) : (
-          <p className="text-sm text-white font-semibold">WODalytics invitation</p>
+          <p className="text-sm text-slate-950 dark:text-white font-semibold">WODalytics invitation</p>
         )}
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-slate-500 dark:text-gray-400">
           From {inviterLabel} · {new Date(createdAt).toLocaleDateString()}
         </p>
       </div>
@@ -96,7 +96,7 @@ export default function MyInvitationsSection() {
 
   return (
     <section id="invitations" className="space-y-3 scroll-mt-16">
-      <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wide">Invitations</h2>
+      <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-300 uppercase tracking-wide">Invitations</h2>
       <ul className="space-y-2">
         {invitations.map((item) => {
           const key = pendingItemKey(item)

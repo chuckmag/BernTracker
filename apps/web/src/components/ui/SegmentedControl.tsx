@@ -15,7 +15,7 @@ interface SegmentedControlProps<T extends string> {
 }
 
 const FOCUS_RING =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950'
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950'
 
 export default function SegmentedControl<T extends string>({
   options,
@@ -46,7 +46,7 @@ export default function SegmentedControl<T extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       className={[
-        'inline-flex items-center rounded-lg bg-gray-800 p-0.5 gap-0.5',
+        'inline-flex items-center rounded-lg bg-slate-200 dark:bg-gray-800 p-0.5 gap-0.5',
         disabled ? 'opacity-40' : '',
         className,
       ].filter(Boolean).join(' ')}
@@ -67,8 +67,8 @@ export default function SegmentedControl<T extends string>({
               'px-3 py-1 text-xs font-medium rounded transition-colors',
               FOCUS_RING,
               isSelected
-                ? 'bg-gray-200 text-gray-900'
-                : 'text-gray-400 hover:text-white',
+                ? 'bg-white dark:bg-gray-200 text-slate-900 dark:text-gray-900'
+                : 'text-slate-600 hover:text-slate-950 dark:text-gray-400 dark:hover:text-white',
               disabled ? 'cursor-not-allowed' : '',
             ].filter(Boolean).join(' ')}
           >

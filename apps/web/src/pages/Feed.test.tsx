@@ -12,7 +12,22 @@ vi.mock('../lib/api', () => ({
     workouts: { list: vi.fn() },
     programs: { get: vi.fn() },
     gyms: { programs: { list: vi.fn() } },
+    me: {
+      personalProgram: {
+        get: vi.fn(),
+        workouts: { list: vi.fn(), create: vi.fn() },
+      },
+    },
+    namedWorkouts: { list: vi.fn() },
+    movements: { detect: vi.fn() },
   },
+  TYPE_ABBR: {
+    AMRAP: 'A', FOR_TIME: 'F', METCON: 'M', WARMUP: 'W',
+  },
+}))
+
+vi.mock('../context/MovementsContext.tsx', () => ({
+  useMovements: () => [] as { id: string; name: string; parentId: string | null }[],
 }))
 
 vi.mock('../context/GymContext.tsx', () => ({
@@ -23,14 +38,18 @@ vi.mock('../context/GymContext.tsx', () => ({
 // `beforeEach` / inside an `it` block to drive the picker selection.
 const mockFilter: {
   selected: string[]
+  gymProgramIds: string[]
   available: GymProgram[]
+  personalProgramId: string | null
   loading: boolean
   setSelected: ReturnType<typeof vi.fn>
   toggle: ReturnType<typeof vi.fn>
   clear: ReturnType<typeof vi.fn>
 } = {
   selected: [],
+  gymProgramIds: [],
   available: [],
+  personalProgramId: null,
   loading: false,
   setSelected: vi.fn(),
   toggle: vi.fn(),
@@ -39,6 +58,7 @@ const mockFilter: {
 vi.mock('../context/ProgramFilterContext.tsx', () => ({
   useProgramFilter: () => mockFilter,
   ProgramFilterProvider: ({ children }: { children: React.ReactNode }) => children,
+  PERSONAL_PROGRAM_SENTINEL: '__personal__',
 }))
 
 import { api } from '../lib/api'
@@ -113,9 +133,20 @@ function renderFeed() {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+// Most existing specs don't care about the personal-program upsert; default
+// it to a rejection so the page renders the same as before (add button stays
+// hidden). The personal-program-specific specs further down override this.
+// workouts.list must always return an array (never undefined) because the
+// Feed now spreads personal workouts into allWorkouts.
+beforeEach(() => {
+  vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('not seeded'))
+  vi.mocked(api.me.personalProgram.workouts.list).mockResolvedValue([] as never)
+})
+
 describe('Feed — programIds filter (slice 2)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('not seeded'))
     vi.mocked(api.workouts.list).mockResolvedValue([] as never)
     mockFilter.selected = []
     mockFilter.available = [
@@ -133,37 +164,32 @@ describe('Feed — programIds filter (slice 2)', () => {
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
   })
 
-  it('passes programIds in the filters bag and renders the single-program header', async () => {
+  it('passes programIds in the filters bag when a single program is selected', async () => {
     mockFilter.selected = ['prog-1']
+    mockFilter.gymProgramIds = ['prog-1']
     render(<MemoryRouter><Feed /></MemoryRouter>)
     await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
     const lastCall = vi.mocked(api.workouts.list).mock.calls.at(-1)!
     expect(lastCall[3]).toEqual({ programIds: ['prog-1'] })
-    expect(await screen.findByRole('heading', { name: 'Override — March 2026' })).toBeInTheDocument()
+    // Header always shows "Feed" — program selection shown in the inline picker
+    expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
   })
 
-  it('renders the multi-program header when 2+ programs are selected', async () => {
+  it('passes programIds in the filters bag when 2+ programs are selected', async () => {
     mockFilter.selected = ['prog-1', 'prog-2']
+    mockFilter.gymProgramIds = ['prog-1', 'prog-2']
     render(<MemoryRouter><Feed /></MemoryRouter>)
     await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
     const lastCall = vi.mocked(api.workouts.list).mock.calls.at(-1)!
     expect(lastCall[3]).toEqual({ programIds: ['prog-1', 'prog-2'] })
-    // Plain "Feed" heading + a "Filtered to 2 programs" eyebrow
     expect(screen.getByRole('heading', { name: 'Feed' })).toBeInTheDocument()
-    expect(screen.getByText('Filtered to 2 programs')).toBeInTheDocument()
-  })
-
-  it('shows a "Back to all workouts" link when any program is selected', async () => {
-    mockFilter.selected = ['prog-1']
-    render(<MemoryRouter><Feed /></MemoryRouter>)
-    await waitFor(() => expect(api.workouts.list).toHaveBeenCalled())
-    expect(screen.getByRole('link', { name: /Back to all workouts/ })).toBeInTheDocument()
   })
 })
 
 describe('Feed — workout-type tokens', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('not seeded'))
     mockFilter.selected = []
     mockFilter.available = []
   })
@@ -207,6 +233,7 @@ describe('Feed — workout-type tokens', () => {
 describe('Feed — empty-day tiles', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('not seeded'))
     mockFilter.selected = []
     mockFilter.available = []
   })
@@ -265,6 +292,7 @@ describe('Feed — empty-day tiles', () => {
 describe('Feed — tile result badges', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('not seeded'))
     mockFilter.selected = []
     mockFilter.available = []
   })
@@ -328,5 +356,81 @@ describe('Feed — tile result badges', () => {
     // The count "1" still appears (it counts the viewer too) — the design choice
     // is to always render N when N > 0 so the tile reflects the leaderboard size.
     expect(screen.getByText('1')).toBeInTheDocument()
+  })
+})
+
+describe('Feed — personal program', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFilter.selected = []
+    mockFilter.available = []
+    vi.mocked(api.me.personalProgram.get).mockResolvedValue({
+      id: 'pp-1',
+      name: 'Personal Program',
+      description: null,
+      startDate: '2026-05-01T00:00:00.000Z',
+      endDate: null,
+      coverColor: null,
+      visibility: 'PRIVATE',
+      ownerUserId: 'u-1',
+      createdAt: '2026-05-01T00:00:00.000Z',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+      _count: { workouts: 1 },
+    })
+    vi.mocked(api.namedWorkouts.list).mockResolvedValue([] as never)
+    vi.mocked(api.movements.detect).mockResolvedValue([] as never)
+  })
+
+  it('shows the "+" add-personal-workout button on each day-header row', async () => {
+    vi.mocked(api.workouts.list).mockResolvedValue([] as never)
+    renderFeed()
+    // Wait for personalProgram to resolve so the button is rendered.
+    const buttons = await screen.findAllByRole('button', { name: /Add personal workout/i })
+    // At least one for TODAY; the feed renders a row per day in the visible window.
+    expect(buttons.length).toBeGreaterThan(0)
+  })
+
+  it('hides the "+" button when the personal-program upsert fails', async () => {
+    vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('boom'))
+    vi.mocked(api.workouts.list).mockResolvedValue([] as never)
+    renderFeed()
+    expect(await screen.findByText('TODAY')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add personal workout/i })).not.toBeInTheDocument()
+  })
+
+  it('sorts personal-program workouts after gym workouts and renders an "Extra work" divider', async () => {
+    const today = new Date()
+    today.setHours(12, 0, 0, 0)
+    const gymWorkout = {
+      ...makeWorkout('AMRAP', 0),
+      id: 'w-gym',
+      title: 'Class WOD',
+      programId: 'gym-prog-99',
+    }
+    const personalWorkout = {
+      ...makeWorkout('METCON', 0),
+      id: 'w-personal',
+      title: 'My extra row',
+      programId: 'pp-1',
+    }
+    // Gym workout comes from the gym API; personal workout from the personal API.
+    vi.mocked(api.workouts.list).mockResolvedValue([gymWorkout] as never)
+    vi.mocked(api.me.personalProgram.workouts.list).mockResolvedValue([personalWorkout] as never)
+    renderFeed()
+
+    // Both tiles render
+    const classTile = await screen.findByRole('button', { name: /Class WOD/i })
+    const personalTile = await screen.findByRole('button', { name: /My extra row/i })
+    expect(classTile).toBeInTheDocument()
+    expect(personalTile).toBeInTheDocument()
+
+    // Personal tile renders AFTER the gym tile in DOM order.
+    const order = classTile.compareDocumentPosition(personalTile)
+    expect(order & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    // The "Extra work" divider only appears when both gym and personal tiles
+    // are present on the same day — this assertion is the load-bearing check
+    // that a personal tile is recognized as such.
+    expect(await screen.findByText(/Extra work/i)).toBeInTheDocument()
   })
 })

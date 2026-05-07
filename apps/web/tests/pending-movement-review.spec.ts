@@ -47,7 +47,9 @@ async function teardownReviewerFixture(f: ReviewerFixture) {
 async function gotoSettings(page: Page, f: ReviewerFixture) {
   await loginAs(page.context(), f.reviewerUserId, 'OWNER')
   await page.addInitScript((id) => localStorage.setItem('gymId', id), f.gymId)
-  await page.goto('/settings')
+  // Pending-movement review moved out of /gym-settings into the Movements
+  // tab of /admin/settings. Hash anchor selects the tab on mount.
+  await page.goto('/admin/settings#movements')
   await page.waitForSelector('h2:has-text("Pending Movements")')
 }
 

@@ -76,7 +76,10 @@ async function req<T>(path: string, opts: RequestInit & { token?: string } = {})
   }
   if (res.status === 204) return undefined as T
   const data = await res.json()
-  if (!res.ok) throw new Error(data?.error ?? `Request failed: ${res.status}`)
+  if (!res.ok) {
+    const err = Object.assign(new Error(data?.error ?? `Request failed: ${res.status}`), { status: res.status })
+    throw err
+  }
   return data as T
 }
 
@@ -86,6 +89,98 @@ export interface Movement {
   id: string
   name: string
   parentId: string | null
+}
+
+export type MovementCategory = 'STRENGTH' | 'ENDURANCE' | 'MACHINE' | 'GYMNASTICS' | 'SKILL'
+
+export interface MovementHistorySet {
+  reps?: string
+  load?: number
+  seconds?: number
+  distance?: number
+  calories?: number
+  tempo?: string
+}
+
+export interface MovementHistoryResult {
+  id: string
+  createdAt: string
+  level: string
+  notes: string | null
+  workout: { id: string; title: string; type: string; scheduledAt: string }
+  movementSets: MovementHistorySet[]
+  loadUnit?: string
+  distanceUnit?: string
+}
+
+export interface StrengthPrEntry {
+  reps: number
+  maxLoad: number
+  unit: string
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface EndurancePrEntry {
+  distance: number
+  distanceUnit: string
+  bestSeconds: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MachinePrCalEntry {
+  calories: number
+  bestSeconds: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MachinePrDistEntry {
+  distance: number
+  distanceUnit: string
+  bestSeconds: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MachineTimeCapCalEntry {
+  seconds: number
+  bestCalories: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MachineTimeCapDistEntry {
+  seconds: number
+  bestDistance: number
+  distanceUnit: string
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export type MovementPrTable =
+  | { category: 'STRENGTH'; entries: StrengthPrEntry[] }
+  | { category: 'ENDURANCE'; entries: EndurancePrEntry[] }
+  | { category: 'MACHINE'; outputCapped: { calories: MachinePrCalEntry[]; distance: MachinePrDistEntry[] }; timeCapped: { calories: MachineTimeCapCalEntry[]; distance: MachineTimeCapDistEntry[] } }
+  | { category: 'GYMNASTICS' | 'SKILL'; entries: never[] }
+
+export interface MovementHistoryPage {
+  movementId: string
+  movementName: string
+  category: MovementCategory
+  prTable: MovementPrTable
+  results: MovementHistoryResult[]
+  total: number
+  page: number
+  limit: number
+  pages: number
 }
 
 export interface PendingMovement {
@@ -243,12 +338,65 @@ export interface ResultHistoryPage {
   pages: number
 }
 
+export interface DashboardTodayResult {
+  id: string
+  value: Record<string, unknown>
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  primaryScoreKind: string | null
+  primaryScoreValue: number | null
+  createdAt: string
+  notes: string | null
+}
+
+export interface DashboardLeaderboard {
+  rank: number | null
+  totalLogged: number
+  percentile: number | null
+}
+
+export interface DashboardToday {
+  workout: Workout | null
+  myResult: DashboardTodayResult | null
+  leaderboard: DashboardLeaderboard | null
+  gymMemberCount: number
+}
+
 export interface MyGym {
   id: string
   name: string
   slug: string
   logoUrl: string | null
   role: Role
+}
+
+export interface ConsistencyData {
+  currentStreak: number
+  longestStreak: number
+  history: { date: string; count: number }[]
+}
+
+export interface TrackedMovement {
+  movementId: string
+  name: string
+  count: number
+}
+
+export interface StrengthTrajectoryPoint {
+  date: string
+  maxLoad: number
+  loadUnit: string
+  sets: { reps?: string; load?: number }[]
+  workoutId: string
+  resultId: string
+}
+
+export interface StrengthTrajectoryData {
+  movementId: string
+  name: string
+  currentPr: number | null
+  loadUnit: string | null
+  points: StrengthTrajectoryPoint[]
 }
 
 export interface Gym {
@@ -283,6 +431,14 @@ export interface Program {
   createdAt: string
   updatedAt: string
   _count?: { members: number; workouts: number }
+}
+
+// User's private "Personal Program" (#183). Same Prisma model as Program with
+// `ownerUserId` set, no GymProgram links, and PRIVATE visibility. The
+// `_count.workouts` field is always populated since the page header reads it.
+export interface PersonalProgram extends Omit<Program, '_count'> {
+  ownerUserId: string
+  _count: { workouts: number }
 }
 
 export type ProgramRole = 'MEMBER' | 'PROGRAMMER'
@@ -574,9 +730,65 @@ export const api = {
      */
     programs: (gymId: string, token?: string) =>
       req<GymProgram[]>(`/api/me/programs?gymId=${encodeURIComponent(gymId)}`, { token }),
+
+    personalProgram: {
+      // Returns the caller's private "Personal Program" (#183), creating it on
+      // first call. Idempotent — repeat calls return the existing row.
+      get: (token?: string) =>
+        req<PersonalProgram>('/api/me/personal-program', { token }),
+
+      workouts: {
+        // Date range optional. When `from` and `to` are both supplied the
+        // server filters to that window — used by the calendar page to fetch
+        // a single visible month at a time.
+        list: (range?: { from: string; to: string }, token?: string) => {
+          const qs = range ? `?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}` : ''
+          return req<Workout[]>(`/api/me/personal-program/workouts${qs}`, { token })
+        },
+        // Body uses the same shape as `api.workouts.create` minus `programId`,
+        // which the server pins to the caller's personal program.
+        create: (
+          data: {
+            title: string
+            description: string
+            type: WorkoutType
+            scheduledAt: string
+            movementIds?: string[]
+            movements?: WorkoutMovementInput[]
+            namedWorkoutId?: string
+            timeCapSeconds?: number | null
+            tracksRounds?: boolean
+          },
+          token?: string,
+        ) =>
+          req<Workout>('/api/me/personal-program/workouts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            token,
+          }),
+      },
+    },
+
+    analytics: {
+      consistency: (weeks?: number) => {
+        const qs = weeks ? `?weeks=${weeks}` : ''
+        return req<ConsistencyData>(`/api/me/analytics/consistency${qs}`)
+      },
+      trackedMovements: (days = 60, limit = 5) =>
+        req<TrackedMovement[]>(`/api/me/analytics/tracked-movements?days=${days}&limit=${limit}`),
+      strengthTrajectory: (movementId: string, range: '1M' | '3M' | '6M' | '1Y') =>
+        req<StrengthTrajectoryData>(`/api/me/analytics/strength-trajectory?movementId=${encodeURIComponent(movementId)}&range=${range}`),
+    },
   },
 
   gyms: {
+    dashboard: {
+      today: (gymId: string, programIds?: string[]) => {
+        const qs = programIds?.length ? `?programIds=${programIds.join(',')}` : ''
+        return req<DashboardToday>(`/api/gyms/${gymId}/dashboard/today${qs}`)
+      },
+    },
+
     create: (data: { name: string; timezone?: string }, token?: string) =>
       req<Gym>('/api/gyms', { method: 'POST', body: JSON.stringify(data), token }),
 
@@ -819,8 +1031,11 @@ export const api = {
     delete: (resultId: string, token?: string) =>
       req<void>(`/api/results/${resultId}`, { method: 'DELETE', token }),
 
-    history: (page = 1, movementIds?: string[], token?: string) => {
-      const qs = movementIds?.length ? `&${movementIds.map((id) => `movementIds=${encodeURIComponent(id)}`).join('&')}` : ''
+    history: (page = 1, movementIds?: string[], programIds?: string[], token?: string) => {
+      const parts: string[] = []
+      if (movementIds?.length) parts.push(...movementIds.map((id) => `movementIds=${encodeURIComponent(id)}`))
+      if (programIds?.length) parts.push(...programIds.map((id) => `programIds=${encodeURIComponent(id)}`))
+      const qs = parts.length ? `&${parts.join('&')}` : ''
       return req<ResultHistoryPage>(`/api/me/results?page=${page}${qs}`, { token })
     },
   },
@@ -859,6 +1074,9 @@ export const api = {
         body: JSON.stringify({ status }),
         token,
       }),
+
+    myHistory: (id: string, page = 1, limit = 10, token?: string) =>
+      req<MovementHistoryPage>(`/api/movements/${id}/my-history?page=${page}&limit=${limit}`, { token }),
   },
 
   programs: {
@@ -992,6 +1210,8 @@ export const api = {
         token?: string,
       ) =>
         req<Workout>(`/api/admin/workouts/${id}`, { method: 'PATCH', body: JSON.stringify(data), token }),
+      publish: (id: string, token?: string) =>
+        req<Workout>(`/api/admin/workouts/${id}/publish`, { method: 'POST', token }),
       delete: (id: string, token?: string) =>
         req<void>(`/api/admin/workouts/${id}`, { method: 'DELETE', token }),
     },

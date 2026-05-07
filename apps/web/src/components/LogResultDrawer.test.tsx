@@ -216,6 +216,23 @@ describe('LogResultDrawer — score-mode workouts', () => {
     expect(body.value.movementResults).toEqual([])
   })
 
+  test('INTERVALS shows reps input (not time) and posts ROUNDS_REPS score', async () => {
+    const w = makeWorkout({ type: 'INTERVALS', tracksRounds: false })
+    render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)
+
+    expect(screen.queryByLabelText(/^Min$/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Sec$/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Rounds$/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/^Reps$/i)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/^Reps$/i), { target: { value: '45' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Result' }))
+
+    await waitFor(() => expect(FETCH_MOCK).toHaveBeenCalledTimes(1))
+    const body = JSON.parse(FETCH_MOCK.mock.calls[0][1].body)
+    expect(body.value.score).toEqual({ kind: 'ROUNDS_REPS', reps: 45, cappedOut: false })
+  })
+
   test('FOR_TIME posts TIME score with collapsed seconds', async () => {
     const w = makeWorkout({ type: 'FOR_TIME' })
     render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)

@@ -9,6 +9,15 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#030712" />
     <title>WODalytics</title>
+    <!-- Apply theme class before first paint to prevent flash of wrong theme. -->
+    <script>
+      (function () {
+        var s = localStorage.getItem('wodalytics-theme');
+        var m = s === 'light' || s === 'dark' || s === 'system' ? s : 'system';
+        var dark = m === 'dark' || (m === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

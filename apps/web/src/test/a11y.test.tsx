@@ -20,6 +20,12 @@ vi.mock('../lib/api', () => ({
     programs: { get: vi.fn() },
     namedWorkouts: { list: vi.fn() },
     movements: { list: vi.fn(), detect: vi.fn() },
+    me: {
+      personalProgram: {
+        get: vi.fn(),
+        workouts: { list: vi.fn(), create: vi.fn() },
+      },
+    },
   },
 }))
 
@@ -44,9 +50,10 @@ vi.mock('../context/MovementsContext.tsx', () => ({
 // no-filter rendering path.
 vi.mock('../context/ProgramFilterContext.tsx', () => ({
   useProgramFilter: () => ({
-    selected: [], available: [], loading: false,
+    selected: [], gymProgramIds: [], available: [], personalProgramId: null, loading: false,
     setSelected: vi.fn(), toggle: vi.fn(), clear: vi.fn(),
   }),
+  PERSONAL_PROGRAM_SENTINEL: '__personal__',
   ProgramFilterProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
@@ -62,7 +69,7 @@ vi.mock('../components/LogResultDrawer.tsx', () => ({ default: () => null }))
 
 import { api } from '../lib/api'
 import Feed from '../pages/Feed'
-import Calendar from '../pages/Calendar'
+import UnifiedCalendar from '../pages/UnifiedCalendar'
 import WodDetail from '../pages/WodDetail'
 import History from '../pages/History'
 
@@ -113,6 +120,8 @@ beforeEach(() => {
   vi.mocked(api.gyms.programs.list).mockResolvedValue([] as never)
   vi.mocked(api.namedWorkouts.list).mockResolvedValue([] as never)
   vi.mocked(api.movements.list).mockResolvedValue([] as never)
+  vi.mocked(api.me.personalProgram.get).mockRejectedValue(new Error('not seeded'))
+  vi.mocked(api.me.personalProgram.workouts.list).mockResolvedValue([] as never)
 })
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -132,7 +141,7 @@ describe('a11y — page renders have no axe violations', () => {
   it('Calendar', async () => {
     const { container } = render(
       <MemoryRouter>
-        <Calendar />
+        <UnifiedCalendar />
       </MemoryRouter>,
     )
     // Wait for the calendar grid to render (day-of-week header is synchronous).

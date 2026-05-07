@@ -47,31 +47,31 @@ export default function GymCreate() {
     <div className="max-w-md space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">Set up a new gym</h1>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-slate-500 dark:text-gray-400">
           You'll be the owner. After creation you can invite members and add programs from Gym Settings.
         </p>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
-          <span className="text-xs text-gray-400 mb-1 block">Gym name</span>
+          <span className="text-xs text-slate-600 dark:text-gray-400 mb-1 block">Gym name</span>
           <input
             type="text"
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Crossfit Bern"
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
 
         <label className="block">
-          <span className="text-xs text-gray-400 mb-1 block">Timezone</span>
+          <span className="text-xs text-slate-600 dark:text-gray-400 mb-1 block">Timezone</span>
           <select
             id="gym-create-timezone"
             value={timezone}
             onChange={(e) => setTimezone(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
           >
             {TIMEZONES.map((tz) => (
               <option key={tz} value={tz}>{tz}</option>

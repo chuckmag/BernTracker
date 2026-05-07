@@ -10,7 +10,7 @@ import type {
 export type { AgeDivision, IdentifiedGender, ResultValue, WorkoutGender, WorkoutLevel }
 export { AGE_DIVISIONS, deriveWorkoutGender, getAgeDivision } from '@wodalytics/types'
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://qa.wodalytics.com'
 const ACCESS_TOKEN_KEY = 'accessToken'
 const REFRESH_TOKEN_KEY = 'refreshToken'
 
@@ -66,6 +66,8 @@ export interface AuthUser {
   id: string
   email: string
   name: string
+  firstName: string | null
+  lastName: string | null
   identifiedGender: IdentifiedGender | null
 }
 
@@ -85,6 +87,14 @@ export interface Program {
   description: string | null
   visibility: 'PUBLIC' | 'PRIVATE'
   coverColor: string | null
+}
+
+// User's private "Personal Program" (#183). Same Program shape with
+// `ownerUserId` set, no GymProgram links, and PRIVATE visibility. The
+// `_count.workouts` field is always populated since the page header reads it.
+export interface PersonalProgram extends Program {
+  ownerUserId: string
+  _count: { workouts: number }
 }
 
 // Mirrors the web `GymProgram` shape (apps/web/src/lib/api.ts): the join row
@@ -114,6 +124,30 @@ export interface Workout {
   externalSourceId: string | null
 }
 
+export interface DashboardTodayResult {
+  id: string
+  value: ResultValue
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  primaryScoreKind: string | null
+  primaryScoreValue: number | null
+  createdAt: string
+  notes: string | null
+}
+
+export interface DashboardLeaderboard {
+  rank: number | null
+  totalLogged: number
+  percentile: number | null
+}
+
+export interface DashboardToday {
+  workout: (Workout & { program: { id: string; name: string } | null; namedWorkout: { id: string; name: string; category: string } | null; _count: { results: number } }) | null
+  myResult: DashboardTodayResult | null
+  leaderboard: DashboardLeaderboard | null
+  gymMemberCount: number
+}
+
 export interface LeaderboardEntry {
   id: string
   user: { id: string; name: string; birthday: string | null }
@@ -139,11 +173,94 @@ export interface ResultHistoryItem {
   createdAt: string
 }
 
+export type MovementCategory = 'STRENGTH' | 'ENDURANCE' | 'MACHINE' | 'GYMNASTICS' | 'SKILL'
+
+export interface MovementHistorySet {
+  reps?: string
+  load?: number
+  distance?: number
+  distanceUnit?: string
+  calories?: number
+  seconds?: number
+}
+
+export interface MovementHistoryResult {
+  id: string
+  workout: { id: string; title: string; type: WorkoutType; scheduledAt: string }
+  level: WorkoutLevel
+  loadUnit?: string
+  distanceUnit?: string
+  movementSets: MovementHistorySet[]
+}
+
+export interface StrengthPrEntry {
+  reps: number
+  maxLoad: number
+  unit: string
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface EndurancePrEntry {
+  distance: number
+  distanceUnit: string
+  bestSeconds: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MovementHistoryPage {
+  movementId: string
+  movementName: string
+  category: MovementCategory
+  prTable:
+    | { category: 'STRENGTH'; entries: StrengthPrEntry[] }
+    | { category: 'ENDURANCE'; entries: EndurancePrEntry[] }
+    | { category: 'MACHINE'; outputCapped: { calories: unknown[]; distance: unknown[] }; timeCapped: { calories: unknown[]; distance: unknown[] } }
+    | { category: 'GYMNASTICS' | 'SKILL'; entries: never[] }
+  results: MovementHistoryResult[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
 export interface LogResultInput {
   level: WorkoutLevel
   workoutGender: WorkoutGender
   value: ResultValue
   notes?: string
+}
+
+export interface ConsistencyData {
+  currentStreak: number
+  longestStreak: number
+  history: { date: string; count: number }[]
+}
+
+export interface TrackedMovement {
+  movementId: string
+  name: string
+  count: number
+}
+
+export interface StrengthTrajectoryPoint {
+  date: string
+  maxLoad: number
+  loadUnit: string
+  sets: { reps?: string; load?: number }[]
+  workoutId: string
+  resultId: string
+}
+
+export interface StrengthTrajectoryData {
+  movementId: string
+  name: string
+  currentPr: number | null
+  loadUnit: string | null
+  points: StrengthTrajectoryPoint[]
 }
 
 // ── Token storage ────────────────────────────────────────────────────────────
@@ -244,6 +361,39 @@ export const api = {
     programs: (gymId: string) =>
       request<GymProgram[]>(`/api/me/programs?gymId=${encodeURIComponent(gymId)}`),
 
+    personalProgram: {
+      // Returns the caller's private "Personal Program" (#183), creating it on
+      // first call. Idempotent — repeat calls return the existing row.
+      get: () =>
+        request<PersonalProgram>('/api/me/personal-program'),
+
+      workouts: {
+        // Date range optional; without it every workout in the program is
+        // returned. The mobile feed currently routes through
+        // `/api/gyms/:gymId/workouts` (which already includes unaffiliated
+        // programs the caller subscribes to), so the dedicated personal-program
+        // list is only used by the future personal-program calendar screen.
+        list: (range?: { from: string; to: string }) => {
+          const qs = range ? `?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}` : ''
+          return request<Workout[]>(`/api/me/personal-program/workouts${qs}`)
+        },
+        // Body matches `api.workouts.create` minus `programId`, which the
+        // server pins to the caller's personal program (and strips before
+        // validating, so a spoofed value can't escape).
+        create: (data: {
+          title: string
+          description: string
+          type: WorkoutType
+          scheduledAt: string
+          movementIds?: string[]
+        }) =>
+          request<Workout>('/api/me/personal-program/workouts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+          }),
+      },
+    },
+
     results: (page = 1, movementIds?: string[]) => {
       const qs = new URLSearchParams({ page: String(page), limit: '20' })
       if (movementIds?.length) qs.set('movementIds', movementIds.join(','))
@@ -258,6 +408,13 @@ export const api = {
   },
 
   gyms: {
+    dashboard: {
+      today: (gymId: string, programIds?: string[]) => {
+        const qs = programIds?.length ? `?programIds=${programIds.join(',')}` : ''
+        return request<DashboardToday>(`/api/gyms/${gymId}/dashboard/today${qs}`)
+      },
+    },
+
     workouts: (gymId: string, from: string, to: string, programIds?: string[]) => {
       const qs = new URLSearchParams({ from, to })
       if (programIds?.length) qs.set('programIds', programIds.join(','))
@@ -281,6 +438,13 @@ export const api = {
       }),
   },
 
+  movements: {
+    myHistory: (movementId: string, page = 1, limit = 10) =>
+      request<MovementHistoryPage>(
+        `/api/movements/${encodeURIComponent(movementId)}/my-history?page=${page}&limit=${limit}`,
+      ),
+  },
+
   results: {
     update: (
       resultId: string,
@@ -293,5 +457,16 @@ export const api = {
 
     delete: (resultId: string) =>
       request<void>(`/api/results/${resultId}`, { method: 'DELETE' }),
+  },
+
+  analytics: {
+    consistency: (weeks?: number) => {
+      const qs = weeks ? `?weeks=${weeks}` : ''
+      return request<ConsistencyData>(`/api/me/analytics/consistency${qs}`)
+    },
+    trackedMovements: (days = 60, limit = 5) =>
+      request<TrackedMovement[]>(`/api/me/analytics/tracked-movements?days=${days}&limit=${limit}`),
+    strengthTrajectory: (movementId: string, range: '1M' | '3M' | '6M' | '1Y') =>
+      request<StrengthTrajectoryData>(`/api/me/analytics/strength-trajectory?movementId=${encodeURIComponent(movementId)}&range=${range}`),
   },
 }

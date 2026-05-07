@@ -6,6 +6,7 @@ import { prisma } from '@wodalytics/db'
 import { authRouter } from './routes/auth.js'
 import gymsRouter from './routes/gyms'
 import programsRouter from './routes/programs'
+import personalProgramRouter from './routes/personalProgram'
 import workoutsRouter from './routes/workouts'
 import resultsRouter from './routes/results'
 import namedWorkoutsRouter from './routes/namedWorkouts'
@@ -16,6 +17,8 @@ import invitationsRouter from './routes/invitations'
 import avatarRouter from './routes/avatar'
 import gymLogoRouter from './routes/gymLogo'
 import adminRouter from './routes/admin'
+import dashboardRouter from './routes/dashboard'
+import analyticsRouter from './routes/analytics'
 import { createLogger } from './lib/logger.js'
 import { requestLogger } from './middleware/requestLogger.js'
 
@@ -58,6 +61,7 @@ app.get('/api/health', async (_req, res) => {
 
 app.use('/api', gymsRouter)
 app.use('/api', programsRouter)
+app.use('/api', personalProgramRouter)
 app.use('/api', workoutsRouter)
 app.use('/api', resultsRouter)
 app.use('/api', namedWorkoutsRouter)
@@ -68,6 +72,8 @@ app.use('/api', invitationsRouter)
 app.use('/api', avatarRouter)
 app.use('/api', gymLogoRouter)
 app.use('/api', adminRouter)
+app.use('/api', dashboardRouter)
+app.use('/api', analyticsRouter)
 
 // Static-file route for the LocalFsImageStorage backend (dev-only). When
 // AWS_S3_BUCKET is set we never write here; the route is harmless to leave

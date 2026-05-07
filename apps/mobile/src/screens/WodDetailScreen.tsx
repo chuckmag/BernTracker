@@ -17,6 +17,7 @@ import { styleFor } from '../lib/workoutTypeStyles'
 import { useAuth } from '../context/AuthContext'
 import { useGym } from '../context/GymContext'
 import { formatResultValue } from '../lib/format'
+import MovementHistorySection from '../components/MovementHistorySection'
 
 type Props = StackScreenProps<RootStackParamList, 'WodDetail'>
 
@@ -235,6 +236,21 @@ export default function WodDetailScreen({ route, navigation }: Props) {
         >
           <Text style={styles.logButtonText}>Log Result</Text>
         </TouchableOpacity>
+      )}
+
+      {/* Your History — hidden when arriving from movement-history or WODalytics to prevent nesting */}
+      {user && route.params.from !== 'movement-history' && route.params.from !== 'wodalytics' && workout.workoutMovements.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>YOUR HISTORY</Text>
+          {workout.workoutMovements.map((wm) => (
+            <MovementHistorySection
+              key={wm.movement.id}
+              movementId={wm.movement.id}
+              movementName={wm.movement.name}
+              navigation={navigation}
+            />
+          ))}
+        </View>
       )}
 
       {/* Leaderboard */}

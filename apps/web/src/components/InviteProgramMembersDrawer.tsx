@@ -98,39 +98,39 @@ export default function InviteProgramMembersDrawer({
 
       <div
         className={[
-          'fixed top-0 right-0 h-full w-96 bg-gray-900 border-l border-gray-800 z-40',
+          'fixed top-0 right-0 h-full w-96 bg-white dark:bg-gray-900 border-l border-slate-200 dark:border-gray-800 z-40',
           'flex flex-col shadow-2xl transition-transform duration-300',
           open ? 'translate-x-0' : 'translate-x-full',
         ].join(' ')}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-          <h2 className="text-base font-semibold">Invite members</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-gray-800">
+          <h2 className="text-base font-semibold text-slate-950 dark:text-white">Invite members</h2>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:text-white hover:bg-gray-800 transition-colors text-xl leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+            className="inline-flex items-center justify-center w-7 h-7 rounded text-slate-400 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors text-xl leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
             aria-label="Close drawer"
           >
             ×
           </button>
         </div>
 
-        <div className="px-5 py-3 border-b border-gray-800">
+        <div className="px-5 py-3 border-b border-slate-200 dark:border-gray-800">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search gym members…"
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-400 focus:outline-none focus:border-primary"
             aria-label="Search gym members"
           />
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {error && <p className="text-red-400 text-sm px-5 py-3">{error}</p>}
-          {loadingList && <p className="text-gray-400 text-sm px-5 py-3">Loading members…</p>}
+          {loadingList && <p className="text-slate-400 dark:text-gray-400 text-sm px-5 py-3">Loading members…</p>}
           {!loadingList && candidates.length === 0 && (
-            <p className="text-gray-400 text-sm px-5 py-3">
+            <p className="text-slate-400 dark:text-gray-400 text-sm px-5 py-3">
               {gymMembers.length === existingMemberIds.size
                 ? 'All gym members are already in this program.'
                 : 'No matches.'}
@@ -141,26 +141,26 @@ export default function InviteProgramMembersDrawer({
             return (
               <label
                 key={m.id}
-                className="flex items-center gap-3 px-5 py-2 text-sm text-gray-200 hover:bg-gray-800 cursor-pointer"
+                className="flex items-center gap-3 px-5 py-2 text-sm text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-800 cursor-pointer"
               >
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-indigo-500 focus:ring-indigo-500"
+                  className="h-4 w-4 rounded border-slate-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-primary focus:ring-primary"
                   checked={checked}
                   onChange={() => togglePick(m.id)}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-white">
-                    {m.name ?? <span className="italic text-gray-400">Pending</span>}
+                  <span className="block truncate text-slate-950 dark:text-white">
+                    {m.name ?? <span className="italic text-slate-400 dark:text-gray-400">Pending</span>}
                   </span>
-                  <span className="block truncate text-xs text-gray-400">{m.email}</span>
+                  <span className="block truncate text-xs text-slate-500 dark:text-gray-400">{m.email}</span>
                 </span>
               </label>
             )
           })}
         </div>
 
-        <div className="px-5 py-4 border-t border-gray-800 flex items-center gap-2">
+        <div className="px-5 py-4 border-t border-slate-200 dark:border-gray-800 flex items-center gap-2">
           <Button variant="primary" onClick={handleSubmit} disabled={submitting || picked.size === 0} className="flex-1">
             {submitting ? 'Inviting…' : `Invite ${picked.size || ''} member${picked.size === 1 ? '' : 's'}`.trim()}
           </Button>

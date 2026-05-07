@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar'
-import { ActivityIndicator, View } from 'react-native'
+import { ActivityIndicator, Image, Text, View } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createStackNavigator } from '@react-navigation/stack'
@@ -7,10 +7,13 @@ import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { GymProvider } from './src/context/GymContext'
 import { ProgramFilterProvider } from './src/context/ProgramFilterContext'
 import LoginScreen from './src/screens/LoginScreen'
+import HomeScreen from './src/screens/HomeScreen'
 import FeedScreen from './src/screens/FeedScreen'
 import WodDetailScreen from './src/screens/WodDetailScreen'
 import HistoryScreen from './src/screens/HistoryScreen'
 import LogResultScreen from './src/screens/LogResultScreen'
+import AddPersonalWorkoutScreen from './src/screens/AddPersonalWorkoutScreen'
+import AnalyticsScreen from './src/screens/AnalyticsScreen'
 import type { LeaderboardEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -19,13 +22,27 @@ import type { LeaderboardEntry } from './src/lib/api'
 // pushed from any tab. Tabs only carry their list screens.
 export type RootStackParamList = {
   Main: undefined
-  WodDetail: { workoutId: string; from?: 'feed' | 'history' }
+  WodDetail: { workoutId: string; from?: 'feed' | 'history' | 'movement-history' | 'wodalytics' }
   LogResult: { workoutId: string; resultId?: string; existingResult?: LeaderboardEntry }
+  // Modal-style flow off the Feed (#183 mobile parity). Carries the
+  // YYYY-MM-DD calendar date the user tapped "+" on so the form can
+  // pin scheduledAt without exposing a date picker on first cut.
+  AddPersonalWorkout: { scheduledAt: string }
 }
 
 export type MainTabParamList = {
+  HomeTab: undefined
   FeedTab: undefined
   HistoryTab: undefined
+  AnalyticsTab: undefined
+}
+
+export type AnalyticsStackParamList = {
+  Analytics: undefined
+}
+
+export type HomeStackParamList = {
+  Home: undefined
 }
 
 export type FeedStackParamList = {
@@ -40,14 +57,24 @@ export type HistoryStackParamList = {
 
 const RootStack = createStackNavigator<RootStackParamList>()
 const Tab = createBottomTabNavigator<MainTabParamList>()
+const HomeStack = createStackNavigator<HomeStackParamList>()
 const FeedStack = createStackNavigator<FeedStackParamList>()
 const HistoryStack = createStackNavigator<HistoryStackParamList>()
+const AnalyticsStack = createStackNavigator<AnalyticsStackParamList>()
 
 const stackScreenOptions = {
   headerStyle: { backgroundColor: '#111827' },
   headerTintColor: '#ffffff',
   headerTitleStyle: { fontWeight: '600' as const },
   cardStyle: { backgroundColor: '#030712' },
+}
+
+function HomeStackNavigator() {
+  return (
+    <HomeStack.Navigator screenOptions={stackScreenOptions}>
+      <HomeStack.Screen name="Home" component={HomeScreen} options={{ title: 'Today' }} />
+    </HomeStack.Navigator>
+  )
 }
 
 function FeedStackNavigator() {
@@ -66,6 +93,29 @@ function HistoryStackNavigator() {
   )
 }
 
+function AnalyticsStackNavigator() {
+  return (
+    <AnalyticsStack.Navigator screenOptions={stackScreenOptions}>
+      <AnalyticsStack.Screen
+        name="Analytics"
+        component={AnalyticsScreen}
+        options={{
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Image
+                source={require('./assets/favicon.png')}
+                style={{ width: 36, height: 36 }}
+                resizeMode="contain"
+              />
+              <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '600' }}>WODalytics</Text>
+            </View>
+          ),
+        }}
+      />
+    </AnalyticsStack.Navigator>
+  )
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -76,8 +126,23 @@ function MainTabs() {
         tabBarInactiveTintColor: '#6b7280',
       }}
     >
+      <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Today' }} />
       <Tab.Screen name="FeedTab" component={FeedStackNavigator} options={{ title: 'Feed' }} />
       <Tab.Screen name="HistoryTab" component={HistoryStackNavigator} options={{ title: 'History' }} />
+      <Tab.Screen
+        name="AnalyticsTab"
+        component={AnalyticsStackNavigator}
+        options={{
+          title: 'Analytics',
+          tabBarIcon: ({ focused, size }) => (
+            <Image
+              source={require('./assets/favicon.png')}
+              style={{ width: size, height: size, opacity: focused ? 1 : 0.5 }}
+              resizeMode="contain"
+            />
+          ),
+        }}
+      />
     </Tab.Navigator>
   )
 }
@@ -88,6 +153,11 @@ function RootStackNavigator() {
       <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
       <RootStack.Screen name="WodDetail" component={WodDetailScreen} options={{ title: '' }} />
       <RootStack.Screen name="LogResult" component={LogResultScreen} options={{ title: 'Log Result' }} />
+      <RootStack.Screen
+        name="AddPersonalWorkout"
+        component={AddPersonalWorkoutScreen}
+        options={{ title: 'Personal Workout', presentation: 'modal' }}
+      />
     </RootStack.Navigator>
   )
 }

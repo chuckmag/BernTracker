@@ -75,7 +75,7 @@ export default function AdminProgramDetail() {
     setError(null)
     try {
       await adminProgramScope.deleteProgram(program.id)
-      navigate('/admin/programs', { replace: true })
+      navigate('/admin/settings#programs', { replace: true })
     } catch (e) {
       setError((e as Error).message)
       setDeleting(false)
@@ -109,7 +109,7 @@ export default function AdminProgramDetail() {
     return (
       <div>
         <p className="text-red-400 mb-3">{error ?? 'Program not found.'}</p>
-        <Link to="/admin/programs" className="text-indigo-400 hover:text-indigo-300 text-sm">← Back to Admin · Programs</Link>
+        <Link to="/admin/settings#programs" className="text-primary hover:opacity-80 text-sm">← Back to WODalytics Settings</Link>
       </div>
     )
   }
@@ -119,7 +119,7 @@ export default function AdminProgramDetail() {
   return (
     <div>
       <div className="mb-4">
-        <Link to="/admin/programs" className="text-xs text-indigo-400 hover:text-indigo-300">← Admin · Programs</Link>
+        <Link to="/admin/settings#programs" className="text-xs text-primary hover:opacity-80">← WODalytics Settings</Link>
       </div>
 
       <div className="flex items-start gap-4 mb-6">
@@ -130,7 +130,7 @@ export default function AdminProgramDetail() {
             <VisibilityBadge visibility={program.visibility} />
           </div>
           {program.description && (
-            <p className="mt-1 text-sm text-gray-400">{program.description}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">{program.description}</p>
           )}
         </div>
         <Button variant="secondary" onClick={() => setProgramDrawerOpen(true)}>Edit</Button>
@@ -146,7 +146,7 @@ export default function AdminProgramDetail() {
           <Button variant="primary" onClick={openCreateWorkout}>+ New Workout</Button>
         </div>
         {workouts.length === 0 ? (
-          <p className="text-sm text-gray-500">No workouts yet.</p>
+          <p className="text-sm text-slate-500 dark:text-gray-500">No workouts yet.</p>
         ) : (
           <ul className="space-y-2">
             {workouts.map((w) => (
@@ -156,8 +156,8 @@ export default function AdminProgramDetail() {
         )}
       </section>
 
-      <div className="mt-10 pt-6 border-t border-gray-800">
-        <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3">Danger zone</h3>
+      <div className="mt-10 pt-6 border-t border-slate-200 dark:border-gray-800">
+        <h3 className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-3">Danger zone</h3>
         <Button variant="destructive" onClick={handleDeleteProgram} disabled={deleting}>
           {deleting ? 'Deleting…' : 'Delete program'}
         </Button>
@@ -201,7 +201,7 @@ function AdminWorkoutRow({ workout, onClick }: AdminWorkoutRowProps) {
       <button
         type="button"
         onClick={onClick}
-        className="w-full bg-gray-900 border border-gray-800 rounded-lg p-3 flex items-start gap-3 text-left hover:border-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+        className="w-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-lg p-3 flex items-start gap-3 text-left hover:border-slate-300 dark:hover:border-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
       >
         <span
           className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-md text-xs font-bold ${style.bg} ${style.tint}`}
@@ -211,14 +211,14 @@ function AdminWorkoutRow({ workout, onClick }: AdminWorkoutRowProps) {
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-medium text-white truncate">{workout.title}</h3>
+            <h3 className="font-medium text-slate-950 dark:text-white truncate">{workout.title}</h3>
             {workout.status === 'DRAFT' && (
               <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300">
                 Draft
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">{date}</p>
+          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{date}</p>
         </div>
       </button>
     </li>

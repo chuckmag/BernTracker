@@ -157,12 +157,12 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex justify-center p-4 sm:p-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-gray-950 text-slate-950 dark:text-white flex justify-center p-4 sm:p-8">
       <div className="w-full max-w-xl space-y-6">
         <header className="space-y-2">
-          <p className="text-xs text-gray-400 uppercase tracking-widest">Welcome to WODalytics</p>
+          <p className="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-widest">Welcome to WODalytics</p>
           <h1 className="text-2xl font-bold">Let's set up your profile</h1>
-          <p className="text-sm text-gray-400">Just a few details so trainers can give you the right standards. Emergency contacts and other gym-specific info come when you join a gym.</p>
+          <p className="text-sm text-slate-500 dark:text-gray-400">Just a few details so trainers can give you the right standards. Emergency contacts and other gym-specific info come when you join a gym.</p>
         </header>
 
         <ol className="flex items-center gap-2 text-xs">
@@ -170,20 +170,20 @@ export default function Onboarding() {
             <li key={label} className="flex items-center gap-2">
               <span className={[
                 'w-6 h-6 rounded-full flex items-center justify-center font-semibold',
-                i === step ? 'bg-indigo-600 text-white' : i < step ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400',
+                i === step ? 'bg-primary text-white' : i < step ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500 dark:bg-gray-800 dark:text-gray-400',
               ].join(' ')}>{i + 1}</span>
-              <span className={i === step ? 'text-white' : 'text-gray-400'}>{label}</span>
-              {i < steps.length - 1 && <span className="text-gray-700 mx-1" aria-hidden="true">·</span>}
+              <span className={i === step ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-gray-400'}>{label}</span>
+              {i < steps.length - 1 && <span className="text-slate-300 dark:text-gray-700 mx-1" aria-hidden="true">·</span>}
             </li>
           ))}
         </ol>
 
-        <div className="rounded-xl bg-gray-900 border border-gray-800 p-5 space-y-5">
+        <div className="rounded-xl bg-white border border-slate-200 dark:bg-gray-900 dark:border-gray-800 p-5 space-y-5">
           {step === 0 && (
             <>
               <AvatarUploader
                 size="lg"
-                helper={<p className="text-sm text-white">Add a photo (optional)</p>}
+                helper={<p className="text-sm text-slate-950 dark:text-white">Add a photo (optional)</p>}
               />
               <NameFields
                 firstName={firstName}

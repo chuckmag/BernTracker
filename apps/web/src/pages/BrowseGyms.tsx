@@ -67,18 +67,18 @@ export default function BrowseGyms() {
     <div className="max-w-3xl space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">Browse gyms</h1>
-        <p className="text-sm text-gray-400">Find a gym to join. Staff approve your request before you become a member.</p>
+        <p className="text-sm text-slate-500 dark:text-gray-400">Find a gym to join. Staff approve your request before you become a member.</p>
       </header>
 
       <div>
         <label className="block">
-          <span className="text-xs text-gray-400 mb-1 block">Search</span>
+          <span className="text-xs text-slate-600 dark:text-gray-400 mb-1 block">Search</span>
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Gym name…"
-            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </label>
       </div>
@@ -99,13 +99,13 @@ export default function BrowseGyms() {
           {gyms.map((g) => (
             <li
               key={g.id}
-              className="rounded-xl bg-gray-900 border border-gray-800 p-4 flex items-center justify-between gap-3"
+              className="rounded-xl bg-white border border-slate-200 dark:bg-gray-900 dark:border-gray-800 p-4 flex items-center justify-between gap-3"
             >
               <div className="min-w-0 flex items-center gap-3">
                 <GymLogo logoUrl={g.logoUrl} name={g.name} size="md" />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{g.name}</p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-sm font-semibold text-slate-950 dark:text-white truncate">{g.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-gray-400">
                     {g.memberCount} member{g.memberCount === 1 ? '' : 's'} · {g.timezone}
                   </p>
                 </div>

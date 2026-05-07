@@ -5,6 +5,7 @@ import { useGym } from '../context/GymContext.tsx'
 import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
+import WorkoutMovementHistory from '../components/WorkoutMovementHistory.tsx'
 import MarkdownDescription from '../components/MarkdownDescription.tsx'
 import Avatar from '../components/Avatar.tsx'
 import Button from '../components/ui/Button.tsx'
@@ -52,8 +53,8 @@ const GENDER_OPTIONS: { value: GenderFilter; label: string }[] = [
   { value: 'FEMALE', label: 'Female' },
 ]
 
-function formatResultValue(result: WorkoutResult): string {
-  return formatValue(result.value)
+function formatResultValue(result: WorkoutResult, tracksRounds?: boolean): string {
+  return formatValue(result.value, { tracksRounds })
 }
 
 // Derives the crossfit.com permalink from an externalSourceId like
@@ -71,7 +72,11 @@ export default function WodDetail() {
   const location = useLocation()
   const { user } = useAuth()
   const { gymRole } = useGym()
-  const fromHistory = (location.state as { from?: string } | null)?.from === 'history'
+  const locationState = location.state as { from?: string; originWorkoutId?: string } | null
+  const fromHistory = locationState?.from === 'history'
+  // When the user arrives via a past-result link from the movement history
+  // section, hide Your History to prevent infinite result → history → result nesting.
+  const fromMovementHistory = locationState?.from === 'movement-history'
 
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [results, setResults] = useState<WorkoutResult[]>([])
@@ -127,7 +132,7 @@ export default function WodDetail() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto">
-        <p className="text-gray-400">Loading...</p>
+        <p className="text-slate-500 dark:text-gray-400">Loading...</p>
       </div>
     )
   }
@@ -138,7 +143,7 @@ export default function WodDetail() {
         <p className="text-red-400">{error ?? 'Workout not found.'}</p>
         <button
           onClick={() => navigate('/feed')}
-          className="mt-4 text-sm text-gray-400 hover:text-white transition-colors"
+          className="mt-4 text-sm text-slate-500 hover:text-slate-950 dark:text-gray-400 dark:hover:text-white transition-colors"
         >
           ← Back to Feed
         </button>
@@ -174,7 +179,7 @@ export default function WodDetail() {
       {/* Back nav */}
       <button
         onClick={() => navigate(fromHistory ? '/history' : '/feed')}
-        className="text-sm text-gray-400 hover:text-white transition-colors"
+        className="text-sm text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white transition-colors"
       >
         {fromHistory ? '← Back to History' : '← Back to Feed'}
       </button>
@@ -188,14 +193,14 @@ export default function WodDetail() {
           <h1 className="text-2xl font-bold">{workout.title}</h1>
           {workout.namedWorkout && (
             <span className="flex items-center gap-1.5 ml-1">
-              <span className="text-sm text-indigo-400">● {workout.namedWorkout.name}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-900/50 text-indigo-300 border border-indigo-700/40">
+              <span className="text-sm text-primary">● {workout.namedWorkout.name}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
                 {CATEGORY_LABELS[workout.namedWorkout.category]}
               </span>
             </span>
           )}
         </div>
-        <p className="text-sm text-gray-500 ml-11">{scheduledDate}</p>
+        <p className="text-sm text-slate-500 dark:text-gray-500 ml-11">{scheduledDate}</p>
       </div>
 
       {/*
@@ -212,11 +217,11 @@ export default function WodDetail() {
       */}
       {workout.coachNotes && workout.coachNotes.trim() !== '' && (
         <details
-          className="bg-gray-900 rounded-lg px-4 py-3 border border-indigo-900/40"
+          className="bg-white dark:bg-gray-900 rounded-lg px-4 py-3 border border-primary/30 dark:border-primary/20"
           {...(gymRole && gymRole !== 'MEMBER' ? { open: true } : {})}
           data-testid="coach-notes"
         >
-          <summary className="cursor-pointer text-sm font-semibold text-indigo-300 hover:text-indigo-200 select-none">
+          <summary className="cursor-pointer text-sm font-semibold text-primary hover:opacity-80 select-none">
             Coach notes
           </summary>
           <div className="mt-2">
@@ -227,7 +232,7 @@ export default function WodDetail() {
 
       {/* Description */}
       {workout.description && (
-        <div className="bg-gray-900 rounded-lg px-4 py-3">
+        <div className="bg-white dark:bg-gray-900 rounded-lg px-4 py-3 border border-slate-200 dark:border-gray-800">
           <MarkdownDescription source={workout.description} />
         </div>
       )}
@@ -236,7 +241,7 @@ export default function WodDetail() {
       {(workout.workoutMovements?.length ?? 0) > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {workout.workoutMovements?.map((wm) => (
-            <span key={wm.movement.id} className="text-xs px-2.5 py-1 rounded-full bg-gray-800 text-gray-300 border border-gray-700">
+            <span key={wm.movement.id} className="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200 dark:border-gray-700">
               {wm.movement.name}
             </span>
           ))}
@@ -249,7 +254,7 @@ export default function WodDetail() {
           href={cfUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+          className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
         >
           View on CrossFit.com →
         </a>
@@ -257,24 +262,24 @@ export default function WodDetail() {
 
       {/* Log Result CTA */}
       {myResult ? (
-        <div className="px-4 py-3 rounded-lg bg-gray-900 border border-gray-700">
+        <div className="px-4 py-3 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Your Result</span>
-            <span className="text-sm font-medium text-white">{formatResultValue(myResult)}</span>
-            <span className="text-xs text-gray-400">{LEVEL_LABELS[myResult.level]}</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Your Result</span>
+            <span className="text-sm font-medium text-slate-950 dark:text-white">{formatResultValue(myResult, workout?.tracksRounds)}</span>
+            <span className="text-xs text-slate-500 dark:text-gray-400">{LEVEL_LABELS[myResult.level]}</span>
             <button
               onClick={() => setShowLogDrawer(true)}
-              className="ml-auto text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              className="ml-auto text-xs text-primary hover:text-primary transition-colors"
             >
               Edit
             </button>
           </div>
           {myResult.notes && (
-            <p className="mt-1.5 text-xs text-gray-400 italic line-clamp-2">{myResult.notes}</p>
+            <p className="mt-1.5 text-xs text-slate-500 dark:text-gray-400 italic line-clamp-2">{myResult.notes}</p>
           )}
         </div>
       ) : (
-        <Button variant="primary" onClick={() => setShowLogDrawer(true)} className="w-full py-2.5">
+        <Button variant="accent" onClick={() => setShowLogDrawer(true)} className="w-full py-2.5">
           Log Result
         </Button>
       )}
@@ -282,8 +287,8 @@ export default function WodDetail() {
       {/* Results table */}
       <div>
         <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Results</h2>
-          <hr className="flex-1 border-gray-800" />
+          <h2 className="text-sm font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Results</h2>
+          <hr className="flex-1 border-slate-200 dark:border-gray-800" />
         </div>
 
         {/* Level filter: segmented control + Show-all checkbox */}
@@ -295,12 +300,12 @@ export default function WodDetail() {
             disabled={showAllLevels}
             aria-label="Filter results by level"
           />
-          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none min-h-7">
+          <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-gray-400 cursor-pointer select-none min-h-7">
             <input
               type="checkbox"
               checked={showAllLevels}
               onChange={(e) => setShowAllLevels(e.target.checked)}
-              className="accent-indigo-500 cursor-pointer"
+              className="accent-primary cursor-pointer"
             />
             Show all levels
           </label>
@@ -318,7 +323,7 @@ export default function WodDetail() {
 
         {/* Age division filter */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
-          <label htmlFor="division-select" className="text-xs text-gray-400 shrink-0">
+          <label htmlFor="division-select" className="text-xs text-slate-500 dark:text-gray-400 shrink-0">
             Division
           </label>
           <select
@@ -326,25 +331,25 @@ export default function WodDetail() {
             value={divisionFilter}
             onChange={(e) => setDivisionFilter(e.target.value as DivisionFilter)}
             disabled={showAllDivisions}
-            className="bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500 disabled:opacity-40"
+            className="bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-primary disabled:opacity-40"
           >
             {AGE_DIVISIONS.map((d) => (
               <option key={d.value} value={d.value}>{d.label}</option>
             ))}
           </select>
-          <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none min-h-7">
+          <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-gray-400 cursor-pointer select-none min-h-7">
             <input
               type="checkbox"
               checked={showAllDivisions}
               onChange={(e) => setShowAllDivisions(e.target.checked)}
-              className="accent-indigo-500 cursor-pointer"
+              className="accent-primary cursor-pointer"
             />
             All divisions
           </label>
           {!user?.birthday && (
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-slate-500 dark:text-gray-500">
               Add your{' '}
-              <Link to="/profile" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+              <Link to="/profile" className="text-primary hover:text-primary underline underline-offset-2">
                 birthday
               </Link>{' '}
               to auto-select your division
@@ -353,16 +358,16 @@ export default function WodDetail() {
         </div>
 
         {filteredResults.length === 0 ? (
-          <p className="text-sm text-gray-500">No results yet.</p>
+          <p className="text-sm text-slate-500 dark:text-gray-500">No results yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-800 text-left">
-                  <th className="pb-2 pr-4 text-xs font-medium text-gray-400 w-10">#</th>
-                  <th className="pb-2 pr-4 text-xs font-medium text-gray-400">Athlete</th>
-                  <th className="pb-2 pr-4 text-xs font-medium text-gray-400">Level</th>
-                  <th className="pb-2 text-xs font-medium text-gray-400">Result</th>
+                <tr className="border-b border-slate-200 dark:border-gray-800 text-left">
+                  <th className="pb-2 pr-4 text-xs font-medium text-slate-500 dark:text-gray-400 w-10">#</th>
+                  <th className="pb-2 pr-4 text-xs font-medium text-slate-500 dark:text-gray-400">Athlete</th>
+                  <th className="pb-2 pr-4 text-xs font-medium text-slate-500 dark:text-gray-400">Level</th>
+                  <th className="pb-2 text-xs font-medium text-slate-500 dark:text-gray-400">Result</th>
                 </tr>
               </thead>
               <tbody>
@@ -384,12 +389,12 @@ export default function WodDetail() {
                           }
                         }}
                         className={[
-                          result.notes ? '' : 'border-b border-gray-900',
-                          isMe ? 'text-indigo-300' : 'text-gray-300',
-                          'cursor-pointer hover:bg-gray-900/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
+                          result.notes ? '' : 'border-b border-slate-100 dark:border-gray-900',
+                          isMe ? 'text-primary' : 'text-slate-700 dark:text-gray-300',
+                          'cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-900/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
                         ].join(' ')}
                       >
-                        <td className="py-2.5 pr-4 text-gray-500">{index + 1}</td>
+                        <td className="py-2.5 pr-4 text-slate-400 dark:text-gray-500">{index + 1}</td>
                         <td className="py-2.5 pr-4 font-medium">
                           <span className="flex items-center gap-2">
                             <Avatar
@@ -400,17 +405,17 @@ export default function WodDetail() {
                               size="sm"
                             />
                             <span>{displayName}</span>
-                            {isMe && <span className="text-xs text-indigo-400">(you)</span>}
+                            {isMe && <span className="text-xs text-primary">(you)</span>}
                           </span>
                         </td>
-                        <td className="py-2.5 pr-4 text-gray-400">{LEVEL_LABELS[result.level]}</td>
-                        <td className="py-2.5 font-mono">{formatResultValue(result)}</td>
+                        <td className="py-2.5 pr-4 text-slate-500 dark:text-gray-400">{LEVEL_LABELS[result.level]}</td>
+                        <td className="py-2.5 font-mono">{formatResultValue(result, workout?.tracksRounds)}</td>
                       </tr>
                       {result.notes && (
-                        <tr className="border-b border-gray-900">
+                        <tr className="border-b border-slate-100 dark:border-gray-900">
                           <td />
                           <td colSpan={3} className="pb-2.5 max-w-0">
-                            <p className="truncate text-xs text-gray-400 italic">{result.notes}</p>
+                            <p className="truncate text-xs text-slate-500 dark:text-gray-400 italic">{result.notes}</p>
                           </td>
                         </tr>
                       )}
@@ -422,6 +427,21 @@ export default function WodDetail() {
           </div>
         )}
       </div>
+
+      {/* Your History — one section per movement, hidden when arrived from a past result link */}
+      {user && !fromMovementHistory && (workout.workoutMovements?.length ?? 0) > 0 && (
+        <div className="space-y-6">
+          <h2 className="text-base font-semibold text-slate-800 dark:text-gray-200">Your History</h2>
+          {workout.workoutMovements.map((wm) => (
+            <WorkoutMovementHistory
+              key={wm.movement.id}
+              movementId={wm.movement.id}
+              movementName={wm.movement.name}
+              currentWorkoutId={workout.id}
+            />
+          ))}
+        </div>
+      )}
     </div>
 
     {showLogDrawer && workout && (

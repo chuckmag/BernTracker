@@ -124,6 +124,18 @@ async function getUserResultHistory(req: Request, res: Response) {
       : []
   const movementIds = rawMovementIds.length ? await expandMovementIdsWithVariations(rawMovementIds) : []
 
-  const history = await findResultHistoryByUser(req.user!.id, { page, limit, movementIds: movementIds.length ? movementIds : undefined })
+  const rawProgramIds = req.query.programIds
+  const programIds = Array.isArray(rawProgramIds)
+    ? (rawProgramIds as string[])
+    : typeof rawProgramIds === 'string' && rawProgramIds
+      ? rawProgramIds.split(',')
+      : []
+
+  const history = await findResultHistoryByUser(req.user!.id, {
+    page,
+    limit,
+    movementIds: movementIds.length ? movementIds : undefined,
+    programIds: programIds.length ? programIds : undefined,
+  })
   res.json(history)
 }

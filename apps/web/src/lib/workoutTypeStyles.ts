@@ -61,7 +61,7 @@ export const WORKOUT_TYPE_STYLES: Record<WorkoutType, WorkoutTypeStyle> = {
 
   // ─── Warmup / Recovery ──────────────────────────────────────────────────────
   WARMUP:   { abbr: 'WU', label: 'Warmup',   category: 'Warmup/Recovery', tint: 'text-slate-300', bg: 'bg-slate-500/15', accentBar: 'border-slate-400' },
-  MOBILITY: { abbr: 'MB', label: 'Mobility', category: 'Warmup/Recovery', tint: 'text-gray-300',  bg: 'bg-gray-500/15',  accentBar: 'border-gray-400'  },
+  MOBILITY: { abbr: 'MB', label: 'Mobility', category: 'Warmup/Recovery', tint: 'text-gray-600 dark:text-gray-300',  bg: 'bg-gray-500/15',  accentBar: 'border-gray-400'  },
   COOLDOWN: { abbr: 'CD', label: 'Cooldown', category: 'Warmup/Recovery', tint: 'text-stone-300', bg: 'bg-stone-500/15', accentBar: 'border-stone-400' },
 }
 

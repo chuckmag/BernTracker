@@ -12,7 +12,7 @@ Established by #81. **Always use existing primitives before writing custom Tailw
 
 | Primitive | When to use | Notes |
 |---|---|---|
-| `Button` | Every clickable action button | Variants: `primary` (indigo, the default CTA), `secondary` (gray, less weight), `tertiary` (text-only, e.g. pagination/back-arrows), `destructive` (rose, delete actions). Includes the shared focus ring — never bake your own focus styles on top. |
+| `Button` | Every clickable action button | Variants: `primary` (brand blue CTA), `secondary` (gray, less weight), `tertiary` (text-only, e.g. pagination/back-arrows), `destructive` (rose, delete actions), `accent` (teal, for Log Result — uses `text-slate-900` not white). Includes the shared focus ring — never bake your own focus styles on top. |
 | `Chip` | Tags, status pills, toggle filter pills | Variants: `neutral`, `accent`, `status-published`, `status-draft`, `status-rejected`. Pass `onToggle` for toggle-pill behavior (auto-adds `aria-pressed`); pass `onDismiss` for an `×` close affordance. |
 | `ChipGroup` | Row of toggle chips | Handles horizontal-scroll overflow and exposes a trailing "Clear" chip via `onClear`. Use in any filter strip. |
 | `SegmentedControl` | Mutually-exclusive selection within a single context | The level filter on `WodDetail` is the canonical example. Use this for radio-group-like UIs with 2–5 options. **Not** for page-level tab navigation (those are still custom — see "Patterns to extract" below). |
@@ -24,14 +24,55 @@ Established by #81. **Always use existing primitives before writing custom Tailw
 
 - **`workoutTypeStyles.ts`** — `WORKOUT_TYPE_STYLES[type]` returns `{ abbr, label, category, tint, bg, accentBar }` for every `WorkoutType`. Any surface that renders a workout type **must** pull from this map. The deprecated `TYPE_ABBR` shim in `lib/api.ts` re-exports `.abbr` only; new code should reach for `WORKOUT_TYPE_STYLES` directly.
 - **`workoutTypeStyles.WORKOUT_CATEGORIES`** — display order for category groupings in pickers/lists.
+- **`designTokens.ts`** — `BRAND_TOKENS` with raw hex values for light/dark brand colors (for Recharts or other canvas-based renderers that can't use CSS vars). `CHART_COLORS` for categorical chart series. Always keep in sync with the CSS vars in `index.css`.
 
-### Dark-theme palette conventions
+### Dual-theme palette — required on every element
 
-- Page background: `bg-gray-950`. Cards/drawers: `bg-gray-900`. Inputs: `bg-gray-800`.
-- Borders: `border-gray-800` (subtle), `border-gray-700` (interactive).
-- Primary accent: `indigo-600` (Buttons), `indigo-500` (focus rings, tab underlines).
-- Destructive: `rose-600` / `rose-700`.
-- Status colors (translucent fills): emerald = published/success, amber = draft/warning, rose = rejected/error.
+The app renders in light or dark based on `.dark` on `<html>`. **Every element must carry both a light and dark class** — never use a dark-only class (`bg-gray-900`, `text-gray-300`, `text-white`) without its light-mode counterpart. Full reference: `resources/design-tokens.md`.
+
+#### Brand tokens (already theme-aware — no `dark:` prefix needed)
+
+| Token | Tailwind | Light | Dark | Usage |
+|---|---|---|---|---|
+| Primary | `bg-primary` | `#1E5AA8` | `#5B9BE6` | CTA buttons |
+| Primary hover | `bg-primary-hover` | `#1A4D90` | `#7AB0EE` | Primary hover |
+| Accent | `bg-accent`, `text-accent` | `#2BA8A4` | `#5FD4D0` | Log Result, links |
+| Accent hover | `bg-accent-hover` | `#238F8B` | `#7AE4E0` | Accent hover |
+
+Accent buttons use **`text-slate-900`** (not white) — `#2BA8A4` has only ~1.7:1 contrast with white; dark text achieves 8.8:1 AAA on both light and dark accent backgrounds.
+
+#### Semantic surface pairs
+
+| Surface | Light | Dark |
+|---|---|---|
+| Page bg | `bg-slate-50` | `dark:bg-gray-950` |
+| Card / panel / drawer | `bg-white` | `dark:bg-gray-900` |
+| Input | `bg-white border-slate-300` | `dark:bg-gray-800 dark:border-gray-700` |
+| Subtle border | `border-slate-200` | `dark:border-gray-800` |
+| Interactive border | `border-slate-300` | `dark:border-gray-700` |
+| Heading / primary text | `text-slate-950` | `dark:text-white` |
+| Body text | `text-slate-700` | `dark:text-gray-300` |
+| Secondary / caption | `text-slate-500` | `dark:text-gray-400` |
+| Form label | `text-slate-600` | `dark:text-gray-400` |
+| Placeholder | `placeholder-slate-400` | `dark:placeholder-gray-500` |
+| Row hover | `hover:bg-slate-50` | `dark:hover:bg-gray-800` |
+| Selected / highlight | `bg-slate-100` | `dark:bg-gray-800` |
+
+#### Status colors (translucent fills — text needs a pair)
+
+| Status | Fill | Light text | Dark text |
+|---|---|---|---|
+| Published / success | `bg-emerald-500/15` | `text-emerald-700` | `dark:text-emerald-300` |
+| Draft / warning | `bg-amber-500/15` | `text-amber-700` | `dark:text-amber-300` |
+| Rejected / error | `bg-rose-500/15` | `text-rose-700` | `dark:text-rose-300` |
+
+#### Focus rings
+
+`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950`
+
+Inside drawers: `ring-offset-white dark:ring-offset-gray-900`.
+
+#### Destructive: `rose-600` / `rose-700`. Danger-zone sections: `bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50`.
 
 ### A11y baseline (#81 PR 5)
 
@@ -39,7 +80,7 @@ Every interactive element must satisfy these. The primitives above already do �
 
 - **Contrast:** text under 14px (`text-xs`, `text-[10px]`, `text-[11px]`) uses `text-gray-400` or lighter. `text-gray-500` passes contrast only at `text-sm` (14px) and larger — fine for de-emphasized secondary copy. Reserve `text-gray-600` for invisible / disabled / decorative-only states (e.g. `·` separators marked `aria-hidden="true"`); never put it on visible user-facing copy. Lighthouse will flag any of these.
 - **Touch targets:** the WCAG 2.5.8 AA bar is **24×24** (Lighthouse uses this); aim for **28×28** as the team default. Audit candidate: `grep -rE "w-[0-5]\b|h-[0-5]\b" src` — every match should be non-interactive. When you need a bigger hit area without growing the surrounding layout, pair the size bump with a margin clawback: `className="-my-1 -mr-1.5 w-7 h-7 inline-flex items-center justify-center …"`. For checkbox + label pairs, `min-h-7` on the wrapping `<label>` clears the hit area without enlarging the visible checkbox.
-- **Focus rings:** always `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950` (offset color matches the parent surface — use `ring-offset-gray-900` inside a drawer). Use the primitive instead of duplicating this string.
+- **Focus rings:** always `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950` (offset color matches the parent surface — use `ring-offset-gray-900` inside a drawer). Use the primitive instead of duplicating this string.
 - **`title`** attribute on truncated text for hover reveal (e.g. workout pills in calendar cells).
 
 ### ARIA patterns (lessons-learned)
@@ -85,6 +126,11 @@ When you add a new piece of persisted user state (localStorage / query string / 
   - URL: `?programIds=id1,id2` on `/feed` and `/calendar`
   - API: `GET /api/gyms/:gymId/workouts?programIds=id1,id2` (each ID independently access-checked; first failure → 403/404)
   - Mobile: read/write the same storage key (via `AsyncStorage`) and call the same endpoint with the same CSV shape.
+
+- **Theme preference** (`src/context/ThemeContext.tsx`, `src/lib/useTheme.ts`)
+  - Storage: `localStorage["wodalytics-theme"]` → `"light" | "dark" | "system"` (absent = `"system"`)
+  - Web: `ThemeProvider` wraps `App`; `useTheme()` exposes `{ mode, setMode }`. Applies `dark` class to `<html>` via `applyTheme()`. A no-flash inline script in `index.html` applies the class before React mounts.
+  - Mobile: read/write the same key via `AsyncStorage`; apply via React Navigation `theme` prop. Mobile parity tracked in #254.
 
 ### Reference
 

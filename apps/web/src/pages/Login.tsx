@@ -18,7 +18,7 @@ export default function Login() {
     try {
       const data = await api.auth.login({ email, password })
       login(data.accessToken, data.user)
-      navigate('/dashboard', { replace: true })
+      navigate('/feed', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Network error — is the API running?')
     } finally {
@@ -27,13 +27,13 @@ export default function Login() {
   }
 
   return (
-    <div className="flex h-screen items-center justify-center bg-gray-950">
-      <div className="w-full max-w-sm rounded-xl bg-gray-900 p-8 shadow-lg">
-        <h1 className="mb-6 text-2xl font-bold text-white">Sign in</h1>
+    <div className="flex h-screen items-center justify-center bg-slate-100 dark:bg-gray-950">
+      <div className="w-full max-w-sm rounded-xl bg-white dark:bg-gray-900 p-8 shadow-lg">
+        <h1 className="mb-6 text-2xl font-bold text-slate-950 dark:text-white">Sign in</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-gray-400" htmlFor="email">
+            <label className="mb-1 block text-sm text-slate-600 dark:text-gray-400" htmlFor="email">
               Email
             </label>
             <input
@@ -43,13 +43,13 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md bg-gray-800 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 px-3 py-2 text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm text-gray-400" htmlFor="password">
+            <label className="mb-1 block text-sm text-slate-600 dark:text-gray-400" htmlFor="password">
               Password
             </label>
             <input
@@ -59,7 +59,7 @@ export default function Login() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md bg-gray-800 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md bg-white border border-slate-300 dark:bg-gray-800 dark:border-gray-700 px-3 py-2 text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="••••••••"
             />
           </div>
@@ -69,7 +69,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-md bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="w-full rounded-md bg-primary hover:bg-primary-hover py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
@@ -78,25 +78,25 @@ export default function Login() {
         <div className="mt-4">
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-700" />
+              <div className="w-full border-t border-slate-200 dark:border-gray-700" />
             </div>
-            <div className="relative flex justify-center text-xs text-gray-400">
-              <span className="bg-gray-900 px-2">or</span>
+            <div className="relative flex justify-center text-xs text-slate-500 dark:text-gray-400">
+              <span className="bg-white dark:bg-gray-900 px-2">or</span>
             </div>
           </div>
 
           <button
             type="button"
             onClick={() => { window.open(api.auth.googleAuthUrl(), '_self') }}
-            className="w-full rounded-md border border-gray-700 py-2 text-sm font-medium text-gray-200 hover:bg-gray-800"
+            className="w-full rounded-md border border-slate-300 dark:border-gray-700 py-2 text-sm font-medium text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-800"
           >
             Sign in with Google
           </button>
         </div>
 
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p className="mt-4 text-center text-sm text-slate-500 dark:text-gray-500">
           No account?{' '}
-          <Link to="/register" className="text-indigo-400 hover:text-indigo-300">
+          <Link to="/register" className="text-accent hover:opacity-80 transition-opacity">
             Create one
           </Link>
         </p>

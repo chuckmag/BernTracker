@@ -101,7 +101,7 @@ export default function ProgramMembersTab({
       {members.length > 0 && (
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-gray-400 border-b border-gray-800">
+            <tr className="text-slate-700 dark:text-gray-400 border-b border-slate-200 dark:border-gray-800">
               <th className="text-left py-2 pr-4 font-medium">Name</th>
               <th className="text-left py-2 pr-4 font-medium">Email</th>
               <th className="text-left py-2 pr-4 font-medium">Program role</th>
@@ -111,13 +111,13 @@ export default function ProgramMembersTab({
           </thead>
           <tbody>
             {members.map((m) => (
-              <tr key={m.id} className="border-b border-gray-800">
-                <td className="py-2 pr-4 text-white">
-                  {m.name ?? <span className="italic text-gray-400">Pending</span>}
+              <tr key={m.id} className="border-b border-slate-200 dark:border-gray-800">
+                <td className="py-2 pr-4 text-slate-950 dark:text-white">
+                  {m.name ?? <span className="italic text-slate-400 dark:text-gray-400">Pending</span>}
                 </td>
-                <td className="py-2 pr-4 text-gray-400">{m.email}</td>
-                <td className="py-2 pr-4 text-gray-400 capitalize">{m.role.toLowerCase()}</td>
-                <td className="py-2 pr-4 text-gray-400">
+                <td className="py-2 pr-4 text-slate-500 dark:text-gray-400">{m.email}</td>
+                <td className="py-2 pr-4 text-slate-500 dark:text-gray-400 capitalize">{m.role.toLowerCase()}</td>
+                <td className="py-2 pr-4 text-slate-500 dark:text-gray-400">
                   {new Date(m.joinedAt).toLocaleDateString()}
                 </td>
                 {canManage && (
@@ -125,7 +125,7 @@ export default function ProgramMembersTab({
                     <button
                       type="button"
                       onClick={() => handleRemove(m)}
-                      className="text-rose-400 hover:text-rose-300 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 rounded px-1"
+                      className="text-rose-400 hover:text-rose-300 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 rounded px-1"
                     >
                       Remove
                     </button>

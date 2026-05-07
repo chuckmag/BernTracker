@@ -28,11 +28,11 @@ const GRANTABLE_BY: Record<Role, Role[]> = {
 }
 
 const STATUS_TINT: Record<GymInvitation['status'], string> = {
-  PENDING: 'bg-amber-500/20 text-amber-300',
-  APPROVED: 'bg-emerald-500/20 text-emerald-300',
-  DECLINED: 'bg-gray-700/40 text-gray-300',
-  REVOKED: 'bg-rose-500/20 text-rose-300',
-  EXPIRED: 'bg-gray-700/40 text-gray-400',
+  PENDING:  'bg-amber-500/20 text-amber-700 dark:text-amber-300',
+  APPROVED: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
+  DECLINED: 'bg-slate-200/80 text-slate-600 dark:bg-gray-700/40 dark:text-gray-300',
+  REVOKED:  'bg-rose-500/20 text-rose-700 dark:text-rose-300',
+  EXPIRED:  'bg-slate-200/80 text-slate-500 dark:bg-gray-700/40 dark:text-gray-400',
 }
 
 const ALL_CHANNEL_OPTIONS: { value: InvitationChannel; label: string }[] = [
@@ -232,7 +232,7 @@ export default function GymInvitationsPanel() {
 
       {canInvite && (
         <div className="space-y-3 max-w-xl">
-          <form onSubmit={handleSend} className="rounded-xl bg-gray-800 p-4 space-y-3">
+          <form onSubmit={handleSend} className="rounded-xl bg-slate-100 dark:bg-gray-800 p-4 space-y-3">
             {channelOptions.length > 1 && (
               <SegmentedControl
                 options={channelOptions}
@@ -244,7 +244,7 @@ export default function GymInvitationsPanel() {
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_max-content_max-content] gap-3 items-end">
               {channel === 'EMAIL' ? (
                 <label className="block">
-                  <span className="text-xs text-gray-400 mb-1 block">Email address</span>
+                  <span className="text-xs text-slate-600 dark:text-gray-400 mb-1 block">Email address</span>
                   <input
                     ref={inputRef}
                     type="email"
@@ -252,12 +252,12 @@ export default function GymInvitationsPanel() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="member@example.com"
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-white border border-slate-300 dark:bg-gray-900 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </label>
               ) : (
                 <label className="block">
-                  <span className="text-xs text-gray-400 mb-1 block">Phone number</span>
+                  <span className="text-xs text-slate-600 dark:text-gray-400 mb-1 block">Phone number</span>
                   <input
                     ref={inputRef}
                     type="tel"
@@ -265,17 +265,17 @@ export default function GymInvitationsPanel() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+15551234567"
-                    className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-white border border-slate-300 dark:bg-gray-900 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </label>
               )}
               <label className="block">
-                <span className="text-xs text-gray-400 mb-1 block">Role</span>
+                <span className="text-xs text-slate-600 dark:text-gray-400 mb-1 block">Role</span>
                 <select
                   id="invite-role"
                   value={roleToGrant}
                   onChange={(e) => setRoleToGrant(e.target.value as Role)}
-                  className="bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="bg-white border border-slate-300 dark:bg-gray-900 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   {grantable.map((r) => (
                     <option key={r} value={r}>{ROLE_LABEL[r]}</option>
@@ -312,10 +312,10 @@ export default function GymInvitationsPanel() {
           {pending.length > 0 && (
             <ul className="space-y-2">
               {pending.map((inv) => (
-                <li key={inv.id} className="flex items-center justify-between gap-3 rounded-lg bg-gray-900 border border-gray-800 px-4 py-3">
+                <li key={inv.id} className="flex items-center justify-between gap-3 rounded-lg bg-white border border-slate-200 dark:bg-gray-900 dark:border-gray-800 px-4 py-3">
                   <div className="min-w-0">
-                    <p className="text-sm text-white truncate">{inv.email ?? inv.userId ?? '—'}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-sm text-slate-950 dark:text-white truncate">{inv.email ?? inv.userId ?? '—'}</p>
+                    <p className="text-xs text-slate-500 dark:text-gray-400">
                       {ROLE_LABEL[inv.roleToGrant]} · invited {new Date(inv.createdAt).toLocaleDateString()}
                     </p>
                   </div>
@@ -337,15 +337,15 @@ export default function GymInvitationsPanel() {
           )}
           {closed.length > 0 && (
             <details className="text-sm">
-              <summary className="cursor-pointer text-xs text-gray-400 hover:text-gray-200 px-1 py-2">
+              <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-950 dark:text-gray-400 dark:hover:text-gray-200 px-1 py-2">
                 {closed.length} resolved invitation{closed.length === 1 ? '' : 's'}
               </summary>
               <ul className="space-y-2 mt-2">
                 {closed.map((inv) => (
-                  <li key={inv.id} className="flex items-center justify-between gap-3 rounded-lg bg-gray-900 border border-gray-800 px-4 py-3">
+                  <li key={inv.id} className="flex items-center justify-between gap-3 rounded-lg bg-white border border-slate-200 dark:bg-gray-900 dark:border-gray-800 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="text-sm text-gray-300 truncate">{inv.email ?? inv.userId ?? '—'}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm text-slate-700 dark:text-gray-300 truncate">{inv.email ?? inv.userId ?? '—'}</p>
+                      <p className="text-xs text-slate-500 dark:text-gray-500">
                         {ROLE_LABEL[inv.roleToGrant]} · invited {new Date(inv.createdAt).toLocaleDateString()}
                       </p>
                     </div>

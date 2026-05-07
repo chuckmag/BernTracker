@@ -17,7 +17,17 @@
  */
 import type { Program, ProgramVisibility, Workout, WorkoutMovementInput, WorkoutType } from './api'
 
-export type ProgramScopeKind = 'gym' | 'admin'
+/**
+ * Discriminator for the active scope.
+ * - `gym`      — gym staff editing programs that belong to a Gym (slice 3)
+ * - `admin`    — WODalytics admin curating gym-less, public-catalog programs (slice 3)
+ * - `personal` — a user editing their own private Personal Program (#183).
+ *                Behaves like `admin` in the drawer (one Save button, no
+ *                DRAFT/PUBLISHED concept, auto-publish skipped) but its
+ *                `list/get/...` map onto `/api/me/personal-program*` rather
+ *                than the admin or gym routes.
+ */
+export type ProgramScopeKind = 'gym' | 'admin' | 'personal'
 
 export interface ProgramScopeCapabilities {
   canWrite: boolean
@@ -99,9 +109,13 @@ export interface ProgramScope {
   updateProgram(id: string, data: UpdateProgramScopeData): Promise<Program>
   deleteProgram(id: string): Promise<void>
 
-  // Workout mutations (slice 3)
+  // Workout mutations (slice 3 + admin publish follow-up)
   createWorkout(programId: string, data: CreateWorkoutScopeData): Promise<Workout>
   updateWorkout(workoutId: string, data: UpdateWorkoutScopeData): Promise<Workout>
+  // Flips a DRAFT workout to PUBLISHED. Both gym and admin scopes implement
+  // this so the shared `WorkoutDrawer` footer can render the same
+  // "Save as Draft" / "Publish" split for both surfaces.
+  publishWorkout(workoutId: string): Promise<Workout>
   deleteWorkout(workoutId: string): Promise<void>
 
   // Gym-only affordances. Optional on the contract so the admin scope can

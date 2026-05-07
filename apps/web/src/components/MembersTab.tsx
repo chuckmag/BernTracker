@@ -95,7 +95,7 @@ export default function MembersTab() {
         <div className="flex items-center gap-3 mb-4">
           <h2 className="text-lg font-semibold">Members</h2>
           {hasLoaded && members.length > 0 && (
-            <span className="bg-gray-700 text-sm px-2 py-0.5 rounded-full" aria-label={`${members.length} members`}>
+            <span className="bg-slate-200 dark:bg-gray-700 text-slate-700 dark:text-gray-200 text-sm px-2 py-0.5 rounded-full" aria-label={`${members.length} members`}>
               {members.length}
             </span>
           )}
@@ -119,7 +119,7 @@ export default function MembersTab() {
         {hasLoaded && members.length > 0 && (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-gray-400 border-b border-gray-700">
+              <tr className="text-slate-700 dark:text-gray-400 border-b border-slate-300 dark:border-gray-700">
                 <th className="text-left py-2 pr-4">Name</th>
                 <th className="text-left py-2 pr-4">Email</th>
                 <th className="text-left py-2 pr-4">Role</th>
@@ -130,12 +130,12 @@ export default function MembersTab() {
             </thead>
             <tbody>
               {members.map((member) => (
-                <tr key={member.id} className="border-b border-gray-800">
-                  <td className="py-2 pr-4">{member.name ?? <span className="text-gray-500 italic">Pending</span>}</td>
-                  <td className="py-2 pr-4 text-gray-400">{member.email}</td>
+                <tr key={member.id} className="border-b border-slate-200 dark:border-gray-800">
+                  <td className="py-2 pr-4 text-slate-700 dark:text-gray-300">{member.name ?? <span className="text-slate-400 dark:text-gray-500 italic">Pending</span>}</td>
+                  <td className="py-2 pr-4 text-slate-500 dark:text-gray-400">{member.email}</td>
                   <td className="py-2 pr-4">
                     <select
-                      className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white text-xs"
+                      className="bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-2 py-1 text-slate-950 dark:text-white text-xs"
                       value={member.role}
                       onChange={(e) => handleRoleChange(member.id, e.target.value as Role)}
                       aria-label={`Role for ${member.email}`}
@@ -145,7 +145,7 @@ export default function MembersTab() {
                       ))}
                     </select>
                   </td>
-                  <td className="py-2 pr-4 text-gray-400">
+                  <td className="py-2 pr-4 text-slate-500 dark:text-gray-400">
                     {new Date(member.joinedAt).toLocaleDateString()}
                   </td>
                   {programs.length > 0 && (
@@ -154,13 +154,13 @@ export default function MembersTab() {
                         {member.programs.map((p) => (
                           <span
                             key={p.id}
-                            className="inline-flex items-center gap-1 bg-indigo-900/60 text-indigo-300 text-xs px-2 py-0.5 rounded-full"
+                            className="inline-flex items-center gap-1 bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full"
                           >
                             {p.name}
                             <button
                               type="button"
                               onClick={() => handleUnsubscribe(member.id, p.id)}
-                              className="text-indigo-400 hover:text-red-400 leading-none"
+                              className="text-primary hover:text-red-400 leading-none"
                               aria-label={`Remove from ${p.name}`}
                             >
                               ×
@@ -169,7 +169,7 @@ export default function MembersTab() {
                         ))}
                         {programs.some(({ program }) => !member.programs.find((p) => p.id === program.id)) && (
                           <select
-                            className="bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-gray-400 text-xs"
+                            className="bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-2 py-0.5 text-slate-500 dark:text-gray-400 text-xs"
                             value=""
                             onChange={(e) => {
                               if (e.target.value) handleSubscribe(member.id, e.target.value)

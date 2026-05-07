@@ -78,7 +78,7 @@ export default function ProgramDetail() {
     return (
       <div>
         <p className="text-red-400 mb-3">{error ?? 'Program not found.'}</p>
-        <Link to="/programs" className="text-indigo-400 hover:text-indigo-300 text-sm">← Back to Programs</Link>
+        <Link to="/programs" className="text-primary hover:opacity-80 text-sm">← Back to Programs</Link>
       </div>
     )
   }
@@ -89,7 +89,7 @@ export default function ProgramDetail() {
   return (
     <div>
       <div className="mb-4">
-        <Link to="/programs" className="text-xs text-indigo-400 hover:text-indigo-300">← Programs</Link>
+        <Link to="/programs" className="text-xs text-primary hover:opacity-80">← Programs</Link>
       </div>
 
       <div className="flex items-start gap-4 mb-6">
@@ -101,7 +101,7 @@ export default function ProgramDetail() {
             {detail.isDefault && <DefaultBadge />}
           </div>
           {program.description && (
-            <p className="mt-1 text-sm text-gray-400">{program.description}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">{program.description}</p>
           )}
         </div>
         {canWrite && (
@@ -110,7 +110,7 @@ export default function ProgramDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-800 mb-6">
+      <div className="border-b border-slate-200 dark:border-gray-800 mb-6">
         <nav className="flex gap-1">
           {(['overview', 'members', 'workouts'] as Tab[]).map((t) => {
             // MEMBER role can't see the Members tab — hide it (the API would 403 anyway).
@@ -122,15 +122,15 @@ export default function ProgramDetail() {
                 onClick={() => setTab(t)}
                 className={[
                   'px-4 py-2 text-sm font-medium capitalize border-b-2 -mb-px transition-colors flex items-center gap-2',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
                   tab === t
-                    ? 'border-indigo-500 text-white'
-                    : 'border-transparent text-gray-400 hover:text-white',
+                    ? 'border-primary text-slate-950 dark:text-white'
+                    : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
                 ].join(' ')}
               >
                 {t}
                 {t === 'members' && memberCount > 0 && (
-                  <span className="text-[10px] bg-gray-800 text-gray-300 px-1.5 py-0.5 rounded-full">
+                  <span className="text-[10px] bg-slate-200 dark:bg-gray-800 text-slate-600 dark:text-gray-300 px-1.5 py-0.5 rounded-full">
                     {memberCount}
                   </span>
                 )}
@@ -165,8 +165,8 @@ export default function ProgramDetail() {
       {tab === 'workouts' && <ComingSoon label="Program-filtered workout list and bulk upload" />}
 
       {canDelete && tab === 'overview' && (
-        <div className="mt-10 pt-6 border-t border-gray-800">
-          <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3">Danger zone</h3>
+        <div className="mt-10 pt-6 border-t border-slate-200 dark:border-gray-800">
+          <h3 className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-3">Danger zone</h3>
           <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
             {deleting ? 'Deleting…' : 'Delete program'}
           </Button>
@@ -249,7 +249,7 @@ function OverviewTab({
           </Button>
           {setDefaultError && <p className="text-red-400 text-xs mt-2">{setDefaultError}</p>}
           {!isPublic && !isDefault && (
-            <p className="text-xs text-gray-400 mt-2">{defaultTooltip}</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-2">{defaultTooltip}</p>
           )}
         </div>
       )}
@@ -270,9 +270,9 @@ function OverviewTab({
 
 function ComingSoon({ label }: { label: string }) {
   return (
-    <div className="text-center py-12 border border-dashed border-gray-800 rounded-lg">
-      <p className="text-sm text-gray-400">{label}</p>
-      <p className="mt-1 text-xs text-gray-400">Coming in a later slice of #82</p>
+    <div className="text-center py-12 border border-dashed border-slate-200 dark:border-gray-800 rounded-lg">
+      <p className="text-sm text-slate-500 dark:text-gray-400">{label}</p>
+      <p className="mt-1 text-xs text-slate-500 dark:text-gray-400">Coming in a later slice of #82</p>
     </div>
   )
 }
@@ -285,8 +285,8 @@ export function VisibilityBadge({ visibility, className = '' }: { visibility: Pr
       className={[
         'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border',
         isPublic
-          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30'
-          : 'bg-gray-800 text-gray-300 border-gray-700',
+          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-400/30'
+          : 'bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 border-slate-300 dark:border-gray-700',
         className,
       ].filter(Boolean).join(' ')}
     >

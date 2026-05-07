@@ -246,6 +246,40 @@ export async function countWorkoutsByProgramId(programId: string): Promise<numbe
   return prisma.workout.count({ where: { programId } })
 }
 
+/**
+ * Lists workouts in a single program over a date range — used by the
+ * personal-program calendar (#183). No gym scoping, no published-only
+ * filter: the caller is always the sole owner of a private one-user
+ * program, so DRAFT/PUBLISHED status doesn't gate visibility.
+ *
+ * `from` / `to` may be omitted to return every workout in the program.
+ * Same shape as `findWorkoutsByGymAndDateRange` — including the
+ * `myResultId` projection — so the calendar grid renders identically.
+ */
+export async function findWorkoutsByProgramIdInDateRange(
+  programId: string,
+  viewerUserId: string,
+  from?: Date,
+  to?: Date,
+) {
+  const dateFilter = from && to ? { scheduledAt: { gte: from, lte: to } } : {}
+  const workouts = await prisma.workout.findMany({
+    where: { programId, ...dateFilter },
+    orderBy: [{ scheduledAt: 'asc' }, { dayOrder: 'asc' }, { createdAt: 'asc' }],
+    include: {
+      program: programSelect,
+      namedWorkout: namedWorkoutSelect,
+      _count: { select: { results: true } },
+      results: { where: { userId: viewerUserId }, select: { id: true } },
+      ...workoutMovementsInclude,
+    },
+  })
+  return workouts.map(({ results, ...rest }) => ({
+    ...rest,
+    myResultId: results[0]?.id ?? null,
+  }))
+}
+
 // Used by the WODalytics admin surface (#160) to list every workout under a
 // program without gym scoping. Newest first by scheduledAt — admins typically
 // want to see the latest entry from an ingest job at the top.
