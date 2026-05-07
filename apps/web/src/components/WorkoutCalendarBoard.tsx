@@ -226,7 +226,7 @@ export default function WorkoutCalendarBoard({
             <Button className="h-9" variant="tertiary" onClick={nextMonth} aria-label="Next month">→</Button>
           </div>
 
-          <div className="grid grid-cols-7 mb-px">
+          <div data-testid="calendar-month-grid-headers" className="grid grid-cols-7 mb-px">
             {DAY_HEADERS.map((d) => (
               <div key={d} className="text-center text-xs text-slate-500 dark:text-gray-400 py-1">{d}</div>
             ))}

@@ -20,7 +20,7 @@ This file covers cross-cutting topics — anything that spans the monorepo or ap
 
 - **Default to a worktree.** Each Claude session should start by creating a `git worktree` off `main` and working there, unless the user explicitly says to stay in the main checkout. See *Default workflow* below.
 - **Open PRs without asking.** When work is shippable, push the branch and run `gh pr create` directly — share the URL for review rather than asking for permission first.
-- **Phone-suitable feature? Plan web + mobile together.** See *Parity-first feature design* below — surface choice follows task ergonomics (quick on-the-go vs heavy desk authoring), not user role. Mobile parity is not a follow-up; it's part of scope. Active mobile-parity backlog: #130.
+- **Phone-suitable feature? Web AND mobile ship together — neither surface is primary, neither is a follow-up.** A phone-suitable feature is not done until both surfaces are merged. See *Parity-first feature design* below.
 - **Working in a worktree?** Read *Worktree development* below — `npm run dev:worktree` is collision-resistant but the workflow has details worth knowing.
 - **Touching the schema?** Read *Schema migrations* below — every schema PR must commit its migration file.
 - **Opening a PR?** Read *Pull requests* below — the Tests section format is required.
@@ -36,7 +36,7 @@ These two defaults exist because the user runs N parallel Claude sessions and th
 
 ## Parity-first feature design
 
-Web has historically run ahead of mobile, leaving the phone experience perpetually behind for every role — members, coaches, owners. The fix is process: every feature gets planned for both surfaces from the moment the issue is filed. The right question is not "who uses this?" but **"in what context will they use it?"** Roles cut across both surfaces — a coach making a last-minute workout fix on the class floor needs mobile too, not just members logging results.
+WODalytics runs on both phones and desktops. For phone-suitable features, **web and mobile are co-equal surfaces** — there is no primary surface, no follow-up surface, and no acceptable parity debt. A feature that only landed on one surface is a half-shipped feature; it belongs in the backlog, not in "done." The right question when scoping a feature is not "who uses this?" but **"in what context will they use it?"** Roles cut across both surfaces — a coach making a last-minute workout fix on the class floor needs mobile just as much as a member logging a result.
 
 **Surface choice follows task ergonomics, not user role:**
 
@@ -51,13 +51,13 @@ If you can't decide which bucket a feature is in, ask the user before opening su
 
 **When opening a new feature issue / planning work:**
 
-1. **Sub-issues mirror across surfaces for phone-suitable tasks.** A phone-suitable feature should produce: an API sub-issue (if needed), a web sub-issue, and a mobile sub-issue — all linked to the parent. Web and mobile can ship in parallel or staggered, but both must exist as tracked work before the feature is "in flight." Don't file the web issue alone and trust that someone will remember mobile.
-2. **Cross-app contracts go in `apps/web/CLAUDE.md` → *Cross-app contracts*** the moment a new persisted-state shape (localStorage key, query string, request/response field) is introduced on web for a phone-suitable feature, so the mobile sibling can mirror it without re-deriving. The Program filter contract is the template.
-3. **Web PR descriptions for phone-suitable changes must include a "Mobile parity" line** in the Tests section — either pointing at the sibling mobile issue/PR, or stating "desk-suitable only — N/A on mobile" with a one-line rationale. This makes the parity expectation visible at review time, not at launch.
+1. **Sub-issues are required for every surface, filed at the same time.** A phone-suitable feature must produce: an API sub-issue (if needed), a web sub-issue, AND a mobile sub-issue — all linked to the parent, all filed before any implementation starts. A feature with only one surface's sub-issue filed is not "in flight" — it is incomplete planning. Do not start implementing on any surface until both web and mobile sub-issues exist.
+2. **Cross-app contracts go in `apps/web/CLAUDE.md` → *Cross-app contracts*** the moment a new persisted-state shape (localStorage key, query string, request/response field) is introduced for a phone-suitable feature, so the sibling surface can mirror it without re-deriving. The Program filter contract is the template.
+3. **Every PR for a phone-suitable feature must include a "Surface coverage" line** in the Tests section. State which surfaces this PR covers, and link the sibling issue or PR for each surface it does not cover. This applies to web PRs and mobile PRs equally. The only valid alternative is "desk-suitable only — N/A on mobile/web" with a one-line rationale.
 
-**Before starting any new web phone-suitable work:**
+**Hard gate before opening any PR for a phone-suitable feature:**
 
-Scan #130 (the active mobile-parity backlog). If a parity gap there has been open for more than ~2 weeks and you're about to widen it with another web slice, surface it to the user before proceeding — the answer may be to close existing gaps first. Don't silently ship more drift.
+Verify that a tracked issue or open PR exists for every surface this feature touches. If you're about to open a web PR and no mobile sub-issue exists (or vice versa), file it before or alongside this PR. Do not merge a one-surface PR without a tracked counterpart — that is the mechanism that creates parity debt.
 
 ## Tech stack
 
@@ -233,6 +233,8 @@ Every PR must include a **Tests** section that describes what was tested and how
 
 **Not automated / manual verification needed:**
 - [ ] <Anything that genuinely cannot be driven by a test, e.g. visual polish, third-party OAuth, device-specific behavior>
+
+**Surface coverage:** <"Covers web. Mobile: #NNN" | "Covers mobile. Web: #NNN" | "Covers web + mobile" | "Desk-suitable only — N/A on mobile/web: <one-line rationale>">
 ```
 
 **Rules:**
@@ -241,7 +243,7 @@ Every PR must include a **Tests** section that describes what was tested and how
 - If a behaviour is tested by an existing test suite (not new to this PR), note which file covers it rather than leaving it as an unchecked box.
 - The manual checklist should be short. If it's more than 3–4 items, that is a sign more automation is needed.
 - For PRs touching auth, role gates, or visibility rules: always call out which roles were tested and how.
-- **For web PRs that add a phone-suitable surface:** include a `**Mobile parity:**` line in the body — either link the sibling mobile issue/PR (`#NNN`), or state "desk-suitable only — no mobile counterpart" with a one-line rationale (e.g. "month-grid calendar relies on a wide viewport"). This makes the parity expectation visible at review time, not at launch.
+- **For any PR that touches a phone-suitable surface (web or mobile):** include a `**Surface coverage:**` line in the body. State which surfaces this PR covers, and link the sibling issue or PR for every surface it does not cover (`#NNN`). If the feature is desk-suitable only, state "desk-suitable only — N/A on mobile/web" with a one-line rationale (e.g. "month-grid calendar relies on a wide viewport"). This rule applies equally to web PRs and mobile PRs — it is not a web-only obligation.
 
 ### Schema migrations — required pre-merge checklist item
 
@@ -273,7 +275,7 @@ When breaking a large feature issue into sub-issues for implementation:
 
 - **PR size target:** 250–500 lines of production code per PR. Unit tests may push a PR over this limit — that is acceptable.
 - **Break by domain:** Each sub-issue covers one domain (e.g., backend API, web UI, mobile UI). Do not mix backend and frontend changes in the same PR unless trivially small.
-- **Phone-suitable features need a mobile sub-issue, period.** When breaking down a feature whose primary use cases are quick / in-the-moment, file the mobile sub-issue at the same time as the web sub-issue, even if mobile will land weeks later. Desk-suitable features (heavy authoring, dense admin) can be web-only. See *Parity-first feature design* above for the boundary.
+- **Phone-suitable features need both a web sub-issue AND a mobile sub-issue, period — filed at the same time, before any implementation starts.** Neither surface is the primary; neither is the follow-up. Desk-suitable features (heavy authoring, dense admin) can be web-only. See *Parity-first feature design* above for the boundary.
 - **One PR per sub-issue:** Each sub-issue should map to exactly one pull request.
 - **Declare dependencies explicitly:** Note which sub-issues must land first. Safe parallel starting points should be identified so multiple engineers (or AI slices) can work concurrently.
 - **Reuse before building:** Before proposing new utilities or abstractions, search for existing patterns (DB managers, middleware, Zod schemas, API client methods) that can be extended.

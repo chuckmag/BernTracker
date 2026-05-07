@@ -71,8 +71,7 @@ async function setup() {
 
   await prisma.userGym.create({ data: { userId: memberId, gymId, role: 'MEMBER' } })
 
-  const { accessToken } = await signTokenPair({ userId: memberId, gymId, role: 'MEMBER' })
-  memberToken = accessToken
+  memberToken = signTokenPair(memberId, 'MEMBER').accessToken
 
   const movement = await prisma.movement.create({ data: { name: `MH-BackSquat-${TS}` } })
   movementId = movement.id
