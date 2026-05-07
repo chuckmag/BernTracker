@@ -16,9 +16,10 @@ import {
 } from 'react-native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
-import { api, type Workout, type WorkoutType } from '../lib/api'
+import { api, type Movement, type Workout, type WorkoutType } from '../lib/api'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles'
 import { useTheme } from '../lib/theme'
+import { useMovements } from '../context/MovementsContext'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
 
@@ -35,6 +36,11 @@ const TIME_CAP_TYPES = new Set<WorkoutType>([
 // flakier connections so a faster nudge feels more responsive without
 // drowning the keyboard in requests.
 const AUTOSAVE_DEBOUNCE_MS = 1500
+// Movement-detect debounce. Matches web's 800ms (apps/web/src/components/
+// WorkoutDrawer.tsx) so the suggestion latency feels equivalent on both
+// surfaces. Detection produces *suggestions*, not auto-tags — the user
+// accepts each one with the ✓ button.
+const MOVEMENT_DETECT_DEBOUNCE_MS = 800
 // Same content thresholds as web (apps/web/src/components/WorkoutDrawer.tsx)
 // — keeps an idle tap-then-cancel from creating an empty draft on the server.
 const AUTOSAVE_MIN_TITLE = 3
@@ -119,6 +125,17 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
   const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const lastSnapshotRef = useRef<string | null>(null)
 
+  // Movement state (slice 3a). `selectedMovements` is what the workout
+  // ships with — order matters (display order on the result form). Server
+  // detect populates `suggestedMovementIds`; the user accepts each pill
+  // explicitly to add to selectedMovements, or dismisses to drop the
+  // suggestion. `dismissedIds` keeps the suggestion from re-appearing on
+  // the next detect tick after the user explicitly said no.
+  const allMovements = useMovements()
+  const [selectedMovements, setSelectedMovements] = useState<Movement[]>([])
+  const [suggestedMovementIds, setSuggestedMovementIds] = useState<string[]>([])
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+
   // Edit mode: hydrate from server. Create mode skips the fetch and uses
   // the param-supplied scheduledAt + sensible defaults.
   useEffect(() => {
@@ -133,6 +150,11 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
         setType(w.type)
         setTimeCapInput(formatMmss(w.timeCapSeconds))
         setScheduledAt(w.scheduledAt)
+        // Hydrate the movement list from the workout's existing per-movement
+        // rows (already display-ordered server-side). Slice 3a only round-trips
+        // the ids; per-movement prescription still lives in slice 3b.
+        const hydratedMovements = (w.workoutMovements ?? []).map((wm) => wm.movement)
+        setSelectedMovements(hydratedMovements)
         setLoading(false)
         navigation.setOptions({ title: 'Edit Workout' })
         // Seed the autosave baseline with what we just loaded so the
@@ -143,6 +165,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
           coachNotes: (w.coachNotes ?? '').trim(),
           type: w.type,
           timeCapSeconds: w.timeCapSeconds,
+          movementIds: hydratedMovements.map((m) => m.id),
         })
       })
       .catch((e: unknown) => {
@@ -212,6 +235,12 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
   // matching the web drawer's create→update transition.
   const timeCapForSave = !showTimeCap ? null : parsedTimeCap ?? null
   const trimmedCoachNotesForSave = coachNotes.trim()
+  // Materialise the movement-id list for the snapshot + payloads. Order
+  // matters — `displayOrder` flows from this array.
+  const movementIdsForSave = useMemo(
+    () => selectedMovements.map((m) => m.id),
+    [selectedMovements],
+  )
   const snapshot = useMemo(
     () => JSON.stringify({
       title: title.trim(),
@@ -219,8 +248,9 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
       coachNotes: trimmedCoachNotesForSave,
       type,
       timeCapSeconds: timeCapForSave,
+      movementIds: movementIdsForSave,
     }),
-    [title, description, trimmedCoachNotesForSave, type, timeCapForSave],
+    [title, description, trimmedCoachNotesForSave, type, timeCapForSave, movementIdsForSave],
   )
 
   useEffect(() => {
@@ -241,6 +271,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             coachNotes: trimmedCoachNotesForSave === '' ? null : trimmedCoachNotesForSave,
             type,
             timeCapSeconds: timeCapForSave,
+            movementIds: movementIdsForSave,
           })
         } else if (mode === 'create' && scheduledAt) {
           // Create mode + first autosave: POST a draft pinned to the chosen
@@ -253,6 +284,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             coachNotes: trimmedCoachNotesForSave || undefined,
             type,
             scheduledAt: iso,
+            movementIds: movementIdsForSave,
           })
           setLocalWorkoutId(created.id)
         } else {
@@ -266,7 +298,73 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
     }, AUTOSAVE_DEBOUNCE_MS)
 
     return () => clearTimeout(handle)
-  }, [snapshot, loading, submitting, deleting, timeCapInvalid, title, description, trimmedCoachNotesForSave, type, timeCapForSave, localWorkoutId, mode, scheduledAt])
+  }, [snapshot, loading, submitting, deleting, timeCapInvalid, title, description, trimmedCoachNotesForSave, type, timeCapForSave, movementIdsForSave, localWorkoutId, mode, scheduledAt])
+
+  // ── Movement detect ──────────────────────────────────────────────────────
+  // Debounced suggest-from-description. Skips when:
+  //  - editor is still hydrating (loading)
+  //  - description is blank or below 1 char (no signal to detect against)
+  //  - the movements catalog hasn't loaded yet (no labels to render against)
+  //
+  // Detection produces *suggestions*, not auto-tags — the user accepts each
+  // pill explicitly to add to selectedMovements, or dismisses to drop it
+  // from the next detect tick. Mirrors the web drawer's pattern exactly.
+  useEffect(() => {
+    if (loading) return
+    if (!description.trim()) {
+      setSuggestedMovementIds([])
+      return
+    }
+    if (allMovements.length === 0) return
+
+    const handle = setTimeout(() => {
+      api.movements.detect(description)
+        .then((detected) => {
+          // Filter out anything already selected or explicitly dismissed —
+          // suggestions should only surface new options the user hasn't
+          // weighed in on yet.
+          const selectedIds = new Set(selectedMovements.map((m) => m.id))
+          const fresh = detected
+            .filter((m) => !selectedIds.has(m.id) && !dismissedIds.has(m.id))
+            .map((m) => m.id)
+          setSuggestedMovementIds(fresh)
+        })
+        .catch(() => {})
+    }, MOVEMENT_DETECT_DEBOUNCE_MS)
+    return () => clearTimeout(handle)
+    // selectedMovements + dismissedIds are intentionally read at debounce
+    // tick time only — including them in deps would re-fire detect on every
+    // accept/dismiss, hammering the API for no new value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [description, loading, allMovements.length])
+
+  function acceptSuggestion(id: string) {
+    const movement = allMovements.find((m) => m.id === id)
+    if (!movement) return
+    setSelectedMovements((prev) => (prev.some((m) => m.id === id) ? prev : [...prev, movement]))
+    setSuggestedMovementIds((prev) => prev.filter((sid) => sid !== id))
+  }
+
+  function dismissSuggestion(id: string) {
+    setDismissedIds((prev) => {
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+    setSuggestedMovementIds((prev) => prev.filter((sid) => sid !== id))
+  }
+
+  function removeSelectedMovement(id: string) {
+    setSelectedMovements((prev) => prev.filter((m) => m.id !== id))
+    // Drop from dismissed too so a future detect re-suggests it if the
+    // user removed it by accident.
+    setDismissedIds((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }
 
   async function handleSave() {
     if (!canSubmit) return
@@ -288,6 +386,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
           coachNotes: trimmedCoachNotes === '' ? null : trimmedCoachNotes,
           type,
           timeCapSeconds: timeCapForSave,
+          movementIds: movementIdsForSave,
         })
       } else if (mode === 'create' && scheduledAt) {
         // YYYY-MM-DD → noon UTC so the workout lands on the same calendar
@@ -299,6 +398,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
           coachNotes: trimmedCoachNotes || undefined,
           type,
           scheduledAt: iso,
+          movementIds: movementIdsForSave,
         })
       }
       lastSnapshotRef.current = snapshot
@@ -457,6 +557,87 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             <ThemedText style={styles.typeSelectLabel}>{WORKOUT_TYPE_STYLES[type].label}</ThemedText>
             <ThemedText variant="tertiary" style={styles.typeSelectChevron}>▾</ThemedText>
           </TouchableOpacity>
+
+          {/* Movements (slice 3a) — selected pills with × remove, plus
+              "Suggestions" pills with ✓ accept / × dismiss when the detect
+              effect surfaces matches from the description. Per-movement
+              prescription editing is deferred to slice 3b. */}
+          <ThemedText variant="label" style={styles.sectionLabel}>MOVEMENTS</ThemedText>
+          {selectedMovements.length === 0 ? (
+            <ThemedText variant="tertiary" style={styles.movementsEmpty}>
+              Type movements into the description above — we'll suggest matches below.
+            </ThemedText>
+          ) : (
+            <View style={styles.movementChipRow} testID="selected-movements">
+              {selectedMovements.map((m) => (
+                <View
+                  key={m.id}
+                  style={[
+                    styles.movementChip,
+                    { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+                  ]}
+                  testID={`selected-movement-${m.id}`}
+                >
+                  <ThemedText style={styles.movementChipLabel}>{m.name}</ThemedText>
+                  <TouchableOpacity
+                    onPress={() => removeSelectedMovement(m.id)}
+                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${m.name}`}
+                    testID={`selected-movement-remove-${m.id}`}
+                  >
+                    <ThemedText variant="tertiary" style={styles.movementChipDismiss}>×</ThemedText>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {suggestedMovementIds.length > 0 && (
+            <>
+              <ThemedText variant="muted" style={styles.suggestionsHeader}>
+                SUGGESTIONS — tap ✓ to add, × to dismiss
+              </ThemedText>
+              <View style={styles.movementChipRow} testID="suggested-movements">
+                {suggestedMovementIds.map((id) => {
+                  const m = allMovements.find((x) => x.id === id)
+                  if (!m) return null
+                  return (
+                    <View
+                      key={id}
+                      style={[
+                        styles.movementChip,
+                        // Brand-tinted background to read as actionable rather than
+                        // committed; selected pills use the neutral cardBg above.
+                        { backgroundColor: colors.cardBg, borderColor: colors.primary, borderStyle: 'dashed' },
+                      ]}
+                      testID={`suggested-movement-${id}`}
+                    >
+                      <ThemedText style={styles.movementChipLabel}>{m.name}</ThemedText>
+                      <TouchableOpacity
+                        onPress={() => acceptSuggestion(id)}
+                        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Add ${m.name}`}
+                        testID={`suggested-movement-accept-${id}`}
+                      >
+                        <ThemedText style={[styles.movementChipAccept, { color: colors.primary }]}>✓</ThemedText>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => dismissSuggestion(id)}
+                        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Dismiss ${m.name}`}
+                        testID={`suggested-movement-dismiss-${id}`}
+                      >
+                        <ThemedText variant="tertiary" style={styles.movementChipDismiss}>×</ThemedText>
+                      </TouchableOpacity>
+                    </View>
+                  )
+                })}
+              </View>
+            </>
+          )}
 
           {showTimeCap && (
             <>
@@ -633,6 +814,24 @@ const styles = StyleSheet.create({
   descriptionInput: { minHeight: 100, textAlignVertical: 'top' },
   coachNotesInput: { minHeight: 70, textAlignVertical: 'top' },
   timeCapInput: { maxWidth: 140 },
+
+  // Movement chips — selected (solid border) vs suggested (dashed brand border).
+  movementsEmpty: { fontSize: 13, fontStyle: 'italic', marginTop: 4 },
+  movementChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
+  movementChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    minHeight: 32,
+  },
+  movementChipLabel: { fontSize: 13 },
+  movementChipAccept: { fontSize: 16, fontWeight: '700' },
+  movementChipDismiss: { fontSize: 18, lineHeight: 18 },
+  suggestionsHeader: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginTop: 12, marginBottom: 4 },
 
   // Type-selector single-row button — leading 4px accent bar tints to
   // match the selected type so the user gets a visual cue without opening

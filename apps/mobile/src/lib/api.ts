@@ -444,6 +444,12 @@ export const api = {
       type?: WorkoutType
       scheduledAt?: string
       timeCapSeconds?: number | null
+      // Replace the workout's movements with this list, in display order.
+      // Server schema (UpdateWorkoutSchema) accepts either `movementIds`
+      // for the simple case or `movements` for per-movement prescription;
+      // mobile uses ids in slice 3a and will switch to `movements` when
+      // slice 3b adds the prescription editor.
+      movementIds?: string[]
     }) =>
       request<Workout>(`/api/workouts/${id}`, {
         method: 'PATCH',
@@ -467,6 +473,22 @@ export const api = {
   },
 
   movements: {
+    // Full active-movements catalog. Used by `MovementsContext` so the
+    // editor can render suggestion + selected pills with proper labels and
+    // resolve detected ids back to a full Movement object. Same endpoint
+    // the web `useMovements()` provider hits (#243 slice 3a).
+    list: () => request<Movement[]>('/api/movements'),
+
+    // Free-text → matched-movement detection. Mirrors the web drawer's
+    // debounced detect — server tokenises the description and returns
+    // the active Movement rows whose canonical names hit. Editor presents
+    // these as accept/dismiss suggestions; they're never auto-tagged.
+    detect: (description: string) =>
+      request<Movement[]>('/api/movements/detect', {
+        method: 'POST',
+        body: JSON.stringify({ description }),
+      }),
+
     myHistory: (movementId: string, page = 1, limit = 10) =>
       request<MovementHistoryPage>(
         `/api/movements/${encodeURIComponent(movementId)}/my-history?page=${page}&limit=${limit}`,
