@@ -22,23 +22,25 @@ function formatDayLabel(dateKey: string): string {
 
 interface Props {
   gymId: string
+  programIds?: string[]
 }
 
-export default function UpcomingCard({ gymId }: Props) {
+export default function UpcomingCard({ gymId, programIds }: Props) {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
+    setLoading(true)
     const tomorrow = addDays(new Date(), 1)
     tomorrow.setHours(0, 0, 0, 0)
     const end = addDays(new Date(), 6)
     end.setHours(23, 59, 59, 999)
-    api.workouts.list(gymId, tomorrow.toISOString(), end.toISOString())
+    api.workouts.list(gymId, tomorrow.toISOString(), end.toISOString(), { programIds })
       .then((data) => setWorkouts(data.filter((w) => w.status === 'PUBLISHED')))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [gymId])
+  }, [gymId, programIds?.join(',')])
 
   // Group by UTC date key, then take the first MAX_DAYS that have ≥1 workout
   const byDate: Record<string, Workout[]> = {}

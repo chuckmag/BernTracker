@@ -88,7 +88,7 @@ describe('UpcomingCard', () => {
 
   it('caps at 4 days even when more are returned', async () => {
     const { api } = await import('../lib/api')
-    vi.mocked(api.workouts.list).mockResolvedValue([1, 2, 3, 4, 5].map(makeWorkout))
+    vi.mocked(api.workouts.list).mockResolvedValue([1, 2, 3, 4, 5].map((d) => makeWorkout(d)))
     renderCard()
     await screen.findByText('Workout +1d')
     const rows = screen.getAllByRole('button')

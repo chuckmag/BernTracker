@@ -22,6 +22,8 @@ import { useGym } from './GymContext'
 interface ProgramFilterValue {
   selected: string[]
   available: GymProgram[]
+  /** The default gym program's program ID, or null if there is none. */
+  defaultProgramId: string | null
   loading: boolean
   setSelected: (ids: string[]) => void
   toggle: (id: string) => void
@@ -138,9 +140,14 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
     writeStorage(gymId, [])
   }, [gymId])
 
+  const defaultProgramId = useMemo(
+    () => available.find((gp) => gp.isDefault && gp.gymId)?.program.id ?? null,
+    [available],
+  )
+
   const value = useMemo(
-    () => ({ selected, available, loading, setSelected, toggle, clear }),
-    [selected, available, loading, setSelected, toggle, clear],
+    () => ({ selected, available, defaultProgramId, loading, setSelected, toggle, clear }),
+    [selected, available, defaultProgramId, loading, setSelected, toggle, clear],
   )
 
   return (

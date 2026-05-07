@@ -114,7 +114,7 @@ describe('WorkoutMovementHistory', () => {
 
   it('Save creates a personal-program workout then logs the result and refreshes', async () => {
     vi.mocked(api.me.personalProgram.workouts.create).mockResolvedValue({ id: 'w-new' } as Awaited<ReturnType<typeof api.me.personalProgram.workouts.create>>)
-    vi.mocked(api.results.create).mockResolvedValue(undefined as Awaited<ReturnType<typeof api.results.create>>)
+    vi.mocked(api.results.create).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof api.results.create>>)
     // Second myHistory call (after save) returns updated data with 1RM filled
     vi.mocked(api.movements.myHistory)
       .mockResolvedValueOnce(strengthHistoryResponse as Awaited<ReturnType<typeof api.movements.myHistory>>)

@@ -39,6 +39,8 @@ interface ProgramFilterValue {
   available: GymProgram[]
   /** The real database ID of the user's personal program, once loaded. */
   personalProgramId: string | null
+  /** The default gym program's program ID, or null if there is none. */
+  defaultProgramId: string | null
   loading: boolean
   setSelected: (ids: string[]) => void
   toggle: (id: string) => void
@@ -150,7 +152,8 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
   }
 
   const gymProgramIds = selected.filter((id) => id !== PERSONAL_PROGRAM_SENTINEL)
-  const value: ProgramFilterValue = { selected, gymProgramIds, available, personalProgramId, loading, setSelected, toggle, clear }
+  const defaultProgramId = available.find((gp) => gp.isDefault && gp.gymId)?.program.id ?? null
+  const value: ProgramFilterValue = { selected, gymProgramIds, available, personalProgramId, defaultProgramId, loading, setSelected, toggle, clear }
   return <ProgramFilterContext.Provider value={value}>{children}</ProgramFilterContext.Provider>
 }
 
