@@ -22,7 +22,7 @@ import type { LeaderboardEntry } from './src/lib/api'
 // pushed from any tab. Tabs only carry their list screens.
 export type RootStackParamList = {
   Main: undefined
-  WodDetail: { workoutId: string; from?: 'feed' | 'history' | 'movement-history' }
+  WodDetail: { workoutId: string; from?: 'feed' | 'history' | 'movement-history' | 'wodalytics' }
   LogResult: { workoutId: string; resultId?: string; existingResult?: LeaderboardEntry }
   // Modal-style editor for personal-program workouts (#242 slice 2).
   // - mode='create': new workout pinned to `scheduledAt` (YYYY-MM-DD)

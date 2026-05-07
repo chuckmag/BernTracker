@@ -376,6 +376,29 @@ export interface ConsistencyData {
   history: { date: string; count: number }[]
 }
 
+export interface TrackedMovement {
+  movementId: string
+  name: string
+  count: number
+}
+
+export interface StrengthTrajectoryPoint {
+  date: string
+  maxLoad: number
+  loadUnit: string
+  sets: { reps?: string; load?: number }[]
+  workoutId: string
+  resultId: string
+}
+
+export interface StrengthTrajectoryData {
+  movementId: string
+  name: string
+  currentPr: number | null
+  loadUnit: string | null
+  points: StrengthTrajectoryPoint[]
+}
+
 export interface Gym {
   id: string
   name: string
@@ -751,6 +774,10 @@ export const api = {
         const qs = weeks ? `?weeks=${weeks}` : ''
         return req<ConsistencyData>(`/api/me/analytics/consistency${qs}`)
       },
+      trackedMovements: (days = 60, limit = 5) =>
+        req<TrackedMovement[]>(`/api/me/analytics/tracked-movements?days=${days}&limit=${limit}`),
+      strengthTrajectory: (movementId: string, range: '1M' | '3M' | '6M' | '1Y') =>
+        req<StrengthTrajectoryData>(`/api/me/analytics/strength-trajectory?movementId=${encodeURIComponent(movementId)}&range=${range}`),
     },
   },
 
@@ -1004,8 +1031,11 @@ export const api = {
     delete: (resultId: string, token?: string) =>
       req<void>(`/api/results/${resultId}`, { method: 'DELETE', token }),
 
-    history: (page = 1, movementIds?: string[], token?: string) => {
-      const qs = movementIds?.length ? `&${movementIds.map((id) => `movementIds=${encodeURIComponent(id)}`).join('&')}` : ''
+    history: (page = 1, movementIds?: string[], programIds?: string[], token?: string) => {
+      const parts: string[] = []
+      if (movementIds?.length) parts.push(...movementIds.map((id) => `movementIds=${encodeURIComponent(id)}`))
+      if (programIds?.length) parts.push(...programIds.map((id) => `programIds=${encodeURIComponent(id)}`))
+      const qs = parts.length ? `&${parts.join('&')}` : ''
       return req<ResultHistoryPage>(`/api/me/results?page=${page}${qs}`, { token })
     },
   },

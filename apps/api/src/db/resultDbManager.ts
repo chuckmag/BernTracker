@@ -29,6 +29,7 @@ interface Pagination {
   page: number
   limit: number
   movementIds?: string[]
+  programIds?: string[]
 }
 
 type LeaderboardEntry = Awaited<ReturnType<typeof fetchLeaderboardRows>>[number]
@@ -125,23 +126,27 @@ export async function deleteResultByOwner(resultId: string, userId: string) {
 }
 
 export async function findResultHistoryByUser(userId: string, pagination: Pagination) {
-  const { page, limit, movementIds } = pagination
+  const { page, limit, movementIds, programIds } = pagination
   const skip = (page - 1) * limit
   const movementFilter = movementIds?.length
     ? { workout: { workoutMovements: { some: { movementId: { in: movementIds } } } } }
     : {}
+  const programFilter = programIds?.length
+    ? { workout: { programId: { in: programIds } } }
+    : {}
 
+  const where = { userId, ...movementFilter, ...programFilter }
   const [results, total] = await prisma.$transaction([
     prisma.result.findMany({
-      where: { userId, ...movementFilter },
-      orderBy: { createdAt: 'desc' },
+      where,
+      orderBy: [{ workout: { scheduledAt: 'desc' } }, { createdAt: 'desc' }],
       skip,
       take: limit,
       include: {
         workout: { select: { id: true, title: true, type: true, scheduledAt: true } },
       },
     }),
-    prisma.result.count({ where: { userId, ...movementFilter } }),
+    prisma.result.count({ where }),
   ])
 
   return { results, total, page, limit, pages: Math.ceil(total / limit) }
@@ -164,7 +169,7 @@ interface MovementResultEntry {
   sets?: SetEntry[]
 }
 
-function extractMovementSets(
+export function extractMovementSets(
   value: Prisma.JsonValue,
   movementId: string,
 ): { sets: SetEntry[]; loadUnit?: string; distanceUnit?: string } {
@@ -173,7 +178,7 @@ function extractMovementSets(
   return { sets: mr?.sets ?? [], loadUnit: mr?.loadUnit, distanceUnit: mr?.distanceUnit }
 }
 
-function parseRepsToInt(reps: string): number {
+export function parseRepsToInt(reps: string): number {
   return reps.split('.').reduce((sum, part) => sum + (parseInt(part, 10) || 0), 0)
 }
 

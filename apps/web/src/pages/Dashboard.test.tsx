@@ -35,7 +35,8 @@ vi.mock('../context/GymContext', () => ({
 }))
 
 vi.mock('../context/ProgramFilterContext', () => ({
-  useProgramFilter: () => ({ available: [], selected: [], setSelected: vi.fn() }),
+  useProgramFilter: () => ({ available: [], selected: [], gymProgramIds: [], personalProgramId: null, setSelected: vi.fn() }),
+  PERSONAL_PROGRAM_SENTINEL: '__personal__',
 }))
 
 vi.mock('../context/AuthContext', () => ({

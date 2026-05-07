@@ -1,21 +1,21 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useGym } from '../context/GymContext.tsx'
-import ProgramFilterPicker from './ProgramFilterPicker.tsx'
 
 // Browse Gyms moved into the TopBar gym picker — no standalone sidebar entry.
+// Calendar is member-visible (#268 unified calendar: personal + gym programs for all roles).
+// Personal Program removed — /personal-program redirects to /calendar.
 const memberLinks: { to: string; label: string; logo?: string }[] = [
-  { to: '/dashboard',        label: 'Dashboard'        },
-  { to: '/feed',             label: 'Feed'             },
-  { to: '/history',          label: 'History'          },
-  { to: '/personal-program', label: 'Personal Program' },
-  { to: '/analytics',        label: 'WODalytics',      logo: '/favicon-96x96.png' },
+  { to: '/dashboard',  label: 'Dashboard'                                   },
+  { to: '/feed',       label: 'Feed'                                        },
+  { to: '/calendar',   label: 'Calendar'                                    },
+  { to: '/history',    label: 'History'                                     },
+  { to: '/wodalytics', label: 'WODalytics', logo: '/favicon-96x96.png'     },
 ]
 
 // Members consolidated into /gym-settings#members (slice D1) — no standalone link.
 const staffLinks = [
-  { to: '/calendar',     label: 'Calendar' },
-  { to: '/programs',     label: 'Programs' },
+  { to: '/programs',     label: 'Programs'     },
   { to: '/gym-settings', label: 'Gym Settings' },
 ]
 
@@ -58,8 +58,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           ×
         </button>
       </div>
-
-      <ProgramFilterPicker />
 
       <nav className="flex-1 px-3 py-4 space-y-1">
         {memberLinks.map(({ to, label, logo }) => (

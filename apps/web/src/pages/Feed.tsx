@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { api, type PersonalProgram, type Workout } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
-import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
+import { useProgramFilter, PERSONAL_PROGRAM_SENTINEL } from '../context/ProgramFilterContext.tsx'
 import { makePersonalProgramScope } from '../lib/personalProgramScope.ts'
 import Skeleton from '../components/ui/Skeleton.tsx'
 import Button from '../components/ui/Button.tsx'
@@ -11,6 +11,7 @@ import BarbellIcon from '../components/icons/BarbellIcon.tsx'
 import UsersIcon from '../components/icons/UsersIcon.tsx'
 import PersonalProgramIcon from '../components/icons/PersonalProgramIcon.tsx'
 import WorkoutDrawer from '../components/WorkoutDrawer.tsx'
+import ProgramFilterPicker from '../components/ProgramFilterPicker.tsx'
 
 const INITIAL_FUTURE_DAYS = 30
 const INITIAL_PAST_DAYS = 30
@@ -69,8 +70,14 @@ function formatDayLabel(dateKey: string, todayKey: string): string {
 
 export default function Feed() {
   const { gymId, loading: gymLoading, clearGymId } = useGym()
-  const { selected: programIds, available, clear: clearProgramFilter } = useProgramFilter()
+  const { gymProgramIds, selected } = useProgramFilter()
+  // Strip the sentinel so only real DB ids go to the gym workouts API.
+  const programIds = gymProgramIds
+  // Whether each source should appear in the feed based on the current filter.
+  const includePersonal = selected.length === 0 || selected.includes(PERSONAL_PROGRAM_SENTINEL)
+  const includeGym = selected.length === 0 || gymProgramIds.length > 0
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [personalWorkouts, setPersonalWorkouts] = useState<Workout[]>([])
   const [fetchStart, setFetchStart] = useState<Date | null>(null)
   const [fetchEnd, setFetchEnd] = useState<Date | null>(null)
   const [loading, setLoading] = useState(false)
@@ -92,6 +99,8 @@ export default function Feed() {
   const navigate = useNavigate()
 
   const programIdsKey = programIds.join(',')
+  const includeGymKey = String(includeGym)
+  const includePersonalKey = String(includePersonal)
 
   useEffect(() => {
     if (gymLoading || !gymId) return
@@ -99,6 +108,7 @@ export default function Feed() {
     setLoading(true)
     setError(null)
     setWorkouts([])
+    setPersonalWorkouts([])
     setFetchStart(null)
     setFetchEnd(null)
     fetchStartRef.current = null
@@ -109,15 +119,21 @@ export default function Feed() {
     const to = new Date(today)
     to.setDate(today.getDate() + INITIAL_FUTURE_DAYS)
     to.setHours(23, 59, 59, 999)
-    api.workouts.list(
-      gymId,
-      from.toISOString(),
-      to.toISOString(),
-      programIds.length ? { programIds } : undefined,
-    )
-      .then((data) => {
+
+    const gymFetch: Promise<Workout[]> = includeGym
+      ? api.workouts.list(gymId, from.toISOString(), to.toISOString(), programIds.length ? { programIds } : undefined)
+          .then((data) => data.filter((w) => w.status === 'PUBLISHED'))
+      : Promise.resolve([])
+
+    const personalFetch: Promise<Workout[]> = includePersonal
+      ? api.me.personalProgram.workouts.list({ from: from.toISOString(), to: to.toISOString() })
+      : Promise.resolve([])
+
+    Promise.all([gymFetch, personalFetch])
+      .then(([gymData, personalData]) => {
         if (!cancelled) {
-          setWorkouts(data.filter((w) => w.status === 'PUBLISHED'))
+          setWorkouts(gymData)
+          setPersonalWorkouts(personalData)
           fetchStartRef.current = from
           fetchEndRef.current = to
           setFetchStart(from)
@@ -139,7 +155,7 @@ export default function Feed() {
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [gymId, gymLoading, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gymId, gymLoading, programIdsKey, includeGymKey, includePersonalKey])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Upsert the personal program once per session. Independent of the gym /
   // program-filter loop above so the "+" button is available even before the
@@ -162,17 +178,20 @@ export default function Feed() {
   const reloadVisibleWindow = useCallback(async () => {
     if (!gymId || !fetchStartRef.current || !fetchEndRef.current) return
     try {
-      const data = await api.workouts.list(
-        gymId,
-        fetchStartRef.current.toISOString(),
-        fetchEndRef.current.toISOString(),
-        programIds.length ? { programIds } : undefined,
-      )
-      setWorkouts(data.filter((w) => w.status === 'PUBLISHED'))
+      const gymFetch: Promise<Workout[]> = includeGym
+        ? api.workouts.list(gymId, fetchStartRef.current.toISOString(), fetchEndRef.current.toISOString(), programIds.length ? { programIds } : undefined)
+            .then((data) => data.filter((w) => w.status === 'PUBLISHED'))
+        : Promise.resolve([])
+      const personalFetch: Promise<Workout[]> = includePersonal
+        ? api.me.personalProgram.workouts.list({ from: fetchStartRef.current.toISOString(), to: fetchEndRef.current.toISOString() })
+        : Promise.resolve([])
+      const [gymData, personalData] = await Promise.all([gymFetch, personalFetch])
+      setWorkouts(gymData)
+      setPersonalWorkouts(personalData)
     } catch (e) {
       setError((e as Error).message)
     }
-  }, [gymId, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gymId, programIdsKey, includeGym, includePersonal])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = useCallback(() => {
     if (!gymId || !fetchStartRef.current || loadingMoreRef.current) return
@@ -181,14 +200,19 @@ export default function Feed() {
     const newFrom = addDays(fetchStartRef.current, -PAGE_DAYS)
     const newTo = addDays(fetchStartRef.current, -1)
     newTo.setHours(23, 59, 59, 999)
-    api.workouts.list(
-      gymId,
-      newFrom.toISOString(),
-      newTo.toISOString(),
-      programIds.length ? { programIds } : undefined,
-    )
-      .then((data) => {
-        setWorkouts((prev) => [...prev, ...data.filter((w) => w.status === 'PUBLISHED')])
+
+    const gymFetch: Promise<Workout[]> = includeGym
+      ? api.workouts.list(gymId, newFrom.toISOString(), newTo.toISOString(), programIds.length ? { programIds } : undefined)
+          .then((data) => data.filter((w) => w.status === 'PUBLISHED'))
+      : Promise.resolve([])
+    const personalFetch: Promise<Workout[]> = includePersonal
+      ? api.me.personalProgram.workouts.list({ from: newFrom.toISOString(), to: newTo.toISOString() })
+      : Promise.resolve([])
+
+    Promise.all([gymFetch, personalFetch])
+      .then(([gymData, personalData]) => {
+        setWorkouts((prev) => [...prev, ...gymData])
+        setPersonalWorkouts((prev) => [...prev, ...personalData])
         fetchStartRef.current = newFrom
         setFetchStart(newFrom)
       })
@@ -197,7 +221,7 @@ export default function Feed() {
         loadingMoreRef.current = false
         setLoadingMore(false)
       })
-  }, [gymId, programIdsKey])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gymId, programIdsKey, includeGym, includePersonal])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const sentinel = sentinelRef.current
@@ -237,21 +261,17 @@ export default function Feed() {
   const today = new Date()
   const todayKey = toDateKey(today)
 
+  const allWorkouts = [...workouts, ...personalWorkouts]
+
   // Future tiles only extend as far as the last day with a workout scheduled.
   // If nothing is planned ahead, the feed ends at today.
-  const latestFutureWorkout = workouts.reduce<Date | null>((latest, w) => {
+  const latestFutureWorkout = allWorkouts.reduce<Date | null>((latest, w) => {
     const d = new Date(w.scheduledAt)
     return toDateKey(d) > todayKey ? (!latest || d > latest ? d : latest) : latest
   }, null)
   const blockEnd = latestFutureWorkout ?? today
 
-  const dayBlocks = fetchStart ? buildDayBlocks(workouts, fetchStart, blockEnd) : []
-
-  // Single-program filter gets a featured header (color stripe + name).
-  // Multi-program gets a compact chip pointing at the picker.
-  const singleProgram = programIds.length === 1
-    ? available.find(({ program }) => program.id === programIds[0])?.program ?? null
-    : null
+  const dayBlocks = fetchStart ? buildDayBlocks(allWorkouts, fetchStart, blockEnd) : []
 
   // Workouts on the day the drawer is open for — fed to the drawer's
   // "today's workouts" nav so the user can hop between siblings.
@@ -263,39 +283,10 @@ export default function Feed() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {programIds.length > 0 && (
-        <div className="mb-4">
-          <Link
-            to="/feed"
-            onClick={(e) => { e.preventDefault(); clearProgramFilter() }}
-            className="text-xs text-primary hover:opacity-80"
-          >
-            ← Back to all workouts
-          </Link>
-        </div>
-      )}
-
-      {singleProgram ? (
-        <div className="flex items-start gap-3 mb-6">
-          <div
-            style={{ backgroundColor: singleProgram.coverColor ?? '#374151' }}
-            className="w-1.5 h-10 rounded-full shrink-0"
-          />
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold truncate">{singleProgram.name}</h1>
-            <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-0.5">Feed</p>
-          </div>
-        </div>
-      ) : programIds.length > 1 ? (
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">Feed</h1>
-          <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mt-1">
-            Filtered to {programIds.length} programs
-          </p>
-        </div>
-      ) : (
-        <h1 className="text-2xl font-bold mb-6">Feed</h1>
-      )}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Feed</h1>
+        <ProgramFilterPicker variant="inline" />
+      </div>
 
       {error && <p className="text-red-400 mb-4">{error}</p>}
 

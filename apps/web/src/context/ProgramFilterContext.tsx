@@ -16,16 +16,29 @@ import { useGym } from './GymContext.tsx'
  *
  * Empty selection means "all programs" (no `programIds` sent to the API).
  *
+ * Personal program: the virtual ID `PERSONAL_PROGRAM_SENTINEL` (`'__personal__'`)
+ * represents the user's private personal program in the filter. Consumers must
+ * strip it from `gymProgramIds` before passing to gym API endpoints (the sentinel
+ * is not a real database ID). Use `gymProgramIds` instead of `selected` whenever
+ * calling the gym workouts API.
+ *
  * Mobile parity: when the React Native client lands, mirror this contract:
  *   - storage key: `programFilter:<gymId>`
- *   - value: JSON-encoded string array of programIds
- *   - filter shape on the server: `?programIds=id1,id2`
+ *   - value: JSON-encoded string array of programIds (may include sentinel)
+ *   - filter shape on the server: `?programIds=id1,id2` (sentinel stripped)
  * See also `apps/web/src/components/ProgramFilterPicker.tsx`.
  */
 
+/** Virtual ID representing the user's personal program in the filter selection. */
+export const PERSONAL_PROGRAM_SENTINEL = '__personal__'
+
 interface ProgramFilterValue {
   selected: string[]
+  /** `selected` with the personal-program sentinel removed — safe to pass to gym API endpoints. */
+  gymProgramIds: string[]
   available: GymProgram[]
+  /** The real database ID of the user's personal program, once loaded. */
+  personalProgramId: string | null
   loading: boolean
   setSelected: (ids: string[]) => void
   toggle: (id: string) => void
@@ -58,6 +71,7 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [available, setAvailable] = useState<GymProgram[]>([])
+  const [personalProgramId, setPersonalProgramId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [storedSelection, setStoredSelection] = useState<string[]>([])
   const lastGymIdRef = useRef<string | null>(null)
@@ -66,6 +80,7 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (!gymId) {
       setAvailable([])
+      setPersonalProgramId(null)
       setStoredSelection([])
       lastGymIdRef.current = null
       return
@@ -76,12 +91,23 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
     }
     let cancelled = false
     setLoading(true)
-    // Slice 3 — read from /me/programs so the picker only surfaces programs
-    // the caller can actually navigate to (full gym list for staff, the
-    // user's UserProgram subscriptions for MEMBER).
-    api.me.programs(gymId)
-      .then((list) => { if (!cancelled) setAvailable(list) })
-      .catch(() => { if (!cancelled) setAvailable([]) })
+    // Fetch gym programs (role-filtered) and personal program ID in parallel.
+    // Personal program GET is idempotent — it upserts on first call.
+    Promise.all([
+      api.me.programs(gymId),
+      api.me.personalProgram.get(),
+    ])
+      .then(([list, personal]) => {
+        if (!cancelled) {
+          setAvailable(list)
+          setPersonalProgramId(personal.id)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAvailable([])
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [gymId])
@@ -123,7 +149,8 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
     setSelected([])
   }
 
-  const value: ProgramFilterValue = { selected, available, loading, setSelected, toggle, clear }
+  const gymProgramIds = selected.filter((id) => id !== PERSONAL_PROGRAM_SENTINEL)
+  const value: ProgramFilterValue = { selected, gymProgramIds, available, personalProgramId, loading, setSelected, toggle, clear }
   return <ProgramFilterContext.Provider value={value}>{children}</ProgramFilterContext.Provider>
 }
 
