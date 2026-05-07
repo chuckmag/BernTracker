@@ -30,7 +30,7 @@ type Props = {
 
 export default function WodHeroCard({ data }: Props) {
   const nav = useNavigation<Nav>()
-  const { workout, myResult, leaderboard, gymMemberCount } = data
+  const { workout, myResult, leaderboard, gymMemberCount, programSubscriberCount = 0, isHeroWorkoutGymAffiliated = true } = data
 
   if (!workout) {
     return (
@@ -114,7 +114,9 @@ export default function WodHeroCard({ data }: Props) {
       <View style={styles.footer}>
         <Text style={styles.footerText}>
           <Text style={styles.footerCount}>{leaderboard?.totalLogged ?? 0}</Text>
-          {gymMemberCount > 0 ? ` of ${gymMemberCount}` : ''} members logged today
+          {isHeroWorkoutGymAffiliated
+            ? (gymMemberCount > 0 ? ` of ${gymMemberCount} member${gymMemberCount !== 1 ? 's' : ''}` : ' member') + ' logged today'
+            : (programSubscriberCount > 0 ? ` of ${programSubscriberCount} subscriber${programSubscriberCount !== 1 ? 's' : ''}` : ' subscriber') + ' logged today'}
         </Text>
         <TouchableOpacity onPress={goToWod} activeOpacity={0.7}>
           <Text style={styles.boardLink}>Leaderboard →</Text>

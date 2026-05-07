@@ -146,6 +146,10 @@ export interface DashboardToday {
   myResult: DashboardTodayResult | null
   leaderboard: DashboardLeaderboard | null
   gymMemberCount: number
+  /** Subscribers to the hero workout's program via UserProgram. Used when isHeroWorkoutGymAffiliated is false. */
+  programSubscriberCount: number
+  /** False for unaffiliated programs (e.g. CrossFit Mainsite) — use programSubscriberCount for the social count. */
+  isHeroWorkoutGymAffiliated: boolean
 }
 
 export interface LeaderboardEntry {

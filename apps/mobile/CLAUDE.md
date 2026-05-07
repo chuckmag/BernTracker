@@ -47,6 +47,8 @@ When mobile lacks a screen that web has *and the underlying task is phone-suitab
 
 - **Program filter:** `AsyncStorage["programFilter:<gymId>"]` → JSON `string[]`. Same `?programIds=id1,id2` query shape on `GET /api/gyms/:gymId/workouts` as the web.
 
+- **Dashboard program selection:** `AsyncStorage["dashboardProgram:<gymId>"]` → single program ID string (empty = "all programs"). Auto-seeded from `GymProgram.isDefault` on first visit. Picker labels the default program with ` (Default)`. Separate from the multi-select feed filter above.
+
 ## Design system
 
 ### Palette — `src/lib/theme.ts`

@@ -10,6 +10,8 @@ interface Props {
   myResult: DashboardTodayResult | null
   leaderboard: DashboardLeaderboard | null
   gymMemberCount: number
+  programSubscriberCount?: number
+  isHeroWorkoutGymAffiliated?: boolean
   compact?: boolean
 }
 
@@ -36,7 +38,7 @@ function formatCap(seconds: number): string {
   return s === 0 ? `${m} min cap` : `${m}:${String(s).padStart(2, '0')} cap`
 }
 
-export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberCount, compact = false }: Props) {
+export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberCount, programSubscriberCount = 0, isHeroWorkoutGymAffiliated = true, compact = false }: Props) {
   const typeStyle = WORKOUT_TYPE_STYLES[workout.type]
   const scored = myResult ? formatResultValue(myResult.value) : null
   const levelLabel = myResult ? (LEVEL_LABELS[myResult.level] ?? myResult.level) : null
@@ -139,7 +141,9 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
       <div className="flex items-center justify-between gap-2 pt-4 border-t border-slate-200 dark:border-gray-800 text-sm text-slate-500 dark:text-gray-400 flex-wrap">
         <span>
           <span className="text-slate-950 dark:text-white font-semibold">{leaderboard?.totalLogged ?? 0}</span>
-          {gymMemberCount > 0 ? ` of ${gymMemberCount}` : ''} member{gymMemberCount !== 1 ? 's' : ''} logged today
+          {isHeroWorkoutGymAffiliated
+            ? (gymMemberCount > 0 ? ` of ${gymMemberCount} member${gymMemberCount !== 1 ? 's' : ''}` : ' member') + ' logged today'
+            : (programSubscriberCount > 0 ? ` of ${programSubscriberCount} subscriber${programSubscriberCount !== 1 ? 's' : ''}` : ' subscriber') + ' logged today'}
         </span>
         <Link
           to={`/workouts/${workout.id}`}

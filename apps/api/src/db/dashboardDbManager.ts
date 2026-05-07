@@ -62,10 +62,22 @@ export async function getDashboardToday(gymId: string, userId: string, programId
   ])
 
   if (!workout) {
-    return { workout: null, myResult: null, leaderboard: null, gymMemberCount }
+    return {
+      workout: null,
+      myResult: null,
+      leaderboard: null,
+      gymMemberCount,
+      programSubscriberCount: 0,
+      isHeroWorkoutGymAffiliated: true,
+    }
   }
 
-  const [myResult, allResults] = await Promise.all([
+  const heroProgramId = workout.program?.id
+
+  // Determine whether the hero workout's program is a gym program or an
+  // unaffiliated subscription (e.g. CrossFit Mainsite). Run this in parallel
+  // with the result + leaderboard fetches.
+  const [myResult, allResults, gymProgram, programSubscriberCount] = await Promise.all([
     prisma.result.findUnique({
       where: { userId_workoutId: { userId, workoutId: workout.id } },
       select: {
@@ -80,8 +92,15 @@ export async function getDashboardToday(gymId: string, userId: string, programId
       },
     }),
     findLeaderboardByWorkout(workout.id, {}),
+    heroProgramId
+      ? prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: heroProgramId } } })
+      : Promise.resolve(null),
+    heroProgramId
+      ? prisma.userProgram.count({ where: { programId: heroProgramId } })
+      : Promise.resolve(0),
   ])
 
+  const isHeroWorkoutGymAffiliated = !!gymProgram
   const userRank = myResult ? allResults.findIndex((r) => r.userId === userId) + 1 : null
 
   return {
@@ -96,5 +115,7 @@ export async function getDashboardToday(gymId: string, userId: string, programId
           : null,
     },
     gymMemberCount,
+    programSubscriberCount,
+    isHeroWorkoutGymAffiliated,
   }
 }

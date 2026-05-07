@@ -35,7 +35,7 @@ vi.mock('../context/GymContext', () => ({
 }))
 
 vi.mock('../context/ProgramFilterContext', () => ({
-  useProgramFilter: () => ({ available: [], selected: [], gymProgramIds: [], personalProgramId: null, setSelected: vi.fn() }),
+  useProgramFilter: () => ({ available: [], selected: [], gymProgramIds: [], personalProgramId: null, defaultProgramId: null, setSelected: vi.fn() }),
   PERSONAL_PROGRAM_SENTINEL: '__personal__',
 }))
 
@@ -67,6 +67,8 @@ describe('Dashboard', () => {
       myResult: null,
       leaderboard: null,
       gymMemberCount: 0,
+      programSubscriberCount: 0,
+      isHeroWorkoutGymAffiliated: true,
     } satisfies DashboardToday)
 
     renderDashboard()
@@ -80,6 +82,8 @@ describe('Dashboard', () => {
       myResult: null,
       leaderboard: null,
       gymMemberCount: 0,
+      programSubscriberCount: 0,
+      isHeroWorkoutGymAffiliated: true,
     } satisfies DashboardToday)
 
     renderDashboard()
@@ -113,6 +117,8 @@ describe('Dashboard', () => {
       myResult: null,
       leaderboard: { rank: null, totalLogged: 5, percentile: null },
       gymMemberCount: 30,
+      programSubscriberCount: 0,
+      isHeroWorkoutGymAffiliated: true,
     } satisfies DashboardToday)
 
     renderDashboard()
@@ -126,6 +132,8 @@ describe('Dashboard', () => {
       myResult: null,
       leaderboard: null,
       gymMemberCount: 0,
+      programSubscriberCount: 0,
+      isHeroWorkoutGymAffiliated: true,
     } satisfies DashboardToday)
 
     renderDashboard()

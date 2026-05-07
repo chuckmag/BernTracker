@@ -21,22 +21,24 @@ function formatDayLabel(dateKey: string): string {
 
 interface Props {
   gymId: string
+  programIds?: string[]
 }
 
-export default function UpcomingCard({ gymId }: Props) {
+export default function UpcomingCard({ gymId, programIds }: Props) {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    setLoading(true)
     const tomorrow = addDays(new Date(), 1)
     tomorrow.setHours(0, 0, 0, 0)
     const end = addDays(new Date(), 6)
     end.setHours(23, 59, 59, 999)
-    api.gyms.workouts(gymId, tomorrow.toISOString(), end.toISOString())
+    api.gyms.workouts(gymId, tomorrow.toISOString(), end.toISOString(), programIds)
       .then((data) => setWorkouts(data.filter((w) => w.status === 'PUBLISHED')))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [gymId])
+  }, [gymId, programIds?.join(',')])
 
   const byDate: Record<string, Workout[]> = {}
   for (const w of workouts) {

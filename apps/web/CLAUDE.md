@@ -127,6 +127,12 @@ When you add a new piece of persisted user state (localStorage / query string / 
   - API: `GET /api/gyms/:gymId/workouts?programIds=id1,id2` (each ID independently access-checked; first failure → 403/404)
   - Mobile: read/write the same storage key (via `AsyncStorage`) and call the same endpoint with the same CSV shape.
 
+- **Dashboard program selection** (`src/pages/Dashboard.tsx`)
+  - Storage: `localStorage["dashboardProgram:<gymId>"]` → single program ID string (empty string = "all programs")
+  - Default: auto-selects the gym's default program (`GymProgram.isDefault = true`) on first visit when no stored preference exists.
+  - API: `GET /api/gyms/:gymId/dashboard/today?programIds=<id>` — single ID (Dashboard shows one program at a time, unlike the multi-select Feed/Calendar filter).
+  - Mobile: read/write the same key via `AsyncStorage`. Picker bottom sheet labels default program with ` (Default)` suffix. Separate from `programFilter:<gymId>` which is Feed-scoped and multi-select.
+
 - **Theme preference** (`src/context/ThemeContext.tsx`, `src/lib/useTheme.ts`)
   - Storage: `localStorage["wodalytics-theme"]` → `"light" | "dark" | "system"` (absent = `"system"`)
   - Web: `ThemeProvider` wraps `App`; `useTheme()` exposes `{ mode, setMode }`. Applies `dark` class to `<html>` via `applyTheme()`. A no-flash inline script in `index.html` applies the class before React mounts.

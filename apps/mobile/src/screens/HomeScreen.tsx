@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useFocusEffect } from '@react-navigation/native'
 import { api, type DashboardToday, type GymProgram } from '../lib/api'
 import { useGym } from '../context/GymContext'
@@ -30,15 +31,58 @@ function greetingFor(firstName: string | null | undefined): string {
   return firstName ? `Good ${period}, ${firstName}` : `Good ${period}`
 }
 
+function dashboardStorageKey(gymId: string): string {
+  return `dashboardProgram:${gymId}`
+}
+
 export default function HomeScreen() {
   const { activeGym } = useGym()
   const { user } = useAuth()
-  const { available } = useProgramFilter()
+  const { available, defaultProgramId } = useProgramFilter()
   const [selectedProgramId, setSelectedProgramId] = useState<string>('')
   const [data, setData] = useState<DashboardToday | null>(null)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Track which gym the selection was last initialized for so we re-seed
+  // when the active gym changes without running on every available[] update.
+  const initializedForGymRef = useRef<string | null>(null)
+
+  // Seed selectedProgramId from AsyncStorage (falling back to the gym's default
+  // program) the first time `available` resolves for the active gym.
+  useEffect(() => {
+    const gymId = activeGym?.id ?? null
+    if (!gymId || available.length === 0) return
+    if (initializedForGymRef.current === gymId) return
+
+    initializedForGymRef.current = gymId
+    const validIds = new Set(available.map((gp) => gp.program.id))
+
+    AsyncStorage.getItem(dashboardStorageKey(gymId))
+      .then((stored) => {
+        if (stored && validIds.has(stored)) {
+          setSelectedProgramId(stored)
+        } else if (defaultProgramId) {
+          setSelectedProgramId(defaultProgramId)
+          AsyncStorage.setItem(dashboardStorageKey(gymId), defaultProgramId).catch(() => {})
+        } else {
+          setSelectedProgramId('')
+        }
+      })
+      .catch(() => {
+        if (defaultProgramId) setSelectedProgramId(defaultProgramId)
+      })
+  }, [activeGym?.id, available, defaultProgramId])
+
+  // Reset when the gym changes so the above effect re-seeds for the new gym.
+  useEffect(() => {
+    const gymId = activeGym?.id ?? null
+    if (!gymId) return
+    if (initializedForGymRef.current !== gymId) {
+      setSelectedProgramId('')
+    }
+  }, [activeGym?.id])
 
   async function load(quiet = false) {
     if (!activeGym) return
@@ -71,8 +115,17 @@ export default function HomeScreen() {
     load(true)
   }
 
+  function handleSelectProgram(id: string) {
+    setSelectedProgramId(id)
+    const gymId = activeGym?.id
+    if (gymId) {
+      AsyncStorage.setItem(dashboardStorageKey(gymId), id).catch(() => {})
+    }
+  }
+
   const greeting = greetingFor(firstNameOf(user))
   const showPicker = available.length > 1
+  const upcomingProgramIds = selectedProgramId ? [selectedProgramId] : undefined
 
   return (
     <ScrollView
@@ -88,7 +141,7 @@ export default function HomeScreen() {
             <DashboardProgramPicker
               available={available}
               selectedId={selectedProgramId}
-              onSelect={setSelectedProgramId}
+              onSelect={handleSelectProgram}
             />
           </View>
         )}
@@ -121,7 +174,7 @@ export default function HomeScreen() {
       )}
 
       {!loading && activeGym && (
-        <UpcomingCard gymId={activeGym.id} />
+        <UpcomingCard gymId={activeGym.id} programIds={upcomingProgramIds} />
       )}
 
       {/* Social feed placeholder — deferred until social features are scoped */}
@@ -142,11 +195,19 @@ function DashboardProgramPicker({
   onSelect: (id: string) => void
 }) {
   const [open, setOpen] = useState(false)
-  const label = available.find((gp) => gp.program.id === selectedId)?.program.name ?? 'All programs'
+
+  const selectedGp = available.find((gp) => gp.program.id === selectedId)
+  const label = selectedGp
+    ? selectedGp.program.name + (selectedGp.isDefault && selectedGp.gymId ? ' (Default)' : '')
+    : 'All programs'
 
   const options = [
-    { id: '', name: 'All programs' },
-    ...available.map((gp) => ({ id: gp.program.id, name: gp.program.name })),
+    { id: '', name: 'All programs', isDefault: false },
+    ...available.map((gp) => ({
+      id: gp.program.id,
+      name: gp.program.name,
+      isDefault: gp.isDefault && !!gp.gymId,
+    })),
   ]
 
   return (
@@ -173,7 +234,7 @@ function DashboardProgramPicker({
                   onPress={() => { onSelect(p.id); setOpen(false) }}
                 >
                   <Text style={[styles.sheetRowText, isSelected && styles.sheetRowSelected]}>
-                    {p.name}
+                    {p.name}{p.isDefault ? ' (Default)' : ''}
                   </Text>
                   {isSelected && <Text style={styles.sheetCheckmark}>✓</Text>}
                 </TouchableOpacity>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type DashboardToday } from '../lib/api.ts'
 import { useGym } from '../context/GymContext.tsx'
@@ -11,15 +11,59 @@ import EmptyState from '../components/ui/EmptyState.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
 import Button from '../components/ui/Button.tsx'
 
+function dashboardStorageKey(gymId: string): string {
+  return `dashboardProgram:${gymId}`
+}
+
+function readDashboardProgram(gymId: string): string {
+  try { return localStorage.getItem(dashboardStorageKey(gymId)) ?? '' } catch { return '' }
+}
+
+function writeDashboardProgram(gymId: string, id: string): void {
+  try { localStorage.setItem(dashboardStorageKey(gymId), id) } catch { /* ignore quota */ }
+}
+
 export default function Dashboard() {
   const { gymId, loading: gymLoading, clearGymId } = useGym()
   const { user } = useAuth()
-  const { available } = useProgramFilter()
+  const { available, defaultProgramId } = useProgramFilter()
   const [selectedProgramId, setSelectedProgramId] = useState<string>('')
   const [data, setData] = useState<DashboardToday | null>(null)
   const [loading, setLoading] = useState(false)
   const [noGym, setNoGym] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Track which gym the selection was last initialized for so we re-seed
+  // when the active gym changes without running on every available[] update.
+  const initializedForGymRef = useRef<string | null>(null)
+
+  // Seed selectedProgramId from storage (falling back to the gym's default
+  // program) the first time `available` resolves for the active gym.
+  useEffect(() => {
+    if (!gymId || available.length === 0) return
+    if (initializedForGymRef.current === gymId) return
+
+    initializedForGymRef.current = gymId
+    const stored = readDashboardProgram(gymId)
+    const validIds = new Set(available.map((gp) => gp.program.id))
+
+    if (stored && validIds.has(stored)) {
+      setSelectedProgramId(stored)
+    } else if (defaultProgramId) {
+      setSelectedProgramId(defaultProgramId)
+      writeDashboardProgram(gymId, defaultProgramId)
+    } else {
+      setSelectedProgramId('')
+    }
+  }, [gymId, available, defaultProgramId])
+
+  // Reset when the gym changes so the above effect re-seeds for the new gym.
+  useEffect(() => {
+    if (!gymId) return
+    if (initializedForGymRef.current !== gymId) {
+      setSelectedProgramId('')
+    }
+  }, [gymId])
 
   useEffect(() => {
     if (gymLoading) return
@@ -44,9 +88,15 @@ export default function Dashboard() {
       .finally(() => setLoading(false))
   }, [gymId, gymLoading, selectedProgramId])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  function handleSelectProgram(id: string) {
+    setSelectedProgramId(id)
+    if (gymId) writeDashboardProgram(gymId, id)
+  }
+
   const firstName = firstNameOf(user?.firstName, user?.name)
   const greeting = greetingFor(firstName)
   const showPicker = !gymLoading && !noGym && available.length > 1
+  const upcomingProgramIds = selectedProgramId ? [selectedProgramId] : undefined
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -56,13 +106,15 @@ export default function Dashboard() {
           <div className="basis-[40%] min-w-0">
             <select
               value={selectedProgramId}
-              onChange={(e) => setSelectedProgramId(e.target.value)}
+              onChange={(e) => handleSelectProgram(e.target.value)}
               className="w-full text-sm bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 text-slate-700 dark:text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-950"
               aria-label="Filter by program"
             >
               <option value="">All programs</option>
-              {available.map(({ program }) => (
-                <option key={program.id} value={program.id}>{program.name}</option>
+              {available.map(({ program, isDefault, gymId: gpGymId }) => (
+                <option key={program.id} value={program.id}>
+                  {program.name}{isDefault && gpGymId ? ' (Default)' : ''}
+                </option>
               ))}
             </select>
           </div>
@@ -90,6 +142,8 @@ export default function Dashboard() {
                 myResult={data.myResult}
                 leaderboard={data.leaderboard}
                 gymMemberCount={data.gymMemberCount}
+                programSubscriberCount={data.programSubscriberCount}
+                isHeroWorkoutGymAffiliated={data.isHeroWorkoutGymAffiliated}
               />
               <LeaderboardCard
                 workoutId={data.workout.id}
@@ -113,7 +167,7 @@ export default function Dashboard() {
           {/* Upcoming card — inline on mobile, hidden on desktop (right rail has it) */}
           {!noGym && gymId && (
             <div className="lg:hidden">
-              <UpcomingCard gymId={gymId} />
+              <UpcomingCard gymId={gymId} programIds={upcomingProgramIds} />
             </div>
           )}
 
@@ -124,7 +178,7 @@ export default function Dashboard() {
         {/* Right rail — desktop only */}
         <div className="hidden lg:flex flex-col gap-5">
           <RailPlaceholder label="Activity" />
-          {!noGym && gymId && <UpcomingCard gymId={gymId} />}
+          {!noGym && gymId && <UpcomingCard gymId={gymId} programIds={upcomingProgramIds} />}
         </div>
       </div>
     </div>
