@@ -12,7 +12,7 @@ import FeedScreen from './src/screens/FeedScreen'
 import WodDetailScreen from './src/screens/WodDetailScreen'
 import HistoryScreen from './src/screens/HistoryScreen'
 import LogResultScreen from './src/screens/LogResultScreen'
-import AddPersonalWorkoutScreen from './src/screens/AddPersonalWorkoutScreen'
+import WorkoutEditorScreen from './src/screens/WorkoutEditorScreen'
 import AnalyticsScreen from './src/screens/AnalyticsScreen'
 import type { LeaderboardEntry } from './src/lib/api'
 
@@ -24,10 +24,15 @@ export type RootStackParamList = {
   Main: undefined
   WodDetail: { workoutId: string; from?: 'feed' | 'history' | 'movement-history' | 'wodalytics' }
   LogResult: { workoutId: string; resultId?: string; existingResult?: LeaderboardEntry }
-  // Modal-style flow off the Feed (#183 mobile parity). Carries the
-  // YYYY-MM-DD calendar date the user tapped "+" on so the form can
-  // pin scheduledAt without exposing a date picker on first cut.
-  AddPersonalWorkout: { scheduledAt: string }
+  // Modal-style editor for personal-program workouts (#242 slice 2).
+  // - mode='create': new workout pinned to `scheduledAt` (YYYY-MM-DD)
+  // - mode='edit':   load + edit + delete an existing workout by id
+  // Mode-discriminated params keep TypeScript honest at the call site so
+  // a `create` push without `scheduledAt` (or `edit` without `workoutId`)
+  // fails at compile time.
+  WorkoutEditor:
+    | { mode: 'create'; scheduledAt: string; workoutId?: never }
+    | { mode: 'edit'; workoutId: string; scheduledAt?: never }
 }
 
 export type MainTabParamList = {
@@ -154,9 +159,9 @@ function RootStackNavigator() {
       <RootStack.Screen name="WodDetail" component={WodDetailScreen} options={{ title: '' }} />
       <RootStack.Screen name="LogResult" component={LogResultScreen} options={{ title: 'Log Result' }} />
       <RootStack.Screen
-        name="AddPersonalWorkout"
-        component={AddPersonalWorkoutScreen}
-        options={{ title: 'Personal Workout', presentation: 'modal' }}
+        name="WorkoutEditor"
+        component={WorkoutEditorScreen}
+        options={{ title: 'New Workout', presentation: 'modal' }}
       />
     </RootStack.Navigator>
   )

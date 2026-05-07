@@ -105,7 +105,7 @@ describe('FeedScreen — personal program', () => {
     expect(queryAllByLabelText('Add personal workout')).toHaveLength(0)
   })
 
-  test('tapping "+" navigates to AddPersonalWorkout with the day key', async () => {
+  test('tapping "+" navigates to WorkoutEditor in create mode with the day key', async () => {
     ;(api.me.personalProgram.get as jest.Mock).mockResolvedValue(PERSONAL_PROGRAM)
     ;(api.gyms.workouts as jest.Mock).mockResolvedValue([])
     const navigation = makeNavigation()
@@ -114,8 +114,8 @@ describe('FeedScreen — personal program', () => {
     const buttons = await findAllByLabelText('Add personal workout')
     fireEvent.press(buttons[0])
     expect(navigation.navigate).toHaveBeenCalledWith(
-      'AddPersonalWorkout',
-      expect.objectContaining({ scheduledAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) }),
+      'WorkoutEditor',
+      expect.objectContaining({ mode: 'create', scheduledAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) }),
     )
   })
 

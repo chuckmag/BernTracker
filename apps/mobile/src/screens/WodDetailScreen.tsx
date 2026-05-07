@@ -12,7 +12,7 @@ import { useFocusEffect } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { AGE_DIVISIONS, getAgeDivision } from '@wodalytics/types'
-import { api, type AgeDivision, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender } from '../lib/api'
+import { api, type AgeDivision, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender, type PersonalProgram } from '../lib/api'
 import { styleFor } from '../lib/workoutTypeStyles'
 import { useAuth } from '../context/AuthContext'
 import { useGym } from '../context/GymContext'
@@ -70,8 +70,14 @@ export default function WodDetailScreen({ route, navigation }: Props) {
   // and closed for MEMBER. Same contract as web (#184). User can always toggle.
   const isStaff = activeGym?.role === 'COACH' || activeGym?.role === 'PROGRAMMER' || activeGym?.role === 'OWNER'
   const [showCoachNotes, setShowCoachNotes] = useState(isStaff)
+  // Personal program id is needed to gate the Edit affordance — slice 2 of
+  // #242 only enables editing for workouts the viewer owns (their own
+  // personal program). Gym-program edit gating ships in a follow-up.
+  const [personalProgramId, setPersonalProgramId] = useState<string | null>(null)
+  const canEdit = !!(workout && personalProgramId && workout.programId === personalProgramId)
 
-  // Load workout details once
+  // Load workout details + personal-program id in parallel. Personal program
+  // failure is silent (no Edit affordance) — it should never block detail rendering.
   useEffect(() => {
     api.workouts.get(workoutId)
       .then((w) => {
@@ -80,7 +86,32 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       })
       .catch(() => setError('Could not load workout.'))
       .finally(() => setLoading(false))
+    api.me.personalProgram.get()
+      .then((p: PersonalProgram) => setPersonalProgramId(p.id))
+      .catch(() => {})
   }, [workoutId, navigation])
+
+  // Edit affordance in the nav bar — only renders for workouts the viewer
+  // can edit (currently: their own personal-program workouts). Re-runs when
+  // canEdit flips so the button appears/disappears correctly.
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: canEdit
+        ? () => (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('WorkoutEditor', { mode: 'edit', workoutId })}
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              style={styles.headerEditBtn}
+              testID="edit-workout-button"
+              accessibilityRole="button"
+              accessibilityLabel="Edit workout"
+            >
+              <Text style={styles.headerEditText}>Edit</Text>
+            </TouchableOpacity>
+          )
+        : undefined,
+    })
+  }, [canEdit, navigation, workoutId])
 
   // Always fetch the unfiltered leaderboard and apply filters client-side.
   // This way the user's "your result" badge keeps showing their RX entry even
@@ -343,6 +374,12 @@ export default function WodDetailScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  // Indigo accent for the header Edit affordance — matches the existing
+  // headerDoneText pattern in the editor screen. Hardcoded indigo here is
+  // an intentional outlier; the rest of the screen still uses fixed dark
+  // tones so theme-token migration would touch much more than this slice.
+  headerEditBtn: { paddingHorizontal: 12, paddingVertical: 6, marginRight: 4 },
+  headerEditText: { color: '#818cf8', fontSize: 15, fontWeight: '600' },
   container: {
     flex: 1,
     backgroundColor: '#030712',
