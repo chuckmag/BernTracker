@@ -32,6 +32,7 @@ const EXISTING_WORKOUT = {
   id: 'w-1',
   title: 'Easy row',
   description: '20 min Z2',
+  coachNotes: 'Stay aerobic — nose-only breathing if you can.',
   type: 'ROWING',
   status: 'DRAFT',
   scheduledAt: '2026-05-04T12:00:00.000Z',
@@ -59,7 +60,7 @@ describe('WorkoutEditorScreen — create mode', () => {
     expect(getByTestId('save-button')).toBeTruthy()
   })
 
-  test('time-cap input is hidden by default (METCON has it; default is METCON, so it shows — toggling to STRENGTH hides it)', () => {
+  test('time-cap input is hidden once the type changes from a time-capped category to a non-capped one', () => {
     const { queryByTestId, getByTestId } = render(
       <WorkoutEditorScreen
         navigation={makeNavigation()}
@@ -68,9 +69,26 @@ describe('WorkoutEditorScreen — create mode', () => {
     )
     // Default type is METCON, which is in TIME_CAP_TYPES.
     expect(queryByTestId('time-cap-input')).toBeTruthy()
-    // Switch to a Strength type (no time-cap).
+    // Open the picker, then tap a Strength type (no time-cap).
+    fireEvent.press(getByTestId('type-select-button'))
     fireEvent.press(getByTestId('type-chip-WEIGHT_LIFTING'))
     expect(queryByTestId('time-cap-input')).toBeNull()
+  })
+
+  test('the type-select button opens the picker; selecting a type closes the modal', () => {
+    const { getByTestId, queryByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    // Picker chips aren't mounted until the modal opens.
+    expect(queryByTestId('type-chip-AMRAP')).toBeNull()
+    fireEvent.press(getByTestId('type-select-button'))
+    expect(queryByTestId('type-chip-AMRAP')).toBeTruthy()
+    fireEvent.press(getByTestId('type-chip-AMRAP'))
+    // Modal closes after selection — chips no longer in the tree.
+    expect(queryByTestId('type-chip-AMRAP')).toBeNull()
   })
 
   test('save POSTs to personal program and navigates back', async () => {
@@ -84,10 +102,16 @@ describe('WorkoutEditorScreen — create mode', () => {
     )
     fireEvent.changeText(getByTestId('title-input'), 'Easy row')
     fireEvent.changeText(getByTestId('description-input'), '20 min easy')
+    fireEvent.changeText(getByTestId('coach-notes-input'), 'Keep tempo on the second set')
     fireEvent.press(getByTestId('save-button'))
     await waitFor(() => {
       expect(api.me.personalProgram.workouts.create).toHaveBeenCalledWith(
-        expect.objectContaining({ title: 'Easy row', description: '20 min easy', type: 'METCON' }),
+        expect.objectContaining({
+          title: 'Easy row',
+          description: '20 min easy',
+          coachNotes: 'Keep tempo on the second set',
+          type: 'METCON',
+        }),
       )
       expect(navigation.goBack).toHaveBeenCalled()
     })
@@ -131,7 +155,7 @@ describe('WorkoutEditorScreen — edit mode', () => {
     jest.clearAllMocks()
   })
 
-  test('hydrates fields from the loaded workout, including time-cap', async () => {
+  test('hydrates fields from the loaded workout, including time-cap and coach notes', async () => {
     ;(api.workouts.get as jest.Mock).mockResolvedValue({ ...EXISTING_WORKOUT, type: 'AMRAP', timeCapSeconds: 720 })
     const { findByDisplayValue, getByTestId } = render(
       <WorkoutEditorScreen
@@ -141,6 +165,7 @@ describe('WorkoutEditorScreen — edit mode', () => {
     )
     await findByDisplayValue('Easy row')
     expect(getByTestId('description-input').props.value).toBe('20 min Z2')
+    expect(getByTestId('coach-notes-input').props.value).toBe(EXISTING_WORKOUT.coachNotes)
     // 720s == 12:00
     expect(getByTestId('time-cap-input').props.value).toBe('12:00')
   })
@@ -157,11 +182,17 @@ describe('WorkoutEditorScreen — edit mode', () => {
     )
     await findByDisplayValue('Easy row')
     fireEvent.changeText(getByTestId('title-input'), 'Easier row')
+    fireEvent.changeText(getByTestId('coach-notes-input'), 'Updated coach note')
     fireEvent.press(getByTestId('save-button'))
     await waitFor(() => {
       expect(api.workouts.update).toHaveBeenCalledWith(
         'w-1',
-        expect.objectContaining({ title: 'Easier row', description: '20 min Z2', type: 'ROWING' }),
+        expect.objectContaining({
+          title: 'Easier row',
+          description: '20 min Z2',
+          coachNotes: 'Updated coach note',
+          type: 'ROWING',
+        }),
       )
       expect(navigation.goBack).toHaveBeenCalled()
     })

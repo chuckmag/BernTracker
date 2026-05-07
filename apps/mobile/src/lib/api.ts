@@ -360,6 +360,7 @@ export const api = {
         create: (data: {
           title: string
           description: string
+          coachNotes?: string
           type: WorkoutType
           scheduledAt: string
           movementIds?: string[]
@@ -411,6 +412,7 @@ export const api = {
     update: (id: string, data: {
       title?: string
       description?: string
+      coachNotes?: string | null
       type?: WorkoutType
       scheduledAt?: string
       timeCapSeconds?: number | null

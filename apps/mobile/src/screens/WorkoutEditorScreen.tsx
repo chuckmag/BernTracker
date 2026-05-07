@@ -4,7 +4,9 @@ import {
   Alert,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -86,9 +88,11 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [coachNotes, setCoachNotes] = useState('')
   const [type, setType] = useState<WorkoutType>('METCON')
   const [timeCapInput, setTimeCapInput] = useState('')
   const [scheduledAt, setScheduledAt] = useState(scheduledAtParam ?? '')
+  const [typePickerOpen, setTypePickerOpen] = useState(false)
 
   const [loading, setLoading] = useState(mode === 'edit')
   const [submitting, setSubmitting] = useState(false)
@@ -105,6 +109,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
         if (cancelled) return
         setTitle(w.title)
         setDescription(w.description)
+        setCoachNotes(w.coachNotes ?? '')
         setType(w.type)
         setTimeCapInput(formatMmss(w.timeCapSeconds))
         setScheduledAt(w.scheduledAt)
@@ -172,6 +177,11 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
       // Hidden time-cap field always wipes (e.g. user changed type from AMRAP to STRENGTH).
       const timeCapSeconds = !showTimeCap ? null : parsedTimeCap ?? null
 
+      // Empty coach notes = explicit clear on edit (server schema accepts
+      // null), or "don't send the field" on create (the server treats absent
+      // as null too — both yield the same persisted state).
+      const trimmedCoachNotes = coachNotes.trim()
+
       if (mode === 'create') {
         // YYYY-MM-DD → noon UTC so the workout lands on the same calendar
         // date for every viewer (matches AddPersonalWorkoutScreen + web).
@@ -179,6 +189,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
         await api.me.personalProgram.workouts.create({
           title: title.trim(),
           description: description.trim(),
+          coachNotes: trimmedCoachNotes || undefined,
           type,
           scheduledAt: iso,
         })
@@ -186,6 +197,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
         await api.workouts.update(workoutId, {
           title: title.trim(),
           description: description.trim(),
+          coachNotes: trimmedCoachNotes === '' ? null : trimmedCoachNotes,
           type,
           timeCapSeconds,
         })
@@ -298,42 +310,49 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             testID="description-input"
           />
 
+          {/* Coach notes — programmer-authored stimulus / teaching notes
+              (#184). Shown for both gym and personal programs; on personal
+              programs the user is their own coach so it's still useful for
+              "remember to keep tempo on the second set" style asides. */}
+          <ThemedText variant="label" style={styles.sectionLabel}>COACH NOTES (optional)</ThemedText>
+          <TextInput
+            style={[
+              styles.input,
+              styles.coachNotesInput,
+              { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive, color: colors.textPrimary },
+            ]}
+            value={coachNotes}
+            onChangeText={setCoachNotes}
+            placeholder="Cues, scaling notes, intent…"
+            placeholderTextColor={colors.textPlaceholder}
+            multiline
+            numberOfLines={3}
+            testID="coach-notes-input"
+          />
+
           <ThemedText variant="label" style={styles.sectionLabel}>TYPE</ThemedText>
-          <View style={styles.categoryList}>
-            {CATEGORY_ORDER.filter((c) => typesByCategory[c]?.length).map((category) => (
-              <View key={category} style={styles.categoryGroup}>
-                <ThemedText variant="muted" style={styles.categoryHeader}>{category.toUpperCase()}</ThemedText>
-                <View style={styles.chipRow}>
-                  {typesByCategory[category].map((t) => {
-                    const style = WORKOUT_TYPE_STYLES[t]
-                    const selected = t === type
-                    return (
-                      <TouchableOpacity
-                        key={t}
-                        onPress={() => setType(t)}
-                        style={[
-                          styles.chip,
-                          { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
-                          selected && { backgroundColor: style.bgTint, borderColor: style.accentBar },
-                        ]}
-                        testID={`type-chip-${t}`}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected }}
-                        accessibilityLabel={style.label}
-                      >
-                        <ThemedText
-                          variant={selected ? 'primary' : 'tertiary'}
-                          style={[styles.chipLabel, selected && { color: style.tint, fontWeight: '700' }]}
-                        >
-                          {style.label}
-                        </ThemedText>
-                      </TouchableOpacity>
-                    )
-                  })}
-                </View>
-              </View>
-            ))}
-          </View>
+          {/* Single-row type selector — taps open a bottom-sheet picker so
+              the form doesn't get blown out by a 5-category chip grid. The
+              button shows the current selection with the type's accent bar
+              along the left edge. Mirrors the web drawer's <select> in
+              terms of saved real estate while staying native-feeling. */}
+          <TouchableOpacity
+            onPress={() => setTypePickerOpen(true)}
+            style={[
+              styles.typeSelectButton,
+              {
+                backgroundColor: colors.inputBg,
+                borderColor: colors.borderInteractive,
+                borderLeftColor: WORKOUT_TYPE_STYLES[type].accentBar,
+              },
+            ]}
+            testID="type-select-button"
+            accessibilityRole="button"
+            accessibilityLabel={`Type: ${WORKOUT_TYPE_STYLES[type].label}. Tap to change.`}
+          >
+            <ThemedText style={styles.typeSelectLabel}>{WORKOUT_TYPE_STYLES[type].label}</ThemedText>
+            <ThemedText variant="tertiary" style={styles.typeSelectChevron}>▾</ThemedText>
+          </TouchableOpacity>
 
           {showTimeCap && (
             <>
@@ -405,6 +424,70 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             <ThemedText variant="tertiary" style={styles.cancelBtnText}>Cancel</ThemedText>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Type picker — bottom-sheet modal. Backdrop tap or Cancel closes;
+            tapping a chip selects + closes in one gesture. Categories +
+            chip layout match the original inline grid so legacy tests that
+            tap `type-chip-<X>` still work. */}
+        <Modal
+          visible={typePickerOpen}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setTypePickerOpen(false)}
+        >
+          <Pressable
+            style={styles.typePickerBackdrop}
+            onPress={() => setTypePickerOpen(false)}
+            testID="type-picker-backdrop"
+          >
+            <Pressable
+              style={[styles.typePickerSheet, { backgroundColor: colors.cardBg }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.typePickerHeader}>
+                <ThemedText style={styles.typePickerTitle}>Workout type</ThemedText>
+                <TouchableOpacity onPress={() => setTypePickerOpen(false)} testID="type-picker-close">
+                  <ThemedText variant="tertiary" style={styles.typePickerClose}>Cancel</ThemedText>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.typePickerScroll}>
+                {CATEGORY_ORDER.filter((c) => typesByCategory[c]?.length).map((category) => (
+                  <View key={category} style={styles.categoryGroup}>
+                    <ThemedText variant="muted" style={styles.categoryHeader}>{category.toUpperCase()}</ThemedText>
+                    <View style={styles.chipRow}>
+                      {typesByCategory[category].map((t) => {
+                        const style = WORKOUT_TYPE_STYLES[t]
+                        const selected = t === type
+                        return (
+                          <TouchableOpacity
+                            key={t}
+                            onPress={() => { setType(t); setTypePickerOpen(false) }}
+                            style={[
+                              styles.chip,
+                              { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive },
+                              selected && { backgroundColor: style.bgTint, borderColor: style.accentBar },
+                            ]}
+                            testID={`type-chip-${t}`}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected }}
+                            accessibilityLabel={style.label}
+                          >
+                            <ThemedText
+                              variant={selected ? 'primary' : 'tertiary'}
+                              style={[styles.chipLabel, selected && { color: style.tint, fontWeight: '700' }]}
+                            >
+                              {style.label}
+                            </ThemedText>
+                          </TouchableOpacity>
+                        )
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </ThemedView>
     </KeyboardAvoidingView>
   )
@@ -426,7 +509,45 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   descriptionInput: { minHeight: 100, textAlignVertical: 'top' },
+  coachNotesInput: { minHeight: 70, textAlignVertical: 'top' },
   timeCapInput: { maxWidth: 140 },
+
+  // Type-selector single-row button — leading 4px accent bar tints to
+  // match the selected type so the user gets a visual cue without opening
+  // the picker.
+  typeSelectButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    minHeight: 44,
+  },
+  typeSelectLabel: { fontSize: 15, fontWeight: '500' },
+  typeSelectChevron: { fontSize: 14 },
+
+  // Bottom-sheet modal for the type picker.
+  typePickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  typePickerSheet: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 32,
+    maxHeight: '80%',
+  },
+  typePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+  },
+  typePickerTitle: { fontSize: 16, fontWeight: '600' },
+  typePickerClose: { fontSize: 15 },
+  typePickerScroll: { paddingTop: 4 },
 
   categoryList: { marginTop: 4 },
   categoryGroup: { marginBottom: 12 },
