@@ -6,6 +6,7 @@ import { createStackNavigator } from '@react-navigation/stack'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { GymProvider } from './src/context/GymContext'
 import { ProgramFilterProvider } from './src/context/ProgramFilterContext'
+import { MovementsProvider } from './src/context/MovementsContext'
 import LoginScreen from './src/screens/LoginScreen'
 import HomeScreen from './src/screens/HomeScreen'
 import FeedScreen from './src/screens/FeedScreen'
@@ -190,10 +191,12 @@ export default function App() {
     <AuthProvider>
       <GymProvider>
         <ProgramFilterProvider>
-          <NavigationContainer>
-            <RootNavigator />
-            <StatusBar style="light" />
-          </NavigationContainer>
+          <MovementsProvider>
+            <NavigationContainer>
+              <RootNavigator />
+              <StatusBar style="light" />
+            </NavigationContainer>
+          </MovementsProvider>
         </ProgramFilterProvider>
       </GymProvider>
     </AuthProvider>

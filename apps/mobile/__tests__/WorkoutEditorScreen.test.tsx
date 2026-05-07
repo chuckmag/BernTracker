@@ -15,10 +15,28 @@ jest.mock('../src/lib/api', () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    movements: {
+      list: jest.fn(),
+      detect: jest.fn(),
+    },
   },
 }))
 
+// MovementsContext provider would normally fetch the catalog on mount.
+// Tests stub useMovements directly so cases can control the catalog state
+// without coupling to the provider's effect timing.
+jest.mock('../src/context/MovementsContext', () => ({
+  __esModule: true,
+  useMovements: jest.fn(() => []),
+  MovementsProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
 import { api } from '../src/lib/api'
+import { useMovements } from '../src/context/MovementsContext'
+
+const FRAN_THRUSTER = { id: 'mv-thr', name: 'Thruster', category: 'GYMNASTICS', isVariation: false } as any
+const FRAN_PULLUP = { id: 'mv-pu', name: 'Pull-up', category: 'GYMNASTICS', isVariation: false } as any
+const CATALOG = [FRAN_THRUSTER, FRAN_PULLUP]
 
 function makeNavigation() {
   return { navigate: jest.fn(), setOptions: jest.fn(), goBack: jest.fn() } as any
@@ -338,5 +356,151 @@ describe('WorkoutEditorScreen — autosave (slice 2b)', () => {
     // so update should not have been called.
     await act(async () => { jest.advanceTimersByTime(2000) })
     expect(api.workouts.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    jest.clearAllMocks()
+    ;(useMovements as jest.Mock).mockReturnValue(CATALOG)
+  })
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  test('runs detect after the description debounces, then surfaces suggestion pills', async () => {
+    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER, FRAN_PULLUP])
+    const { getByTestId, queryByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('description-input'), '21-15-9 thrusters and pull-ups')
+    expect(api.movements.detect).not.toHaveBeenCalled()
+
+    // Past the 800ms debounce → detect fires once with the description.
+    await act(async () => { jest.advanceTimersByTime(900) })
+    await waitFor(() => {
+      expect(api.movements.detect).toHaveBeenCalledWith('21-15-9 thrusters and pull-ups')
+    })
+    // Suggestions render but selected list is still empty.
+    await waitFor(() => {
+      expect(queryByTestId('suggested-movement-mv-thr')).toBeTruthy()
+      expect(queryByTestId('suggested-movement-mv-pu')).toBeTruthy()
+    })
+    expect(queryByTestId('selected-movements')).toBeNull()
+  })
+
+  test('accepting a suggestion moves it to selected and removes the pill', async () => {
+    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
+    const { getByTestId, queryByTestId, findByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('description-input'), 'thrusters')
+    await act(async () => { jest.advanceTimersByTime(900) })
+
+    fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
+    expect(queryByTestId('suggested-movement-mv-thr')).toBeNull()
+    expect(queryByTestId('selected-movement-mv-thr')).toBeTruthy()
+  })
+
+  test('dismissing a suggestion removes the pill and keeps it out of subsequent detects', async () => {
+    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
+    const { getByTestId, queryByTestId, findByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('description-input'), 'thrusters')
+    await act(async () => { jest.advanceTimersByTime(900) })
+    fireEvent.press(await findByTestId('suggested-movement-dismiss-mv-thr'))
+    expect(queryByTestId('suggested-movement-mv-thr')).toBeNull()
+
+    // Trigger a second detect tick. Same response — but the dismissed id
+    // must be filtered out before suggestions render.
+    fireEvent.changeText(getByTestId('description-input'), 'thrusters and barbells')
+    await act(async () => { jest.advanceTimersByTime(900) })
+    await waitFor(() => expect((api.movements.detect as jest.Mock).mock.calls.length).toBe(2))
+    expect(queryByTestId('suggested-movement-mv-thr')).toBeNull()
+  })
+
+  test('save POSTs movementIds in display order', async () => {
+    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER, FRAN_PULLUP])
+    ;(api.me.personalProgram.workouts.create as jest.Mock).mockResolvedValue({ id: 'new-w-1' })
+    const navigation = makeNavigation()
+    const { getByTestId, findByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={navigation}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('title-input'), 'Fran')
+    fireEvent.changeText(getByTestId('description-input'), '21-15-9 thrusters and pull-ups')
+    await act(async () => { jest.advanceTimersByTime(900) })
+    // Accept thruster first, then pull-up — display order matches accept order.
+    fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
+    fireEvent.press(await findByTestId('suggested-movement-accept-mv-pu'))
+
+    fireEvent.press(getByTestId('save-button'))
+    await waitFor(() => {
+      expect(api.me.personalProgram.workouts.create).toHaveBeenCalledWith(
+        expect.objectContaining({ movementIds: ['mv-thr', 'mv-pu'] }),
+      )
+      expect(navigation.goBack).toHaveBeenCalled()
+    })
+  })
+
+  test('edit-mode hydrates selectedMovements from the loaded workout', async () => {
+    ;(api.workouts.get as jest.Mock).mockResolvedValue({
+      ...EXISTING_WORKOUT,
+      workoutMovements: [
+        { movement: FRAN_THRUSTER },
+        { movement: FRAN_PULLUP },
+      ],
+    })
+    const { findByDisplayValue, getByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'edit', workoutId: 'w-1' })}
+      />,
+    )
+    await findByDisplayValue('Easy row')
+    expect(getByTestId('selected-movement-mv-thr')).toBeTruthy()
+    expect(getByTestId('selected-movement-mv-pu')).toBeTruthy()
+    // Hydration alone shouldn't trigger an autosave (snapshot baseline includes movementIds).
+    await act(async () => { jest.advanceTimersByTime(2000) })
+    expect(api.workouts.update).not.toHaveBeenCalled()
+  })
+
+  test('removing a selected movement triggers an autosave with the trimmed id list', async () => {
+    ;(api.workouts.get as jest.Mock).mockResolvedValue({
+      ...EXISTING_WORKOUT,
+      workoutMovements: [
+        { movement: FRAN_THRUSTER },
+        { movement: FRAN_PULLUP },
+      ],
+    })
+    ;(api.workouts.update as jest.Mock).mockResolvedValue({})
+    const { findByDisplayValue, findByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'edit', workoutId: 'w-1' })}
+      />,
+    )
+    await findByDisplayValue('Easy row')
+    fireEvent.press(await findByTestId('selected-movement-remove-mv-pu'))
+    await act(async () => { jest.advanceTimersByTime(2000) })
+    await waitFor(() => {
+      expect(api.workouts.update).toHaveBeenCalledWith(
+        'w-1',
+        expect.objectContaining({ movementIds: ['mv-thr'] }),
+      )
+    })
   })
 })
