@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react'
 import { api, type PendingMovement, type Program } from '../lib/api'
 import { adminProgramScope } from '../lib/adminProgramScope'
 import { useMovements } from '../context/MovementsContext.tsx'
-import Button from '../components/ui/Button'
-import EmptyState from '../components/ui/EmptyState'
 import Skeleton from '../components/ui/Skeleton'
-import ProgramCard from '../components/ProgramCard'
-import ProgramFormDrawer from '../components/ProgramFormDrawer'
+import EmptyState from '../components/ui/EmptyState'
+import ProgramList from '../components/ProgramList'
 
 /**
  * WODalytics admin Settings page (#160). Mirrors the `GymSettings` shape:
@@ -89,7 +87,6 @@ function ProgramsTab() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
     const signal = { cancelled: false }
@@ -110,52 +107,18 @@ function ProgramsTab() {
     }
   }
 
-  function handleCreated(_created: Program) {
-    setDrawerOpen(false)
-    load()
-  }
-
   return (
-    <section>
-      <div className="flex items-start justify-between mb-6 gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold">Programs</h2>
-            <span className="bg-slate-200 dark:bg-gray-700 text-slate-700 dark:text-gray-200 text-sm px-2 py-0.5 rounded-full">{programs.length}</span>
-          </div>
-          <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">
-            Unaffiliated programs surfaced from public sources (e.g. CrossFit Mainsite). Editable by WODalytics staff.
-          </p>
-        </div>
-        <Button variant="primary" onClick={() => setDrawerOpen(true)}>+ New Program</Button>
-      </div>
-
-      {error && <p className="text-red-400 mb-4">{error}</p>}
-      {loading && <Skeleton variant="feed-row" count={3} />}
-
-      {!loading && programs.length === 0 && !error && (
-        <EmptyState
-          title="No unaffiliated programs"
-          body="Programs imported from external sources will appear here once an ingest job runs — or create one yourself."
-          cta={{ label: '+ New Program', onClick: () => setDrawerOpen(true) }}
-        />
-      )}
-
-      {programs.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {programs.map((p) => (
-            <ProgramCard key={p.id} program={p} to={`/admin/programs/${p.id}`} />
-          ))}
-        </div>
-      )}
-
-      <ProgramFormDrawer
-        scope={adminProgramScope}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onSaved={handleCreated}
-      />
-    </section>
+    <ProgramList
+      scope={adminProgramScope}
+      items={programs.map((p) => ({ program: p }))}
+      loading={loading}
+      error={error}
+      detailBasePath="/admin/programs"
+      onCreated={load}
+      description="Unaffiliated programs surfaced from public sources (e.g. CrossFit Mainsite). Editable by WODalytics staff."
+      emptyTitle="No unaffiliated programs"
+      emptyBody="Programs imported from external sources will appear here once an ingest job runs — or create one yourself."
+    />
   )
 }
 
