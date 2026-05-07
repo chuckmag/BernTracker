@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { vi, describe, it, beforeEach, expect } from 'vitest'
 import AdminProgramDetail from './AdminProgramDetail'
@@ -16,11 +17,13 @@ vi.mock('../lib/api', () => ({
         delete: vi.fn(),
         createWorkout: vi.fn(),
       },
-      workouts: { update: vi.fn(), delete: vi.fn() },
+      workouts: { update: vi.fn(), delete: vi.fn(), publish: vi.fn() },
+    },
+    programs: {
+      members: { list: vi.fn() },
     },
     // Editors imported by AdminProgramDetail call these on open. Tests below
-    // never open the drawers, so the mocks only need to exist (for module
-    // resolution) — actual return values are irrelevant.
+    // never open the drawers, so the mocks only need to exist.
     namedWorkouts: { list: vi.fn() },
     movements: { list: vi.fn(), detect: vi.fn() },
   },
@@ -36,7 +39,7 @@ vi.mock('../context/MovementsContext.tsx', () => ({
 
 import { api } from '../lib/api'
 
-function makeProgram(): Program {
+function makeProgram(overrides: Partial<Program> = {}): Program {
   return {
     id: 'p-1',
     name: 'CrossFit Mainsite',
@@ -48,6 +51,7 @@ function makeProgram(): Program {
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     _count: { members: 0, workouts: 1 },
+    ...overrides,
   }
 }
 
@@ -92,35 +96,61 @@ describe('AdminProgramDetail', () => {
     vi.mocked(api.admin.programs.listWorkouts).mockResolvedValue([])
   })
 
-  it('renders without crashing', async () => {
+  it('renders without crashing and shows the program heading', async () => {
     renderPage()
     expect(await screen.findByRole('heading', { name: 'CrossFit Mainsite' })).toBeInTheDocument()
   })
 
-  it('renders the workouts section header', async () => {
+  it('shows Overview / Members / Workouts tabs', async () => {
     renderPage()
-    expect(await screen.findByRole('heading', { name: 'Workouts' })).toBeInTheDocument()
+    await screen.findByRole('heading', { name: 'CrossFit Mainsite' })
+    expect(screen.getByRole('button', { name: 'overview' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'members' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'workouts' })).toBeInTheDocument()
   })
 
-  it('lists workouts when present', async () => {
+  it('shows Edit and Delete buttons on the overview tab', async () => {
+    renderPage()
+    await screen.findByRole('heading', { name: 'CrossFit Mainsite' })
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Delete program/ })).toBeInTheDocument()
+  })
+
+  it('lists workouts when the Workouts tab is active', async () => {
+    const user = userEvent.setup()
     vi.mocked(api.admin.programs.listWorkouts).mockResolvedValue([
       makeWorkout({ id: 'w-1', title: 'Fran' }),
       makeWorkout({ id: 'w-2', title: 'Helen' }),
     ])
     renderPage()
+    await screen.findByRole('heading', { name: 'CrossFit Mainsite' })
+    await user.click(screen.getByRole('button', { name: 'workouts' }))
     expect(await screen.findByText('Fran')).toBeInTheDocument()
-    expect(await screen.findByText('Helen')).toBeInTheDocument()
+    expect(screen.getByText('Helen')).toBeInTheDocument()
   })
 
-  it('shows empty-state copy when no workouts', async () => {
+  it('shows empty-state copy on the Workouts tab when no workouts', async () => {
+    const user = userEvent.setup()
     renderPage()
+    await screen.findByRole('heading', { name: 'CrossFit Mainsite' })
+    await user.click(screen.getByRole('button', { name: 'workouts' }))
     expect(await screen.findByText('No workouts yet.')).toBeInTheDocument()
   })
 
-  it('renders the New Workout + Edit + Delete affordances (slice 3)', async () => {
+  it('shows the "+ New Workout" button on the Workouts tab', async () => {
+    const user = userEvent.setup()
     renderPage()
+    await screen.findByRole('heading', { name: 'CrossFit Mainsite' })
+    await user.click(screen.getByRole('button', { name: 'workouts' }))
     expect(await screen.findByRole('button', { name: '+ New Workout' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Delete program/ })).toBeInTheDocument()
+  })
+
+  it('shows the Members tab with empty state when no members', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.programs.members.list).mockResolvedValue([])
+    renderPage()
+    await screen.findByRole('heading', { name: 'CrossFit Mainsite' })
+    await user.click(screen.getByRole('button', { name: 'members' }))
+    expect(await screen.findByText('No members yet')).toBeInTheDocument()
   })
 })
