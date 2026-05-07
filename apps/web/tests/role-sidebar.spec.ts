@@ -38,8 +38,9 @@ async function loginAndOpenFeed(page: Page, f: UserGymFixture, role: Role) {
 }
 
 // 'Members' was consolidated into /gym-settings#members; no standalone sidebar link.
-const STAFF_LINKS = ['Calendar', 'Programs', 'Gym Settings'] as const
-const MEMBER_LINKS = ['Feed', 'History'] as const
+// Calendar is member-visible since #268 (unified calendar for all roles).
+const STAFF_LINKS = ['Programs', 'Gym Settings'] as const
+const MEMBER_LINKS = ['Feed', 'Calendar', 'History'] as const
 
 test.describe('Sidebar role gating E2E', () => {
   test('MEMBER sees Feed + History only — no staff section', async ({ page }) => {

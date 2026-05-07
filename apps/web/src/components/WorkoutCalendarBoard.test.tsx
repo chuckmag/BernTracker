@@ -53,12 +53,11 @@ describe('WorkoutCalendarBoard responsive switch', () => {
       <WorkoutCalendarBoard loadWorkouts={loadWorkouts} scope={personalScope} userGymRole="OWNER" />,
     )
     await waitFor(() => expect(loadWorkouts).toHaveBeenCalled())
-    expect(screen.getByText('Sun')).toBeInTheDocument()
-    expect(screen.getByText('Sat')).toBeInTheDocument()
+    expect(screen.getByTestId('calendar-month-grid-headers')).toBeInTheDocument()
     expect(screen.queryByTestId('calendar-day-strip')).not.toBeInTheDocument()
   })
 
-  it('renders the day strip (no Sun/Sat headers) at narrow width', async () => {
+  it('renders the day strip (no month-grid headers) at narrow width', async () => {
     mockMatchMediaMatches(true)
     const loadWorkouts = vi.fn().mockResolvedValue([])
     render(
@@ -66,8 +65,7 @@ describe('WorkoutCalendarBoard responsive switch', () => {
     )
     await waitFor(() => expect(loadWorkouts).toHaveBeenCalled())
     expect(screen.getByTestId('calendar-day-strip')).toBeInTheDocument()
-    expect(screen.queryByText('Sun')).not.toBeInTheDocument()
-    expect(screen.queryByText('Sat')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('calendar-month-grid-headers')).not.toBeInTheDocument()
   })
 
   it('queries a 3-day window when narrow vs a full month when wide', async () => {
