@@ -7,6 +7,7 @@ import {
   TYPE_ABBR,
   type DistanceUnit,
   type LoadUnit,
+  type NewPr,
   type Workout,
   type WorkoutLevel,
   type WorkoutMovementWithPrescription,
@@ -159,6 +160,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [alreadyLogged, setAlreadyLogged] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [prModal, setPrModal] = useState<NewPr[]>([])
 
   const styles = WORKOUT_TYPE_STYLES[workout.type]
   const canLogSets = mode === 'sets' && movements.length > 0
@@ -220,7 +222,12 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
           setError((data as { error?: string }).error ?? 'Failed to log result.')
           return
         }
-        onSaved()
+        const { newPrs } = (await res.json()) as { newPrs: NewPr[] }
+        if (newPrs.length > 0) {
+          setPrModal(newPrs)
+        } else {
+          onSaved()
+        }
       }
     } catch {
       setError('Failed to save result.')
@@ -280,7 +287,45 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
   }, [active, workout.workoutMovements])
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end">
+    <>
+      {prModal.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            {/* Mascot placeholder — swap for CDN GIF URL when available */}
+            <div className="h-36 bg-accent/10 flex items-center justify-center text-6xl select-none">
+              🏆
+            </div>
+            <div className="p-6 space-y-4">
+              <h2 className="text-xl font-bold text-slate-950 dark:text-white text-center">
+                New PR{prModal.length > 1 ? 's' : ''}!
+              </h2>
+              <div className="space-y-3">
+                {prModal.map((pr) => (
+                  <div
+                    key={`${pr.movementId}-${pr.repCount}`}
+                    className="rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 px-4 py-3"
+                  >
+                    <p className="font-semibold text-slate-950 dark:text-white text-sm">{pr.movementName}</p>
+                    <p className="text-slate-600 dark:text-gray-400 text-sm mt-0.5">
+                      {pr.repCount} rep{pr.repCount !== 1 ? 's' : ''} @ {pr.load} {pr.loadUnit}
+                    </p>
+                    <p className="text-accent text-sm font-medium mt-1">
+                      Est. 1RM: {pr.estimatedOneRepMax} {pr.loadUnit}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => { setPrModal([]); onSaved() }}
+                className="w-full py-2.5 rounded-lg bg-accent hover:bg-accent-hover text-slate-900 font-semibold text-sm transition-colors"
+              >
+                Let's go!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="fixed inset-0 z-40 flex justify-end">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
 
       <div className="relative z-10 w-full max-w-md bg-white dark:bg-gray-900 flex flex-col shadow-2xl">
@@ -430,6 +475,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
         </div>
       </div>
     </div>
+    </>
   )
 }
 
