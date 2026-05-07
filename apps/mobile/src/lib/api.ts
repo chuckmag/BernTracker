@@ -60,6 +60,26 @@ export interface WorkoutMovementWithPrescription {
   seconds: number | null
 }
 
+// Per-movement prescription as the API expects on POST/PATCH. Mirrors
+// `WorkoutMovementPrescriptionSchema` in @wodalytics/types — all fields
+// optional except movementId because the editor projects empty strings as
+// "leave unset" before sending. Used by the WorkoutEditorScreen save +
+// autosave paths in slice 3b of #243.
+export interface WorkoutMovementPrescriptionPayload {
+  movementId:    string
+  displayOrder?: number
+  sets?:         number
+  reps?:         string
+  load?:         number
+  loadUnit?:     LoadUnit
+  tracksLoad?:   boolean
+  tempo?:        string
+  distance?:     number
+  distanceUnit?: DistanceUnit
+  calories?:     number
+  seconds?:      number
+}
+
 export type Role = 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER'
 
 export interface AuthUser {
@@ -391,7 +411,9 @@ export const api = {
           coachNotes?: string
           type: WorkoutType
           scheduledAt: string
+          tracksRounds?: boolean
           movementIds?: string[]
+          movements?: WorkoutMovementPrescriptionPayload[]
         }) =>
           request<Workout>('/api/me/personal-program/workouts', {
             method: 'POST',
@@ -444,12 +466,15 @@ export const api = {
       type?: WorkoutType
       scheduledAt?: string
       timeCapSeconds?: number | null
+      tracksRounds?: boolean
       // Replace the workout's movements with this list, in display order.
       // Server schema (UpdateWorkoutSchema) accepts either `movementIds`
-      // for the simple case or `movements` for per-movement prescription;
-      // mobile uses ids in slice 3a and will switch to `movements` when
-      // slice 3b adds the prescription editor.
+      // for the simple case or `movements` for per-movement prescription
+      // — but not both. Slice 3b switched the editor to send `movements`
+      // (with sets/reps/load/etc); `movementIds` stays here for
+      // back-compat with surfaces that don't yet author prescription.
       movementIds?: string[]
+      movements?: WorkoutMovementPrescriptionPayload[]
     }) =>
       request<Workout>(`/api/workouts/${id}`, {
         method: 'PATCH',

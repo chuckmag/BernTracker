@@ -16,7 +16,7 @@ import {
 } from 'react-native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
-import { api, type Movement, type Workout, type WorkoutType } from '../lib/api'
+import { api, type DistanceUnit, type LoadUnit, type Movement, type Workout, type WorkoutMovementPrescriptionPayload, type WorkoutType } from '../lib/api'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles'
 import { useTheme } from '../lib/theme'
 import { useMovements } from '../context/MovementsContext'
@@ -55,6 +55,121 @@ const CATEGORY_ORDER: ReadonlyArray<string> = [
   'Skill Work',
   'Warmup/Recovery',
 ]
+
+// ── Per-movement prescription (slice 3b) ─────────────────────────────────────
+// Strings everywhere on the form so empty inputs are first-class. Coerced to
+// numbers + units at submit time via `buildMovementsPayload`. Mirrors web's
+// PrescriptionForm in WorkoutDrawer.tsx.
+interface PrescriptionForm {
+  sets:         string
+  reps:         string
+  load:         string
+  loadUnit:     LoadUnit
+  // Whether the result form should surface a Load column for this movement.
+  // Defaults true — programmer flips off for plyometric supersets and other
+  // pieces where Load would be noise on the result form.
+  tracksLoad:   boolean
+  tempo:        string
+  distance:     string
+  distanceUnit: DistanceUnit
+  calories:     string
+  seconds:      string
+}
+
+const EMPTY_PRESCRIPTION: PrescriptionForm = {
+  sets: '', reps: '', load: '', loadUnit: 'LB', tracksLoad: true, tempo: '',
+  distance: '', distanceUnit: 'M', calories: '', seconds: '',
+}
+
+function blankPrescription(): PrescriptionForm {
+  return { ...EMPTY_PRESCRIPTION }
+}
+
+// Type-driven default for which prescription columns to surface in the form.
+// Hidden columns are still legal — programmer can flip the disclosure to
+// reveal everything — but the default keeps the UI uncluttered for the most
+// common case per category. Mirrors web's `defaultPrescriptionColumns`.
+//
+// Strength is intentionally absent of `load`: weight prescriptions for
+// strength work are too individualized to express usefully here. A future
+// iteration will suggest loads from the member's training history; until
+// then, programmers leave load to the member at log-time.
+function defaultPrescriptionColumns(type: WorkoutType): Set<keyof PrescriptionForm> {
+  const category = WORKOUT_TYPE_STYLES[type].category
+  if (category === 'Strength') return new Set(['sets', 'reps', 'tempo'])
+  if (category === 'MonoStructural') return new Set(['distance', 'calories', 'seconds'])
+  if (category === 'Metcon') return new Set(['sets', 'reps', 'load'])
+  return new Set(['sets', 'reps'])
+}
+
+// Columns the programmer can ever reach for this workout type. Tightening
+// matches the web rules:
+// - Strength hides `load` and also drops distance/calories/seconds since
+//   barbell work doesn't have those axes.
+// - MonoStructural drops sets/reps/load/tempo — rowing/biking/swimming
+//   are timed cardio, not lift work.
+// - Metcon / Skill Work / Warmup keep every axis available.
+function availablePrescriptionColumns(type: WorkoutType): Set<keyof PrescriptionForm> {
+  const category = WORKOUT_TYPE_STYLES[type].category
+  if (category === 'Strength') return new Set(['sets', 'reps', 'tempo'])
+  if (category === 'MonoStructural') return new Set(['distance', 'distanceUnit', 'calories', 'seconds'])
+  return new Set(['sets', 'reps', 'load', 'loadUnit', 'tempo', 'distance', 'distanceUnit', 'calories', 'seconds'])
+}
+
+// Project the per-movement form state into the API payload shape, using the
+// current `selectedMovements` order to assign `displayOrder`. Empty strings
+// drop out (sent as undefined → server persists null). Mirrors web's
+// `buildMovementsPayload`.
+function buildMovementsPayload(
+  selected: Movement[],
+  prescriptions: Record<string, PrescriptionForm>,
+): WorkoutMovementPrescriptionPayload[] {
+  return selected.map((m, i) => {
+    const p = prescriptions[m.id] ?? EMPTY_PRESCRIPTION
+    const sets     = parseInt(p.sets,     10)
+    const load     = parseFloat(p.load)
+    const distance = parseFloat(p.distance)
+    const calories = parseInt(p.calories, 10)
+    const seconds  = parseInt(p.seconds,  10)
+    return {
+      movementId:   m.id,
+      displayOrder: i,
+      sets:     Number.isFinite(sets)     && sets     > 0 ? sets : undefined,
+      reps:     p.reps  ? p.reps  : undefined,
+      load:     Number.isFinite(load)     && load     > 0 ? load : undefined,
+      loadUnit: p.load  ? p.loadUnit : undefined,
+      tracksLoad: p.tracksLoad,
+      tempo:    p.tempo ? p.tempo : undefined,
+      distance:     Number.isFinite(distance) && distance > 0 ? distance : undefined,
+      distanceUnit: p.distance ? p.distanceUnit : undefined,
+      calories: Number.isFinite(calories) && calories >= 0 ? calories : undefined,
+      seconds:  Number.isFinite(seconds)  && seconds  >= 0 ? seconds  : undefined,
+    }
+  })
+}
+
+// Stringly-typed input field metadata for the per-movement prescription
+// grid. Order matches what the web shows.
+const PRESCRIPTION_INPUT_DEFS: {
+  key: keyof PrescriptionForm
+  label: string
+  placeholder: string
+  keyboardType: 'numeric' | 'decimal-pad' | 'default'
+}[] = [
+  { key: 'sets',     label: 'Sets',     placeholder: '5',       keyboardType: 'numeric' },
+  { key: 'reps',     label: 'Reps',     placeholder: '5/1.1.1', keyboardType: 'default' },
+  { key: 'load',     label: 'Load',     placeholder: '225',     keyboardType: 'decimal-pad' },
+  { key: 'tempo',    label: 'Tempo',    placeholder: '3.1.1.0', keyboardType: 'default' },
+  { key: 'distance', label: 'Distance', placeholder: '500',     keyboardType: 'decimal-pad' },
+  { key: 'calories', label: 'Cals',     placeholder: '20',      keyboardType: 'numeric' },
+  { key: 'seconds',  label: 'Seconds',  placeholder: '60',      keyboardType: 'numeric' },
+]
+
+const LOAD_UNITS: LoadUnit[] = ['LB', 'KG']
+const DISTANCE_UNITS: DistanceUnit[] = ['M', 'KM', 'MI', 'FT', 'YD']
+const UNIT_LABELS: Record<LoadUnit | DistanceUnit, string> = {
+  LB: 'lb', KG: 'kg', M: 'm', KM: 'km', MI: 'mi', FT: 'ft', YD: 'yd',
+}
 
 function formatDayLabel(scheduledAt: string): string {
   // Accept either a YYYY-MM-DD key (create flow) or an ISO timestamp (edit
@@ -135,6 +250,15 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
   const [selectedMovements, setSelectedMovements] = useState<Movement[]>([])
   const [suggestedMovementIds, setSuggestedMovementIds] = useState<string[]>([])
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  // Per-movement prescription rows (slice 3b). Keyed by movement id; values
+  // mirror what `PrescriptionForm` looks like on web — strings everywhere
+  // so empty inputs are first-class. `tracksRounds` is workout-level and
+  // only meaningful for AMRAP (other types ignore the toggle on save).
+  const [prescriptions, setPrescriptions] = useState<Record<string, PrescriptionForm>>({})
+  const [tracksRounds, setTracksRounds] = useState(false)
+  // Which movement's unit picker (if any) is open. Reuses the bottom-sheet
+  // Modal pattern from the type picker so we don't pull in a native picker dep.
+  const [unitPickerFor, setUnitPickerFor] = useState<{ movementId: string; field: 'load' | 'distance' } | null>(null)
 
   // Edit mode: hydrate from server. Create mode skips the fetch and uses
   // the param-supplied scheduledAt + sensible defaults.
@@ -149,12 +273,30 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
         setCoachNotes(w.coachNotes ?? '')
         setType(w.type)
         setTimeCapInput(formatMmss(w.timeCapSeconds))
+        setTracksRounds(w.tracksRounds)
         setScheduledAt(w.scheduledAt)
         // Hydrate the movement list from the workout's existing per-movement
-        // rows (already display-ordered server-side). Slice 3a only round-trips
-        // the ids; per-movement prescription still lives in slice 3b.
+        // rows (already display-ordered server-side).
         const hydratedMovements = (w.workoutMovements ?? []).map((wm) => wm.movement)
         setSelectedMovements(hydratedMovements)
+        // Seed prescriptions from the per-movement rows. Server stores nulls
+        // for unset fields; the form expects empty strings — convert as we go.
+        const hydratedPrescriptions: Record<string, PrescriptionForm> = {}
+        for (const wm of w.workoutMovements ?? []) {
+          hydratedPrescriptions[wm.movement.id] = {
+            sets:         wm.sets         != null ? String(wm.sets)     : '',
+            reps:         wm.reps         ?? '',
+            load:         wm.load         != null ? String(wm.load)     : '',
+            loadUnit:     wm.loadUnit     ?? 'LB',
+            tracksLoad:   wm.tracksLoad,
+            tempo:        wm.tempo        ?? '',
+            distance:     wm.distance     != null ? String(wm.distance) : '',
+            distanceUnit: wm.distanceUnit ?? 'M',
+            calories:     wm.calories     != null ? String(wm.calories) : '',
+            seconds:      wm.seconds      != null ? String(wm.seconds)  : '',
+          }
+        }
+        setPrescriptions(hydratedPrescriptions)
         setLoading(false)
         navigation.setOptions({ title: 'Edit Workout' })
         // Seed the autosave baseline with what we just loaded so the
@@ -165,7 +307,8 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
           coachNotes: (w.coachNotes ?? '').trim(),
           type: w.type,
           timeCapSeconds: w.timeCapSeconds,
-          movementIds: hydratedMovements.map((m) => m.id),
+          tracksRounds: w.tracksRounds,
+          movements: buildMovementsPayload(hydratedMovements, hydratedPrescriptions),
         })
       })
       .catch((e: unknown) => {
@@ -235,11 +378,14 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
   // matching the web drawer's create→update transition.
   const timeCapForSave = !showTimeCap ? null : parsedTimeCap ?? null
   const trimmedCoachNotesForSave = coachNotes.trim()
-  // Materialise the movement-id list for the snapshot + payloads. Order
-  // matters — `displayOrder` flows from this array.
-  const movementIdsForSave = useMemo(
-    () => selectedMovements.map((m) => m.id),
-    [selectedMovements],
+  // tracksRounds only persists for AMRAP — every other type ignores it
+  // server-side, so don't waste payload bytes on the toggle's stale value.
+  const tracksRoundsForSave = type === 'AMRAP' ? tracksRounds : false
+  // Materialise the per-movement payload for the snapshot + save calls.
+  // Order matters — `displayOrder` flows from `selectedMovements`.
+  const movementsForSave = useMemo(
+    () => buildMovementsPayload(selectedMovements, prescriptions),
+    [selectedMovements, prescriptions],
   )
   const snapshot = useMemo(
     () => JSON.stringify({
@@ -248,9 +394,10 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
       coachNotes: trimmedCoachNotesForSave,
       type,
       timeCapSeconds: timeCapForSave,
-      movementIds: movementIdsForSave,
+      tracksRounds: tracksRoundsForSave,
+      movements: movementsForSave,
     }),
-    [title, description, trimmedCoachNotesForSave, type, timeCapForSave, movementIdsForSave],
+    [title, description, trimmedCoachNotesForSave, type, timeCapForSave, tracksRoundsForSave, movementsForSave],
   )
 
   useEffect(() => {
@@ -271,7 +418,8 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             coachNotes: trimmedCoachNotesForSave === '' ? null : trimmedCoachNotesForSave,
             type,
             timeCapSeconds: timeCapForSave,
-            movementIds: movementIdsForSave,
+            tracksRounds: tracksRoundsForSave,
+            movements: movementsForSave,
           })
         } else if (mode === 'create' && scheduledAt) {
           // Create mode + first autosave: POST a draft pinned to the chosen
@@ -284,7 +432,8 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             coachNotes: trimmedCoachNotesForSave || undefined,
             type,
             scheduledAt: iso,
-            movementIds: movementIdsForSave,
+            tracksRounds: tracksRoundsForSave,
+            movements: movementsForSave,
           })
           setLocalWorkoutId(created.id)
         } else {
@@ -298,7 +447,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
     }, AUTOSAVE_DEBOUNCE_MS)
 
     return () => clearTimeout(handle)
-  }, [snapshot, loading, submitting, deleting, timeCapInvalid, title, description, trimmedCoachNotesForSave, type, timeCapForSave, movementIdsForSave, localWorkoutId, mode, scheduledAt])
+  }, [snapshot, loading, submitting, deleting, timeCapInvalid, title, description, trimmedCoachNotesForSave, type, timeCapForSave, tracksRoundsForSave, movementsForSave, localWorkoutId, mode, scheduledAt])
 
   // ── Movement detect ──────────────────────────────────────────────────────
   // Debounced suggest-from-description. Skips when:
@@ -342,6 +491,8 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
     const movement = allMovements.find((m) => m.id === id)
     if (!movement) return
     setSelectedMovements((prev) => (prev.some((m) => m.id === id) ? prev : [...prev, movement]))
+    // Seed a blank prescription so the row's editor has somewhere to write.
+    setPrescriptions((prev) => (prev[id] ? prev : { ...prev, [id]: blankPrescription() }))
     setSuggestedMovementIds((prev) => prev.filter((sid) => sid !== id))
   }
 
@@ -356,6 +507,14 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
 
   function removeSelectedMovement(id: string) {
     setSelectedMovements((prev) => prev.filter((m) => m.id !== id))
+    // Drop the prescription too so a future re-add starts blank instead of
+    // resurrecting whatever the user had typed before.
+    setPrescriptions((prev) => {
+      if (!prev[id]) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
     // Drop from dismissed too so a future detect re-suggests it if the
     // user removed it by accident.
     setDismissedIds((prev) => {
@@ -364,6 +523,17 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
       next.delete(id)
       return next
     })
+  }
+
+  function updatePrescription<K extends keyof PrescriptionForm>(
+    movementId: string,
+    field: K,
+    value: PrescriptionForm[K],
+  ) {
+    setPrescriptions((prev) => ({
+      ...prev,
+      [movementId]: { ...(prev[movementId] ?? blankPrescription()), [field]: value },
+    }))
   }
 
   async function handleSave() {
@@ -386,7 +556,8 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
           coachNotes: trimmedCoachNotes === '' ? null : trimmedCoachNotes,
           type,
           timeCapSeconds: timeCapForSave,
-          movementIds: movementIdsForSave,
+          tracksRounds: tracksRoundsForSave,
+          movements: movementsForSave,
         })
       } else if (mode === 'create' && scheduledAt) {
         // YYYY-MM-DD → noon UTC so the workout lands on the same calendar
@@ -398,7 +569,8 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
           coachNotes: trimmedCoachNotes || undefined,
           type,
           scheduledAt: iso,
-          movementIds: movementIdsForSave,
+          tracksRounds: tracksRoundsForSave,
+          movements: movementsForSave,
         })
       }
       lastSnapshotRef.current = snapshot
@@ -558,37 +730,28 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             <ThemedText variant="tertiary" style={styles.typeSelectChevron}>▾</ThemedText>
           </TouchableOpacity>
 
-          {/* Movements (slice 3a) — selected pills with × remove, plus
-              "Suggestions" pills with ✓ accept / × dismiss when the detect
-              effect surfaces matches from the description. Per-movement
-              prescription editing is deferred to slice 3b. */}
+          {/* Movements (slice 3a/3b) — selected items render as full
+              prescription cards (slice 3b's per-movement editor). Suggestions
+              from the detect effect render below as ✓ accept / × dismiss
+              pills (slice 3a). */}
           <ThemedText variant="label" style={styles.sectionLabel}>MOVEMENTS</ThemedText>
           {selectedMovements.length === 0 ? (
             <ThemedText variant="tertiary" style={styles.movementsEmpty}>
               Type movements into the description above — we'll suggest matches below.
             </ThemedText>
           ) : (
-            <View style={styles.movementChipRow} testID="selected-movements">
+            <View style={styles.prescriptionCardList} testID="selected-movements">
               {selectedMovements.map((m) => (
-                <View
+                <PrescriptionCard
                   key={m.id}
-                  style={[
-                    styles.movementChip,
-                    { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
-                  ]}
-                  testID={`selected-movement-${m.id}`}
-                >
-                  <ThemedText style={styles.movementChipLabel}>{m.name}</ThemedText>
-                  <TouchableOpacity
-                    onPress={() => removeSelectedMovement(m.id)}
-                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${m.name}`}
-                    testID={`selected-movement-remove-${m.id}`}
-                  >
-                    <ThemedText variant="tertiary" style={styles.movementChipDismiss}>×</ThemedText>
-                  </TouchableOpacity>
-                </View>
+                  movement={m}
+                  type={type}
+                  prescription={prescriptions[m.id] ?? blankPrescription()}
+                  colors={colors}
+                  onChange={(field, value) => updatePrescription(m.id, field, value)}
+                  onRemove={() => removeSelectedMovement(m.id)}
+                  onOpenUnitPicker={(field) => setUnitPickerFor({ movementId: m.id, field })}
+                />
               ))}
             </View>
           )}
@@ -661,6 +824,35 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
                 </ThemedText>
               )}
             </>
+          )}
+
+          {/* tracksRounds — AMRAP-only. Drives whether the result form
+              prompts for a rounds count separately from total reps. Other
+              workout types ignore the toggle on save (the snapshot wipes
+              it back to false), so we just hide the affordance. */}
+          {type === 'AMRAP' && (
+            <TouchableOpacity
+              onPress={() => setTracksRounds((v) => !v)}
+              style={styles.tracksRoundsRow}
+              testID="tracks-rounds-toggle"
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: tracksRounds }}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  {
+                    borderColor: tracksRounds ? colors.primary : colors.borderInteractive,
+                    backgroundColor: tracksRounds ? colors.primary : 'transparent',
+                  },
+                ]}
+              >
+                {tracksRounds && <ThemedText style={styles.checkboxMark}>✓</ThemedText>}
+              </View>
+              <ThemedText variant="secondary" style={styles.tracksRoundsLabel}>
+                Track rounds + partial reps separately
+              </ThemedText>
+            </TouchableOpacity>
           )}
 
           {error && <ThemedText style={[styles.error, { color: colors.errorText }]}>{error}</ThemedText>}
@@ -791,8 +983,200 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             </Pressable>
           </Pressable>
         </Modal>
+
+        {/* Unit picker — shared bottom-sheet for both load (LB/KG) and
+            distance (M/KM/MI/FT/YD) units. Same pattern as the type picker;
+            tapping a unit selects + closes. */}
+        <Modal
+          visible={unitPickerFor !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setUnitPickerFor(null)}
+        >
+          <Pressable
+            style={styles.typePickerBackdrop}
+            onPress={() => setUnitPickerFor(null)}
+            testID="unit-picker-backdrop"
+          >
+            <Pressable
+              style={[styles.typePickerSheet, { backgroundColor: colors.cardBg }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.typePickerHeader}>
+                <ThemedText style={styles.typePickerTitle}>
+                  {unitPickerFor?.field === 'load' ? 'Load unit' : 'Distance unit'}
+                </ThemedText>
+                <TouchableOpacity onPress={() => setUnitPickerFor(null)} testID="unit-picker-close">
+                  <ThemedText variant="tertiary" style={styles.typePickerClose}>Cancel</ThemedText>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.chipRow}>
+                {(unitPickerFor?.field === 'load' ? LOAD_UNITS : DISTANCE_UNITS).map((u) => {
+                  if (!unitPickerFor) return null
+                  const current = unitPickerFor.field === 'load'
+                    ? prescriptions[unitPickerFor.movementId]?.loadUnit ?? 'LB'
+                    : prescriptions[unitPickerFor.movementId]?.distanceUnit ?? 'M'
+                  const selected = u === current
+                  return (
+                    <TouchableOpacity
+                      key={u}
+                      onPress={() => {
+                        if (unitPickerFor.field === 'load') {
+                          updatePrescription(unitPickerFor.movementId, 'loadUnit', u as LoadUnit)
+                        } else {
+                          updatePrescription(unitPickerFor.movementId, 'distanceUnit', u as DistanceUnit)
+                        }
+                        setUnitPickerFor(null)
+                      }}
+                      style={[
+                        styles.chip,
+                        { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive },
+                        selected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                      ]}
+                      testID={`unit-picker-chip-${u}`}
+                    >
+                      <ThemedText style={[styles.chipLabel, selected && { color: '#fff', fontWeight: '700' }]}>
+                        {UNIT_LABELS[u]}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </ThemedView>
     </KeyboardAvoidingView>
+  )
+}
+
+// ── PrescriptionCard ───────────────────────────────────────────────────────
+// One card per selected movement. Renders the movement name, a × remove,
+// the category-aware input grid (sets/reps/load/tempo/distance/calories/
+// seconds), and an optional `tracksLoad` toggle (hidden for MonoStructural
+// where the result form has no Load column to suppress).
+function PrescriptionCard({
+  movement,
+  type,
+  prescription,
+  colors,
+  onChange,
+  onRemove,
+  onOpenUnitPicker,
+}: {
+  movement: Movement
+  type: WorkoutType
+  prescription: PrescriptionForm
+  colors: ReturnType<typeof useTheme>['colors']
+  onChange: <K extends keyof PrescriptionForm>(field: K, value: PrescriptionForm[K]) => void
+  onRemove: () => void
+  onOpenUnitPicker: (field: 'load' | 'distance') => void
+}) {
+  const defaults = defaultPrescriptionColumns(type)
+  const available = availablePrescriptionColumns(type)
+  // Surface a column when (a) it's reachable for this type AND (b) the type's
+  // defaults include it OR the user has already typed a value into it. No
+  // "show all" toggle on mobile yet — keep the surface tight on a small screen.
+  const visible = PRESCRIPTION_INPUT_DEFS.filter((c) =>
+    available.has(c.key) && (defaults.has(c.key) || prescription[c.key] !== ''),
+  )
+  // Hide the load-tracking toggle for MonoStructural (no Load column on the
+  // result form to suppress).
+  const showLoadToggle = WORKOUT_TYPE_STYLES[type].category !== 'MonoStructural'
+
+  return (
+    <View
+      style={[
+        styles.prescriptionCard,
+        { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+      ]}
+      testID={`prescription-card-${movement.id}`}
+    >
+      <View style={styles.prescriptionCardHeader}>
+        <ThemedText style={styles.prescriptionCardName}>{movement.name}</ThemedText>
+        <TouchableOpacity
+          onPress={onRemove}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${movement.name}`}
+          testID={`selected-movement-remove-${movement.id}`}
+        >
+          <ThemedText variant="tertiary" style={styles.movementChipDismiss}>×</ThemedText>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.prescriptionGrid}>
+        {visible.map((c) => (
+          <View key={c.key} style={styles.prescriptionInputCell}>
+            <ThemedText variant="muted" style={styles.prescriptionInputLabel}>
+              {c.label.toUpperCase()}
+            </ThemedText>
+            <View style={c.key === 'load' || c.key === 'distance' ? styles.prescriptionInputWithUnit : undefined}>
+              <TextInput
+                style={[
+                  styles.prescriptionInput,
+                  {
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.borderInteractive,
+                    color: colors.textPrimary,
+                  },
+                  (c.key === 'load' || c.key === 'distance') && styles.prescriptionInputFlex,
+                ]}
+                value={prescription[c.key] as string}
+                onChangeText={(v) => onChange(c.key, v as PrescriptionForm[typeof c.key])}
+                placeholder={c.placeholder}
+                placeholderTextColor={colors.textPlaceholder}
+                keyboardType={c.keyboardType}
+                testID={`prescription-input-${movement.id}-${c.key}`}
+              />
+              {c.key === 'load' && (
+                <TouchableOpacity
+                  onPress={() => onOpenUnitPicker('load')}
+                  style={[styles.unitChip, { borderColor: colors.borderInteractive, backgroundColor: colors.inputBg }]}
+                  testID={`prescription-unit-${movement.id}-load`}
+                >
+                  <ThemedText style={styles.unitChipLabel}>{UNIT_LABELS[prescription.loadUnit]}</ThemedText>
+                </TouchableOpacity>
+              )}
+              {c.key === 'distance' && (
+                <TouchableOpacity
+                  onPress={() => onOpenUnitPicker('distance')}
+                  style={[styles.unitChip, { borderColor: colors.borderInteractive, backgroundColor: colors.inputBg }]}
+                  testID={`prescription-unit-${movement.id}-distance`}
+                >
+                  <ThemedText style={styles.unitChipLabel}>{UNIT_LABELS[prescription.distanceUnit]}</ThemedText>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {showLoadToggle && (
+        <TouchableOpacity
+          onPress={() => onChange('tracksLoad', !prescription.tracksLoad)}
+          style={styles.tracksLoadRow}
+          testID={`tracks-load-toggle-${movement.id}`}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: prescription.tracksLoad }}
+        >
+          <View
+            style={[
+              styles.checkbox,
+              {
+                borderColor: prescription.tracksLoad ? colors.primary : colors.borderInteractive,
+                backgroundColor: prescription.tracksLoad ? colors.primary : 'transparent',
+              },
+            ]}
+          >
+            {prescription.tracksLoad && <ThemedText style={styles.checkboxMark}>✓</ThemedText>}
+          </View>
+          <ThemedText variant="tertiary" style={styles.tracksLoadLabel}>
+            Track load on results
+          </ThemedText>
+        </TouchableOpacity>
+      )}
+    </View>
   )
 }
 
@@ -832,6 +1216,63 @@ const styles = StyleSheet.create({
   movementChipAccept: { fontSize: 16, fontWeight: '700' },
   movementChipDismiss: { fontSize: 18, lineHeight: 18 },
   suggestionsHeader: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginTop: 12, marginBottom: 4 },
+
+  // Per-movement prescription cards (slice 3b).
+  prescriptionCardList: { gap: 8, marginTop: 4 },
+  prescriptionCard: { borderWidth: 1, borderRadius: 8, padding: 10 },
+  prescriptionCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  prescriptionCardName: { fontSize: 14, fontWeight: '600' },
+  // 2-column grid (sets|reps, load|tempo, distance|cals, seconds|...). Each
+  // cell flexes to 48% leaving an 8px gap between columns.
+  prescriptionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  prescriptionInputCell: { width: '48%', minWidth: 120 },
+  prescriptionInputLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 2 },
+  prescriptionInput: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 14,
+    minHeight: 36,
+  },
+  prescriptionInputWithUnit: { flexDirection: 'row', gap: 4, alignItems: 'stretch' },
+  prescriptionInputFlex: { flex: 1, minWidth: 0 },
+  // Tap-to-open unit chip beside load + distance inputs. Mirrors the
+  // type-select button shape so the affordance reads consistently.
+  unitChip: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    minHeight: 36,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unitChipLabel: { fontSize: 13, fontWeight: '500' },
+
+  // tracksLoad / tracksRounds checkbox-row pattern.
+  tracksLoadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, minHeight: 28 },
+  tracksLoadLabel: { fontSize: 12 },
+  tracksRoundsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, minHeight: 28 },
+  tracksRoundsLabel: { fontSize: 13 },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1.5,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxMark: { color: '#fff', fontSize: 12, fontWeight: '700', lineHeight: 14 },
 
   // Type-selector single-row button — leading 4px accent bar tints to
   // match the selected type so the user gets a visual cue without opening
