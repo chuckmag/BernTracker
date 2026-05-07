@@ -34,6 +34,11 @@ jest.mock('../src/lib/api', () => ({
       get: jest.fn(),
       results: jest.fn(),
     },
+    me: {
+      personalProgram: {
+        get: jest.fn(),
+      },
+    },
   },
 }))
 
@@ -97,6 +102,9 @@ describe('WodDetailScreen', () => {
     })
     ;(api.workouts.get as jest.Mock).mockResolvedValue(WORKOUT)
     ;(api.workouts.results as jest.Mock).mockResolvedValue([])
+    // Default: workout's program isn't the user's personal program → no
+    // Edit affordance. Individual tests can override with mockResolvedValueOnce.
+    ;(api.me.personalProgram.get as jest.Mock).mockResolvedValue({ id: 'pp-other', name: 'Personal Program' })
   })
 
   test('shows workout title and description from API', async () => {
@@ -363,5 +371,50 @@ describe('WodDetailScreen', () => {
         await findByText('Cue hip drive on the second pull.')
       },
     )
+  })
+
+  describe('Edit affordance (slice 2 of #242)', () => {
+    test('does not render the Edit button when the workout is not in the user\'s personal program', async () => {
+      // Default beforeEach already mocks personalProgram → pp-other and
+      // workout.programId === 'prog-1'. setOptions should never receive a
+      // headerRight function for this case.
+      const navigation = makeNavigation()
+      const { findByText } = render(
+        <WodDetailScreen navigation={navigation} route={makeRoute()} />,
+      )
+      await findByText('Fran')
+      // Look at every setOptions call; none of them should set a truthy headerRight.
+      const everySetOptionsCall = (navigation.setOptions as jest.Mock).mock.calls
+      const truthyHeaderRight = everySetOptionsCall.some(
+        (c) => typeof c[0]?.headerRight === 'function',
+      )
+      expect(truthyHeaderRight).toBe(false)
+    })
+
+    test('renders an Edit button when the workout is in the user\'s personal program; pressing it navigates to the editor', async () => {
+      // Workout's programId matches the personal program id → canEdit=true.
+      ;(api.workouts.get as jest.Mock).mockResolvedValue({ ...WORKOUT, programId: 'pp-mine' })
+      ;(api.me.personalProgram.get as jest.Mock).mockResolvedValue({ id: 'pp-mine', name: 'Personal Program' })
+      const navigation = makeNavigation()
+      const { findByText } = render(
+        <WodDetailScreen navigation={navigation} route={makeRoute()} />,
+      )
+      await findByText('Fran')
+
+      // Pull the Edit button out of the most recent setOptions call.
+      await waitFor(() => {
+        const lastWithHeaderRight = (navigation.setOptions as jest.Mock).mock.calls
+          .reverse()
+          .find((c) => typeof c[0]?.headerRight === 'function')
+        expect(lastWithHeaderRight).toBeTruthy()
+      })
+      const headerRightCall = (navigation.setOptions as jest.Mock).mock.calls
+        .reverse()
+        .find((c) => typeof c[0]?.headerRight === 'function')
+      const node = headerRightCall[0].headerRight()
+      expect(node.props.testID).toBe('edit-workout-button')
+      node.props.onPress()
+      expect(navigation.navigate).toHaveBeenCalledWith('WorkoutEditor', { mode: 'edit', workoutId: 'workout-1' })
+    })
   })
 })

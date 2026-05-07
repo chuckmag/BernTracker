@@ -403,6 +403,27 @@ export const api = {
     get: (id: string) =>
       request<Workout>(`/api/workouts/${id}`),
 
+    // PATCH /api/workouts/:id. Server middleware (`requireWorkoutWriteAccess`)
+    // gates this on UserProgram.role for unaffiliated programs (covers personal
+    // programs + admin) and on GymProgram role for gym-affiliated ones — so the
+    // mobile client doesn't need to re-derive the permission, just hand off
+    // and surface the 403 if the call fails. Slice 2 of #240/#242.
+    update: (id: string, data: {
+      title?: string
+      description?: string
+      type?: WorkoutType
+      scheduledAt?: string
+      timeCapSeconds?: number | null
+    }) =>
+      request<Workout>(`/api/workouts/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    // DELETE /api/workouts/:id. Same write-access gate as `update`.
+    delete: (id: string) =>
+      request<void>(`/api/workouts/${id}`, { method: 'DELETE' }),
+
     results: (workoutId: string, level?: WorkoutLevel) => {
       const qs = level ? `?level=${level}` : ''
       return request<LeaderboardEntry[]>(`/api/workouts/${workoutId}/results${qs}`)

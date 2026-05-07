@@ -203,9 +203,9 @@ export default function FeedScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Personal program is upserted on first feed load so the day-header "+"
-  // button can navigate to AddPersonalWorkout without an extra round-trip
-  // on tap. Failure is non-fatal — the button stays hidden and the rest
-  // of the feed renders normally.
+  // button can navigate to WorkoutEditor without an extra round-trip on
+  // tap. Failure is non-fatal — the button stays hidden and the rest of
+  // the feed renders normally.
   const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(null)
   // Tracks the oldest day already loaded; the next "load more" page fetches
   // the PAGE_DAYS days immediately preceding this date.
@@ -317,7 +317,7 @@ export default function FeedScreen({ navigation }: Props) {
           onWorkoutPress={(id) => navigation.navigate('WodDetail', { workoutId: id })}
           onAddPersonalPress={
             personalProgram
-              ? (dateKey) => navigation.navigate('AddPersonalWorkout', { scheduledAt: dateKey })
+              ? (dateKey) => navigation.navigate('WorkoutEditor', { mode: 'create', scheduledAt: dateKey })
               : null
           }
         />
@@ -391,9 +391,10 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#1f2937',
   },
-  // Right-aligned "+" button on the day header — taps into AddPersonalWorkout
-  // for that calendar date. Hit-slop padded so the touch target is the
-  // recommended 28×28 even though the visible chevron is smaller.
+  // Right-aligned "+" button on the day header — taps into WorkoutEditor
+  // (create mode) for that calendar date. Hit-slop padded so the touch
+  // target is the recommended 28×28 even though the visible chevron is
+  // smaller.
   addBtn: {
     width: 28,
     height: 28,
