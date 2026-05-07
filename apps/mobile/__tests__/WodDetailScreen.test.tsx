@@ -34,11 +34,6 @@ jest.mock('../src/lib/api', () => ({
       get: jest.fn(),
       results: jest.fn(),
     },
-    me: {
-      personalProgram: {
-        get: jest.fn(),
-      },
-    },
   },
 }))
 
@@ -100,11 +95,10 @@ describe('WodDetailScreen', () => {
       isLoading: false,
       selectGym: jest.fn(),
     })
-    ;(api.workouts.get as jest.Mock).mockResolvedValue(WORKOUT)
+    // Default: workout response carries canEdit=false (server says viewer
+    // can't edit). Individual Edit-affordance tests override with canEdit=true.
+    ;(api.workouts.get as jest.Mock).mockResolvedValue({ ...WORKOUT, canEdit: false })
     ;(api.workouts.results as jest.Mock).mockResolvedValue([])
-    // Default: workout's program isn't the user's personal program → no
-    // Edit affordance. Individual tests can override with mockResolvedValueOnce.
-    ;(api.me.personalProgram.get as jest.Mock).mockResolvedValue({ id: 'pp-other', name: 'Personal Program' })
   })
 
   test('shows workout title and description from API', async () => {
@@ -374,10 +368,9 @@ describe('WodDetailScreen', () => {
   })
 
   describe('Edit affordance (slice 2 of #242)', () => {
-    test('does not render the Edit button when the workout is not in the user\'s personal program', async () => {
-      // Default beforeEach already mocks personalProgram → pp-other and
-      // workout.programId === 'prog-1'. setOptions should never receive a
-      // headerRight function for this case.
+    test('does not render the Edit button when the workout response says canEdit=false', async () => {
+      // Default beforeEach already mocks canEdit=false. setOptions should
+      // never receive a headerRight function for this case.
       const navigation = makeNavigation()
       const { findByText } = render(
         <WodDetailScreen navigation={navigation} route={makeRoute()} />,
@@ -391,10 +384,10 @@ describe('WodDetailScreen', () => {
       expect(truthyHeaderRight).toBe(false)
     })
 
-    test('renders an Edit button when the workout is in the user\'s personal program; pressing it navigates to the editor', async () => {
-      // Workout's programId matches the personal program id → canEdit=true.
-      ;(api.workouts.get as jest.Mock).mockResolvedValue({ ...WORKOUT, programId: 'pp-mine' })
-      ;(api.me.personalProgram.get as jest.Mock).mockResolvedValue({ id: 'pp-mine', name: 'Personal Program' })
+    test('renders an Edit button when canEdit=true; pressing it navigates to the editor', async () => {
+      // Server says viewer can edit (PROGRAMMER role on a gym program OR
+      // owner of a personal program — both surfaced as canEdit=true).
+      ;(api.workouts.get as jest.Mock).mockResolvedValue({ ...WORKOUT, canEdit: true })
       const navigation = makeNavigation()
       const { findByText } = render(
         <WodDetailScreen navigation={navigation} route={makeRoute()} />,

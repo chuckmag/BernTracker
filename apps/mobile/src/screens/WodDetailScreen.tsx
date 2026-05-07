@@ -12,7 +12,7 @@ import { useFocusEffect } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { AGE_DIVISIONS, getAgeDivision } from '@wodalytics/types'
-import { api, type AgeDivision, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender, type PersonalProgram } from '../lib/api'
+import { api, type AgeDivision, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender } from '../lib/api'
 import { styleFor } from '../lib/workoutTypeStyles'
 import { useAuth } from '../context/AuthContext'
 import { useGym } from '../context/GymContext'
@@ -70,14 +70,14 @@ export default function WodDetailScreen({ route, navigation }: Props) {
   // and closed for MEMBER. Same contract as web (#184). User can always toggle.
   const isStaff = activeGym?.role === 'COACH' || activeGym?.role === 'PROGRAMMER' || activeGym?.role === 'OWNER'
   const [showCoachNotes, setShowCoachNotes] = useState(isStaff)
-  // Personal program id is needed to gate the Edit affordance — slice 2 of
-  // #242 only enables editing for workouts the viewer owns (their own
-  // personal program). Gym-program edit gating ships in a follow-up.
-  const [personalProgramId, setPersonalProgramId] = useState<string | null>(null)
-  const canEdit = !!(workout && personalProgramId && workout.programId === personalProgramId)
+  // Edit gating is server-derived now (#242 slice 2b): the workout response
+  // carries `canEdit`, computed by the same logic as requireWorkoutWriteAccess
+  // — covers the gym-PROGRAMMER/OWNER case slice 2a couldn't. Treat absent as
+  // false so an older API build silently hides the affordance instead of
+  // showing a button that always 403s.
+  const canEdit = !!workout?.canEdit
 
-  // Load workout details + personal-program id in parallel. Personal program
-  // failure is silent (no Edit affordance) — it should never block detail rendering.
+  // Load workout details once.
   useEffect(() => {
     api.workouts.get(workoutId)
       .then((w) => {
@@ -86,9 +86,6 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       })
       .catch(() => setError('Could not load workout.'))
       .finally(() => setLoading(false))
-    api.me.personalProgram.get()
-      .then((p: PersonalProgram) => setPersonalProgramId(p.id))
-      .catch(() => {})
   }, [workoutId, navigation])
 
   // Edit affordance in the nav bar — only renders for workouts the viewer

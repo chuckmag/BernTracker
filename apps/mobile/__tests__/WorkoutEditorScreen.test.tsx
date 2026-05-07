@@ -93,13 +93,14 @@ describe('WorkoutEditorScreen — create mode', () => {
     })
   })
 
-  test('does not render the Delete button in create mode', () => {
+  test('does not render the Delete button in create mode before autosave fires', () => {
     const { queryByTestId } = render(
       <WorkoutEditorScreen
         navigation={makeNavigation()}
         route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
       />,
     )
+    // No localWorkoutId yet → no Delete affordance.
     expect(queryByTestId('delete-button')).toBeNull()
   })
 
@@ -207,5 +208,104 @@ describe('WorkoutEditorScreen — edit mode', () => {
     fireEvent.press(getByTestId('save-button'))
     await findByText("You don't have permission to edit this workout.")
     expect(navigation.goBack).not.toHaveBeenCalled()
+  })
+})
+
+describe('WorkoutEditorScreen — autosave (slice 2b)', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    jest.clearAllMocks()
+  })
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  test('first create-mode autosave POSTs to personal program after the debounce, then subsequent edits PATCH the returned id', async () => {
+    ;(api.me.personalProgram.workouts.create as jest.Mock).mockResolvedValue({ id: 'autosave-w-1' })
+    ;(api.workouts.update as jest.Mock).mockResolvedValue({})
+    const { getByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('title-input'), 'Easy row')
+    fireEvent.changeText(getByTestId('description-input'), '20 min easy')
+
+    // Below debounce → no save yet.
+    await act(async () => { jest.advanceTimersByTime(1000) })
+    expect(api.me.personalProgram.workouts.create).not.toHaveBeenCalled()
+
+    // Past debounce (1500ms) → POST fires once.
+    await act(async () => { jest.advanceTimersByTime(800) })
+    await waitFor(() => {
+      expect(api.me.personalProgram.workouts.create).toHaveBeenCalledTimes(1)
+    })
+
+    // Subsequent edit → PATCH on the autosaved id, no second POST.
+    fireEvent.changeText(getByTestId('title-input'), 'Even easier row')
+    await act(async () => { jest.advanceTimersByTime(1600) })
+    await waitFor(() => {
+      expect(api.workouts.update).toHaveBeenCalledWith(
+        'autosave-w-1',
+        expect.objectContaining({ title: 'Even easier row' }),
+      )
+    })
+    expect(api.me.personalProgram.workouts.create).toHaveBeenCalledTimes(1)
+  })
+
+  test('autosave does not fire while title or description is below the minimum threshold', async () => {
+    const { getByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    // 2-char title (below AUTOSAVE_MIN_TITLE=3), description fine.
+    fireEvent.changeText(getByTestId('title-input'), 'Hi')
+    fireEvent.changeText(getByTestId('description-input'), '20 min easy')
+    await act(async () => { jest.advanceTimersByTime(2000) })
+    expect(api.me.personalProgram.workouts.create).not.toHaveBeenCalled()
+
+    // Bump title to 3 chars → now above threshold → autosave fires.
+    ;(api.me.personalProgram.workouts.create as jest.Mock).mockResolvedValue({ id: 'w-1' })
+    fireEvent.changeText(getByTestId('title-input'), 'Hi!')
+    await act(async () => { jest.advanceTimersByTime(2000) })
+    await waitFor(() => expect(api.me.personalProgram.workouts.create).toHaveBeenCalled())
+  })
+
+  test('shows "Saved" status after a successful autosave', async () => {
+    ;(api.me.personalProgram.workouts.create as jest.Mock).mockResolvedValue({ id: 'w-1' })
+    const { getByTestId, queryByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    // Idle — no status indicator yet.
+    expect(queryByTestId('autosave-status')).toBeNull()
+    fireEvent.changeText(getByTestId('title-input'), 'Easy row')
+    fireEvent.changeText(getByTestId('description-input'), '20 min easy')
+    await act(async () => { jest.advanceTimersByTime(2000) })
+    await waitFor(() => {
+      const node = getByTestId('autosave-status')
+      expect(node).toBeTruthy()
+      expect(node.props.children.filter(Boolean).join('')).toMatch(/Saved/)
+    })
+  })
+
+  test('edit mode hydration does not trigger an autosave PATCH for unchanged fields', async () => {
+    ;(api.workouts.get as jest.Mock).mockResolvedValue(EXISTING_WORKOUT)
+    const { findByDisplayValue } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'edit', workoutId: 'w-1' })}
+      />,
+    )
+    await findByDisplayValue('Easy row')
+    // Advance past debounce — hydrated values match the snapshot baseline,
+    // so update should not have been called.
+    await act(async () => { jest.advanceTimersByTime(2000) })
+    expect(api.workouts.update).not.toHaveBeenCalled()
   })
 })

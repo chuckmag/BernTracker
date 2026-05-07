@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,15 @@ type Props = StackScreenProps<RootStackParamList, 'WorkoutEditor'>
 const TIME_CAP_TYPES = new Set<WorkoutType>([
   'AMRAP', 'FOR_TIME', 'EMOM', 'METCON', 'TABATA', 'INTERVALS', 'CHIPPER', 'LADDER', 'DEATH_BY',
 ])
+
+// Autosave debounce. Slightly tighter than web's 2s — phones often have
+// flakier connections so a faster nudge feels more responsive without
+// drowning the keyboard in requests.
+const AUTOSAVE_DEBOUNCE_MS = 1500
+// Same content thresholds as web (apps/web/src/components/WorkoutDrawer.tsx)
+// — keeps an idle tap-then-cancel from creating an empty draft on the server.
+const AUTOSAVE_MIN_TITLE = 3
+const AUTOSAVE_MIN_DESCRIPTION = 5
 
 // Same display order as the web drawer + the existing
 // AddPersonalWorkoutScreen this generalizes.
@@ -95,6 +104,17 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Autosave state. `localWorkoutId` is set after the first successful
+  // create-mode autosave (or pre-populated from the route param in edit
+  // mode); from there every subsequent autosave PATCHes that id rather
+  // than POSTing a new draft. `lastSnapshotRef` tracks what was last sent
+  // to the server so we can skip no-op writes on every keystroke.
+  const [localWorkoutId, setLocalWorkoutId] = useState<string | null>(
+    mode === 'edit' ? (workoutId ?? null) : null,
+  )
+  const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const lastSnapshotRef = useRef<string | null>(null)
+
   // Edit mode: hydrate from server. Create mode skips the fetch and uses
   // the param-supplied scheduledAt + sensible defaults.
   useEffect(() => {
@@ -110,6 +130,14 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
         setScheduledAt(w.scheduledAt)
         setLoading(false)
         navigation.setOptions({ title: 'Edit Workout' })
+        // Seed the autosave baseline with what we just loaded so the
+        // hydrate-from-server pass doesn't trigger an immediate PATCH.
+        lastSnapshotRef.current = JSON.stringify({
+          title: w.title,
+          description: w.description,
+          type: w.type,
+          timeCapSeconds: w.timeCapSeconds,
+        })
       })
       .catch((e: unknown) => {
         if (cancelled) return
@@ -163,18 +191,91 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
     !deleting &&
     !timeCapInvalid
 
+  // ── Autosave ─────────────────────────────────────────────────────────────
+  // Debounced background save of the form state. Skips when:
+  //  - edit mode hasn't hydrated yet (loading)
+  //  - title or description hasn't reached the minimum length (avoids
+  //    creating empty drafts when the user opens the editor and immediately
+  //    bails)
+  //  - time-cap is malformed
+  //  - a manual Save / Delete is in flight
+  //  - the snapshot hasn't actually changed since the last successful save
+  //
+  // First create-mode autosave POSTs; the resulting id is stashed in
+  // `localWorkoutId` so every keystroke after that PATCHes the same row,
+  // matching the web drawer's create→update transition.
+  const timeCapForSave = !showTimeCap ? null : parsedTimeCap ?? null
+  const snapshot = useMemo(
+    () => JSON.stringify({
+      title: title.trim(),
+      description: description.trim(),
+      type,
+      timeCapSeconds: timeCapForSave,
+    }),
+    [title, description, type, timeCapForSave],
+  )
+
+  useEffect(() => {
+    if (loading) return
+    if (submitting || deleting) return
+    if (timeCapInvalid) return
+    if (title.trim().length < AUTOSAVE_MIN_TITLE) return
+    if (description.trim().length < AUTOSAVE_MIN_DESCRIPTION) return
+    if (snapshot === lastSnapshotRef.current) return
+
+    const handle = setTimeout(async () => {
+      setAutosaveStatus('saving')
+      try {
+        if (localWorkoutId) {
+          await api.workouts.update(localWorkoutId, {
+            title: title.trim(),
+            description: description.trim(),
+            type,
+            timeCapSeconds: timeCapForSave,
+          })
+        } else if (mode === 'create' && scheduledAt) {
+          // Create mode + first autosave: POST a draft pinned to the chosen
+          // calendar day, then upgrade the row's id so subsequent autosaves
+          // PATCH it instead of POSTing again.
+          const iso = new Date(`${scheduledAt}T12:00:00Z`).toISOString()
+          const created = await api.me.personalProgram.workouts.create({
+            title: title.trim(),
+            description: description.trim(),
+            type,
+            scheduledAt: iso,
+          })
+          setLocalWorkoutId(created.id)
+        } else {
+          return
+        }
+        lastSnapshotRef.current = snapshot
+        setAutosaveStatus('saved')
+      } catch {
+        setAutosaveStatus('error')
+      }
+    }, AUTOSAVE_DEBOUNCE_MS)
+
+    return () => clearTimeout(handle)
+  }, [snapshot, loading, submitting, deleting, timeCapInvalid, title, description, type, timeCapForSave, localWorkoutId, mode, scheduledAt])
+
   async function handleSave() {
     if (!canSubmit) return
     setSubmitting(true)
     setError(null)
     try {
-      // null clears an existing cap on edit; undefined leaves it unset on create.
-      // Hidden time-cap field always wipes (e.g. user changed type from AMRAP to STRENGTH).
-      const timeCapSeconds = !showTimeCap ? null : parsedTimeCap ?? null
-
-      if (mode === 'create') {
+      // If autosave already POSTed (or we're in edit mode), prefer PATCH on
+      // the known id so we don't create a duplicate draft. Falls back to POST
+      // only when we have nothing on the server yet.
+      if (localWorkoutId) {
+        await api.workouts.update(localWorkoutId, {
+          title: title.trim(),
+          description: description.trim(),
+          type,
+          timeCapSeconds: timeCapForSave,
+        })
+      } else if (mode === 'create' && scheduledAt) {
         // YYYY-MM-DD → noon UTC so the workout lands on the same calendar
-        // date for every viewer (matches AddPersonalWorkoutScreen + web).
+        // date for every viewer (matches the autosave create path + web).
         const iso = new Date(`${scheduledAt}T12:00:00Z`).toISOString()
         await api.me.personalProgram.workouts.create({
           title: title.trim(),
@@ -182,14 +283,8 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
           type,
           scheduledAt: iso,
         })
-      } else if (workoutId) {
-        await api.workouts.update(workoutId, {
-          title: title.trim(),
-          description: description.trim(),
-          type,
-          timeCapSeconds,
-        })
       }
+      lastSnapshotRef.current = snapshot
       navigation.goBack()
     } catch (e) {
       const status = (e as { status?: number }).status
@@ -204,7 +299,11 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
   }
 
   function handleDelete() {
-    if (mode !== 'edit' || !workoutId || deleting) return
+    // Allow delete in edit mode AND in create mode after autosave has
+    // landed a draft (so a user who tapped into the editor and started
+    // typing can back out of the draft cleanly).
+    const idToDelete = mode === 'edit' ? workoutId : localWorkoutId
+    if (!idToDelete || deleting) return
     Alert.alert(
       'Delete workout?',
       'This permanently removes the workout and any results logged against it.',
@@ -217,7 +316,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             setDeleting(true)
             setError(null)
             try {
-              await api.workouts.delete(workoutId)
+              await api.workouts.delete(idToDelete)
               navigation.goBack()
             } catch (e) {
               const status = (e as { status?: number }).status
@@ -361,6 +460,24 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
 
           {error && <ThemedText style={[styles.error, { color: colors.errorText }]}>{error}</ThemedText>}
 
+          {/* Subtle autosave indicator above the manual Save button so users
+              know their work is being persisted in the background. Hidden
+              while idle to avoid noise on a fresh form. */}
+          {autosaveStatus !== 'idle' && (
+            <ThemedText
+              variant="tertiary"
+              style={[
+                styles.autosaveStatus,
+                autosaveStatus === 'error' && { color: colors.errorText },
+              ]}
+              testID="autosave-status"
+            >
+              {autosaveStatus === 'saving' && 'Autosaving…'}
+              {autosaveStatus === 'saved' && 'Saved'}
+              {autosaveStatus === 'error' && 'Autosave failed — try Save'}
+            </ThemedText>
+          )}
+
           <TouchableOpacity
             style={[
               styles.submitBtn,
@@ -380,7 +497,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             )}
           </TouchableOpacity>
 
-          {mode === 'edit' && (
+          {(mode === 'edit' || localWorkoutId) && (
             <TouchableOpacity
               style={[styles.deleteBtn, { borderColor: colors.errorText }]}
               onPress={handleDelete}
@@ -442,7 +559,9 @@ const styles = StyleSheet.create({
 
   error: { fontSize: 13, marginTop: 16 },
 
-  submitBtn: { paddingVertical: 14, borderRadius: 8, alignItems: 'center', marginTop: 24 },
+  autosaveStatus: { fontSize: 12, marginTop: 16, textAlign: 'center' },
+
+  submitBtn: { paddingVertical: 14, borderRadius: 8, alignItems: 'center', marginTop: 8 },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { fontSize: 15, fontWeight: '600' },
 
