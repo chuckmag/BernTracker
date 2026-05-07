@@ -25,9 +25,9 @@ const mockTrajectory: StrengthTrajectoryData = {
   currentPr: 225,
   loadUnit: 'LB',
   points: [
-    { date: '2026-02-01', maxLoad: 205, loadUnit: 'LB', effort: '5 × 205', workoutId: 'w-1', resultId: 'r-1' },
-    { date: '2026-03-01', maxLoad: 215, loadUnit: 'LB', effort: '3 × 215', workoutId: 'w-2', resultId: 'r-2' },
-    { date: '2026-04-01', maxLoad: 225, loadUnit: 'LB', effort: '1 × 225', workoutId: 'w-3', resultId: 'r-3' },
+    { date: '2026-02-01', maxLoad: 200, loadUnit: 'LB', sets: [{ reps: '1', load: 200 }], workoutId: 'w-1', resultId: 'r-1' },
+    { date: '2026-03-01', maxLoad: 210, loadUnit: 'LB', sets: [{ reps: '1', load: 210 }], workoutId: 'w-2', resultId: 'r-2' },
+    { date: '2026-04-01', maxLoad: 225, loadUnit: 'LB', sets: [{ reps: '1', load: 225 }], workoutId: 'w-3', resultId: 'r-3' },
   ],
 }
 
@@ -112,7 +112,7 @@ describe('Analytics', () => {
     vi.mocked(api.me.analytics.strengthTrajectory).mockResolvedValue(mockTrajectory)
     renderAnalytics()
     expect(await screen.findByText(/225 LB/)).toBeInTheDocument()
-    expect(await screen.findByText(/\+20 LB/)).toBeInTheDocument()
+    expect(await screen.findByText(/\+25 e1RM/)).toBeInTheDocument()
   })
 
   it('shows an error message when the API call fails', async () => {

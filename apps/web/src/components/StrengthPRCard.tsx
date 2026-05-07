@@ -14,6 +14,7 @@ import { api, type TrackedMovement, type StrengthTrajectoryData, type StrengthTr
 import { useTheme } from '../context/ThemeContext.tsx'
 import { resolveTheme } from '../lib/useTheme.ts'
 import { BRAND_TOKENS } from '../lib/designTokens.ts'
+import { bestE1RMFromSets } from '../lib/e1rm.ts'
 import SegmentedControl from './ui/SegmentedControl.tsx'
 import Skeleton from './ui/Skeleton.tsx'
 import ChartTooltip from './ui/ChartTooltip.tsx'
@@ -52,7 +53,9 @@ interface TrajectoryChartProps {
 interface ChartPoint {
   shortDate: string
   fullDate: string
+  chartValue: number   // e1rm when available, otherwise maxLoad
   maxLoad: number
+  e1rm: number | null
   effort: string
   loadUnit: string
   workoutId: string
@@ -62,15 +65,9 @@ interface ChartPoint {
 function TrajectoryTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartPoint }> }) {
   if (!active || !payload?.length) return null
   const p = payload[0].payload
-  return (
-    <ChartTooltip
-      date={p.fullDate}
-      lines={[
-        { text: `${p.effort} ${p.loadUnit}`, accent: true },
-        { text: `Max: ${p.maxLoad} ${p.loadUnit}` },
-      ]}
-    />
-  )
+  const lines: { text: string; accent?: boolean }[] = [{ text: `${p.effort} ${p.loadUnit}`, accent: true }]
+  if (p.e1rm !== null) lines.push({ text: `Est. 1RM: ${p.e1rm} ${p.loadUnit}` })
+  return <ChartTooltip date={p.fullDate} lines={lines} />
 }
 
 function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps) {
@@ -93,15 +90,20 @@ function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps)
     )
   }
 
-  const chartData: ChartPoint[] = points.map((p) => ({
-    shortDate: formatUtcShort(p.date),
-    fullDate: formatUtcDate(p.date),
-    maxLoad: p.maxLoad,
-    effort: p.effort,
-    loadUnit: p.loadUnit,
-    workoutId: p.workoutId,
-    resultId: p.resultId,
-  }))
+  const chartData: ChartPoint[] = points.map((p) => {
+    const best = bestE1RMFromSets(p.sets)
+    return {
+      shortDate: formatUtcShort(p.date),
+      fullDate: formatUtcDate(p.date),
+      chartValue: best?.e1rm ?? p.maxLoad,
+      maxLoad: p.maxLoad,
+      e1rm: best?.e1rm ?? null,
+      effort: best ? `${best.reps} × ${best.load}` : `${p.maxLoad}`,
+      loadUnit: p.loadUnit,
+      workoutId: p.workoutId,
+      resultId: p.resultId,
+    }
+  })
 
   return (
     <ResponsiveContainer width="100%" height={120}>
@@ -112,7 +114,7 @@ function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps)
         <Tooltip content={<TrajectoryTooltip />} />
         <Line
           type="monotone"
-          dataKey="maxLoad"
+          dataKey="chartValue"
           stroke={lineColor}
           strokeWidth={2}
           dot={(props) => {
@@ -140,11 +142,14 @@ function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps)
 
 function ImprovementChip({ points }: { points: StrengthTrajectoryData['points'] }) {
   if (points.length < 2) return null
-  const first = points[0].maxLoad
-  const last = points[points.length - 1].maxLoad
-  const delta = last - first
+  const firstBest = bestE1RMFromSets(points[0].sets)
+  const lastBest = bestE1RMFromSets(points[points.length - 1].sets)
+  const firstVal = firstBest?.e1rm ?? points[0].maxLoad
+  const lastVal = lastBest?.e1rm ?? points[points.length - 1].maxLoad
+  const delta = Math.round((lastVal - firstVal) * 10) / 10
   if (delta === 0) return null
   const positive = delta > 0
+  const label = firstBest?.e1rm !== undefined ? 'e1RM' : points[0].loadUnit
   return (
     <span
       className={[
@@ -154,7 +159,7 @@ function ImprovementChip({ points }: { points: StrengthTrajectoryData['points'] 
           : 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
       ].join(' ')}
     >
-      {positive ? '+' : ''}{delta} {points[0].loadUnit}
+      {positive ? '+' : ''}{delta} {label}
     </span>
   )
 }

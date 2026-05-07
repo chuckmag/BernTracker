@@ -9,6 +9,7 @@ import ThemedText from './ThemedText'
 import ThemedView from './ThemedView'
 import type { TrackedMovement, StrengthTrajectoryData, StrengthTrajectoryPoint } from '../lib/api'
 import { api } from '../lib/api'
+import { bestE1RMFromSets } from '../lib/e1rm'
 
 type RootNav = StackNavigationProp<RootStackParamList>
 
@@ -33,7 +34,8 @@ interface TrajectoryChartProps {
 }
 
 function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: TrajectoryChartProps) {
-  const lineColor = isDark ? '#818cf8' : '#4f46e5'
+  const { colors } = useTheme()
+  const lineColor = colors.primary
   const gridColor = isDark ? '#1f2937' : '#e2e8f0'
   const tickColor = isDark ? '#6b7280' : '#64748b'
 
@@ -47,18 +49,18 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
     )
   }
 
-  const loads = points.map((p) => p.maxLoad)
-  const minLoad = Math.min(...loads)
-  const maxLoad = Math.max(...loads)
-  const loadRange = maxLoad - minLoad || 1
+  const pointValues = points.map((p) => bestE1RMFromSets(p.sets)?.e1rm ?? p.maxLoad)
+  const minVal = Math.min(...pointValues)
+  const maxVal = Math.max(...pointValues)
+  const valRange = maxVal - minVal || 1
   const innerW = CHART_W - PAD.left - PAD.right
   const innerH = CHART_H - PAD.top - PAD.bottom
 
   const toX = (i: number) => PAD.left + (i / (points.length - 1)) * innerW
-  const toY = (load: number) => PAD.top + innerH - ((load - minLoad) / loadRange) * innerH
+  const toY = (val: number) => PAD.top + innerH - ((val - minVal) / valRange) * innerH
 
-  const polyPoints = points.map((p, i) => `${toX(i)},${toY(p.maxLoad)}`).join(' ')
-  const yTicks = [minLoad, maxLoad]
+  const polyPoints = points.map((p, i) => `${toX(i)},${toY(pointValues[i])}`).join(' ')
+  const yTicks = [minVal, maxVal]
 
   return (
     <Svg width={CHART_W} height={CHART_H} accessibilityLabel="Strength PR trajectory chart">
@@ -83,7 +85,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
           fill={tickColor}
           fontSize={8}
         >
-          {Math.round(v)}
+          {Math.round(v * 10) / 10}
         </SvgText>
       ))}
       <Polyline
@@ -100,7 +102,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
           <Circle
             key={i}
             cx={toX(i)}
-            cy={toY(p.maxLoad)}
+            cy={toY(pointValues[i])}
             r={DOT_HIT_R}
             fill="transparent"
             onPress={() => onSelectIndex(isSelected ? null : i)}
@@ -113,7 +115,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
           <Circle
             key={`dot-${i}`}
             cx={toX(i)}
-            cy={toY(p.maxLoad)}
+            cy={toY(pointValues[i])}
             r={isSelected ? 4 : 2.5}
             fill={lineColor}
             stroke={isSelected ? (isDark ? '#ffffff' : '#1e293b') : 'none'}
@@ -131,14 +133,20 @@ interface PointCalloutProps {
 }
 
 function PointCallout({ point, onNavigate }: PointCalloutProps) {
+  const { colors } = useTheme()
+  const best = bestE1RMFromSets(point.sets)
+  const effort = best ? `${best.reps} × ${best.load}` : `${point.maxLoad}`
   return (
-    <View style={styles.callout}>
+    <View style={[styles.callout, { backgroundColor: `${colors.primary}1a` }]}>
       <View style={styles.calloutLeft}>
         <Text style={styles.calloutDate}>{fullDate(point.date)}</Text>
-        <Text style={styles.calloutEffort}>{point.effort} {point.loadUnit}</Text>
+        <Text style={[styles.calloutEffort, { color: colors.primary }]}>{effort} {point.loadUnit}</Text>
+        {best !== null && (
+          <Text style={[styles.calloutE1rm, { color: colors.primary }]}>Est. 1RM: {best.e1rm} {point.loadUnit}</Text>
+        )}
       </View>
       <TouchableOpacity onPress={onNavigate} activeOpacity={0.7} style={styles.calloutLink}>
-        <Text style={styles.calloutLinkText}>View →</Text>
+        <Text style={[styles.calloutLinkText, { color: colors.primary }]}>View →</Text>
       </TouchableOpacity>
     </View>
   )
@@ -168,10 +176,14 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
 
   if (movements.length === 0) return null
 
-  const delta =
-    trajectory && trajectory.points.length >= 2
-      ? trajectory.points[trajectory.points.length - 1].maxLoad - trajectory.points[0].maxLoad
-      : null
+  const delta = (() => {
+    if (!trajectory || trajectory.points.length < 2) return null
+    const firstBest = bestE1RMFromSets(trajectory.points[0].sets)
+    const lastBest = bestE1RMFromSets(trajectory.points[trajectory.points.length - 1].sets)
+    const first = firstBest?.e1rm ?? trajectory.points[0].maxLoad
+    const last = lastBest?.e1rm ?? trajectory.points[trajectory.points.length - 1].maxLoad
+    return Math.round((last - first) * 10) / 10
+  })()
 
   const selectedPoint = selectedDotIndex !== null ? trajectory?.points[selectedDotIndex] ?? null : null
 
@@ -328,7 +340,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(129,140,248,0.1)',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -344,7 +355,9 @@ const styles = StyleSheet.create({
   calloutEffort: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#818cf8',
+  },
+  calloutE1rm: {
+    fontSize: 11,
   },
   calloutLink: {
     paddingVertical: 4,
@@ -353,6 +366,5 @@ const styles = StyleSheet.create({
   calloutLinkText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#818cf8',
   },
 })
