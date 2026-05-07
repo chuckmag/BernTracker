@@ -1,20 +1,20 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { api, type GymInvitation } from '../lib/api'
+import { api, type PendingInvitation } from '../lib/api'
 import { useAuth } from './AuthContext.tsx'
 
 interface InvitationsState {
-  invitations: GymInvitation[]
+  invitations: PendingInvitation[]
   loading: boolean
   refresh: () => Promise<void>
-  accept: (id: string) => Promise<void>
-  decline: (id: string) => Promise<void>
+  accept: (item: PendingInvitation) => Promise<void>
+  decline: (item: PendingInvitation) => Promise<void>
 }
 
 const InvitationsContext = createContext<InvitationsState | null>(null)
 
 export function InvitationsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
-  const [invitations, setInvitations] = useState<GymInvitation[]>([])
+  const [invitations, setInvitations] = useState<PendingInvitation[]>([])
   const [loading, setLoading] = useState(false)
 
   const refresh = useCallback(async () => {
@@ -24,7 +24,7 @@ export function InvitationsProvider({ children }: { children: React.ReactNode })
     }
     setLoading(true)
     try {
-      const list = await api.users.me.invitations.list()
+      const list = await api.users.me.invitations.pendingAll()
       setInvitations(list)
     } catch {
       // Silent — banner just won't show. The Profile page surfaces a real error.
@@ -33,18 +33,25 @@ export function InvitationsProvider({ children }: { children: React.ReactNode })
     }
   }, [user])
 
-  // Fetch on mount and any time the signed-in user changes (login/logout).
   useEffect(() => {
     refresh()
   }, [refresh])
 
-  const accept = useCallback(async (id: string) => {
-    await api.users.me.invitations.accept(id)
+  const accept = useCallback(async (item: PendingInvitation) => {
+    if (item.kind === 'membershipRequest') {
+      await api.users.me.invitations.accept(item.data.id)
+    } else {
+      await api.users.me.codeInvitations.accept(item.data.code)
+    }
     await refresh()
   }, [refresh])
 
-  const decline = useCallback(async (id: string) => {
-    await api.users.me.invitations.decline(id)
+  const decline = useCallback(async (item: PendingInvitation) => {
+    if (item.kind === 'membershipRequest') {
+      await api.users.me.invitations.decline(item.data.id)
+    } else {
+      await api.users.me.codeInvitations.decline(item.data.code)
+    }
     await refresh()
   }, [refresh])
 

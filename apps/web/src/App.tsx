@@ -31,6 +31,7 @@ import History from './pages/History.tsx'
 import AdminSettings from './pages/AdminSettings.tsx'
 // PersonalProgram page replaced by UnifiedCalendar (#268). Route now redirects.
 import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
+import JoinInvitation from './pages/JoinInvitation.tsx'
 import Analytics from './pages/Analytics.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
@@ -116,6 +117,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/join/:code" element={<JoinInvitation />} />
         <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
         <Route
           path="/*"
