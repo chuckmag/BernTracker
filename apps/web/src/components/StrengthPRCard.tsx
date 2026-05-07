@@ -14,6 +14,7 @@ import { api, type TrackedMovement, type StrengthTrajectoryData, type StrengthTr
 import { useTheme } from '../context/ThemeContext.tsx'
 import { resolveTheme } from '../lib/useTheme.ts'
 import { BRAND_TOKENS } from '../lib/designTokens.ts'
+import { bestE1RMFromSets } from '../lib/e1rm.ts'
 import SegmentedControl from './ui/SegmentedControl.tsx'
 import Skeleton from './ui/Skeleton.tsx'
 import ChartTooltip from './ui/ChartTooltip.tsx'
@@ -64,14 +65,8 @@ interface ChartPoint {
 function TrajectoryTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartPoint }> }) {
   if (!active || !payload?.length) return null
   const p = payload[0].payload
-  const lines = p.e1rm !== null
-    ? [
-        { text: `${p.effort} ${p.loadUnit}`, accent: true },
-        { text: `Est. 1RM: ${p.e1rm} ${p.loadUnit}` },
-      ]
-    : [
-        { text: `${p.effort} ${p.loadUnit}`, accent: true },
-      ]
+  const lines: { text: string; accent?: boolean }[] = [{ text: `${p.effort} ${p.loadUnit}`, accent: true }]
+  if (p.e1rm !== null) lines.push({ text: `Est. 1RM: ${p.e1rm} ${p.loadUnit}` })
   return <ChartTooltip date={p.fullDate} lines={lines} />
 }
 
@@ -95,17 +90,20 @@ function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps)
     )
   }
 
-  const chartData: ChartPoint[] = points.map((p) => ({
-    shortDate: formatUtcShort(p.date),
-    fullDate: formatUtcDate(p.date),
-    chartValue: p.e1rm ?? p.maxLoad,
-    maxLoad: p.maxLoad,
-    e1rm: p.e1rm,
-    effort: p.effort,
-    loadUnit: p.loadUnit,
-    workoutId: p.workoutId,
-    resultId: p.resultId,
-  }))
+  const chartData: ChartPoint[] = points.map((p) => {
+    const best = bestE1RMFromSets(p.sets)
+    return {
+      shortDate: formatUtcShort(p.date),
+      fullDate: formatUtcDate(p.date),
+      chartValue: best?.e1rm ?? p.maxLoad,
+      maxLoad: p.maxLoad,
+      e1rm: best?.e1rm ?? null,
+      effort: best ? `${best.reps} × ${best.load}` : `${p.maxLoad}`,
+      loadUnit: p.loadUnit,
+      workoutId: p.workoutId,
+      resultId: p.resultId,
+    }
+  })
 
   return (
     <ResponsiveContainer width="100%" height={120}>
@@ -144,12 +142,14 @@ function TrajectoryChart({ points, isDark, onClickPoint }: TrajectoryChartProps)
 
 function ImprovementChip({ points }: { points: StrengthTrajectoryData['points'] }) {
   if (points.length < 2) return null
-  const firstVal = points[0].e1rm ?? points[0].maxLoad
-  const lastVal = points[points.length - 1].e1rm ?? points[points.length - 1].maxLoad
+  const firstBest = bestE1RMFromSets(points[0].sets)
+  const lastBest = bestE1RMFromSets(points[points.length - 1].sets)
+  const firstVal = firstBest?.e1rm ?? points[0].maxLoad
+  const lastVal = lastBest?.e1rm ?? points[points.length - 1].maxLoad
   const delta = Math.round((lastVal - firstVal) * 10) / 10
   if (delta === 0) return null
   const positive = delta > 0
-  const label = points[0].e1rm !== null ? 'e1RM' : points[0].loadUnit
+  const label = firstBest?.e1rm !== undefined ? 'e1RM' : points[0].loadUnit
   return (
     <span
       className={[

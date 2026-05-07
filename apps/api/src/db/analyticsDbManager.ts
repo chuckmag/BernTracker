@@ -98,7 +98,7 @@ export interface TrackedMovement {
   count: number
 }
 
-// Repetition percentages of 1RM (strengthlevel.com)
+// e1RM percentages kept server-side only for determining which result "wins" a date bucket
 const E1RM_PCT: Record<number, number> = {
   1: 1.00, 2: 0.97, 3: 0.94, 4: 0.92, 5: 0.89,
   6: 0.86, 7: 0.83, 8: 0.81, 9: 0.78, 10: 0.75,
@@ -108,20 +108,24 @@ const E1RM_PCT: Record<number, number> = {
   26: 0.54, 27: 0.53, 28: 0.52, 29: 0.51, 30: 0.50,
 }
 
-function computeE1RM(reps: string | undefined, load: number): number | null {
-  if (!reps) return null
-  const r = parseInt(reps, 10)
-  const pct = E1RM_PCT[r]
-  if (!pct) return null
-  return Math.round((load / pct) * 10) / 10
+function bestE1RMForBucket(sets: { reps?: string; load?: number }[]): number | null {
+  let best: number | null = null
+  for (const s of sets) {
+    if (s.load === undefined || !s.reps) continue
+    const r = parseInt(s.reps, 10)
+    const pct = E1RM_PCT[r]
+    if (!pct) continue
+    const e1rm = s.load / pct
+    if (best === null || e1rm > best) best = e1rm
+  }
+  return best
 }
 
 export interface StrengthTrajectoryPoint {
   date: string
   maxLoad: number
   loadUnit: string
-  effort: string    // best set for this date, e.g. "3 × 225"
-  e1rm: number | null
+  sets: { reps?: string; load?: number }[]
   workoutId: string
   resultId: string
 }
@@ -221,9 +225,13 @@ export async function getStrengthPRTrajectoryForUser(
     },
   })
 
-  // Aggregate best-e1RM result per workout scheduledAt UTC calendar date, then
-  // sort ascending so the polyline runs oldest → newest.
-  const byDate = new Map<string, { maxLoad: number; loadUnit: string; effort: string; e1rm: number | null; workoutId: string; resultId: string }>()
+  // Aggregate the best-e1RM result per scheduledAt UTC date; ship raw sets so
+  // the client can run the shared e1rm lib directly, matching the movement history chart.
+  const byDate = new Map<string, {
+    maxLoad: number; loadUnit: string
+    sets: { reps?: string; load?: number }[]
+    workoutId: string; resultId: string
+  }>()
   let currentPr: number | null = null
   let latestUnit: string | null = null
 
@@ -232,43 +240,29 @@ export async function getStrengthPRTrajectoryForUser(
     const setsWithLoad = sets.filter((s) => s.load !== undefined && s.load > 0)
     if (!setsWithLoad.length) continue
 
-    // Pick the set with the highest estimated 1RM; fall back to highest load
-    let bestSet = setsWithLoad[0]
-    let bestE1rm: number | null = computeE1RM(setsWithLoad[0].reps, setsWithLoad[0].load!)
-    for (const s of setsWithLoad.slice(1)) {
-      const e1rm = computeE1RM(s.reps, s.load!)
-      const betterE1rm = (e1rm !== null && bestE1rm !== null && e1rm > bestE1rm) || (e1rm !== null && bestE1rm === null)
-      const betterLoad = e1rm === null && bestE1rm === null && s.load! > bestSet.load!
-      if (betterE1rm || betterLoad) {
-        bestSet = s
-        bestE1rm = e1rm
-      }
-    }
-
-    const maxLoad = bestSet.load!
-    const effort = bestSet.reps ? `${bestSet.reps} × ${maxLoad}` : `${maxLoad}`
+    const maxLoad = Math.max(...setsWithLoad.map((s) => s.load!))
     const dateKey = toUtcDateKey(result.workout.scheduledAt)
     const u = unit ?? 'LB'
     if (latestUnit === null) latestUnit = u
 
-    // Replace the date's entry if this result has a better e1rm (or load if no e1rm)
+    // Keep the result with the best e1RM for this date (fall back to max load)
     const existing = byDate.get(dateKey)
-    const existingE1rm = existing?.e1rm ?? null
-    const existingLoad = existing?.maxLoad ?? 0
+    const thisE1rm = bestE1RMForBucket(setsWithLoad)
+    const existingE1rm = existing ? bestE1RMForBucket(existing.sets) : null
     const betterThanExisting =
       !existing ||
-      (bestE1rm !== null && (existingE1rm === null || bestE1rm > existingE1rm)) ||
-      (bestE1rm === null && existingE1rm === null && maxLoad > existingLoad)
+      (thisE1rm !== null && (existingE1rm === null || thisE1rm > existingE1rm)) ||
+      (thisE1rm === null && existingE1rm === null && maxLoad > existing.maxLoad)
 
     if (betterThanExisting) {
-      byDate.set(dateKey, { maxLoad, loadUnit: u, effort, e1rm: bestE1rm, workoutId: result.workout.id, resultId: result.id })
+      byDate.set(dateKey, { maxLoad, loadUnit: u, sets: setsWithLoad, workoutId: result.workout.id, resultId: result.id })
     }
     if (currentPr === null || maxLoad > currentPr) currentPr = maxLoad
   }
 
   const points = [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, { maxLoad, loadUnit, effort, e1rm, workoutId, resultId }]) => ({ date, maxLoad, loadUnit, effort, e1rm, workoutId, resultId }))
+    .map(([date, { maxLoad, loadUnit, sets, workoutId, resultId }]) => ({ date, maxLoad, loadUnit, sets, workoutId, resultId }))
 
   return { movementId, name: movement.name, currentPr, loadUnit: latestUnit, points }
 }

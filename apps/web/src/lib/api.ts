@@ -386,8 +386,7 @@ export interface StrengthTrajectoryPoint {
   date: string
   maxLoad: number
   loadUnit: string
-  effort: string
-  e1rm: number | null
+  sets: { reps?: string; load?: number }[]
   workoutId: string
   resultId: string
 }

@@ -9,6 +9,7 @@ import ThemedText from './ThemedText'
 import ThemedView from './ThemedView'
 import type { TrackedMovement, StrengthTrajectoryData, StrengthTrajectoryPoint } from '../lib/api'
 import { api } from '../lib/api'
+import { bestE1RMFromSets } from '../lib/e1rm'
 
 type RootNav = StackNavigationProp<RootStackParamList>
 
@@ -48,9 +49,9 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
     )
   }
 
-  const values = points.map((p) => p.e1rm ?? p.maxLoad)
-  const minVal = Math.min(...values)
-  const maxVal = Math.max(...values)
+  const pointValues = points.map((p) => bestE1RMFromSets(p.sets)?.e1rm ?? p.maxLoad)
+  const minVal = Math.min(...pointValues)
+  const maxVal = Math.max(...pointValues)
   const valRange = maxVal - minVal || 1
   const innerW = CHART_W - PAD.left - PAD.right
   const innerH = CHART_H - PAD.top - PAD.bottom
@@ -58,7 +59,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
   const toX = (i: number) => PAD.left + (i / (points.length - 1)) * innerW
   const toY = (val: number) => PAD.top + innerH - ((val - minVal) / valRange) * innerH
 
-  const polyPoints = points.map((p, i) => `${toX(i)},${toY(p.e1rm ?? p.maxLoad)}`).join(' ')
+  const polyPoints = points.map((p, i) => `${toX(i)},${toY(pointValues[i])}`).join(' ')
   const yTicks = [minVal, maxVal]
 
   return (
@@ -101,7 +102,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
           <Circle
             key={i}
             cx={toX(i)}
-            cy={toY(p.e1rm ?? p.maxLoad)}
+            cy={toY(pointValues[i])}
             r={DOT_HIT_R}
             fill="transparent"
             onPress={() => onSelectIndex(isSelected ? null : i)}
@@ -114,7 +115,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
           <Circle
             key={`dot-${i}`}
             cx={toX(i)}
-            cy={toY(p.e1rm ?? p.maxLoad)}
+            cy={toY(pointValues[i])}
             r={isSelected ? 4 : 2.5}
             fill={lineColor}
             stroke={isSelected ? (isDark ? '#ffffff' : '#1e293b') : 'none'}
@@ -133,13 +134,15 @@ interface PointCalloutProps {
 
 function PointCallout({ point, onNavigate }: PointCalloutProps) {
   const { colors } = useTheme()
+  const best = bestE1RMFromSets(point.sets)
+  const effort = best ? `${best.reps} × ${best.load}` : `${point.maxLoad}`
   return (
     <View style={[styles.callout, { backgroundColor: `${colors.primary}1a` }]}>
       <View style={styles.calloutLeft}>
         <Text style={styles.calloutDate}>{fullDate(point.date)}</Text>
-        <Text style={[styles.calloutEffort, { color: colors.primary }]}>{point.effort} {point.loadUnit}</Text>
-        {point.e1rm !== null && (
-          <Text style={[styles.calloutE1rm, { color: colors.primary }]}>Est. 1RM: {point.e1rm} {point.loadUnit}</Text>
+        <Text style={[styles.calloutEffort, { color: colors.primary }]}>{effort} {point.loadUnit}</Text>
+        {best !== null && (
+          <Text style={[styles.calloutE1rm, { color: colors.primary }]}>Est. 1RM: {best.e1rm} {point.loadUnit}</Text>
         )}
       </View>
       <TouchableOpacity onPress={onNavigate} activeOpacity={0.7} style={styles.calloutLink}>
@@ -173,10 +176,14 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
 
   if (movements.length === 0) return null
 
-  const delta =
-    trajectory && trajectory.points.length >= 2
-      ? trajectory.points[trajectory.points.length - 1].maxLoad - trajectory.points[0].maxLoad
-      : null
+  const delta = (() => {
+    if (!trajectory || trajectory.points.length < 2) return null
+    const firstBest = bestE1RMFromSets(trajectory.points[0].sets)
+    const lastBest = bestE1RMFromSets(trajectory.points[trajectory.points.length - 1].sets)
+    const first = firstBest?.e1rm ?? trajectory.points[0].maxLoad
+    const last = lastBest?.e1rm ?? trajectory.points[trajectory.points.length - 1].maxLoad
+    return Math.round((last - first) * 10) / 10
+  })()
 
   const selectedPoint = selectedDotIndex !== null ? trajectory?.points[selectedDotIndex] ?? null : null
 
