@@ -156,12 +156,13 @@ async function runTests() {
       value: { score: { kind: 'TIME', seconds: 300, cappedOut: false } },
     })
     check('POST FOR_TIME result → 201', 201, r.status)
-    const body = r.body as Record<string, unknown>
-    check('POST FOR_TIME result → has id', true, typeof body.id === 'string')
-    check('POST FOR_TIME result → level=RX', 'RX', body.level)
-    check('POST FOR_TIME result → primaryScoreKind=TIME', 'TIME', body.primaryScoreKind)
-    check('POST FOR_TIME result → primaryScoreValue=300', 300, body.primaryScoreValue)
-    resultId = body.id as string
+    const body = r.body as { result: Record<string, unknown>; newPrs: unknown[] }
+    check('POST FOR_TIME result → has id', true, typeof body.result.id === 'string')
+    check('POST FOR_TIME result → level=RX', 'RX', body.result.level)
+    check('POST FOR_TIME result → primaryScoreKind=TIME', 'TIME', body.result.primaryScoreKind)
+    check('POST FOR_TIME result → primaryScoreValue=300', 300, body.result.primaryScoreValue)
+    check('POST FOR_TIME result → newPrs=[]', 0, body.newPrs.length)
+    resultId = body.result.id as string
   }
 
   {
@@ -173,8 +174,8 @@ async function runTests() {
       value: { score: { kind: 'TIME', seconds: 600, cappedOut: true } },
     })
     check('POST capped FOR_TIME → 201', 201, r.status)
-    const body = r.body as Record<string, unknown>
-    check('POST capped FOR_TIME → primaryScoreValue includes cap penalty', true, (body.primaryScoreValue as number) > 1_000_000_000)
+    const body = r.body as { result: Record<string, unknown>; newPrs: unknown[] }
+    check('POST capped FOR_TIME → primaryScoreValue includes cap penalty', true, (body.result.primaryScoreValue as number) > 1_000_000_000)
   }
 
   {
@@ -242,14 +243,14 @@ async function runTests() {
       workoutGender: 'OPEN',
       value: { score: { kind: 'ROUNDS_REPS', rounds: 5, reps: 10, cappedOut: false } },
     })
-    check('POST AMRAP rounds=5 reps=10 → primaryScoreValue=5010', 5010, (r1.body as Record<string, unknown>).primaryScoreValue)
+    check('POST AMRAP rounds=5 reps=10 → primaryScoreValue=5010', 5010, (r1.body as { result: Record<string, unknown> }).result.primaryScoreValue)
 
     const r2 = await api('POST', `/workouts/${amrapWorkoutId}/results`, userBToken, {
       level: 'RX',
       workoutGender: 'OPEN',
       value: { score: { kind: 'ROUNDS_REPS', rounds: 6, reps: 3, cappedOut: false } },
     })
-    check('POST AMRAP rounds=6 reps=3  → primaryScoreValue=6003', 6003, (r2.body as Record<string, unknown>).primaryScoreValue)
+    check('POST AMRAP rounds=6 reps=3  → primaryScoreValue=6003', 6003, (r2.body as { result: Record<string, unknown> }).result.primaryScoreValue)
   }
 
   {
@@ -329,8 +330,8 @@ async function runTests() {
       },
     })
     check('POST strength result → 201', 201, r.status)
-    const body = r.body as Record<string, unknown>
-    check('POST strength → primaryScoreKind=LOAD', 'LOAD', body.primaryScoreKind)
+    const body = r.body as { result: Record<string, unknown>; newPrs: Array<Record<string, unknown>> }
+    check('POST strength → primaryScoreKind=LOAD', 'LOAD', body.result.primaryScoreKind)
     // The crude "max load × maxRepChunk" rule scans every set; the heaviest
     // tonnage set wins regardless of movement. Here that's the RDL set
     // (135 lb × 10 reps = 1350 lb-reps), not the back squat (235 × 5 = 1175).
@@ -338,8 +339,19 @@ async function runTests() {
     // doesn't outrank either. This is exactly the case slice 4 will revisit
     // when we move to a 1RM-estimate-based primary score.
     const expectedKg = 135 * 10 * 0.453592
-    const got = body.primaryScoreValue as number
+    const got = body.result.primaryScoreValue as number
     check('POST strength → primaryScoreValue ≈ max(load*reps in kg)', true, Math.abs(got - expectedKg) < 0.01)
+    // PR detection: this is userA's first strength result, so every (movement, repCount)
+    // combination with a load becomes a new PR.
+    check('POST strength → newPrs is array', true, Array.isArray(body.newPrs))
+    check('POST strength → newPrs.length ≥ 1', true, body.newPrs.length >= 1)
+    const bsPr = body.newPrs.find((p) => p.movementName === 'Back Squat')
+    check('POST strength → Back Squat PR detected', true, bsPr !== undefined)
+    if (bsPr) {
+      check('POST strength → Back Squat PR has load', true, typeof bsPr.load === 'number')
+      check('POST strength → Back Squat PR has estimatedOneRepMax', true, typeof bsPr.estimatedOneRepMax === 'number')
+      check('POST strength → Back Squat 5RM estimatedOneRepMax > load', true, (bsPr.estimatedOneRepMax as number) > (bsPr.load as number))
+    }
   }
 
   // ── GET /api/me/results (history) ─────────────────────────────────────────

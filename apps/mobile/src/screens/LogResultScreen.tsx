@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
+  Image,
   Platform,
 } from 'react-native'
 import type { StackScreenProps } from '@react-navigation/stack'
@@ -18,6 +20,7 @@ import {
   deriveWorkoutGender,
   type DistanceUnit,
   type LoadUnit,
+  type NewPr,
   type Workout,
   type WorkoutLevel,
   type WorkoutMovementWithPrescription,
@@ -279,6 +282,7 @@ export default function LogResultScreen({ route, navigation }: Props) {
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [alreadyLogged, setAlreadyLogged] = useState(false)
+  const [prModal, setPrModal] = useState<NewPr[]>([])
 
   const [level, setLevel] = useState<WorkoutLevel>(existingResult?.level ?? 'RX')
   const [movements, setMovements] = useState<MovementSection[]>([])
@@ -358,16 +362,21 @@ export default function LogResultScreen({ route, navigation }: Props) {
           value: built.value,
           notes: notes.trim() || null,
         })
+        navigation.goBack()
       } else {
         const workoutGender = deriveWorkoutGender(user?.identifiedGender ?? null)
-        await api.workouts.logResult(workoutId, {
+        const { newPrs } = await api.workouts.logResult(workoutId, {
           level,
           workoutGender,
           value: built.value,
           notes: notes.trim() || undefined,
         })
+        if (newPrs.length > 0) {
+          setPrModal(newPrs)
+        } else {
+          navigation.goBack()
+        }
       }
-      navigation.goBack()
     } catch (e: unknown) {
       const status = (e as { status?: number })?.status
       if (status === 409) {
@@ -577,9 +586,128 @@ export default function LogResultScreen({ route, navigation }: Props) {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      <PRCelebrationModal
+        prs={prModal}
+        onDismiss={() => { setPrModal([]); navigation.goBack() }}
+      />
     </KeyboardAvoidingView>
   )
 }
+
+// ─── PRCelebrationModal ──────────────────────────────────────────────────────
+
+// Swap this `require` for a CDN URL (via `{ uri: '...' }`) when the asset
+// moves to S3/CloudFront. The component signature stays the same.
+const MASCOT_PR_GIF = require('../../assets/mascot-pr.gif') as number
+
+function PRCelebrationModal({ prs, onDismiss }: { prs: NewPr[]; onDismiss: () => void }) {
+  if (prs.length === 0) return null
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onDismiss}>
+      <View style={prStyles.overlay}>
+        <View style={prStyles.sheet}>
+          <Image source={MASCOT_PR_GIF} style={prStyles.mascot} resizeMode="contain" />
+          <Text style={prStyles.headline}>NEW PR!</Text>
+          <ScrollView style={prStyles.prList} contentContainerStyle={prStyles.prListContent}>
+            {prs.map((pr) => (
+              <View key={`${pr.movementId}-${pr.repCount}`} style={prStyles.prCard}>
+                <Text style={prStyles.movementName}>{pr.movementName}</Text>
+                <Text style={prStyles.prDetail}>
+                  {pr.repCount} {pr.repCount === 1 ? 'rep' : 'reps'} @ {pr.load} {pr.loadUnit.toLowerCase()}
+                </Text>
+                {pr.repCount > 1 && (
+                  <Text style={prStyles.e1rm}>
+                    Est. 1RM: {pr.estimatedOneRepMax} {pr.loadUnit.toLowerCase()}
+                  </Text>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+          <TouchableOpacity style={prStyles.dismissBtn} onPress={onDismiss}>
+            <Text style={prStyles.dismissBtnText}>Keep crushing it</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+const prStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#111827',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 40,
+    alignItems: 'center',
+    maxHeight: '80%',
+  },
+  mascot: {
+    width: 120,
+    height: 120,
+    marginBottom: 12,
+  },
+  headline: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fbbf24',
+    letterSpacing: 2,
+    marginBottom: 16,
+  },
+  prList: {
+    width: '100%',
+    maxHeight: 220,
+  },
+  prListContent: {
+    gap: 10,
+  },
+  prCard: {
+    backgroundColor: '#1e1b4b',
+    borderWidth: 1,
+    borderColor: '#4f46e5',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    width: '100%',
+  },
+  movementName: {
+    color: '#e5e7eb',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  prDetail: {
+    color: '#818cf8',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  e1rm: {
+    color: '#9ca3af',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  dismissBtn: {
+    marginTop: 20,
+    backgroundColor: '#4f46e5',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  dismissBtnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+})
 
 // ─── SetsTableRN ─────────────────────────────────────────────────────────────
 

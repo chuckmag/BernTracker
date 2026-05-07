@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { createResult, findLeaderboardByWorkout, findResultHistoryByUser, updateResultByOwner, deleteResultByOwner } from '../db/resultDbManager.js'
+import { createResult, detectAndUpsertStrengthPrs, findLeaderboardByWorkout, findResultHistoryByUser, updateResultByOwner, deleteResultByOwner } from '../db/resultDbManager.js'
 import { expandMovementIdsWithVariations } from '../db/movementDbManager.js'
+import { findWorkoutTypeById } from '../db/workoutDbManager.js'
 import { CreateResultSchema, UpdateResultSchema, derivePrimaryScore } from '@wodalytics/types'
 import type { WorkoutLevel, WorkoutGender } from '@wodalytics/db'
 
@@ -49,7 +50,16 @@ async function logResult(req: Request, res: Response) {
       primaryScoreKind: score?.kind ?? null,
       primaryScoreValue: score?.value ?? null,
     })
-    res.status(201).json(result)
+
+    const workoutType = await findWorkoutTypeById(workoutId)
+    const newPrs = await detectAndUpsertStrengthPrs(
+      result.id,
+      result.value,
+      workoutType ?? '',
+      req.user!.id,
+    )
+
+    res.status(201).json({ result, newPrs })
   } catch (err: unknown) {
     if (err instanceof Error && (err as Error & { statusCode?: number }).statusCode === 409) {
       return res.status(409).json({ error: err.message })

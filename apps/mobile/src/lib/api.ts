@@ -243,6 +243,20 @@ export interface LogResultInput {
   notes?: string
 }
 
+export interface NewPr {
+  movementId: string
+  movementName: string
+  repCount: number
+  load: number
+  loadUnit: string
+  estimatedOneRepMax: number
+}
+
+export interface LogResultResponse {
+  result: LeaderboardEntry
+  newPrs: NewPr[]
+}
+
 export interface ConsistencyData {
   currentStreak: number
   longestStreak: number
@@ -464,7 +478,7 @@ export const api = {
     },
 
     logResult: (workoutId: string, data: LogResultInput) =>
-      request<LeaderboardEntry>(`/api/workouts/${workoutId}/results`, {
+      request<LogResultResponse>(`/api/workouts/${workoutId}/results`, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
