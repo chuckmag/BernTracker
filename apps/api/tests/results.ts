@@ -286,6 +286,18 @@ async function runTests() {
   }
 
   {
+    // Leaderboard response includes social _count fields for Hot Today card
+    const r = await api('GET', `/workouts/${forTimeWorkoutId}/results`, userAToken)
+    const entries = r.body as Array<Record<string, unknown>>
+    const firstEntry = entries[0] as Record<string, unknown>
+    const count = firstEntry._count as Record<string, unknown>
+    check('leaderboard entry → exposes _count.reactions as number', true, typeof count?.reactions === 'number')
+    check('leaderboard entry → exposes _count.comments as number', true, typeof count?.comments === 'number')
+    check('leaderboard entry → _count.reactions >= 0', true, (count?.reactions as number) >= 0)
+    check('leaderboard entry → _count.comments >= 0', true, (count?.comments as number) >= 0)
+  }
+
+  {
     // Filter by level=SCALED — no results seeded at SCALED
     const r = await api('GET', `/workouts/${forTimeWorkoutId}/results?level=SCALED`, userAToken)
     check('GET leaderboard ?level=SCALED → empty array', true, Array.isArray(r.body) && (r.body as unknown[]).length === 0)

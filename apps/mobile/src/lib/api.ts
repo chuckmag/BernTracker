@@ -165,6 +165,7 @@ export interface LeaderboardEntry {
   value: ResultValue
   notes: string | null
   createdAt: string
+  _count: { reactions: number; comments: number }
 }
 
 export interface ResultHistoryItem {

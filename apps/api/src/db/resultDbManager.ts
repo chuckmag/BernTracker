@@ -44,6 +44,7 @@ async function fetchLeaderboardRows(workoutId: string, filters: LeaderboardFilte
     include: {
       user: { select: { id: true, name: true, firstName: true, lastName: true, email: true, avatarUrl: true, birthday: true } },
       workout: { select: { type: true } },
+      _count: { select: { reactions: true, comments: true } },
     },
   })
 }

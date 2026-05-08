@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
 import WodHeroCard from '../components/WodHeroCard.tsx'
 import LeaderboardCard from '../components/LeaderboardCard.tsx'
+import HotTodayCard from '../components/HotTodayCard.tsx'
 import UpcomingCard from '../components/UpcomingCard.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
@@ -171,8 +172,8 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Social feed placeholder — deferred until social features are scoped */}
-          {!noGym && <SocialPlaceholder />}
+          {/* Hot Today — top results by social activity (reactions + comments) */}
+          {!noGym && data?.workout && <HotTodayCard workoutId={data.workout.id} />}
         </div>
 
         {/* Right rail — desktop only */}

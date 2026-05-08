@@ -324,6 +324,7 @@ export interface WorkoutResult {
     birthday: string | null
   }
   workout: { type: WorkoutType }
+  _count: { reactions: number; comments: number }
 }
 
 export interface ReactionSummary {
