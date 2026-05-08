@@ -4,8 +4,8 @@
  *
  * Capabilities are static here: an authenticated admin (verified server-side
  * by `requireWodalyticsAdmin`) has full read+write+delete on every
- * unaffiliated program. The members tab and gym-default toggles are gym
- * concepts and are deliberately off so the shared components hide them.
+ * unaffiliated program. canSeeMembers is enabled so the Members tab renders;
+ * canSetDefault is off — gym default is a gym concept, not an admin one.
  */
 import { api } from './api'
 import type { ProgramScope } from './programScope'
@@ -15,7 +15,7 @@ export const adminProgramScope: ProgramScope = {
   capabilities: {
     canWrite: true,
     canDelete: true,
-    canSeeMembers: false,
+    canSeeMembers: true,
     canSetDefault: false,
   },
   list: () => api.admin.programs.list(),
