@@ -16,6 +16,10 @@ vi.mock('../lib/api', async (importOriginal) => {
           today: vi.fn(),
         },
       },
+      results: {
+        ...actual.api.results,
+        leaderboard: vi.fn().mockResolvedValue([]),
+      },
     },
   }
 })
@@ -125,19 +129,40 @@ describe('Dashboard', () => {
     expect(await screen.findByText('Fran')).toBeInTheDocument()
   })
 
-  it('shows social placeholder tile', async () => {
+  it('shows Hot Today card when workout is present', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
-      workout: null,
+      workout: {
+        id: 'w1',
+        title: 'Fran',
+        description: '21-15-9: Thrusters, Pull-ups',
+        coachNotes: null,
+        type: 'FOR_TIME',
+        status: 'PUBLISHED',
+        scheduledAt: new Date().toISOString(),
+        dayOrder: 0,
+        workoutMovements: [],
+        programId: null,
+        program: null,
+        namedWorkoutId: null,
+        namedWorkout: null,
+        timeCapSeconds: null,
+        tracksRounds: false,
+        _count: { results: 0 },
+        externalSourceId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
       myResult: null,
       leaderboard: null,
       gymMemberCount: 0,
       programSubscriberCount: 0,
       isHeroWorkoutGymAffiliated: true,
     } satisfies DashboardToday)
+    vi.mocked(api.results.leaderboard).mockResolvedValue([])
 
     renderDashboard()
-    expect(await screen.findByText('Social feed coming soon')).toBeInTheDocument()
+    expect(await screen.findByText(/Hot Today/i)).toBeInTheDocument()
   })
 
   it('shows no-gym CTA card when user has no gym', async () => {

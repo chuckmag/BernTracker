@@ -270,6 +270,7 @@ describe('LogResultDrawer — edit mode', () => {
       createdAt: '2026-04-29T00:00:00.000Z',
       user: { id: 'u1', name: 'Me', firstName: null, lastName: null, email: 'me@test.com', avatarUrl: null, birthday: null },
       workout: { type: 'POWER_LIFTING' },
+      _count: { reactions: 0, comments: 0 },
     }
     render(<LogResultDrawer workout={w} existingResult={existing} onClose={() => {}} onSaved={() => {}} />)
 

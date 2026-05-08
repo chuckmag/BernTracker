@@ -28,6 +28,7 @@ const makeEntry = (overrides: Partial<WorkoutResult> = {}): WorkoutResult => ({
   createdAt: new Date().toISOString(),
   user: { id: 'u1', name: 'Alice Johnson', firstName: 'Alice', lastName: 'Johnson', email: 'alice@test.com', avatarUrl: null, birthday: null },
   workout: { type: 'FOR_TIME' },
+  _count: { reactions: 0, comments: 0 },
   ...overrides,
 })
 
