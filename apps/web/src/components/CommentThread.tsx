@@ -53,7 +53,8 @@ export default function CommentThread({ resultId, currentUserId }: CommentThread
     if (!body || submitting) return
     setSubmitting(true)
     try {
-      const comment = await api.social.comments.create(resultId, body)
+      const raw = await api.social.comments.create(resultId, body)
+      const comment = { reactions: [], replies: [], replyCount: 0, ...raw }
       setComments((prev) => [comment, ...prev])
       setTotal((t) => t + 1)
       setCompose('')
@@ -158,7 +159,8 @@ function CommentThreadItem({ comment, currentUserId, onUpdate, onDelete }: Comme
   }, [comment.replies])
 
   async function submitReply(body: string) {
-    const reply = await api.social.comments.reply(comment.id, body)
+    const raw = await api.social.comments.reply(comment.id, body)
+    const reply = { reactions: [], replies: [], replyCount: 0, ...raw }
     setReplies((prev) => [...prev, reply])
     setShowReplyForm(false)
   }
@@ -344,18 +346,19 @@ function CommentReactions({ comment, currentUserId, onUpdate }: CommentReactions
   }
 
   async function toggleReaction(emoji: string) {
-    const existing = comment.reactions.find((r) => r.emoji === emoji)
+    const currentReactions = comment.reactions ?? []
+    const existing = currentReactions.find((r) => r.emoji === emoji)
     const meReacted = existing?.userReacted ?? false
 
     let updated: ReactionSummary[]
     if (meReacted) {
-      updated = comment.reactions
+      updated = currentReactions
         .map((r) => r.emoji === emoji ? { ...r, count: r.count - 1, userReacted: false } : r)
         .filter((r) => r.count > 0)
     } else if (existing) {
-      updated = comment.reactions.map((r) => r.emoji === emoji ? { ...r, count: r.count + 1, userReacted: true } : r)
+      updated = currentReactions.map((r) => r.emoji === emoji ? { ...r, count: r.count + 1, userReacted: true } : r)
     } else {
-      updated = [...comment.reactions, { emoji, count: 1, userReacted: true }]
+      updated = [...currentReactions, { emoji, count: 1, userReacted: true }]
     }
     patchReactions(updated)
     setPickerOpen(false)
@@ -367,13 +370,13 @@ function CommentReactions({ comment, currentUserId, onUpdate }: CommentReactions
         await api.social.reactions.addToComment(comment.id, emoji)
       }
     } catch {
-      patchReactions(comment.reactions)
+      patchReactions(currentReactions)
     }
   }
 
   return (
     <div className="flex items-center gap-1 flex-wrap">
-      {comment.reactions.map((r) => (
+      {(comment.reactions ?? []).map((r) => (
         <button
           key={r.emoji}
           type="button"
@@ -409,7 +412,7 @@ function CommentReactions({ comment, currentUserId, onUpdate }: CommentReactions
             aria-label="Emoji picker"
           >
             {ALLOWED_EMOJIS.map((emoji) => {
-              const active = comment.reactions.find((r) => r.emoji === emoji)?.userReacted ?? false
+              const active = (comment.reactions ?? []).find((r) => r.emoji === emoji)?.userReacted ?? false
               return (
                 <button
                   key={emoji}
