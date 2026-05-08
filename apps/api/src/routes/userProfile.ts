@@ -9,6 +9,7 @@ import {
   findUserProfileById,
   updateUserProfileById,
   maybeMarkOnboarded,
+  findPublicUserProfileById,
 } from '../db/userProfileDbManager.js'
 import {
   findEmergencyContactsByUserId,
@@ -25,6 +26,7 @@ router.get('/users/me/emergency-contacts', requireAuth, listMyEmergencyContacts)
 router.post('/users/me/emergency-contacts', requireAuth, createMyEmergencyContact)
 router.patch('/users/me/emergency-contacts/:id', requireAuth, patchMyEmergencyContact)
 router.delete('/users/me/emergency-contacts/:id', requireAuth, deleteMyEmergencyContact)
+router.get('/users/:userId/public', requireAuth, getPublicUserProfile)
 
 export default router
 
@@ -108,4 +110,13 @@ async function deleteMyEmergencyContact(req: Request, res: Response) {
     return
   }
   res.status(204).end()
+}
+
+async function getPublicUserProfile(req: Request, res: Response) {
+  const profile = await findPublicUserProfileById(req.params.userId as string)
+  if (!profile) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
+  res.json(profile)
 }

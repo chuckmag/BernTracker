@@ -537,6 +537,14 @@ export interface UserProfile extends Omit<AuthUser, 'isWodalyticsAdmin'> {
   emergencyContacts: EmergencyContact[]
 }
 
+export interface PublicUserProfile {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  name: string | null
+  avatarUrl: string | null
+}
+
 export interface UpdateProfilePayload {
   firstName?: string
   lastName?: string
@@ -766,6 +774,7 @@ export const api = {
           req<void>('/api/users/me/avatar', { method: 'DELETE' }),
       },
     },
+    public: (userId: string) => req<PublicUserProfile>(`/api/users/${userId}/public`),
   },
 
   me: {

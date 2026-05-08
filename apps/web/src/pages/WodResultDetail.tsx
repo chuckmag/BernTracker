@@ -85,6 +85,7 @@ export default function WodResultDetail() {
   const locationState = location.state as { from?: string; originWorkoutId?: string } | null
   const fromMovementHistory = locationState?.from === 'movement-history'
   const fromWodalytics = locationState?.from === 'wodalytics'
+  const fromDashboard = locationState?.from === 'dashboard'
   const originWorkoutId = locationState?.originWorkoutId
 
   const [workout, setWorkout] = useState<Workout | null>(null)
@@ -121,15 +122,17 @@ export default function WodResultDetail() {
         <p className="text-red-400">{error ?? 'Result not found.'}</p>
         <button
           onClick={() =>
-            fromWodalytics
-              ? navigate('/wodalytics')
-              : fromMovementHistory && originWorkoutId
-                ? navigate(`/workouts/${originWorkoutId}`)
-                : navigate(id ? `/workouts/${id}` : '/feed')
+            fromDashboard
+              ? navigate('/dashboard')
+              : fromWodalytics
+                ? navigate('/wodalytics')
+                : fromMovementHistory && originWorkoutId
+                  ? navigate(`/workouts/${originWorkoutId}`)
+                  : navigate(id ? `/workouts/${id}` : '/feed')
           }
           className="mt-4 text-sm text-slate-500 hover:text-slate-950 dark:text-gray-400 dark:hover:text-white transition-colors"
         >
-          {fromWodalytics ? '← Back to WODalytics' : '← Back to WOD'}
+          {fromDashboard ? '← Back to Dashboard' : fromWodalytics ? '← Back to WODalytics' : '← Back to WOD'}
         </button>
       </div>
     )
@@ -156,15 +159,17 @@ export default function WodResultDetail() {
     <div className="max-w-2xl mx-auto space-y-6">
       <button
         onClick={() =>
-          fromWodalytics
-            ? navigate('/wodalytics')
-            : fromMovementHistory && originWorkoutId
-              ? navigate(`/workouts/${originWorkoutId}`)
-              : navigate(`/workouts/${workout.id}`)
+          fromDashboard
+            ? navigate('/dashboard')
+            : fromWodalytics
+              ? navigate('/wodalytics')
+              : fromMovementHistory && originWorkoutId
+                ? navigate(`/workouts/${originWorkoutId}`)
+                : navigate(`/workouts/${workout.id}`)
         }
         className="text-sm text-slate-500 hover:text-slate-950 dark:text-gray-400 dark:hover:text-white transition-colors"
       >
-        {fromWodalytics ? '← Back to WODalytics' : '← Back to WOD'}
+        {fromDashboard ? '← Back to Dashboard' : fromWodalytics ? '← Back to WODalytics' : '← Back to WOD'}
       </button>
 
       {/* Title — avatar + whose result */}
