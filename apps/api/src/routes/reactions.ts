@@ -32,7 +32,7 @@ export default router
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
 async function getResultReactions(req: Request, res: Response) {
-  const { resultId } = req.params
+  const resultId = req.params.resultId as string
   try {
     const reactions = await findReactionSummaryByResultId(resultId, req.user!.id)
     res.json(reactions)
@@ -44,7 +44,7 @@ async function getResultReactions(req: Request, res: Response) {
 }
 
 async function addResultReaction(req: Request, res: Response) {
-  const { resultId } = req.params
+  const resultId = req.params.resultId as string
   const { emoji } = req.body as { emoji?: string }
   if (!emoji) return res.status(400).json({ error: 'emoji is required', allowed: ALLOWED_EMOJIS })
 
@@ -61,7 +61,8 @@ async function addResultReaction(req: Request, res: Response) {
 }
 
 async function removeResultReaction(req: Request, res: Response) {
-  const { resultId, emoji } = req.params
+  const resultId = req.params.resultId as string
+  const emoji = req.params.emoji as string
 
   try {
     await removeReactionFromResult(resultId, req.user!.id, decodeURIComponent(emoji))
@@ -75,7 +76,7 @@ async function removeResultReaction(req: Request, res: Response) {
 }
 
 async function addCommentReaction(req: Request, res: Response) {
-  const { commentId } = req.params
+  const commentId = req.params.commentId as string
   const { emoji } = req.body as { emoji?: string }
   if (!emoji) return res.status(400).json({ error: 'emoji is required', allowed: ALLOWED_EMOJIS })
 
@@ -93,7 +94,8 @@ async function addCommentReaction(req: Request, res: Response) {
 }
 
 async function removeCommentReaction(req: Request, res: Response) {
-  const { commentId, emoji } = req.params
+  const commentId = req.params.commentId as string
+  const emoji = req.params.emoji as string
 
   try {
     await removeReactionFromComment(commentId, req.user!.id, decodeURIComponent(emoji))

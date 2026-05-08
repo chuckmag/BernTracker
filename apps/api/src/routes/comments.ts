@@ -31,7 +31,7 @@ export default router
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
 async function getResultComments(req: Request, res: Response) {
-  const { resultId } = req.params
+  const resultId = req.params.resultId as string
   const page = Math.max(1, parseInt(req.query.page as string) || 1)
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
 
@@ -46,7 +46,7 @@ async function getResultComments(req: Request, res: Response) {
 }
 
 async function postResultComment(req: Request, res: Response) {
-  const { resultId } = req.params
+  const resultId = req.params.resultId as string
   const { body } = req.body as { body?: string }
   if (!body?.trim()) return res.status(400).json({ error: 'body is required' })
 
@@ -61,7 +61,7 @@ async function postResultComment(req: Request, res: Response) {
 }
 
 async function postCommentReply(req: Request, res: Response) {
-  const { commentId } = req.params
+  const commentId = req.params.commentId as string
   const { body } = req.body as { body?: string }
   if (!body?.trim()) return res.status(400).json({ error: 'body is required' })
 
@@ -77,7 +77,7 @@ async function postCommentReply(req: Request, res: Response) {
 }
 
 async function patchComment(req: Request, res: Response) {
-  const { commentId } = req.params
+  const commentId = req.params.commentId as string
   const { body } = req.body as { body?: string }
   if (!body?.trim()) return res.status(400).json({ error: 'body is required' })
 
@@ -94,7 +94,7 @@ async function patchComment(req: Request, res: Response) {
 }
 
 async function deleteComment(req: Request, res: Response) {
-  const { commentId } = req.params
+  const commentId = req.params.commentId as string
 
   try {
     await softDeleteComment(commentId, req.user!.id)
