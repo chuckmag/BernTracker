@@ -77,7 +77,7 @@ describe('HotTodayCard', () => {
       makeEntry('u4', 0, 1),
     ])
     renderCard()
-    const rows = await screen.findAllByRole('link')
+    const rows = await screen.findAllByRole('button')
     // top 3 by score: u3(10), u2(5), u1(4) — u4 excluded
     expect(rows).toHaveLength(3)
     expect(rows[0]).toHaveTextContent('u3')
@@ -93,7 +93,7 @@ describe('HotTodayCard', () => {
       makeEntry('u2', 2, 1),
     ])
     renderCard()
-    const rows = await screen.findAllByRole('link')
+    const rows = await screen.findAllByRole('button')
     expect(rows[0]).toHaveTextContent('u1')
     expect(rows[1]).toHaveTextContent('u2')
   })
@@ -107,19 +107,27 @@ describe('HotTodayCard', () => {
     expect(screen.getByLabelText('3 comments')).toBeInTheDocument()
   })
 
-  it('links each row to the workout detail page', async () => {
+  it('avatar link navigates to the user profile page', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.results.leaderboard).mockResolvedValue([makeEntry('u1', 3, 1)])
     renderCard('abc123')
     const link = await screen.findByRole('link')
-    expect(link).toHaveAttribute('href', '/workouts/abc123')
+    expect(link).toHaveAttribute('href', '/users/u1')
+  })
+
+  it('each row is a button that can be activated via keyboard', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.results.leaderboard).mockResolvedValue([makeEntry('u1', 3, 1)])
+    renderCard('abc123')
+    const row = await screen.findByRole('button')
+    expect(row).toHaveAttribute('tabindex', '0')
   })
 
   it('renders the card header with Hot Today label', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.results.leaderboard).mockResolvedValue([makeEntry('u1', 2, 0)])
     renderCard()
-    await screen.findByRole('link')
+    await screen.findByRole('button')
     expect(screen.getByText(/Hot Today/i)).toBeInTheDocument()
   })
 })

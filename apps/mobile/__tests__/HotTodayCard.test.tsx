@@ -34,7 +34,7 @@ function makeEntry(
 ): LeaderboardEntry {
   return {
     id,
-    user: { id, name: `User ${id}`, birthday: null },
+    user: { id, name: `User ${id}`, firstName: null, lastName: null, avatarUrl: null, birthday: null },
     level: 'RX',
     workoutGender: 'OPEN',
     value: { score: { kind: 'TIME', seconds: 300 } },
@@ -106,13 +106,13 @@ describe('HotTodayCard', () => {
     expect(await findByText(/Hot Today/i)).toBeTruthy()
   })
 
-  it('navigates to WodDetail when a row is pressed', async () => {
+  it('navigates to ResultDetail when a row is pressed', async () => {
     jest.mocked(api.workouts.results).mockResolvedValue([makeEntry('u1', 5, 0)])
     const { findByText } = render(<HotTodayCard workoutId="wkid" />)
     const nameText = await findByText('User u1')
     fireEvent.press(nameText)
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('WodDetail', { workoutId: 'wkid' })
+      expect(mockNavigate).toHaveBeenCalledWith('ResultDetail', { workoutId: 'wkid', resultId: 'u1', from: 'dashboard' })
     })
   })
 })
