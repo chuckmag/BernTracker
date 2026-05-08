@@ -291,10 +291,11 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
       {prModal.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-            {/* Mascot placeholder — swap for CDN GIF URL when available */}
-            <div className="h-36 bg-accent/10 flex items-center justify-center text-6xl select-none">
-              🏆
-            </div>
+            <img
+              src="https://wodalytics-images-qa.s3.us-east-2.amazonaws.com/pr-celebrations/wodaloBackSquatPr.gif"
+              alt="PR celebration"
+              className="w-full object-cover"
+            />
             <div className="p-6 space-y-4">
               <h2 className="text-xl font-bold text-slate-950 dark:text-white text-center">
                 New PR{prModal.length > 1 ? 's' : ''}!
