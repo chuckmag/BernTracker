@@ -290,7 +290,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
     <>
       {prModal.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden">
             <img
               src="https://wodalytics-images-qa.s3.us-east-2.amazonaws.com/pr-celebrations/wodaloBackSquatPr.gif"
               alt="PR celebration"

@@ -648,8 +648,8 @@ const prStyles = StyleSheet.create({
     maxHeight: '80%',
   },
   mascot: {
-    width: 120,
-    height: 120,
+    width: '100%',
+    height: 200,
     marginBottom: 12,
   },
   headline: {
