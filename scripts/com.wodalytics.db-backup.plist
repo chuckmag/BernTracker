@@ -9,7 +9,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/christophermagrane/.wodalytics-backups/backup-local-db.sh</string>
+    <string>__HOME__/.wodalytics-backups/backup-local-db.sh</string>
   </array>
 
   <!-- Make docker (Homebrew) available to the script -->
@@ -18,7 +18,7 @@
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     <key>HOME</key>
-    <string>/Users/christophermagrane</string>
+    <string>__HOME__</string>
   </dict>
 
   <!-- Run every 3600 seconds (1 hour) -->
@@ -30,9 +30,9 @@
   <true/>
 
   <key>StandardOutPath</key>
-  <string>/Users/christophermagrane/.wodalytics-backups/launchd.log</string>
+  <string>__HOME__/.wodalytics-backups/launchd.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/christophermagrane/.wodalytics-backups/launchd.log</string>
+  <string>__HOME__/.wodalytics-backups/launchd.log</string>
 
   <key>ThrottleInterval</key>
   <integer>60</integer>

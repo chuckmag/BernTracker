@@ -16,7 +16,7 @@ set -euo pipefail
 
 BACKUP_DIR="$HOME/.wodalytics-backups"
 CONTAINER="wodalytics-db"
-DB="berntracker"
+DB="wodalytics"
 DB_USER="postgres"
 KEEP=48
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")

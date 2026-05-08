@@ -200,16 +200,18 @@ cp scripts/backup-local-db.sh ~/.wodalytics-backups/backup-local-db.sh
 chmod +x ~/.wodalytics-backups/backup-local-db.sh
 
 # 2. Install and start the LaunchAgent (survives reboots)
-cp scripts/com.wodalytics.db-backup.plist ~/Library/LaunchAgents/
+#    sed substitutes __HOME__ with your actual home directory
+sed "s|__HOME__|$HOME|g" scripts/com.wodalytics.db-backup.plist \
+  > ~/Library/LaunchAgents/com.wodalytics.db-backup.plist
 launchctl load ~/Library/LaunchAgents/com.wodalytics.db-backup.plist
 ```
 
-Backups land in `~/.wodalytics-backups/berntracker_<timestamp>.sql.gz`. The last 48 are kept (~2 days). Logs at `~/.wodalytics-backups/backup.log`.
+Backups land in `~/.wodalytics-backups/wodalytics_<timestamp>.sql.gz`. The last 48 are kept (~2 days). Logs at `~/.wodalytics-backups/backup.log`.
 
 **To restore:**
 ```bash
-gunzip -c ~/.wodalytics-backups/berntracker_<timestamp>.sql.gz \
-  | docker exec -i wodalytics-db psql -U postgres -d berntracker
+gunzip -c ~/.wodalytics-backups/wodalytics_<timestamp>.sql.gz \
+  | docker exec -i wodalytics-db psql -U postgres -d wodalytics
 ```
 
 **To stop backups:**
