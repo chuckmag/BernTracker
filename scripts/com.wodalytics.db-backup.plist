@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.wodalytics.db-backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/christophermagrane/.wodalytics-backups/backup-local-db.sh</string>
+  </array>
+
+  <!-- Make docker (Homebrew) available to the script -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>/Users/christophermagrane</string>
+  </dict>
+
+  <!-- Run every 3600 seconds (1 hour) -->
+  <key>StartInterval</key>
+  <integer>3600</integer>
+
+  <!-- Run once immediately when loaded -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/christophermagrane/.wodalytics-backups/launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/christophermagrane/.wodalytics-backups/launchd.log</string>
+
+  <key>ThrottleInterval</key>
+  <integer>60</integer>
+</dict>
+</plist>

@@ -188,6 +188,35 @@ For first-time setup, follow `README.md` → *Getting started*. It covers Docker
 
 Steps Claude can run automatically: `npm install`, `npm run db:migrate`, `npx prisma generate`, file edits, git operations. Steps that require the engineer: installing system tools (Homebrew, Docker Desktop, Node), copying `.env.example` → `.env`, editing `/etc/hosts` (needs sudo), installing Expo Go on a device.
 
+### Local DB backups (macOS, one-time per machine)
+
+The dev DB is a local Docker Postgres instance with no built-in backup. Set up hourly automated backups so a `prisma migrate dev` reset or other accident doesn't permanently lose dev data.
+
+```bash
+# 1. Create backup directory and deploy the script there
+#    (LaunchAgents cannot execute scripts from ~/Documents — must live outside it)
+mkdir -p ~/.wodalytics-backups
+cp scripts/backup-local-db.sh ~/.wodalytics-backups/backup-local-db.sh
+chmod +x ~/.wodalytics-backups/backup-local-db.sh
+
+# 2. Install and start the LaunchAgent (survives reboots)
+cp scripts/com.wodalytics.db-backup.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.wodalytics.db-backup.plist
+```
+
+Backups land in `~/.wodalytics-backups/berntracker_<timestamp>.sql.gz`. The last 48 are kept (~2 days). Logs at `~/.wodalytics-backups/backup.log`.
+
+**To restore:**
+```bash
+gunzip -c ~/.wodalytics-backups/berntracker_<timestamp>.sql.gz \
+  | docker exec -i wodalytics-db psql -U postgres -d berntracker
+```
+
+**To stop backups:**
+```bash
+launchctl unload ~/Library/LaunchAgents/com.wodalytics.db-backup.plist
+```
+
 ## Architecture pointers
 
 - **Source of truth for the data model:** `packages/db/prisma/schema.prisma`.
