@@ -4,6 +4,12 @@ import userEvent from '@testing-library/user-event'
 import CommentThread from './CommentThread'
 import type { Comment } from '../lib/api'
 
+vi.mock('../context/AuthContext.tsx', () => ({
+  useAuth: () => ({
+    user: { id: 'user-1', firstName: 'Test', lastName: 'User', avatarUrl: null },
+  }),
+}))
+
 vi.mock('../lib/api.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/api')>()
   return {

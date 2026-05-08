@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useAuth } from '../context/AuthContext.tsx'
 import { api, type Comment, type ReactionSummary } from '../lib/api.ts'
 
 const ALLOWED_EMOJIS = ['👍', '❤️', '🔥', '💪', '🎉', '😂'] as const
@@ -9,6 +10,7 @@ interface CommentThreadProps {
 }
 
 export default function CommentThread({ resultId, currentUserId }: CommentThreadProps) {
+  const { user } = useAuth()
   const [comments, setComments] = useState<Comment[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -54,7 +56,18 @@ export default function CommentThread({ resultId, currentUserId }: CommentThread
     setSubmitting(true)
     try {
       const raw = await api.social.comments.create(resultId, body)
-      const comment = { reactions: [], replies: [], replyCount: 0, ...raw }
+      const comment = {
+        reactions: [],
+        replies: [],
+        replyCount: 0,
+        ...raw,
+        user: raw.user ?? {
+          id: currentUserId,
+          firstName: user?.firstName ?? null,
+          lastName: user?.lastName ?? null,
+          avatarUrl: user?.avatarUrl ?? null,
+        },
+      }
       setComments((prev) => [comment, ...prev])
       setTotal((t) => t + 1)
       setCompose('')
@@ -151,6 +164,7 @@ interface CommentThreadItemProps {
 }
 
 function CommentThreadItem({ comment, currentUserId, onUpdate, onDelete }: CommentThreadItemProps) {
+  const { user: currentUser } = useAuth()
   const [showReplyForm, setShowReplyForm] = useState(false)
   const [replies, setReplies] = useState<Comment[]>(comment.replies ?? [])
 
@@ -160,7 +174,18 @@ function CommentThreadItem({ comment, currentUserId, onUpdate, onDelete }: Comme
 
   async function submitReply(body: string) {
     const raw = await api.social.comments.reply(comment.id, body)
-    const reply = { reactions: [], replies: [], replyCount: 0, ...raw }
+    const reply = {
+      reactions: [],
+      replies: [],
+      replyCount: 0,
+      ...raw,
+      user: raw.user ?? {
+        id: currentUserId,
+        firstName: currentUser?.firstName ?? null,
+        lastName: currentUser?.lastName ?? null,
+        avatarUrl: currentUser?.avatarUrl ?? null,
+      },
+    }
     setReplies((prev) => [...prev, reply])
     setShowReplyForm(false)
   }
