@@ -597,9 +597,7 @@ export default function LogResultScreen({ route, navigation }: Props) {
 
 // ─── PRCelebrationModal ──────────────────────────────────────────────────────
 
-// Swap this `require` for a CDN URL (via `{ uri: '...' }`) when the asset
-// moves to S3/CloudFront. The component signature stays the same.
-const MASCOT_PR_GIF = require('../../assets/mascot-pr.gif') as number
+const MASCOT_PR_GIF = { uri: 'https://wodalytics-images-qa.s3.us-east-2.amazonaws.com/pr-celebrations/wodaloBackSquatPr.gif' }
 
 function PRCelebrationModal({ prs, onDismiss }: { prs: NewPr[]; onDismiss: () => void }) {
   if (prs.length === 0) return null
