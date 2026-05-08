@@ -57,10 +57,10 @@ export default function CommentThread({ resultId, currentUserId }: CommentThread
     try {
       const raw = await api.social.comments.create(resultId, body)
       const comment = {
-        reactions: [],
-        replies: [],
-        replyCount: 0,
         ...raw,
+        reactions: raw.reactions ?? [],
+        replies: raw.replies ?? [],
+        replyCount: raw.replyCount ?? 0,
         user: raw.user ?? {
           id: currentUserId,
           firstName: user?.firstName ?? null,
@@ -175,10 +175,10 @@ function CommentThreadItem({ comment, currentUserId, onUpdate, onDelete }: Comme
   async function submitReply(body: string) {
     const raw = await api.social.comments.reply(comment.id, body)
     const reply = {
-      reactions: [],
-      replies: [],
-      replyCount: 0,
       ...raw,
+      reactions: raw.reactions ?? [],
+      replies: raw.replies ?? [],
+      replyCount: raw.replyCount ?? 0,
       user: raw.user ?? {
         id: currentUserId,
         firstName: currentUser?.firstName ?? null,
