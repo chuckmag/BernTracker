@@ -6,20 +6,13 @@ import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles'
 import Button from '../components/ui/Button'
 import Skeleton from '../components/ui/Skeleton'
 import ProgramOverviewMeta from '../components/ProgramOverviewMeta'
+import ProgramMembersTab from '../components/ProgramMembersTab'
 import ProgramFormDrawer from '../components/ProgramFormDrawer'
 import WorkoutDrawer from '../components/WorkoutDrawer'
 import { VisibilityBadge } from './ProgramDetail'
 
-/**
- * WODalytics admin: program detail + workouts list with edit affordances (#160).
- * Mounted at `/admin/programs/:id`. The shared `ProgramFormDrawer` and
- * `WorkoutDrawer` components handle the actual editing — they receive
- * `adminProgramScope` and adapt their UI to the admin context (no gym-default
- * toggle, no draft/publish flow, no workout reorder).
- *
- * Reuses `ProgramOverviewMeta` and `VisibilityBadge` so the visual surface
- * matches the gym-scoped `ProgramDetail` page exactly.
- */
+type Tab = 'overview' | 'members' | 'workouts'
+
 export default function AdminProgramDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -27,6 +20,7 @@ export default function AdminProgramDetail() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [tab, setTab] = useState<Tab>('overview')
   const [programDrawerOpen, setProgramDrawerOpen] = useState(false)
   const [workoutDrawerKey, setWorkoutDrawerKey] = useState<string | null>(null)
   const [editingWorkout, setEditingWorkout] = useState<Workout | undefined>(undefined)
@@ -84,8 +78,6 @@ export default function AdminProgramDetail() {
 
   function openCreateWorkout() {
     setEditingWorkout(undefined)
-    // Default new workouts to today's date — admins can pick any date in
-    // the drawer, but every code path needs a non-null dateKey to render.
     const today = new Date()
     const y = today.getFullYear()
     const m = String(today.getMonth() + 1).padStart(2, '0')
@@ -115,6 +107,7 @@ export default function AdminProgramDetail() {
   }
 
   const stripe = program.coverColor ?? '#374151'
+  const memberCount = program._count?.members ?? 0
 
   return (
     <div>
@@ -136,32 +129,72 @@ export default function AdminProgramDetail() {
         <Button variant="secondary" onClick={() => setProgramDrawerOpen(true)}>Edit</Button>
       </div>
 
+      {/* Tabs */}
+      <div className="border-b border-slate-200 dark:border-gray-800 mb-6">
+        <nav className="flex gap-1">
+          {(['overview', 'members', 'workouts'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={[
+                'px-4 py-2 text-sm font-medium capitalize border-b-2 -mb-px transition-colors flex items-center gap-2',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
+                tab === t
+                  ? 'border-primary text-slate-950 dark:text-white'
+                  : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
+              ].join(' ')}
+            >
+              {t}
+              {t === 'members' && memberCount > 0 && (
+                <span className="text-[10px] bg-slate-200 dark:bg-gray-800 text-slate-600 dark:text-gray-300 px-1.5 py-0.5 rounded-full">
+                  {memberCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+      </div>
+
       {error && <p className="text-red-400 mb-4">{error}</p>}
 
-      <ProgramOverviewMeta program={program} />
+      {tab === 'overview' && (
+        <>
+          <ProgramOverviewMeta program={program} onOpenMembers={() => setTab('members')} />
+          <div className="mt-10 pt-6 border-t border-slate-200 dark:border-gray-800">
+            <h3 className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-3">Danger zone</h3>
+            <Button variant="destructive" onClick={handleDeleteProgram} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete program'}
+            </Button>
+          </div>
+        </>
+      )}
 
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Workouts</h2>
-          <Button variant="primary" onClick={openCreateWorkout}>+ New Workout</Button>
-        </div>
-        {workouts.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-gray-500">No workouts yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {workouts.map((w) => (
-              <AdminWorkoutRow key={w.id} workout={w} onClick={() => openEditWorkout(w)} />
-            ))}
-          </ul>
-        )}
-      </section>
+      {tab === 'members' && (
+        <ProgramMembersTab
+          programId={program.id}
+          gymId=""
+          canManage={false}
+          onMembershipChanged={refreshAfterMutation}
+        />
+      )}
 
-      <div className="mt-10 pt-6 border-t border-slate-200 dark:border-gray-800">
-        <h3 className="text-xs uppercase tracking-wider text-slate-500 dark:text-gray-400 mb-3">Danger zone</h3>
-        <Button variant="destructive" onClick={handleDeleteProgram} disabled={deleting}>
-          {deleting ? 'Deleting…' : 'Delete program'}
-        </Button>
-      </div>
+      {tab === 'workouts' && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Workouts</h2>
+            <Button variant="primary" onClick={openCreateWorkout}>+ New Workout</Button>
+          </div>
+          {workouts.length === 0 ? (
+            <p className="text-sm text-slate-500 dark:text-gray-500">No workouts yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {workouts.map((w) => (
+                <AdminWorkoutRow key={w.id} workout={w} onClick={() => openEditWorkout(w)} />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <ProgramFormDrawer
         scope={adminProgramScope}
