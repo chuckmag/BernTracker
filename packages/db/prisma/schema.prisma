@@ -631,19 +631,31 @@ model Reaction {
 
 // Comment on a result. parentId is null for top-level comments; non-null for
 // replies. Only one level of threading is surfaced in the UI but the model
-// supports arbitrary depth. Deleting a parent cascades to its replies.
+// supports arbitrary depth.
+//
+// Soft-delete: the DELETE endpoint never hard-deletes. It sets deletedAt,
+// clears body to null, and clears userId to null (author anonymized). The row
+// stays so replies and reactions on it are preserved. The UI renders a
+// soft-deleted comment as "[comment deleted]" with no author or body.
+//
+// Cascade rules:
+//   resultId → Cascade   (result deleted → all its comments go with it)
+//   userId   → SetNull   (account deleted → authorship cleared, thread survives)
+//   parentId → Restrict  (prevents hard-deleting a parent that still has replies;
+//                         app layer must soft-delete instead)
 model Comment {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   resultId  String
-  userId    String
-  body      String
+  userId    String?
+  body      String?
   parentId  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   result    Result     @relation(fields: [resultId], references: [id], onDelete: Cascade)
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Restrict)
   replies   Comment[]  @relation("CommentReplies")
   reactions Reaction[]
 
