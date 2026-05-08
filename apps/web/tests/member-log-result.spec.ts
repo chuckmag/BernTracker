@@ -316,7 +316,8 @@ test.describe('Member result-logging E2E', () => {
     await expect(page.getByText(`${rm}RM — Back Squat`)).not.toBeVisible({ timeout: 6000 })
 
     // The PR slot now shows the load (no longer a ??? button).
-    await expect(page.getByText('315')).toBeVisible({ timeout: 6000 })
+    // Target by title to avoid strict-mode violation when 315 appears elsewhere on the page.
+    await expect(page.locator(`button[title^="View your ${rm}RM"]`)).toBeVisible({ timeout: 6000 })
     await expect(page.locator('button[title^="Log your"]').filter({ hasText: '???' }).locator(`text=${rm}RM`)).toHaveCount(0)
   })
 })

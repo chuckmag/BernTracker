@@ -85,8 +85,7 @@ async function navigateToMonth(page: Page, year: number, monthIndex: number) {
 }
 
 function cellForDay(page: Page, day: number) {
-  // CalendarCell wraps in `div.group.bg-gray-950`; empty placeholder cells lack `group`.
-  return page.locator('div.group.bg-gray-950').filter({
+  return page.getByTestId('calendar-cell').filter({
     has: page.locator('span', { hasText: new RegExp(`^${day}$`) }),
   })
 }

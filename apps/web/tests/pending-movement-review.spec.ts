@@ -54,15 +54,11 @@ async function gotoSettings(page: Page, f: ReviewerFixture) {
 }
 
 function displayRow(page: Page, name: string) {
-  return page.locator('div.bg-gray-900').filter({ hasText: name }).filter({
-    has: page.getByRole('button', { name: 'Edit' }),
-  })
+  return page.getByTestId('pending-movement-row').filter({ hasText: name })
 }
 
 function editingRow(page: Page) {
-  return page.locator('div.bg-gray-900').filter({
-    has: page.getByRole('button', { name: 'Save' }),
-  })
+  return page.getByTestId('pending-movement-editing-row')
 }
 
 test.describe('Pending movement reviewer E2E (#72)', () => {

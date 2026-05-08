@@ -18,6 +18,7 @@ export default function CalendarCell({ date, isToday, workouts, selected, onAddC
 
   return (
     <div
+      data-testid="calendar-cell"
       className={[
         'group bg-white dark:bg-gray-950 h-[128px] p-1.5 flex flex-col transition-colors',
         selected ? 'ring-2 ring-inset ring-primary' : 'hover:bg-slate-50 dark:hover:bg-gray-900',

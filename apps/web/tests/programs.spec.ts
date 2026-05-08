@@ -160,14 +160,10 @@ test.describe('Programs CRUD E2E', () => {
     await page.getByRole('button', { name: 'Open in Calendar' }).click()
     await page.waitForURL(`**/calendar?programIds=${seeded.id}`)
 
-    // Filtered header shows the program name + a Calendar eyebrow.
-    await expect(page.locator('h1', { hasText: name })).toBeVisible({ timeout: 5000 })
-    await expect(page.getByText('Calendar', { exact: true }).first()).toBeVisible()
-
-    // "Back to full calendar" returns to the unfiltered view.
-    await page.getByRole('link', { name: /Back to full calendar/ }).click()
-    await page.waitForURL('**/calendar')
-    await expect(page.locator('h1', { hasText: 'Calendar' })).toBeVisible()
+    // UnifiedCalendar always shows h1 "Calendar"; the selected program appears
+    // in the inline ProgramFilterPicker button rather than in the h1.
+    await expect(page.locator('h1', { hasText: 'Calendar' })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('button', { name: new RegExp(name) })).toBeVisible()
   })
 
   test('OWNER visiting /feed?programIds=<inaccessible> sees an error state', async ({ page }) => {
@@ -380,8 +376,9 @@ test.describe('Programs CRUD E2E', () => {
     await loginAndSelectGym(page, f.member.id, 'MEMBER', f.gymId)
     await page.goto('/feed')
 
-    // Sidebar picker dropdown — open it and look for the default program entry
-    const picker = page.locator('aside').first().getByRole('button').filter({ hasText: /All programs|Programs/ }).first()
+    // ProgramFilterPicker is now inline in the page header (not sidebar).
+    // Open it and look for the default program entry.
+    const picker = page.getByRole('button', { name: /All programs/ }).first()
     await picker.click()
     await expect(page.getByRole('listbox').getByText(name)).toBeVisible({ timeout: 5000 })
 

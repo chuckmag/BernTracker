@@ -225,7 +225,7 @@ function MovementsTab() {
 
             if (isEditing) {
               return (
-                <div key={m.id} className="px-4 py-3 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 space-y-3">
+                <div key={m.id} data-testid="pending-movement-editing-row" className="px-4 py-3 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 space-y-3">
                   <div>
                     <label className="block text-xs text-slate-600 dark:text-gray-400 mb-1">Name</label>
                     <input
@@ -292,7 +292,7 @@ function MovementsTab() {
             }
 
             return (
-              <div key={m.id} className="flex items-center justify-between px-4 py-3 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800">
+              <div key={m.id} data-testid="pending-movement-row" className="flex items-center justify-between px-4 py-3 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800">
                 <div>
                   <span className="text-sm text-slate-950 dark:text-white">{m.name}</span>
                   {m.parentId && (
