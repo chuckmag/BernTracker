@@ -19,6 +19,8 @@ import gymLogoRouter from './routes/gymLogo'
 import adminRouter from './routes/admin'
 import dashboardRouter from './routes/dashboard'
 import analyticsRouter from './routes/analytics'
+import reactionsRouter from './routes/reactions'
+import commentsRouter from './routes/comments'
 import { createLogger } from './lib/logger.js'
 import { requestLogger } from './middleware/requestLogger.js'
 
@@ -74,6 +76,8 @@ app.use('/api', gymLogoRouter)
 app.use('/api', adminRouter)
 app.use('/api', dashboardRouter)
 app.use('/api', analyticsRouter)
+app.use('/api', reactionsRouter)
+app.use('/api', commentsRouter)
 
 // Static-file route for the LocalFsImageStorage backend (dev-only). When
 // AWS_S3_BUCKET is set we never write here; the route is harmless to leave
