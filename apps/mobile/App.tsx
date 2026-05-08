@@ -16,6 +16,7 @@ import WorkoutEditorScreen from './src/screens/WorkoutEditorScreen'
 import AnalyticsScreen from './src/screens/AnalyticsScreen'
 import ResultDetailScreen from './src/screens/ResultDetailScreen'
 import UserProfileScreen from './src/screens/UserProfileScreen'
+import WodResultDetailScreen from './src/screens/WodResultDetailScreen'
 import type { LeaderboardEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -37,6 +38,7 @@ export type RootStackParamList = {
   WorkoutEditor:
     | { mode: 'create'; scheduledAt: string; workoutId?: never }
     | { mode: 'edit'; workoutId: string; scheduledAt?: never }
+  WodResultDetail: { entry: LeaderboardEntry; workoutTitle?: string }
 }
 
 export type MainTabParamList = {
@@ -168,6 +170,11 @@ function RootStackNavigator() {
         name="WorkoutEditor"
         component={WorkoutEditorScreen}
         options={{ title: 'New Workout', presentation: 'modal' }}
+      />
+      <RootStack.Screen
+        name="WodResultDetail"
+        component={WodResultDetailScreen}
+        options={({ route }) => ({ title: route.params.workoutTitle ?? 'Result' })}
       />
     </RootStack.Navigator>
   )

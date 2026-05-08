@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext'
 import { useGym } from '../context/GymContext'
 import { formatResultValue } from '../lib/format'
 import MovementHistorySection from '../components/MovementHistorySection'
+import ResultReactions from '../components/ResultReactions'
 
 type Props = StackScreenProps<RootStackParamList, 'WodDetail'>
 
@@ -352,17 +353,35 @@ export default function WodDetailScreen({ route, navigation }: Props) {
           <Text style={styles.emptyLeaderboard}>{emptyLeaderboardCopy}</Text>
         ) : (
           visibleLeaderboard.map((entry, idx) => (
-            <View
+            <TouchableOpacity
               key={entry.id}
               style={[styles.leaderboardRow, entry.user.id === user?.id && styles.leaderboardRowHighlight]}
+              onPress={() =>
+                navigation.navigate('WodResultDetail', {
+                  entry,
+                  workoutTitle: workout.title,
+                })
+              }
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${entry.user.name}'s result`}
             >
               <Text style={styles.rank}>{idx + 1}</Text>
               <View style={styles.leaderboardInfo}>
                 <Text style={styles.leaderboardName}>{entry.user.name}</Text>
                 <Text style={styles.leaderboardValue}>{formatResultValue(entry.value)}</Text>
+                <ResultReactions
+                  resultId={entry.id}
+                  onCommentPress={() =>
+                    navigation.navigate('WodResultDetail', {
+                      entry,
+                      workoutTitle: workout.title,
+                    })
+                  }
+                />
               </View>
               <Text style={styles.leaderboardLevel}>{LEVEL_LABELS[entry.level]}</Text>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </View>

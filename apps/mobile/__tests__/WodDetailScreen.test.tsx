@@ -34,6 +34,11 @@ jest.mock('../src/lib/api', () => ({
       get: jest.fn(),
       results: jest.fn(),
     },
+    social: {
+      reactions: {
+        listForResult: jest.fn().mockResolvedValue([]),
+      },
+    },
   },
 }))
 
