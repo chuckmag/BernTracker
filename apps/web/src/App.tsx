@@ -33,6 +33,7 @@ import AdminSettings from './pages/AdminSettings.tsx'
 import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
 import JoinInvitation from './pages/JoinInvitation.tsx'
 import Analytics from './pages/Analytics.tsx'
+import PublicProfile from './pages/PublicProfile.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
   const navigate = useNavigate()
@@ -86,6 +87,7 @@ function AppLayout() {
               <Route path="/gyms/browse" element={<BrowseGyms />} />
               <Route path="/gyms/new" element={<GymCreate />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/users/:userId" element={<PublicProfile />} />
               <Route path="/gym-settings" element={<GymSettings />} />
               {/*
                 * WODalytics admin (#160). Server enforces the admin gate; the

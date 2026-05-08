@@ -5,6 +5,7 @@ import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { api, type LeaderboardEntry } from '../lib/api'
 import { formatResultValue } from '../lib/format'
+import UserRowProfile from './UserRowProfile'
 
 const LEVEL_LABEL: Record<string, string> = {
   RX_PLUS: 'RX+',
@@ -17,12 +18,6 @@ function hotScore(e: LeaderboardEntry): number {
   return e._count.reactions + e._count.comments * 2
 }
 
-function initials(name: string | null | undefined): string {
-  if (!name) return '?'
-  const parts = name.trim().split(/\s+/)
-  return `${parts[0][0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase() || '?'
-}
-
 interface Props {
   workoutId: string
 }
@@ -30,7 +25,6 @@ interface Props {
 type Nav = StackNavigationProp<RootStackParamList>
 
 export default function HotTodayCard({ workoutId }: Props) {
-  const nav = useNavigation<Nav>()
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -47,10 +41,6 @@ export default function HotTodayCard({ workoutId }: Props) {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [workoutId])
-
-  function goToWorkout() {
-    nav.navigate('WodDetail', { workoutId })
-  }
 
   return (
     <View style={styles.card}>
@@ -74,7 +64,7 @@ export default function HotTodayCard({ workoutId }: Props) {
       {!loading && entries.length > 0 && (
         <View>
           {entries.map((entry) => (
-            <HotRow key={entry.id} entry={entry} onPress={goToWorkout} />
+            <HotRow key={entry.id} entry={entry} workoutId={workoutId} />
           ))}
         </View>
       )}
@@ -82,26 +72,29 @@ export default function HotTodayCard({ workoutId }: Props) {
   )
 }
 
-function HotRow({ entry, onPress }: { entry: LeaderboardEntry; onPress: () => void }) {
+function HotRow({ entry, workoutId }: { entry: LeaderboardEntry; workoutId: string }) {
+  const navigation = useNavigation<Nav>()
   const score = formatResultValue(entry.value)
   const totalReactions = entry._count.reactions
   const totalComments = entry._count.comments
 
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initials(entry.user.name)}</Text>
+    <TouchableOpacity
+      style={styles.row}
+      onPress={() => navigation.navigate('ResultDetail', { workoutId, resultId: entry.id, from: 'dashboard' })}
+      activeOpacity={0.7}
+    >
+      <View style={styles.userCell}>
+        <UserRowProfile
+          user={entry.user}
+          onAvatarPress={() => navigation.navigate('UserProfile', { userId: entry.user.id })}
+        />
       </View>
 
-      <View style={styles.nameBlock}>
-        <Text style={styles.name} numberOfLines={1}>{entry.user.name ?? '—'}</Text>
-        <View style={styles.metaRow}>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelText}>{LEVEL_LABEL[entry.level] ?? entry.level}</Text>
-          </View>
-          <Text style={styles.score}>{score}</Text>
-        </View>
+      <View style={styles.levelBadge}>
+        <Text style={styles.levelText}>{LEVEL_LABEL[entry.level] ?? entry.level}</Text>
       </View>
+      <Text style={styles.score}>{score}</Text>
 
       <View style={styles.counts}>
         {totalReactions > 0 && (
@@ -168,34 +161,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 10,
   },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#374151',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  avatarText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#d1d5db',
-  },
-  nameBlock: {
+  userCell: {
     flex: 1,
     minWidth: 0,
-  },
-  name: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#f9fafb',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
   },
   levelBadge: {
     backgroundColor: '#374151',

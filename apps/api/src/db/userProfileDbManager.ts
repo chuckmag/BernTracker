@@ -34,6 +34,26 @@ export async function findUserProfileById(userId: string) {
   return prisma.user.findUnique({ where: { id: userId }, select: PROFILE_SELECT })
 }
 
+const PUBLIC_PROFILE_SELECT = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  name: true,
+  avatarUrl: true,
+} as const
+
+export type PublicUserProfile = {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  name: string | null
+  avatarUrl: string | null
+}
+
+export async function findPublicUserProfileById(userId: string): Promise<PublicUserProfile | null> {
+  return prisma.user.findUnique({ where: { id: userId }, select: PUBLIC_PROFILE_SELECT })
+}
+
 export async function updateUserProfileById(
   userId: string,
   data: {

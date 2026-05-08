@@ -1,30 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api, type WorkoutResult } from '../lib/api'
 import { formatResultValue } from '../lib/formatResult'
 import Skeleton from './ui/Skeleton'
+import UserRowProfile from './UserRowProfile'
 
 const LEVEL_LABEL: Record<string, string> = {
   RX_PLUS: 'RX+',
   RX: 'RX',
   SCALED: 'SC',
   MODIFIED: 'MF',
-}
-
-function initials(u: WorkoutResult['user']): string {
-  if (u.firstName || u.lastName) {
-    return `${(u.firstName ?? '')[0] ?? ''}${(u.lastName ?? '')[0] ?? ''}`.toUpperCase() || '?'
-  }
-  if (u.name) {
-    const parts = u.name.trim().split(/\s+/)
-    return `${parts[0][0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase() || '?'
-  }
-  return u.email[0].toUpperCase()
-}
-
-function displayName(u: WorkoutResult['user']): string {
-  if (u.firstName || u.lastName) return [u.firstName, u.lastName].filter(Boolean).join(' ')
-  return u.name ?? u.email.split('@')[0]
 }
 
 interface Props {
@@ -79,7 +64,13 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
       {!loading && entries.length > 0 && (
         <div>
           {top5.map((entry, idx) => (
-            <ResultRow key={entry.id} rank={idx + 1} entry={entry} isMe={entry.userId === myUserId} />
+            <ResultRow
+              key={entry.id}
+              rank={idx + 1}
+              entry={entry}
+              workoutId={workoutId}
+              isMe={entry.userId === myUserId}
+            />
           ))}
 
           {myRowBelow && (
@@ -87,7 +78,7 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
               <div className="px-4 py-0.5 text-center text-xs text-slate-400 dark:text-gray-500 tracking-widest border-t border-slate-200 dark:border-gray-800">
                 ···
               </div>
-              <ResultRow rank={myRank + 1} entry={myEntry} isMe />
+              <ResultRow rank={myRank + 1} entry={myEntry} workoutId={workoutId} isMe />
             </>
           )}
 
@@ -102,17 +93,37 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
   )
 }
 
-function ResultRow({ rank, entry, isMe }: { rank: number; entry: WorkoutResult; isMe: boolean }) {
+function ResultRow({
+  rank,
+  entry,
+  workoutId,
+  isMe,
+}: {
+  rank: number
+  entry: WorkoutResult
+  workoutId: string
+  isMe: boolean
+}) {
+  const navigate = useNavigate()
   const score = formatResultValue(entry.value)
+
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-2.5 ${isMe ? 'bg-primary/5 dark:bg-primary/10' : 'hover:bg-slate-50 dark:hover:bg-gray-800/40'} transition-colors`}
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(`/workouts/${workoutId}/results/${entry.id}`, { state: { from: 'dashboard' } })}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          navigate(`/workouts/${workoutId}/results/${entry.id}`, { state: { from: 'dashboard' } })
+        }
+      }}
+      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer ${isMe ? 'bg-primary/5 dark:bg-primary/10' : 'hover:bg-slate-50 dark:hover:bg-gray-800/40'} transition-colors`}
     >
       <span className="w-5 shrink-0 text-right text-xs font-semibold tabular-nums text-slate-400 dark:text-gray-500">{rank}</span>
-      <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
-        <span className="text-[10px] font-semibold text-slate-600 dark:text-gray-300">{initials(entry.user)}</span>
+      <div className="flex-1 min-w-0">
+        <UserRowProfile user={entry.user} />
       </div>
-      <span className="flex-1 min-w-0 text-sm font-medium text-slate-950 dark:text-white truncate">{displayName(entry.user)}</span>
       <span
         className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-gray-700 text-slate-500 dark:text-gray-400"
         aria-label={`Level: ${entry.level}`}

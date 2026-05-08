@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react'
-import { View, Text, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
+import type { StackNavigationProp } from '@react-navigation/stack'
+import type { RootStackParamList } from '../../App'
 import { api, type LeaderboardEntry } from '../lib/api'
 import { formatResultValue } from '../lib/format'
+import UserRowProfile from './UserRowProfile'
+
+type Nav = StackNavigationProp<RootStackParamList>
 
 const LEVEL_LABEL: Record<string, string> = {
   RX_PLUS: 'RX+',
   RX: 'RX',
   SCALED: 'SC',
   MODIFIED: 'MF',
-}
-
-function initials(name: string | null | undefined): string {
-  if (!name) return '?'
-  const parts = name.trim().split(/\s+/)
-  return `${parts[0][0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase() || '?'
 }
 
 interface Props {
@@ -62,13 +62,19 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
       {!loading && entries.length > 0 && (
         <View>
           {top5.map((entry, idx) => (
-            <ResultRow key={entry.id} rank={idx + 1} entry={entry} isMe={entry.user.id === myUserId} />
+            <ResultRow
+              key={entry.id}
+              rank={idx + 1}
+              entry={entry}
+              workoutId={workoutId}
+              isMe={entry.user.id === myUserId}
+            />
           ))}
 
           {myRowBelow && (
             <>
               <Text style={styles.divider}>···</Text>
-              <ResultRow rank={myRank + 1} entry={myEntry} isMe />
+              <ResultRow rank={myRank + 1} entry={myEntry} workoutId={workoutId} isMe />
             </>
           )}
 
@@ -81,20 +87,36 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
   )
 }
 
-function ResultRow({ rank, entry, isMe }: { rank: number; entry: LeaderboardEntry; isMe: boolean }) {
+function ResultRow({
+  rank,
+  entry,
+  workoutId,
+  isMe,
+}: {
+  rank: number
+  entry: LeaderboardEntry
+  workoutId: string
+  isMe: boolean
+}) {
+  const navigation = useNavigation<Nav>()
   const score = formatResultValue(entry.value)
+
   return (
-    <View style={[styles.row, isMe && styles.myRow]}>
+    <TouchableOpacity
+      style={[styles.row, isMe && styles.myRow]}
+      onPress={() => navigation.navigate('ResultDetail', { workoutId, resultId: entry.id, from: 'dashboard' })}
+      activeOpacity={0.7}
+    >
       <Text style={styles.rank}>{rank}</Text>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{initials(entry.user.name)}</Text>
-      </View>
-      <Text style={styles.name} numberOfLines={1}>{entry.user.name ?? '—'}</Text>
+      <UserRowProfile
+        user={entry.user}
+        onAvatarPress={() => navigation.navigate('UserProfile', { userId: entry.user.id })}
+      />
       <View style={styles.levelBadge}>
         <Text style={styles.levelText}>{LEVEL_LABEL[entry.level] ?? entry.level}</Text>
       </View>
       <Text style={styles.score}>{score}</Text>
-    </View>
+    </TouchableOpacity>
   )
 }
 
@@ -155,25 +177,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6b7280',
     textAlign: 'right',
-  },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#374151',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#d1d5db',
-  },
-  name: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#f9fafb',
   },
   levelBadge: {
     backgroundColor: '#374151',

@@ -159,13 +159,28 @@ export interface DashboardToday {
 
 export interface LeaderboardEntry {
   id: string
-  user: { id: string; name: string; birthday: string | null }
+  user: {
+    id: string
+    name: string
+    firstName: string | null
+    lastName: string | null
+    avatarUrl: string | null
+    birthday: string | null
+  }
   level: WorkoutLevel
   workoutGender: WorkoutGender
   value: ResultValue
   notes: string | null
   createdAt: string
   _count: { reactions: number; comments: number }
+}
+
+export interface PublicUserProfile {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  name: string | null
+  avatarUrl: string | null
 }
 
 export interface ResultHistoryItem {
@@ -504,6 +519,11 @@ export const api = {
 
     delete: (resultId: string) =>
       request<void>(`/api/results/${resultId}`, { method: 'DELETE' }),
+  },
+
+  users: {
+    public: (userId: string) =>
+      request<PublicUserProfile>(`/api/users/${userId}/public`),
   },
 
   analytics: {
