@@ -2,11 +2,9 @@ import { ScrollView, View, Text, StyleSheet } from 'react-native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { useTheme } from '../lib/theme'
-import { formatResultValue } from '../lib/format'
+import { formatResultValue, describeSet } from '../lib/format'
 import ResultReactions from '../components/ResultReactions'
 import CommentThread from '../components/CommentThread'
-import { useAuth } from '../context/AuthContext'
-
 const LEVEL_LABELS: Record<string, string> = {
   RX_PLUS: 'RX+',
   RX: 'RX',
@@ -19,8 +17,9 @@ type Props = StackScreenProps<RootStackParamList, 'WodResultDetail'>
 export default function WodResultDetailScreen({ route }: Props) {
   const { entry } = route.params
   const { colors } = useTheme()
-  const { user } = useAuth()
-  const currentUserId = user?.id ?? ''
+  const movementResults = (entry.value.movementResults ?? []).filter(
+    (mr) => (mr.sets?.length ?? 0) > 0,
+  )
 
   return (
     <ScrollView
@@ -41,15 +40,35 @@ export default function WodResultDetailScreen({ route }: Props) {
             </Text>
           </View>
         </View>
+
+        {movementResults.length > 0 && (
+          <View style={styles.movementsSection}>
+            {movementResults.map((mr, mIdx) => (
+              <View key={mr.workoutMovementId ?? mIdx} style={styles.movementBlock}>
+                <Text style={[styles.movementLabel, { color: colors.textTertiary }]}>
+                  {`Movement ${mIdx + 1}`}
+                </Text>
+                {(mr.sets ?? []).map((set, sIdx) => (
+                  <View key={sIdx} style={styles.setRow}>
+                    <Text style={[styles.setIndex, { color: colors.textTertiary }]}>
+                      {`Set ${sIdx + 1}`}
+                    </Text>
+                    <Text style={[styles.setDetail, { color: colors.textPrimary }]}>
+                      {describeSet(set, mr.loadUnit, mr.distanceUnit)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
+
         {entry.notes ? (
           <Text style={[styles.notes, { color: colors.textTertiary }]}>{entry.notes}</Text>
         ) : null}
 
         {/* Reactions inline on the result card */}
-        <ResultReactions
-          resultId={entry.id}
-          currentUserId={currentUserId}
-        />
+        <ResultReactions resultId={entry.id} />
       </View>
 
       {/* Comment thread */}
@@ -96,6 +115,34 @@ const styles = StyleSheet.create({
   levelText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  movementsSection: {
+    marginTop: 4,
+    gap: 10,
+  },
+  movementBlock: {
+    gap: 4,
+  },
+  movementLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 10,
+  },
+  setIndex: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    width: 42,
+  },
+  setDetail: {
+    fontSize: 14,
+    fontFamily: 'monospace',
+    flex: 1,
   },
   notes: {
     fontSize: 14,

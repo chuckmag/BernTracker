@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'rea
 import { useTheme } from '../lib/theme'
 import { api, type ReactionSummary } from '../lib/api'
 
-const ALLOWED_EMOJIS = ['🔥', '💪', '👏', '🎉', '😂', '❤️']
+// Must match ALLOWED_EMOJIS in apps/api/src/db/reactionDbManager.ts
+const ALLOWED_EMOJIS = ['👍', '❤️', '🔥', '💪', '🎉', '😂']
 
 interface Props {
   resultId: string
@@ -15,6 +16,7 @@ export default function ResultReactions({ resultId, onCommentPress, commentCount
   const { colors } = useTheme()
   const [reactions, setReactions] = useState<ReactionSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   useEffect(() => {
     api.social.reactions.listForResult(resultId)
@@ -54,10 +56,7 @@ export default function ResultReactions({ resultId, onCommentPress, commentCount
     }
   }
 
-  const pillData = ALLOWED_EMOJIS.map((emoji) => {
-    const found = reactions.find((r) => r.emoji === emoji)
-    return { emoji, count: found?.count ?? 0, userReacted: found?.userReacted ?? false }
-  })
+  const activeReactions = reactions.filter((r) => r.count > 0)
 
   if (loading) {
     return (
@@ -68,44 +67,89 @@ export default function ResultReactions({ resultId, onCommentPress, commentCount
   }
 
   return (
-    <View style={styles.row}>
-      {pillData.map(({ emoji, count, userReacted }) => (
-        <TouchableOpacity
-          key={emoji}
-          style={[
-            styles.pill,
-            {
-              borderColor: userReacted ? colors.accent : colors.borderInteractive,
-              backgroundColor: userReacted ? colors.accent + '22' : colors.cardBg,
-            },
-          ]}
-          onPress={() => toggle(emoji)}
-          activeOpacity={0.7}
-          accessibilityLabel={`React with ${emoji}, ${count} reaction${count === 1 ? '' : 's'}`}
-          accessibilityRole="button"
-          accessibilityState={{ selected: userReacted }}
-        >
-          <Text style={styles.emoji}>{emoji}</Text>
-          {count > 0 && (
+    <View>
+      <View style={styles.row}>
+        {activeReactions.map(({ emoji, count, userReacted }) => (
+          <TouchableOpacity
+            key={emoji}
+            style={[
+              styles.pill,
+              {
+                borderColor: userReacted ? colors.accent : colors.borderInteractive,
+                backgroundColor: userReacted ? colors.accent + '22' : colors.cardBg,
+              },
+            ]}
+            onPress={() => toggle(emoji)}
+            activeOpacity={0.7}
+            accessibilityLabel={`${emoji} ${count} reaction${count === 1 ? '' : 's'}, tap to ${userReacted ? 'remove' : 'add'}`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: userReacted }}
+          >
+            <Text style={styles.emoji}>{emoji}</Text>
             <Text style={[styles.count, { color: userReacted ? colors.accent : colors.textTertiary }]}>
               {count}
             </Text>
-          )}
-        </TouchableOpacity>
-      ))}
-      {onCommentPress !== undefined && (
+          </TouchableOpacity>
+        ))}
+
         <TouchableOpacity
-          style={[styles.pill, { borderColor: colors.borderInteractive, backgroundColor: colors.cardBg }]}
-          onPress={onCommentPress}
+          style={[
+            styles.addButton,
+            {
+              borderColor: colors.borderInteractive,
+              backgroundColor: pickerOpen ? colors.borderInteractive + '60' : 'transparent',
+            },
+          ]}
+          onPress={() => setPickerOpen((o) => !o)}
           activeOpacity={0.7}
-          accessibilityLabel={`${commentCount ?? 0} comment${(commentCount ?? 0) === 1 ? '' : 's'}, tap to view`}
+          accessibilityLabel="Add reaction"
           accessibilityRole="button"
+          accessibilityState={{ expanded: pickerOpen }}
         >
-          <Text style={styles.emoji}>💬</Text>
-          {(commentCount ?? 0) > 0 && (
-            <Text style={[styles.count, { color: colors.textTertiary }]}>{commentCount}</Text>
-          )}
+          <Text style={[styles.addIcon, { color: colors.textTertiary }]}>😊</Text>
         </TouchableOpacity>
+
+        {onCommentPress !== undefined && (
+          <TouchableOpacity
+            style={[styles.pill, { borderColor: colors.borderInteractive, backgroundColor: colors.cardBg }]}
+            onPress={onCommentPress}
+            activeOpacity={0.7}
+            accessibilityLabel={`${commentCount ?? 0} comment${(commentCount ?? 0) === 1 ? '' : 's'}, tap to view`}
+            accessibilityRole="button"
+          >
+            <Text style={styles.emoji}>💬</Text>
+            {(commentCount ?? 0) > 0 && (
+              <Text style={[styles.count, { color: colors.textTertiary }]}>{commentCount}</Text>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {pickerOpen && (
+        <View style={[styles.picker, { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive }]}>
+          {ALLOWED_EMOJIS.map((emoji) => {
+            const active = reactions.find((r) => r.emoji === emoji)?.userReacted ?? false
+            return (
+              <TouchableOpacity
+                key={emoji}
+                style={[
+                  styles.pickerBtn,
+                  active && { backgroundColor: colors.accent + '22' },
+                ]}
+                onPress={() => {
+                  toggle(emoji)
+                  setPickerOpen(false)
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel={`React with ${emoji}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={styles.pickerEmoji}>{emoji}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
       )}
     </View>
   )
@@ -115,6 +159,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 6,
     paddingTop: 6,
     minHeight: 34,
@@ -134,5 +179,35 @@ const styles = StyleSheet.create({
   count: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  addButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addIcon: {
+    fontSize: 14,
+  },
+  picker: {
+    flexDirection: 'row',
+    marginTop: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 6,
+    gap: 2,
+    alignSelf: 'flex-start',
+  },
+  pickerBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerEmoji: {
+    fontSize: 20,
   },
 })
