@@ -242,13 +242,18 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
 
   // Movement state (slice 3a). `selectedMovements` is what the workout
   // ships with — order matters (display order on the result form). Server
-  // detect populates `suggestedMovementIds`; the user accepts each pill
-  // explicitly to add to selectedMovements, or dismisses to drop the
-  // suggestion. `dismissedIds` keeps the suggestion from re-appearing on
-  // the next detect tick after the user explicitly said no.
+  // detect populates `suggestedMovements` with full Movement objects (id +
+  // name + category) so pills can render off the detect response alone —
+  // the catalog from `useMovements()` is no longer required for either
+  // detection or rendering. The catalog is still useful for the manual
+  // search affordance below, but if `api.movements.list()` quietly fails
+  // (auth, network) the suggestion flow keeps working.
+  //
+  // `dismissedIds` keeps the suggestion from re-appearing on the next
+  // detect tick after the user explicitly said no.
   const allMovements = useMovements()
   const [selectedMovements, setSelectedMovements] = useState<Movement[]>([])
-  const [suggestedMovementIds, setSuggestedMovementIds] = useState<string[]>([])
+  const [suggestedMovements, setSuggestedMovements] = useState<Movement[]>([])
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   // Per-movement prescription rows (slice 3b). Keyed by movement id; values
   // mirror what `PrescriptionForm` looks like on web — strings everywhere
@@ -259,6 +264,9 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
   // Which movement's unit picker (if any) is open. Reuses the bottom-sheet
   // Modal pattern from the type picker so we don't pull in a native picker dep.
   const [unitPickerFor, setUnitPickerFor] = useState<{ movementId: string; field: 'load' | 'distance' } | null>(null)
+  // Manual movement search (slice 3a follow-up — decouples adding from
+  // the detect flow). Type any catalog name, tap a result to add.
+  const [movementSearch, setMovementSearch] = useState('')
 
   // Edit mode: hydrate from server. Create mode skips the fetch and uses
   // the param-supplied scheduledAt + sensible defaults.
@@ -450,21 +458,20 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
   }, [snapshot, loading, submitting, deleting, timeCapInvalid, title, description, trimmedCoachNotesForSave, type, timeCapForSave, tracksRoundsForSave, movementsForSave, localWorkoutId, mode, scheduledAt])
 
   // ── Movement detect ──────────────────────────────────────────────────────
-  // Debounced suggest-from-description. Skips when:
-  //  - editor is still hydrating (loading)
-  //  - description is blank or below 1 char (no signal to detect against)
-  //  - the movements catalog hasn't loaded yet (no labels to render against)
+  // Debounced suggest-from-description. The detect endpoint returns full
+  // Movement objects (id + name + category), which we store directly in
+  // `suggestedMovements` so pills render off the response alone — the
+  // catalog from `useMovements()` is no longer required (resilience fix).
   //
   // Detection produces *suggestions*, not auto-tags — the user accepts each
   // pill explicitly to add to selectedMovements, or dismisses to drop it
-  // from the next detect tick. Mirrors the web drawer's pattern exactly.
+  // from the next detect tick.
   useEffect(() => {
     if (loading) return
     if (!description.trim()) {
-      setSuggestedMovementIds([])
+      setSuggestedMovements([])
       return
     }
-    if (allMovements.length === 0) return
 
     const handle = setTimeout(() => {
       api.movements.detect(description)
@@ -473,10 +480,10 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
           // suggestions should only surface new options the user hasn't
           // weighed in on yet.
           const selectedIds = new Set(selectedMovements.map((m) => m.id))
-          const fresh = detected
-            .filter((m) => !selectedIds.has(m.id) && !dismissedIds.has(m.id))
-            .map((m) => m.id)
-          setSuggestedMovementIds(fresh)
+          const fresh = detected.filter(
+            (m) => !selectedIds.has(m.id) && !dismissedIds.has(m.id),
+          )
+          setSuggestedMovements(fresh)
         })
         .catch(() => {})
     }, MOVEMENT_DETECT_DEBOUNCE_MS)
@@ -485,15 +492,20 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
     // tick time only — including them in deps would re-fire detect on every
     // accept/dismiss, hammering the API for no new value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [description, loading, allMovements.length])
+  }, [description, loading])
 
-  function acceptSuggestion(id: string) {
-    const movement = allMovements.find((m) => m.id === id)
-    if (!movement) return
-    setSelectedMovements((prev) => (prev.some((m) => m.id === id) ? prev : [...prev, movement]))
-    // Seed a blank prescription so the row's editor has somewhere to write.
-    setPrescriptions((prev) => (prev[id] ? prev : { ...prev, [id]: blankPrescription() }))
-    setSuggestedMovementIds((prev) => prev.filter((sid) => sid !== id))
+  // Shared add-to-selection — used by both the suggestion ✓ button and the
+  // manual search dropdown. De-dupes; appends to the end so the user
+  // controls display order. Seeds a blank prescription so the new card
+  // has somewhere to write (slice 3b).
+  function addMovementToSelection(movement: Movement) {
+    setSelectedMovements((prev) => (prev.some((m) => m.id === movement.id) ? prev : [...prev, movement]))
+    setPrescriptions((prev) => (prev[movement.id] ? prev : { ...prev, [movement.id]: blankPrescription() }))
+  }
+
+  function acceptSuggestion(movement: Movement) {
+    addMovementToSelection(movement)
+    setSuggestedMovements((prev) => prev.filter((m) => m.id !== movement.id))
   }
 
   function dismissSuggestion(id: string) {
@@ -502,7 +514,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
       next.add(id)
       return next
     })
-    setSuggestedMovementIds((prev) => prev.filter((sid) => sid !== id))
+    setSuggestedMovements((prev) => prev.filter((m) => m.id !== id))
   }
 
   function removeSelectedMovement(id: string) {
@@ -535,6 +547,19 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
       [movementId]: { ...(prev[movementId] ?? blankPrescription()), [field]: value },
     }))
   }
+
+  // Filter the catalog by the search query. Matches by case-insensitive
+  // substring on the canonical name; cap to 8 results so the dropdown
+  // stays a glanceable size on a phone. Excludes already-selected
+  // movements so the user can't accidentally add the same row twice.
+  const searchResults = useMemo(() => {
+    const q = movementSearch.trim().toLowerCase()
+    if (!q) return []
+    const selectedIds = new Set(selectedMovements.map((m) => m.id))
+    return allMovements
+      .filter((m) => !selectedIds.has(m.id) && m.name.toLowerCase().includes(q))
+      .slice(0, 8)
+  }, [movementSearch, allMovements, selectedMovements])
 
   async function handleSave() {
     if (!canSubmit) return
@@ -730,14 +755,18 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             <ThemedText variant="tertiary" style={styles.typeSelectChevron}>▾</ThemedText>
           </TouchableOpacity>
 
-          {/* Movements (slice 3a/3b) — selected items render as full
-              prescription cards (slice 3b's per-movement editor). Suggestions
-              from the detect effect render below as ✓ accept / × dismiss
-              pills (slice 3a). */}
+          {/* Movements (slice 3a + 3b) —
+              - Selected items render as full PrescriptionCards (slice 3b)
+                with sets/reps/etc. per row
+              - Manual search input + filtered catalog dropdown (always
+                available, decoupled from detect)
+              - Detect-driven SUGGESTIONS row at the bottom (✓ accept / ×
+                dismiss). Pills render off the detect response directly so
+                a catalog-fetch failure doesn't hide them. */}
           <ThemedText variant="label" style={styles.sectionLabel}>MOVEMENTS</ThemedText>
           {selectedMovements.length === 0 ? (
             <ThemedText variant="tertiary" style={styles.movementsEmpty}>
-              Type movements into the description above — we'll suggest matches below.
+              Search below or type movement names into the description — we'll suggest matches.
             </ThemedText>
           ) : (
             <View style={styles.prescriptionCardList} testID="selected-movements">
@@ -756,48 +785,96 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             </View>
           )}
 
-          {suggestedMovementIds.length > 0 && (
+          {/* Manual search — adds movements explicitly from the catalog,
+              independent of the description-detect flow. Catalog comes from
+              `useMovements()`; if it failed to load this input is still
+              rendered but produces no results. */}
+          <TextInput
+            style={[
+              styles.input,
+              styles.movementSearchInput,
+              { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive, color: colors.textPrimary },
+            ]}
+            value={movementSearch}
+            onChangeText={setMovementSearch}
+            placeholder="Search movements to add…"
+            placeholderTextColor={colors.textPlaceholder}
+            autoCorrect={false}
+            autoCapitalize="none"
+            testID="movement-search-input"
+          />
+          {movementSearch.trim().length > 0 && (
+            <View
+              style={[
+                styles.movementSearchResults,
+                { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive },
+              ]}
+              testID="movement-search-results"
+            >
+              {searchResults.length === 0 ? (
+                <ThemedText variant="tertiary" style={styles.movementSearchEmpty}>
+                  {allMovements.length === 0
+                    ? 'Catalog unavailable. Type movements in the description for suggestions instead.'
+                    : 'No matches.'}
+                </ThemedText>
+              ) : (
+                searchResults.map((m) => (
+                  <TouchableOpacity
+                    key={m.id}
+                    onPress={() => {
+                      addMovementToSelection(m)
+                      setMovementSearch('')
+                    }}
+                    style={styles.movementSearchRow}
+                    testID={`movement-search-result-${m.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add ${m.name}`}
+                  >
+                    <ThemedText style={styles.movementSearchRowLabel}>{m.name}</ThemedText>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          )}
+
+          {suggestedMovements.length > 0 && (
             <>
               <ThemedText variant="muted" style={styles.suggestionsHeader}>
                 SUGGESTIONS — tap ✓ to add, × to dismiss
               </ThemedText>
               <View style={styles.movementChipRow} testID="suggested-movements">
-                {suggestedMovementIds.map((id) => {
-                  const m = allMovements.find((x) => x.id === id)
-                  if (!m) return null
-                  return (
-                    <View
-                      key={id}
-                      style={[
-                        styles.movementChip,
-                        // Brand-tinted background to read as actionable rather than
-                        // committed; selected pills use the neutral cardBg above.
-                        { backgroundColor: colors.cardBg, borderColor: colors.primary, borderStyle: 'dashed' },
-                      ]}
-                      testID={`suggested-movement-${id}`}
+                {suggestedMovements.map((m) => (
+                  <View
+                    key={m.id}
+                    style={[
+                      styles.movementChip,
+                      // Brand-tinted background to read as actionable rather than
+                      // committed; selected pills use the neutral cardBg above.
+                      { backgroundColor: colors.cardBg, borderColor: colors.primary, borderStyle: 'dashed' },
+                    ]}
+                    testID={`suggested-movement-${m.id}`}
+                  >
+                    <ThemedText style={styles.movementChipLabel}>{m.name}</ThemedText>
+                    <TouchableOpacity
+                      onPress={() => acceptSuggestion(m)}
+                      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add ${m.name}`}
+                      testID={`suggested-movement-accept-${m.id}`}
                     >
-                      <ThemedText style={styles.movementChipLabel}>{m.name}</ThemedText>
-                      <TouchableOpacity
-                        onPress={() => acceptSuggestion(id)}
-                        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Add ${m.name}`}
-                        testID={`suggested-movement-accept-${id}`}
-                      >
-                        <ThemedText style={[styles.movementChipAccept, { color: colors.primary }]}>✓</ThemedText>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => dismissSuggestion(id)}
-                        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Dismiss ${m.name}`}
-                        testID={`suggested-movement-dismiss-${id}`}
-                      >
-                        <ThemedText variant="tertiary" style={styles.movementChipDismiss}>×</ThemedText>
-                      </TouchableOpacity>
-                    </View>
-                  )
-                })}
+                      <ThemedText style={[styles.movementChipAccept, { color: colors.primary }]}>✓</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => dismissSuggestion(m.id)}
+                      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Dismiss ${m.name}`}
+                      testID={`suggested-movement-dismiss-${m.id}`}
+                    >
+                      <ThemedText variant="tertiary" style={styles.movementChipDismiss}>×</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
             </>
           )}
@@ -1273,6 +1350,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxMark: { color: '#fff', fontSize: 12, fontWeight: '700', lineHeight: 14 },
+
+  // Manual movement search (slice 3a follow-up).
+  movementSearchInput: { marginTop: 8 },
+  movementSearchResults: {
+    marginTop: 4,
+    borderWidth: 1,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  movementSearchRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 40,
+  },
+  movementSearchRowLabel: { fontSize: 14 },
+  movementSearchEmpty: { fontSize: 13, paddingHorizontal: 12, paddingVertical: 10 },
 
   // Type-selector single-row button — leading 4px accent bar tints to
   // match the selected type so the user gets a visual cue without opening

@@ -264,6 +264,10 @@ describe('WorkoutEditorScreen — autosave (slice 2b)', () => {
   beforeEach(() => {
     jest.useFakeTimers()
     jest.clearAllMocks()
+    // Detect fires whenever the description has any content; autosave tests
+    // don't care about its return value but the call must resolve so the
+    // setTimeout chain doesn't throw on tick advance.
+    ;(api.movements.detect as jest.Mock).mockResolvedValue([])
   })
   afterEach(() => {
     jest.useRealTimers()
@@ -654,5 +658,91 @@ describe('WorkoutEditorScreen — per-movement prescription (slice 3b)', () => {
         expect.objectContaining({ tracksRounds: true }),
       )
     })
+  })
+})
+
+describe('WorkoutEditorScreen — resilience + manual search (slice 3a follow-up)', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    jest.clearAllMocks()
+  })
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  test('suggestion pills render even when the catalog is empty (detect response carries full Movement objects)', async () => {
+    // Catalog fetch failed → useMovements() returns []. Detect still runs
+    // and returns full Movement objects, so pills must render off the
+    // response alone — no catalog dependency.
+    ;(useMovements as jest.Mock).mockReturnValue([])
+    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER, FRAN_PULLUP])
+    const { getByTestId, queryByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('description-input'), 'thrusters and pull-ups')
+    await act(async () => { jest.advanceTimersByTime(900) })
+    await waitFor(() => {
+      expect(queryByTestId('suggested-movement-mv-thr')).toBeTruthy()
+      expect(queryByTestId('suggested-movement-mv-pu')).toBeTruthy()
+    })
+  })
+
+  test('manual search filters the catalog and adds the chosen movement to selected', async () => {
+    ;(useMovements as jest.Mock).mockReturnValue(CATALOG)
+    const { getByTestId, queryByTestId, findByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    // Empty query → no results dropdown.
+    expect(queryByTestId('movement-search-results')).toBeNull()
+    fireEvent.changeText(getByTestId('movement-search-input'), 'thrust')
+    expect(getByTestId('movement-search-results')).toBeTruthy()
+    expect(getByTestId('movement-search-result-mv-thr')).toBeTruthy()
+    // Pull-up shouldn't match "thrust".
+    expect(queryByTestId('movement-search-result-mv-pu')).toBeNull()
+
+    fireEvent.press(await findByTestId('movement-search-result-mv-thr'))
+    // Tap clears the search + adds to selected.
+    expect(queryByTestId('movement-search-results')).toBeNull()
+    // Slice 3b renders selected movements as prescription cards.
+    expect(getByTestId('prescription-card-mv-thr')).toBeTruthy()
+  })
+
+  test('manual search excludes already-selected movements from results', async () => {
+    ;(useMovements as jest.Mock).mockReturnValue(CATALOG)
+    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
+    const { getByTestId, queryByTestId, findByTestId } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    // Add thruster via the suggestion flow.
+    fireEvent.changeText(getByTestId('description-input'), 'thrusters')
+    await act(async () => { jest.advanceTimersByTime(900) })
+    fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
+
+    // Search "thrust" — already-selected mv-thr must NOT appear in results.
+    fireEvent.changeText(getByTestId('movement-search-input'), 'thrust')
+    expect(queryByTestId('movement-search-result-mv-thr')).toBeNull()
+  })
+
+  test('search dropdown surfaces a "Catalog unavailable" hint when useMovements() returned empty', () => {
+    ;(useMovements as jest.Mock).mockReturnValue([])
+    const { getByTestId, getByText } = render(
+      <WorkoutEditorScreen
+        navigation={makeNavigation()}
+        route={makeRoute({ mode: 'create', scheduledAt: '2026-05-04' })}
+      />,
+    )
+    fireEvent.changeText(getByTestId('movement-search-input'), 'anything')
+    // The dropdown renders the catalog-unavailable copy so the user knows
+    // they need to fall back on description-driven suggestions.
+    expect(getByText(/Catalog unavailable/)).toBeTruthy()
   })
 })
