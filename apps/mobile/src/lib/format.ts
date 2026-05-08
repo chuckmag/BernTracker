@@ -52,6 +52,35 @@ function pickHeaviestSet(movementResults: MovementResultShape[]): { reps: string
   return best ? { reps: best.reps, load: best.load, unit: best.unit } : null
 }
 
+export function formatSeconds(totalSec: number): string {
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+export function describeSet(
+  set: SetShape,
+  loadUnit?: string,
+  distanceUnit?: string,
+): string {
+  const parts: string[] = []
+  const repsLabel = set.reps ?? (set.load !== undefined ? '?' : null)
+  if (set.load !== undefined) {
+    const unit = loadUnit ? ` ${loadUnit.toLowerCase()}` : ''
+    parts.push(`${repsLabel ?? '?'} × ${set.load}${unit}`)
+  } else if (set.reps) {
+    parts.push(`${set.reps} reps`)
+  }
+  if (set.distance !== undefined) {
+    const unit = distanceUnit ? ` ${distanceUnit.toLowerCase()}` : ''
+    parts.push(`${set.distance}${unit}`)
+  }
+  if (set.calories !== undefined) parts.push(`${set.calories} cal`)
+  if (set.seconds !== undefined) parts.push(formatSeconds(set.seconds))
+  if (set.tempo) parts.push(`tempo ${set.tempo}`)
+  return parts.join(' · ') || '—'
+}
+
 export function formatResultValue(value: ResultValue): string {
   const s = value.score
   if (s) {
