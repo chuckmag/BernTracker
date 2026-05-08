@@ -1,7 +1,9 @@
 import type { Request, Response, NextFunction } from 'express'
 import type { Role } from '@wodalytics/db'
+import { prisma } from '@wodalytics/db'
 import { findProgramWithGymIds } from '../db/programDbManager.js'
 import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
+import { isAdminEmail } from './auth.js'
 import { createLogger } from '../lib/logger.js'
 
 const log = createLogger('program')
@@ -11,37 +13,55 @@ const writeAccessRoles: Role[] = ['OWNER', 'PROGRAMMER', 'COACH']
 async function loadProgramAndUserRoles(
   req: Request,
   res: Response,
-): Promise<{ gymIds: string[]; roles: Role[] } | null> {
+): Promise<{ gymIds: string[]; roles: Role[]; isAdmin: boolean } | null> {
   const programId = req.params.id as string
   const userId = req.user?.id
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized' })
     return null
   }
-  const program = await findProgramWithGymIds(programId)
+
+  // Fetch program and user email in parallel. The email is needed to check
+  // admin status before we decide whether to enforce the gym-membership gate.
+  const [program, userRow] = await Promise.all([
+    findProgramWithGymIds(programId),
+    prisma.user.findUnique({ where: { id: userId }, select: { email: true } }),
+  ])
+
   if (!program) {
     res.status(404).json({ error: 'Program not found' })
     return null
   }
+
+  const isAdmin = isAdminEmail(userRow?.email)
   const gymIds = program.gyms.map((g) => g.gymId)
-  if (gymIds.length === 0) {
+
+  // Unaffiliated programs (gymIds empty) are only accessible to WODalytics
+  // admins — regular users have no gym membership to check against.
+  if (gymIds.length === 0 && !isAdmin) {
     res.status(403).json({ error: 'Forbidden' })
     return null
   }
+
+  // Admins skip the membership lookup — they have implicit full access.
+  if (isAdmin) {
+    return { gymIds, roles: [], isAdmin: true }
+  }
+
   const memberships = await Promise.all(
     gymIds.map((gymId) => findGymMembershipByUserAndGym(userId, gymId)),
   )
   const roles = memberships
     .map((m) => m?.role)
     .filter((r): r is Role => Boolean(r))
-  return { gymIds, roles }
+  return { gymIds, roles, isAdmin: false }
 }
 
 /** Requires the authenticated user to be a member (any role) of any gym linked to the program in :id. */
 export async function requireProgramGymMembership(req: Request, res: Response, next: NextFunction): Promise<void> {
   const ctx = await loadProgramAndUserRoles(req, res)
   if (!ctx) return
-  if (ctx.roles.length === 0) {
+  if (!ctx.isAdmin && ctx.roles.length === 0) {
     log.warning(req, `requireProgramGymMembership: not a member of any linked gym — ${req.method} ${req.path} — userId=${req.user?.id}`)
     res.status(403).json({ error: 'Forbidden' })
     return
@@ -53,7 +73,7 @@ export async function requireProgramGymMembership(req: Request, res: Response, n
 export async function requireProgramGymWriteAccess(req: Request, res: Response, next: NextFunction): Promise<void> {
   const ctx = await loadProgramAndUserRoles(req, res)
   if (!ctx) return
-  if (!ctx.roles.some((r) => writeAccessRoles.includes(r))) {
+  if (!ctx.isAdmin && !ctx.roles.some((r) => writeAccessRoles.includes(r))) {
     log.warning(req, `requireProgramGymWriteAccess: insufficient role — ${req.method} ${req.path} — userId=${req.user?.id} roles=${ctx.roles.join('|') || 'none'}`)
     res.status(403).json({ error: 'Forbidden' })
     return
@@ -65,7 +85,7 @@ export async function requireProgramGymWriteAccess(req: Request, res: Response, 
 export async function requireProgramGymOwner(req: Request, res: Response, next: NextFunction): Promise<void> {
   const ctx = await loadProgramAndUserRoles(req, res)
   if (!ctx) return
-  if (!ctx.roles.includes('OWNER')) {
+  if (!ctx.isAdmin && !ctx.roles.includes('OWNER')) {
     log.warning(req, `requireProgramGymOwner: OWNER role required — ${req.method} ${req.path} — userId=${req.user?.id} roles=${ctx.roles.join('|') || 'none'}`)
     res.status(403).json({ error: 'Forbidden' })
     return
@@ -82,7 +102,7 @@ const managerRoles: Role[] = ['OWNER', 'PROGRAMMER']
 export async function requireProgramGymManager(req: Request, res: Response, next: NextFunction): Promise<void> {
   const ctx = await loadProgramAndUserRoles(req, res)
   if (!ctx) return
-  if (!ctx.roles.some((r) => managerRoles.includes(r))) {
+  if (!ctx.isAdmin && !ctx.roles.some((r) => managerRoles.includes(r))) {
     log.warning(req, `requireProgramGymManager: OWNER or PROGRAMMER required — ${req.method} ${req.path} — userId=${req.user?.id} roles=${ctx.roles.join('|') || 'none'}`)
     res.status(403).json({ error: 'Forbidden' })
     return
