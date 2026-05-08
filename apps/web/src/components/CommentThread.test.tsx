@@ -1,12 +1,8 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import CommentPanel from './CommentPanel'
+import CommentThread from './CommentThread'
 import type { Comment } from '../lib/api'
-
-vi.mock('../context/AuthContext.tsx', () => ({
-  useAuth: () => ({ user: { id: 'user-1', name: 'Me' } }),
-}))
 
 vi.mock('../lib/api.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/api')>()
@@ -36,6 +32,7 @@ const LIST_MOCK = api.social.comments.list as unknown as ReturnType<typeof vi.fn
 const CREATE_MOCK = api.social.comments.create as unknown as ReturnType<typeof vi.fn>
 
 const RESULT_ID = 'result-1'
+const CURRENT_USER = 'user-1'
 
 function makeComment(overrides: Partial<Comment> = {}): Comment {
   return {
@@ -54,25 +51,19 @@ function makeComment(overrides: Partial<Comment> = {}): Comment {
   }
 }
 
-function renderPanel(onClose = vi.fn()) {
-  return render(<CommentPanel resultId={RESULT_ID} onClose={onClose} />)
+function renderThread() {
+  return render(<CommentThread resultId={RESULT_ID} currentUserId={CURRENT_USER} />)
 }
 
-describe('CommentPanel', () => {
+describe('CommentThread', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     LIST_MOCK.mockResolvedValue({ comments: [], total: 0, page: 1, limit: 20, pages: 1 })
   })
 
-  test('renders without crashing and shows loading state', () => {
-    LIST_MOCK.mockReturnValue(new Promise(() => {}))
-    renderPanel()
-    expect(screen.getByRole('dialog', { name: 'Comments' })).toBeInTheDocument()
-    expect(screen.getByText('Loading…')).toBeInTheDocument()
-  })
-
-  test('shows empty state when no comments', async () => {
-    renderPanel()
+  test('renders without crashing, shows loading then empty state', async () => {
+    renderThread()
+    expect(screen.getByPlaceholderText('Add a comment…')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('No comments yet. Be the first!')).toBeInTheDocument())
   })
 
@@ -81,7 +72,7 @@ describe('CommentPanel', () => {
       comments: [makeComment()],
       total: 1, page: 1, limit: 20, pages: 1,
     })
-    renderPanel()
+    renderThread()
     await waitFor(() => expect(screen.getByText('Great workout!')).toBeInTheDocument())
     expect(screen.getByText('Jane Doe')).toBeInTheDocument()
   })
@@ -91,59 +82,54 @@ describe('CommentPanel', () => {
       comments: [makeComment({ body: null, user: null, deletedAt: '2026-05-02T00:00:00.000Z' })],
       total: 1, page: 1, limit: 20, pages: 1,
     })
-    renderPanel()
+    renderThread()
     await waitFor(() => expect(screen.getByText('[deleted]')).toBeInTheDocument())
     expect(screen.getByText('Deleted')).toBeInTheDocument()
   })
 
-  test('shows comment count in header', async () => {
+  test('shows comment count in section header', async () => {
     LIST_MOCK.mockResolvedValue({
       comments: [makeComment()],
-      total: 5, page: 1, limit: 20, pages: 1,
+      total: 7, page: 1, limit: 20, pages: 1,
     })
-    renderPanel()
-    await waitFor(() => expect(screen.getByText('(5)')).toBeInTheDocument())
+    renderThread()
+    await waitFor(() => expect(screen.getByText('(7)')).toBeInTheDocument())
   })
 
-  test('renders compose box', () => {
-    renderPanel()
-    expect(screen.getByPlaceholderText('Add a comment…')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Post' })).toBeInTheDocument()
-  })
-
-  test('shows own comment edit and delete buttons', async () => {
+  test('shows own comment Edit and Delete buttons', async () => {
     LIST_MOCK.mockResolvedValue({
-      comments: [makeComment({ user: { id: 'user-1', firstName: 'Me', lastName: null, avatarUrl: null } })],
+      comments: [makeComment({ user: { id: CURRENT_USER, firstName: 'Me', lastName: null, avatarUrl: null } })],
       total: 1, page: 1, limit: 20, pages: 1,
     })
-    renderPanel()
+    renderThread()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+  })
+
+  test('does not show Edit/Delete for other users\' comments', async () => {
+    LIST_MOCK.mockResolvedValue({
+      comments: [makeComment({ user: { id: 'someone-else', firstName: 'Jane', lastName: 'Doe', avatarUrl: null } })],
+      total: 1, page: 1, limit: 20, pages: 1,
+    })
+    renderThread()
+    await waitFor(() => expect(screen.getByText('Great workout!')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
   })
 
   test('submits a new comment on Post click', async () => {
     const user = userEvent.setup()
     CREATE_MOCK.mockResolvedValue(makeComment({ id: 'c-new', body: 'Hello!' }))
-    renderPanel()
+    renderThread()
     await waitFor(() => screen.getByPlaceholderText('Add a comment…'))
     await user.type(screen.getByPlaceholderText('Add a comment…'), 'Hello!')
     await user.click(screen.getByRole('button', { name: 'Post' }))
     expect(CREATE_MOCK).toHaveBeenCalledWith(RESULT_ID, 'Hello!')
   })
 
-  test('calls onClose when × is clicked', async () => {
-    const user = userEvent.setup()
-    const onClose = vi.fn()
-    renderPanel(onClose)
-    await user.click(screen.getByLabelText('Close comments'))
-    expect(onClose).toHaveBeenCalledOnce()
-  })
-
-  test('calls onClose on Escape key', async () => {
-    const user = userEvent.setup()
-    const onClose = vi.fn()
-    renderPanel(onClose)
-    await user.keyboard('{Escape}')
-    expect(onClose).toHaveBeenCalledOnce()
+  test('renders compose textarea and Post button', () => {
+    renderThread()
+    expect(screen.getByPlaceholderText('Add a comment…')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Post' })).toBeInTheDocument()
   })
 })

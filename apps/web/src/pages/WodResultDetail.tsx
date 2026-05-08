@@ -5,6 +5,8 @@ import { api, type Workout, type WorkoutCategory, type WorkoutResult, type Worko
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import MarkdownDescription from '../components/MarkdownDescription.tsx'
 import Avatar from '../components/Avatar.tsx'
+import ResultReactions from '../components/ResultReactions.tsx'
+import CommentThread from '../components/CommentThread.tsx'
 import { formatResultValue as formatValue } from '../lib/formatResult.ts'
 
 const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
@@ -213,6 +215,7 @@ export default function WodResultDetail() {
       )}
 
       {/* Result block */}
+      <div className="space-y-4">
       <div className="px-4 py-3 rounded-lg bg-white border border-slate-200 dark:bg-gray-900 dark:border-gray-700 space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Result</span>
@@ -251,6 +254,19 @@ export default function WodResultDetail() {
         ) : (
           <p className="text-sm text-slate-500 dark:text-gray-500 italic">No notes for this result.</p>
         )}
+      </div>
+
+      {/* Reactions */}
+      <ResultReactions
+        resultId={result.id}
+        currentUserId={user?.id ?? ''}
+      />
+
+      {/* Comment thread */}
+      <CommentThread
+        resultId={result.id}
+        currentUserId={user?.id ?? ''}
+      />
       </div>
     </div>
   )

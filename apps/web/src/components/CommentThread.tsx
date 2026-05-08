@@ -1,16 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { useAuth } from '../context/AuthContext.tsx'
 import { api, type Comment, type ReactionSummary } from '../lib/api.ts'
 
 const ALLOWED_EMOJIS = ['👍', '❤️', '🔥', '💪', '🎉', '😂'] as const
 
-interface CommentPanelProps {
+interface CommentThreadProps {
   resultId: string
-  onClose: () => void
+  currentUserId: string
 }
 
-export default function CommentPanel({ resultId, onClose }: CommentPanelProps) {
-  const { user } = useAuth()
+export default function CommentThread({ resultId, currentUserId }: CommentThreadProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -19,7 +17,6 @@ export default function CommentPanel({ resultId, onClose }: CommentPanelProps) {
   const [loadingMore, setLoadingMore] = useState(false)
   const [compose, setCompose] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const composeRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -34,14 +31,6 @@ export default function CommentPanel({ resultId, onClose }: CommentPanelProps) {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [resultId])
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
 
   async function loadMore() {
     const next = page + 1
@@ -76,115 +65,94 @@ export default function CommentPanel({ resultId, onClose }: CommentPanelProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
-
-      <div
-        className="relative z-10 w-full max-w-md bg-white dark:bg-gray-900 flex flex-col shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Comments"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-gray-800 shrink-0">
-          <h2 className="text-sm font-semibold text-slate-950 dark:text-white">
-            Comments
-            {total > 0 && <span className="ml-2 text-xs font-normal text-slate-500 dark:text-gray-400">({total})</span>}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-500 hover:text-slate-950 dark:text-gray-500 dark:hover:text-white text-xl leading-none transition-colors -my-1 -mr-1.5 w-7 h-7 inline-flex items-center justify-center"
-            aria-label="Close comments"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {loading && (
-            <p className="text-sm text-slate-500 dark:text-gray-400">Loading…</p>
-          )}
-          {!loading && comments.length === 0 && (
-            <p className="text-sm text-slate-500 dark:text-gray-400">No comments yet. Be the first!</p>
-          )}
-          {comments.map((comment) => (
-            <CommentThread
-              key={comment.id}
-              comment={comment}
-              currentUserId={user?.id ?? ''}
-              resultId={resultId}
-              onUpdate={(updated) =>
-                setComments((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
-              }
-              onDelete={(id) => {
-                setComments((prev) =>
-                  prev.map((c) =>
-                    c.id === id ? { ...c, body: null, user: null, deletedAt: new Date().toISOString() } : c,
-                  ),
-                )
-                setTotal((t) => Math.max(0, t - 1))
-              }}
-            />
-          ))}
-          {page < pages && (
-            <button
-              onClick={loadMore}
-              disabled={loadingMore}
-              className="w-full text-sm text-primary hover:opacity-80 transition-opacity disabled:opacity-50 py-1"
-            >
-              {loadingMore ? 'Loading…' : 'Load more'}
-            </button>
-          )}
-        </div>
-
-        {/* Compose box */}
-        <div className="shrink-0 px-5 py-4 border-t border-slate-200 dark:border-gray-800">
-          <div className="flex gap-2 items-end">
-            <textarea
-              ref={composeRef}
-              value={compose}
-              onChange={(e) => setCompose(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  submitComment()
-                }
-              }}
-              placeholder="Add a comment…"
-              rows={2}
-              className="flex-1 resize-none rounded-lg border border-slate-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-primary dark:focus:border-primary"
-            />
-            <button
-              type="button"
-              onClick={submitComment}
-              disabled={!compose.trim() || submitting}
-              className="shrink-0 px-3 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 hover:bg-primary-hover transition-colors"
-            >
-              Post
-            </button>
-          </div>
-        </div>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <h2 className="text-sm font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">
+          Comments
+          {total > 0 && <span className="ml-1.5 font-normal normal-case tracking-normal text-slate-400 dark:text-gray-500">({total})</span>}
+        </h2>
+        <hr className="flex-1 border-slate-200 dark:border-gray-800" />
       </div>
+
+      {/* Compose box */}
+      <div className="flex gap-2 items-end">
+        <textarea
+          value={compose}
+          onChange={(e) => setCompose(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              submitComment()
+            }
+          }}
+          placeholder="Add a comment…"
+          rows={2}
+          className="flex-1 resize-none rounded-lg border border-slate-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-primary"
+        />
+        <button
+          type="button"
+          onClick={submitComment}
+          disabled={!compose.trim() || submitting}
+          className="shrink-0 px-3 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50 hover:bg-primary-hover transition-colors"
+        >
+          Post
+        </button>
+      </div>
+
+      {/* Thread */}
+      {loading && (
+        <p className="text-sm text-slate-500 dark:text-gray-400">Loading…</p>
+      )}
+      {!loading && comments.length === 0 && (
+        <p className="text-sm text-slate-500 dark:text-gray-400">No comments yet. Be the first!</p>
+      )}
+      <div className="space-y-4">
+        {comments.map((comment) => (
+          <CommentThreadItem
+            key={comment.id}
+            comment={comment}
+            currentUserId={currentUserId}
+            onUpdate={(updated) =>
+              setComments((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+            }
+            onDelete={(id) => {
+              setComments((prev) =>
+                prev.map((c) =>
+                  c.id === id ? { ...c, body: null, user: null, deletedAt: new Date().toISOString() } : c,
+                ),
+              )
+              setTotal((t) => Math.max(0, t - 1))
+            }}
+          />
+        ))}
+      </div>
+      {page < pages && (
+        <button
+          onClick={loadMore}
+          disabled={loadingMore}
+          className="w-full text-sm text-primary hover:opacity-80 transition-opacity disabled:opacity-50 py-1"
+        >
+          {loadingMore ? 'Loading…' : 'Load more'}
+        </button>
+      )}
     </div>
   )
 }
 
-// ─── CommentThread ─────────────────────────────────────────────────────────────
+// ─── CommentThreadItem ─────────────────────────────────────────────────────────
 
-interface CommentThreadProps {
+interface CommentThreadItemProps {
   comment: Comment
   currentUserId: string
-  resultId: string
   onUpdate: (comment: Comment) => void
   onDelete: (id: string) => void
 }
 
-function CommentThread({ comment, currentUserId, resultId, onUpdate, onDelete }: CommentThreadProps) {
+function CommentThreadItem({ comment, currentUserId, onUpdate, onDelete }: CommentThreadItemProps) {
   const [showReplyForm, setShowReplyForm] = useState(false)
   const [replies, setReplies] = useState<Comment[]>(comment.replies ?? [])
 
-  // Sync replies when parent comment updates (e.g. pagination / refresh)
   useEffect(() => {
     setReplies(comment.replies ?? [])
   }, [comment.replies])
@@ -206,9 +174,8 @@ function CommentThread({ comment, currentUserId, resultId, onUpdate, onDelete }:
         isTopLevel
       />
 
-      {/* Replies */}
       {replies.length > 0 && (
-        <div className="ml-9 mt-2 space-y-2 border-l-2 border-slate-100 dark:border-gray-800 pl-3">
+        <div className="ml-9 mt-3 space-y-3 border-l-2 border-slate-100 dark:border-gray-800 pl-3">
           {replies.map((reply) => (
             <CommentRow
               key={reply.id}
@@ -280,7 +247,7 @@ function CommentRow({ comment, currentUserId, onUpdate, onDelete, onReplyClick, 
 
   return (
     <div className="flex gap-2">
-      {/* Avatar circle */}
+      {/* Avatar */}
       <div className="shrink-0 w-7 h-7 rounded-full bg-slate-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-slate-600 dark:text-gray-300 overflow-hidden">
         {comment.user?.avatarUrl ? (
           <img src={comment.user.avatarUrl} alt={displayName} className="w-full h-full object-cover" />
@@ -290,7 +257,6 @@ function CommentRow({ comment, currentUserId, onUpdate, onDelete, onReplyClick, 
       </div>
 
       <div className="flex-1 min-w-0">
-        {/* Name + timestamp */}
         <div className="flex items-baseline gap-2 mb-0.5">
           <span className={`text-xs font-semibold ${isDeleted ? 'text-slate-400 dark:text-gray-500' : 'text-slate-700 dark:text-gray-200'}`}>
             {displayName}
@@ -300,7 +266,6 @@ function CommentRow({ comment, currentUserId, onUpdate, onDelete, onReplyClick, 
           </span>
         </div>
 
-        {/* Body */}
         {isDeleted ? (
           <p className="text-xs text-slate-400 dark:text-gray-500 italic">[deleted]</p>
         ) : editing ? (
@@ -314,14 +279,9 @@ function CommentRow({ comment, currentUserId, onUpdate, onDelete, onReplyClick, 
           <p className="text-sm text-slate-700 dark:text-gray-300 break-words">{comment.body}</p>
         )}
 
-        {/* Reactions + actions */}
         {!isDeleted && !editing && (
           <div className="mt-1 flex items-center gap-2 flex-wrap">
-            <CommentReactions
-              comment={comment}
-              currentUserId={currentUserId}
-              onUpdate={onUpdate}
-            />
+            <CommentReactions comment={comment} currentUserId={currentUserId} onUpdate={onUpdate} />
             {isTopLevel && onReplyClick && (
               <button
                 type="button"
@@ -387,7 +347,6 @@ function CommentReactions({ comment, currentUserId, onUpdate }: CommentReactions
     const existing = comment.reactions.find((r) => r.emoji === emoji)
     const meReacted = existing?.userReacted ?? false
 
-    // Optimistic update
     let updated: ReactionSummary[]
     if (meReacted) {
       updated = comment.reactions
@@ -408,7 +367,6 @@ function CommentReactions({ comment, currentUserId, onUpdate }: CommentReactions
         await api.social.reactions.addToComment(comment.id, emoji)
       }
     } catch {
-      // Rollback to pre-update state
       patchReactions(comment.reactions)
     }
   }
@@ -440,7 +398,7 @@ function CommentReactions({ comment, currentUserId, onUpdate }: CommentReactions
           onClick={() => setPickerOpen((o) => !o)}
           aria-label="Add reaction to comment"
           aria-expanded={pickerOpen}
-          className="w-5 h-5 inline-flex items-center justify-center rounded-full text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors text-xs"
+          className="w-5 h-5 inline-flex items-center justify-center rounded-full text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors"
         >
           <SmileIconXs />
         </button>
@@ -495,7 +453,7 @@ function InlineComposeBox({ initialValue = '', placeholder = 'Write a comment…
     try {
       await onSubmit(body)
     } catch {
-      // ignore — let the caller decide
+      // ignore
     } finally {
       setSubmitting(false)
     }

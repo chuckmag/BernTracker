@@ -6,7 +6,6 @@ import { api, type Workout, type WorkoutCategory, type WorkoutResult, type Worko
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
 import ResultReactions from '../components/ResultReactions.tsx'
-import CommentPanel from '../components/CommentPanel.tsx'
 import WorkoutMovementHistory from '../components/WorkoutMovementHistory.tsx'
 import MarkdownDescription from '../components/MarkdownDescription.tsx'
 import Avatar from '../components/Avatar.tsx'
@@ -90,7 +89,6 @@ export default function WodDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showLogDrawer, setShowLogDrawer] = useState(false)
-  const [openCommentResultId, setOpenCommentResultId] = useState<string | null>(null)
 
   // Tracks which workout id has had the auto-detect default applied.
   // The auto-detect snaps levelFilter to the viewer's own logged level on
@@ -428,7 +426,7 @@ export default function WodDetail() {
                           <ResultReactions
                             resultId={result.id}
                             currentUserId={user?.id ?? ''}
-                            onCommentClick={() => setOpenCommentResultId(result.id)}
+                            workoutId={workout.id}
                           />
                         </td>
                       </tr>
@@ -472,12 +470,6 @@ export default function WodDetail() {
         }}
       />
     )}
-    {openCommentResultId && (
-      <CommentPanel
-        resultId={openCommentResultId}
-        onClose={() => setOpenCommentResultId(null)}
-      />
-    )}
-    </>
+</>
   )
 }

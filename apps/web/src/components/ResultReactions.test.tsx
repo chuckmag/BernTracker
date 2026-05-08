@@ -1,5 +1,6 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import ResultReactions from './ResultReactions'
 
@@ -14,6 +15,9 @@ vi.mock('../lib/api.ts', async (importOriginal) => {
           addToResult: vi.fn().mockResolvedValue({}),
           removeFromResult: vi.fn().mockResolvedValue(undefined),
         },
+        comments: {
+          list: vi.fn().mockResolvedValue({ comments: [], total: 0, page: 1, limit: 20, pages: 1 }),
+        },
       },
     },
   }
@@ -23,13 +27,17 @@ import { api } from '../lib/api.ts'
 
 const LIST_MOCK = api.social.reactions.listForResult as unknown as ReturnType<typeof vi.fn>
 const ADD_MOCK = api.social.reactions.addToResult as unknown as ReturnType<typeof vi.fn>
+const COMMENTS_MOCK = api.social.comments.list as unknown as ReturnType<typeof vi.fn>
 
 const RESULT_ID = 'result-1'
 const USER_ID = 'user-1'
+const WORKOUT_ID = 'workout-1'
 
-function renderComponent(onCommentClick = vi.fn()) {
+function renderComponent({ workoutId }: { workoutId?: string } = {}) {
   return render(
-    <ResultReactions resultId={RESULT_ID} currentUserId={USER_ID} onCommentClick={onCommentClick} />,
+    <MemoryRouter>
+      <ResultReactions resultId={RESULT_ID} currentUserId={USER_ID} workoutId={workoutId} />
+    </MemoryRouter>,
   )
 }
 
@@ -37,12 +45,12 @@ describe('ResultReactions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     LIST_MOCK.mockResolvedValue([])
+    COMMENTS_MOCK.mockResolvedValue({ comments: [], total: 0, page: 1, limit: 20, pages: 1 })
   })
 
   test('renders without crashing', () => {
     renderComponent()
     expect(screen.getByLabelText('Add reaction')).toBeInTheDocument()
-    expect(screen.getByLabelText('Open comments')).toBeInTheDocument()
   })
 
   test('fetches reactions on mount', async () => {
@@ -84,11 +92,25 @@ describe('ResultReactions', () => {
     expect(ADD_MOCK).toHaveBeenCalledWith(RESULT_ID, '👍')
   })
 
-  test('calls onCommentClick when comment icon is clicked', async () => {
-    const user = userEvent.setup()
-    const onCommentClick = vi.fn()
-    renderComponent(onCommentClick)
-    await user.click(screen.getByLabelText('Open comments'))
-    expect(onCommentClick).toHaveBeenCalledOnce()
+  test('does not show comment link when workoutId is omitted', () => {
+    renderComponent()
+    expect(screen.queryByLabelText(/comment/i)).not.toBeInTheDocument()
+  })
+
+  test('shows comment link when workoutId is provided', async () => {
+    COMMENTS_MOCK.mockResolvedValue({ comments: [], total: 5, page: 1, limit: 20, pages: 1 })
+    renderComponent({ workoutId: WORKOUT_ID })
+    await waitFor(() => expect(screen.getByLabelText(/5 comments/)).toBeInTheDocument())
+  })
+
+  test('fetches comment count when workoutId is provided', async () => {
+    renderComponent({ workoutId: WORKOUT_ID })
+    await waitFor(() => expect(COMMENTS_MOCK).toHaveBeenCalledWith(RESULT_ID, 1))
+  })
+
+  test('does not fetch comment count when workoutId is omitted', async () => {
+    renderComponent()
+    await waitFor(() => expect(LIST_MOCK).toHaveBeenCalled())
+    expect(COMMENTS_MOCK).not.toHaveBeenCalled()
   })
 })

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api, type ReactionSummary } from '../lib/api.ts'
 
 const ALLOWED_EMOJIS = ['👍', '❤️', '🔥', '💪', '🎉', '😂'] as const
@@ -6,17 +7,31 @@ const ALLOWED_EMOJIS = ['👍', '❤️', '🔥', '💪', '🎉', '😂'] as con
 interface ResultReactionsProps {
   resultId: string
   currentUserId: string
-  onCommentClick: () => void
+  /**
+   * When provided the comment icon becomes a link to the result detail page,
+   * showing the loaded comment count. Omit on the result detail page itself
+   * (the comment thread is inline below and no link is needed).
+   */
+  workoutId?: string
 }
 
-export default function ResultReactions({ resultId, currentUserId, onCommentClick }: ResultReactionsProps) {
+export default function ResultReactions({ resultId, currentUserId, workoutId }: ResultReactionsProps) {
+  const navigate = useNavigate()
   const [reactions, setReactions] = useState<ReactionSummary[]>([])
+  const [commentCount, setCommentCount] = useState<number | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     api.social.reactions.listForResult(resultId).then(setReactions).catch(() => {})
   }, [resultId])
+
+  useEffect(() => {
+    if (!workoutId) return
+    api.social.comments.list(resultId, 1)
+      .then((data) => setCommentCount(data.total))
+      .catch(() => {})
+  }, [resultId, workoutId])
 
   useEffect(() => {
     if (!pickerOpen) return
@@ -36,10 +51,9 @@ export default function ResultReactions({ resultId, currentUserId, onCommentClic
     // Optimistic update
     setReactions((prev) => {
       if (meReacted) {
-        const next = prev
+        return prev
           .map((r) => r.emoji === emoji ? { ...r, count: r.count - 1, userReacted: false } : r)
           .filter((r) => r.count > 0)
-        return next
       }
       if (existing) {
         return prev.map((r) => r.emoji === emoji ? { ...r, count: r.count + 1, userReacted: true } : r)
@@ -55,7 +69,7 @@ export default function ResultReactions({ resultId, currentUserId, onCommentClic
         await api.social.reactions.addToResult(resultId, emoji)
       }
     } catch {
-      // Rollback — re-fetch authoritative state
+      // Rollback
       api.social.reactions.listForResult(resultId).then(setReactions).catch(() => {})
     }
   }
@@ -128,15 +142,20 @@ export default function ResultReactions({ resultId, currentUserId, onCommentClic
         )}
       </div>
 
-      {/* Comment icon */}
-      <button
-        type="button"
-        onClick={onCommentClick}
-        aria-label="Open comments"
-        className="inline-flex items-center justify-center w-6 h-6 rounded-full text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-800 transition-colors"
-      >
-        <CommentIcon />
-      </button>
+      {/* Comment count — only rendered when workoutId is provided (leaderboard / summary context) */}
+      {workoutId && (
+        <button
+          type="button"
+          onClick={() => navigate(`/workouts/${workoutId}/results/${resultId}`)}
+          aria-label={commentCount !== null ? `${commentCount} comment${commentCount !== 1 ? 's' : ''}, view result` : 'View comments'}
+          className="inline-flex items-center gap-1 text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300 transition-colors text-xs"
+        >
+          <CommentIcon />
+          {commentCount !== null && commentCount > 0 && (
+            <span className="tabular-nums">{commentCount}</span>
+          )}
+        </button>
+      )}
     </div>
   )
 }
@@ -154,7 +173,7 @@ function SmileIcon() {
 
 function CommentIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   )
