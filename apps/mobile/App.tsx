@@ -14,6 +14,8 @@ import HistoryScreen from './src/screens/HistoryScreen'
 import LogResultScreen from './src/screens/LogResultScreen'
 import WorkoutEditorScreen from './src/screens/WorkoutEditorScreen'
 import AnalyticsScreen from './src/screens/AnalyticsScreen'
+import ResultDetailScreen from './src/screens/ResultDetailScreen'
+import UserProfileScreen from './src/screens/UserProfileScreen'
 import type { LeaderboardEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -24,6 +26,8 @@ export type RootStackParamList = {
   Main: undefined
   WodDetail: { workoutId: string; from?: 'feed' | 'history' | 'movement-history' | 'wodalytics' }
   LogResult: { workoutId: string; resultId?: string; existingResult?: LeaderboardEntry }
+  ResultDetail: { workoutId: string; resultId: string; from?: 'dashboard' }
+  UserProfile: { userId: string }
   // Modal-style editor for personal-program workouts (#242 slice 2).
   // - mode='create': new workout pinned to `scheduledAt` (YYYY-MM-DD)
   // - mode='edit':   load + edit + delete an existing workout by id
@@ -158,6 +162,8 @@ function RootStackNavigator() {
       <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
       <RootStack.Screen name="WodDetail" component={WodDetailScreen} options={{ title: '' }} />
       <RootStack.Screen name="LogResult" component={LogResultScreen} options={{ title: 'Log Result' }} />
+      <RootStack.Screen name="ResultDetail" component={ResultDetailScreen} options={{ title: 'Result' }} />
+      <RootStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Athlete' }} />
       <RootStack.Screen
         name="WorkoutEditor"
         component={WorkoutEditorScreen}
