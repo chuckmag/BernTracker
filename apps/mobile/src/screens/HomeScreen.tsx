@@ -18,6 +18,7 @@ import { useProgramFilter } from '../context/ProgramFilterContext'
 import WodHeroCard from '../components/WodHeroCard'
 import LeaderboardCard from '../components/LeaderboardCard'
 import UpcomingCard from '../components/UpcomingCard'
+import HotTodayCard from '../components/HotTodayCard'
 
 function firstNameOf(user: { firstName?: string | null; name?: string | null } | null): string | null {
   if (user?.firstName) return user.firstName
@@ -177,10 +178,8 @@ export default function HomeScreen() {
         <UpcomingCard gymId={activeGym.id} programIds={upcomingProgramIds} />
       )}
 
-      {/* Social feed placeholder — deferred until social features are scoped */}
-      <View style={styles.socialPlaceholder}>
-        <Text style={styles.socialPlaceholderText}>Social feed coming soon</Text>
-      </View>
+      {/* Hot Today — top results by social activity (reactions + comments) */}
+      {!loading && data?.workout && <HotTodayCard workoutId={data.workout.id} />}
     </ScrollView>
   )
 }
@@ -363,18 +362,5 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 14,
     color: '#9ca3af',
-  },
-  socialPlaceholder: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#1f2937',
-    borderStyle: 'dashed',
-    paddingVertical: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  socialPlaceholderText: {
-    fontSize: 13,
-    color: '#4b5563',
   },
 })
