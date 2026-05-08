@@ -49,3 +49,23 @@ export async function removeReactionFromComment(commentId: string, userId: strin
   const deleted = await prisma.reaction.deleteMany({ where: { commentId, userId, emoji } })
   if (deleted.count === 0) throw Object.assign(new Error('Reaction not found'), { statusCode: 404 })
 }
+
+export async function findReactionSummaryByResultId(resultId: string, callerUserId: string) {
+  const result = await prisma.result.findUnique({ where: { id: resultId }, select: { id: true } })
+  if (!result) throw Object.assign(new Error('Result not found'), { statusCode: 404 })
+
+  const rows = await prisma.reaction.findMany({
+    where: { resultId },
+    select: { userId: true, emoji: true },
+  })
+
+  const byEmoji = new Map<string, { count: number; userReacted: boolean }>()
+  for (const r of rows) {
+    const prev = byEmoji.get(r.emoji) ?? { count: 0, userReacted: false }
+    byEmoji.set(r.emoji, {
+      count: prev.count + 1,
+      userReacted: prev.userReacted || r.userId === callerUserId,
+    })
+  }
+  return [...byEmoji.entries()].map(([emoji, data]) => ({ emoji, ...data }))
+}
