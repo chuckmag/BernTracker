@@ -1,8 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import Dashboard from './Dashboard'
-import type { DashboardToday } from '../lib/api'
+import type { DashboardToday, GymProgram } from '../lib/api'
+
+// jsdom doesn't implement localStorage — stub it.
+const localStorageStore: Record<string, string> = {}
+const localStorageMock = {
+  getItem: vi.fn((key: string) => localStorageStore[key] ?? null),
+  setItem: vi.fn((key: string, val: string) => { localStorageStore[key] = val }),
+  removeItem: vi.fn((key: string) => { delete localStorageStore[key] }),
+}
 
 vi.mock('../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/api')>()
@@ -35,9 +43,21 @@ vi.mock('../context/GymContext', () => ({
 }))
 
 vi.mock('../context/ProgramFilterContext', () => ({
-  useProgramFilter: () => ({ available: [], selected: [], gymProgramIds: [], personalProgramId: null, defaultProgramId: null, loading: false, setSelected: vi.fn(), toggle: vi.fn(), clear: vi.fn() }),
+  useProgramFilter: vi.fn(),
   PERSONAL_PROGRAM_SENTINEL: '__personal__',
 }))
+
+const defaultFilterValue = {
+  available: [] as GymProgram[],
+  selected: [],
+  gymProgramIds: [],
+  personalProgramId: null,
+  defaultProgramId: null,
+  loading: false,
+  setSelected: vi.fn(),
+  toggle: vi.fn(),
+  clear: vi.fn(),
+}
 
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1', name: 'Alex', firstName: 'Alex' } }),
@@ -55,9 +75,21 @@ function renderDashboard() {
 
 describe('Dashboard', () => {
   beforeEach(async () => {
+    vi.stubGlobal('localStorage', localStorageMock)
     vi.clearAllMocks()
+    // Re-attach store lookups after clearAllMocks resets the implementations.
+    localStorageMock.getItem.mockImplementation((key: string) => localStorageStore[key] ?? null)
+    localStorageMock.setItem.mockImplementation((key: string, val: string) => { localStorageStore[key] = val })
+    localStorageMock.removeItem.mockImplementation((key: string) => { delete localStorageStore[key] })
+    delete localStorageStore['dashboardProgram:gym-1']
     const { useGym } = await import('../context/GymContext')
     vi.mocked(useGym).mockReturnValue(defaultGym)
+    const { useProgramFilter } = await import('../context/ProgramFilterContext')
+    vi.mocked(useProgramFilter).mockReturnValue(defaultFilterValue)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('renders greeting with first name', async () => {
@@ -162,5 +194,78 @@ describe('Dashboard', () => {
     renderDashboard()
     await screen.findByText("You're not part of a gym yet")
     expect(api.gyms.dashboard.today).not.toHaveBeenCalled()
+  })
+
+  describe('program selection persistence', () => {
+    const twoPrograms: GymProgram[] = [
+      { gymId: 'gym-1', programId: 'prog-1', isDefault: false, createdAt: '', program: { id: 'prog-1', name: 'Program One', description: null, startDate: '', endDate: null, coverColor: null, visibility: 'PUBLIC', ownerUserId: null, createdAt: '', updatedAt: '' } },
+      { gymId: 'gym-1', programId: 'prog-2', isDefault: false, createdAt: '', program: { id: 'prog-2', name: 'Program Two', description: null, startDate: '', endDate: null, coverColor: null, visibility: 'PUBLIC', ownerUserId: null, createdAt: '', updatedAt: '' } },
+    ]
+
+    function makeFilter(overrides: Partial<typeof defaultFilterValue>) {
+      return { ...defaultFilterValue, ...overrides }
+    }
+
+    it('does not call dashboard API while filter is loading', async () => {
+      const { useProgramFilter } = await import('../context/ProgramFilterContext')
+      vi.mocked(useProgramFilter).mockReturnValue(makeFilter({ loading: true }))
+      const { api } = await import('../lib/api')
+
+      renderDashboard()
+      // Give effects a chance to run
+      await new Promise((r) => setTimeout(r, 50))
+      expect(api.gyms.dashboard.today).not.toHaveBeenCalled()
+    })
+
+    it('calls API with stored programId after filter finishes loading', async () => {
+      localStorage.setItem('dashboardProgram:gym-1', 'prog-2')
+
+      const { useProgramFilter } = await import('../context/ProgramFilterContext')
+      const { api } = await import('../lib/api')
+      vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
+        workout: null, myResult: null, leaderboard: null, gymMemberCount: 0, programSubscriberCount: 0, isHeroWorkoutGymAffiliated: true,
+      } satisfies DashboardToday)
+
+      // Start loading
+      vi.mocked(useProgramFilter).mockReturnValue(makeFilter({ loading: true, available: [] }))
+      const { rerender } = renderDashboard()
+
+      // Simulate filter load completing with programs available
+      vi.mocked(useProgramFilter).mockReturnValue(makeFilter({ loading: false, available: twoPrograms }))
+      rerender(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes><Route path="/dashboard" element={<Dashboard />} /></Routes>
+        </MemoryRouter>,
+      )
+
+      await waitFor(() => {
+        expect(api.gyms.dashboard.today).toHaveBeenCalledWith('gym-1', ['prog-2'])
+      })
+    })
+
+    it('falls back to defaultProgramId and persists it when no stored preference', async () => {
+      const { useProgramFilter } = await import('../context/ProgramFilterContext')
+      const { api } = await import('../lib/api')
+      vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
+        workout: null, myResult: null, leaderboard: null, gymMemberCount: 0, programSubscriberCount: 0, isHeroWorkoutGymAffiliated: true,
+      } satisfies DashboardToday)
+
+      vi.mocked(useProgramFilter).mockReturnValue(makeFilter({ loading: true, available: [] }))
+      const { rerender } = renderDashboard()
+
+      const programsWithDefault = twoPrograms.map((p) => ({ ...p, isDefault: p.programId === 'prog-1' }))
+      vi.mocked(useProgramFilter).mockReturnValue(makeFilter({ loading: false, available: programsWithDefault, defaultProgramId: 'prog-1' }))
+      rerender(
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Routes><Route path="/dashboard" element={<Dashboard />} /></Routes>
+        </MemoryRouter>,
+      )
+
+      await waitFor(() => {
+        expect(api.gyms.dashboard.today).toHaveBeenCalledWith('gym-1', ['prog-1'])
+      })
+      // Verify default was written to storage so the next refresh re-applies it
+      expect(localStorage.getItem('dashboardProgram:gym-1')).toBe('prog-1')
+    })
   })
 })

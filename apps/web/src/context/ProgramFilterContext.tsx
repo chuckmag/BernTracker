@@ -74,7 +74,11 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
   const [searchParams, setSearchParams] = useSearchParams()
   const [available, setAvailable] = useState<GymProgram[]>([])
   const [personalProgramId, setPersonalProgramId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  // Tracks the gymId whose fetch has completed. loading is derived from this so
+  // it is true synchronously on the first render when gymId is present — there
+  // is no false-loading-complete window before the first effect runs.
+  const [fetchedForGymId, setFetchedForGymId] = useState<string | null>(null)
+  const loading = gymId !== null && fetchedForGymId !== gymId
   const [storedSelection, setStoredSelection] = useState<string[]>([])
   const lastGymIdRef = useRef<string | null>(null)
 
@@ -84,6 +88,7 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
       setAvailable([])
       setPersonalProgramId(null)
       setStoredSelection([])
+      setFetchedForGymId(null)
       lastGymIdRef.current = null
       return
     }
@@ -92,7 +97,6 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
       setStoredSelection(readStorage(gymId))
     }
     let cancelled = false
-    setLoading(true)
     // Fetch gym programs (role-filtered) and personal program ID in parallel.
     // Personal program GET is idempotent — it upserts on first call.
     Promise.all([
@@ -110,7 +114,7 @@ export function ProgramFilterProvider({ children }: { children: React.ReactNode 
           setAvailable([])
         }
       })
-      .finally(() => { if (!cancelled) setLoading(false) })
+      .finally(() => { if (!cancelled) setFetchedForGymId(gymId) })
     return () => { cancelled = true }
   }, [gymId])
 
