@@ -26,8 +26,11 @@ function writeDashboardProgram(gymId: string, id: string): void {
 export default function Dashboard() {
   const { gymId, loading: gymLoading, clearGymId } = useGym()
   const { user } = useAuth()
-  const { available, defaultProgramId } = useProgramFilter()
+  const { available, defaultProgramId, loading: filterLoading } = useProgramFilter()
   const [selectedProgramId, setSelectedProgramId] = useState<string>('')
+  // True once selectedProgramId has been seeded from storage for the current gym.
+  // Gates the fetch so we never fire with the empty initial state.
+  const [initialized, setInitialized] = useState(false)
   const [data, setData] = useState<DashboardToday | null>(null)
   const [loading, setLoading] = useState(false)
   const [noGym, setNoGym] = useState(false)
@@ -38,30 +41,37 @@ export default function Dashboard() {
   const initializedForGymRef = useRef<string | null>(null)
 
   // Seed selectedProgramId from storage (falling back to the gym's default
-  // program) the first time `available` resolves for the active gym.
+  // program) the first time programs finish loading for the active gym.
   useEffect(() => {
-    if (!gymId || available.length === 0) return
+    if (!gymId || filterLoading) return
     if (initializedForGymRef.current === gymId) return
 
     initializedForGymRef.current = gymId
-    const stored = readDashboardProgram(gymId)
-    const validIds = new Set(available.map((gp) => gp.program.id))
 
-    if (stored && validIds.has(stored)) {
-      setSelectedProgramId(stored)
-    } else if (defaultProgramId) {
-      setSelectedProgramId(defaultProgramId)
-      writeDashboardProgram(gymId, defaultProgramId)
-    } else {
-      setSelectedProgramId('')
+    if (available.length > 0) {
+      const stored = readDashboardProgram(gymId)
+      const validIds = new Set(available.map((gp) => gp.program.id))
+
+      if (stored && validIds.has(stored)) {
+        setSelectedProgramId(stored)
+      } else if (defaultProgramId) {
+        setSelectedProgramId(defaultProgramId)
+        writeDashboardProgram(gymId, defaultProgramId)
+      } else {
+        setSelectedProgramId('')
+      }
     }
-  }, [gymId, available, defaultProgramId])
+    // Mark ready even when available is empty (gym has no programs) so the
+    // fetch isn't blocked indefinitely.
+    setInitialized(true)
+  }, [gymId, available, defaultProgramId, filterLoading])
 
   // Reset when the gym changes so the above effect re-seeds for the new gym.
   useEffect(() => {
     if (!gymId) return
     if (initializedForGymRef.current !== gymId) {
       setSelectedProgramId('')
+      setInitialized(false)
     }
   }, [gymId])
 
@@ -71,13 +81,22 @@ export default function Dashboard() {
       setNoGym(true)
       return
     }
+    // Wait until selectedProgramId has been seeded from storage. Without this
+    // gate, when Dashboard remounts after navigating away, available is already
+    // populated so the init effect and this fetch effect both run in the same
+    // render pass — this effect would fire with selectedProgramId='' (the
+    // initial state) before the init effect's setState has taken effect, causing
+    // a race between an unfiltered and a filtered response.
+    if (!initialized) return
     setNoGym(false)
     setLoading(true)
     setError(null)
+    let cancelled = false
     const programIds = selectedProgramId ? [selectedProgramId] : undefined
     api.gyms.dashboard.today(gymId, programIds)
-      .then(setData)
+      .then((d) => { if (!cancelled) setData(d) })
       .catch((e: Error & { status?: number }) => {
+        if (cancelled) return
         if (e.status === 403) {
           clearGymId()
           setNoGym(true)
@@ -85,8 +104,9 @@ export default function Dashboard() {
           setError(e.message ?? 'Failed to load dashboard')
         }
       })
-      .finally(() => setLoading(false))
-  }, [gymId, gymLoading, selectedProgramId])  // eslint-disable-line react-hooks/exhaustive-deps
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [gymId, gymLoading, selectedProgramId, initialized])  // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSelectProgram(id: string) {
     setSelectedProgramId(id)
