@@ -326,6 +326,34 @@ export interface WorkoutResult {
   workout: { type: WorkoutType }
 }
 
+export interface ReactionSummary {
+  emoji: string
+  count: number
+  userReacted: boolean
+}
+
+export interface Comment {
+  id: string
+  resultId: string
+  parentId: string | null
+  body: string | null
+  deletedAt: string | null
+  createdAt: string
+  updatedAt: string
+  user: { id: string; firstName: string | null; lastName: string | null; avatarUrl: string | null } | null
+  reactions: ReactionSummary[]
+  replies: Comment[]
+  replyCount: number
+}
+
+export interface CommentPage {
+  comments: Comment[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
 export interface NewPr {
   movementId: string
   movementName: string
@@ -1162,6 +1190,48 @@ export const api = {
     /** Leave a program — caller's own membership only. */
     unsubscribe: (id: string, token?: string) =>
       req<void>(`/api/programs/${id}/subscribe`, { method: 'DELETE', token }),
+  },
+
+  social: {
+    reactions: {
+      listForResult: (resultId: string) =>
+        req<ReactionSummary[]>(`/api/results/${resultId}/reactions`),
+      addToResult: (resultId: string, emoji: string) =>
+        req<{ id: string; resultId: string; userId: string; emoji: string }>(
+          `/api/results/${resultId}/reactions`,
+          { method: 'POST', body: JSON.stringify({ emoji }) },
+        ),
+      removeFromResult: (resultId: string, emoji: string) =>
+        req<void>(`/api/results/${resultId}/reactions/${encodeURIComponent(emoji)}`, { method: 'DELETE' }),
+      addToComment: (commentId: string, emoji: string) =>
+        req<{ id: string; commentId: string; userId: string; emoji: string }>(
+          `/api/comments/${commentId}/reactions`,
+          { method: 'POST', body: JSON.stringify({ emoji }) },
+        ),
+      removeFromComment: (commentId: string, emoji: string) =>
+        req<void>(`/api/comments/${commentId}/reactions/${encodeURIComponent(emoji)}`, { method: 'DELETE' }),
+    },
+    comments: {
+      list: (resultId: string, page = 1) =>
+        req<CommentPage>(`/api/results/${resultId}/comments?page=${page}`),
+      create: (resultId: string, body: string) =>
+        req<Comment>(`/api/results/${resultId}/comments`, {
+          method: 'POST',
+          body: JSON.stringify({ body }),
+        }),
+      reply: (commentId: string, body: string) =>
+        req<Comment>(`/api/comments/${commentId}/replies`, {
+          method: 'POST',
+          body: JSON.stringify({ body }),
+        }),
+      edit: (commentId: string, body: string) =>
+        req<Comment>(`/api/comments/${commentId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ body }),
+        }),
+      remove: (commentId: string) =>
+        req<void>(`/api/comments/${commentId}`, { method: 'DELETE' }),
+    },
   },
 
   /**

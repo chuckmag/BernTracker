@@ -6,10 +6,14 @@ import {
   removeReactionFromResult,
   addReactionToComment,
   removeReactionFromComment,
+  findReactionSummaryByResultId,
   ALLOWED_EMOJIS,
 } from '../db/reactionDbManager.js'
 
 const router = Router()
+
+// GET /api/results/:resultId/reactions
+router.get('/results/:resultId/reactions', requireAuth, getResultReactions)
 
 // POST /api/results/:resultId/reactions
 router.post('/results/:resultId/reactions', requireAuth, addResultReaction)
@@ -26,6 +30,18 @@ router.delete('/comments/:commentId/reactions/:emoji', requireAuth, removeCommen
 export default router
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
+
+async function getResultReactions(req: Request, res: Response) {
+  const { resultId } = req.params
+  try {
+    const reactions = await findReactionSummaryByResultId(resultId, req.user!.id)
+    res.json(reactions)
+  } catch (err: unknown) {
+    const code = (err as Error & { statusCode?: number }).statusCode
+    if (code === 404) return res.status(404).json({ error: (err as Error).message })
+    throw err
+  }
+}
 
 async function addResultReaction(req: Request, res: Response) {
   const { resultId } = req.params

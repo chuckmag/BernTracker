@@ -5,6 +5,8 @@ import { useGym } from '../context/GymContext.tsx'
 import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
+import ResultReactions from '../components/ResultReactions.tsx'
+import CommentPanel from '../components/CommentPanel.tsx'
 import WorkoutMovementHistory from '../components/WorkoutMovementHistory.tsx'
 import MarkdownDescription from '../components/MarkdownDescription.tsx'
 import Avatar from '../components/Avatar.tsx'
@@ -88,6 +90,7 @@ export default function WodDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showLogDrawer, setShowLogDrawer] = useState(false)
+  const [openCommentResultId, setOpenCommentResultId] = useState<string | null>(null)
 
   // Tracks which workout id has had the auto-detect default applied.
   // The auto-detect snaps levelFilter to the viewer's own logged level on
@@ -412,13 +415,23 @@ export default function WodDetail() {
                         <td className="py-2.5 font-mono">{formatResultValue(result, workout?.tracksRounds)}</td>
                       </tr>
                       {result.notes && (
-                        <tr className="border-b border-slate-100 dark:border-gray-900">
+                        <tr>
                           <td />
-                          <td colSpan={3} className="pb-2.5 max-w-0">
+                          <td colSpan={3} className="pb-1 max-w-0">
                             <p className="truncate text-xs text-slate-500 dark:text-gray-400 italic">{result.notes}</p>
                           </td>
                         </tr>
                       )}
+                      <tr className="border-b border-slate-100 dark:border-gray-900">
+                        <td />
+                        <td colSpan={3} className="pb-2 pt-0.5">
+                          <ResultReactions
+                            resultId={result.id}
+                            currentUserId={user?.id ?? ''}
+                            onCommentClick={() => setOpenCommentResultId(result.id)}
+                          />
+                        </td>
+                      </tr>
                     </Fragment>
                   )
                 })}
@@ -457,6 +470,12 @@ export default function WodDetail() {
           setShowLogDrawer(false)
           api.results.leaderboard(id!).then(setResults).catch(() => {})
         }}
+      />
+    )}
+    {openCommentResultId && (
+      <CommentPanel
+        resultId={openCommentResultId}
+        onClose={() => setOpenCommentResultId(null)}
       />
     )}
     </>

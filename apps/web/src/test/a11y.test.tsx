@@ -26,6 +26,10 @@ vi.mock('../lib/api', () => ({
         workouts: { list: vi.fn(), create: vi.fn() },
       },
     },
+    social: {
+      reactions: { listForResult: vi.fn().mockResolvedValue([]) },
+      comments: { list: vi.fn() },
+    },
   },
 }))
 
