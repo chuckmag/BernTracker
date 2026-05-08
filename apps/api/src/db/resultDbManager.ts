@@ -1,5 +1,5 @@
 import { prisma } from '@wodalytics/db'
-import type { WorkoutLevel, WorkoutGender, Prisma, MovementCategory } from '@wodalytics/db'
+import type { WorkoutLevel, WorkoutGender, Prisma, MovementCategory, LoadUnit } from '@wodalytics/db'
 
 interface CreateResultData {
   userId: string
@@ -83,6 +83,110 @@ export async function createResult(data: CreateResultData) {
     }
     throw err
   }
+}
+
+// ─── Movement PR detection ────────────────────────────────────────────────────
+
+// All WorkoutType values that represent strength/lifting work. PR detection
+// only runs for these types — conditioning and skill work don't track load PRs.
+const STRENGTH_WORKOUT_TYPES = new Set([
+  'STRENGTH', 'POWER_LIFTING', 'WEIGHT_LIFTING', 'BODY_BUILDING', 'MAX_EFFORT',
+])
+
+export interface NewPr {
+  movementId: string
+  movementName: string
+  repCount: number
+  load: number
+  loadUnit: string
+  estimatedOneRepMax: number
+}
+
+// Epley formula — industry standard for estimating 1RM from multi-rep sets.
+// Identity for repCount === 1 so the actual lift is used verbatim.
+function epley1RM(load: number, repCount: number): number {
+  if (repCount === 1) return load
+  return Math.round(load * (1 + repCount / 30))
+}
+
+export async function detectAndUpsertStrengthPrs(
+  resultId: string,
+  value: Prisma.JsonValue,
+  workoutType: string,
+  userId: string,
+): Promise<NewPr[]> {
+  if (!STRENGTH_WORKOUT_TYPES.has(workoutType)) return []
+
+  const v = value as { movementResults?: MovementResultEntry[] } | null
+  const movementResults = v?.movementResults ?? []
+  if (movementResults.length === 0) return []
+
+  // Batch-fetch movement metadata; restrict to STRENGTH category only.
+  const movementIds = [...new Set(movementResults.map((mr) => mr.workoutMovementId))]
+  const strengthMovements = await prisma.movement.findMany({
+    where: { id: { in: movementIds }, category: 'STRENGTH' },
+    select: { id: true, name: true },
+  })
+  const movementNames = new Map(strengthMovements.map((m) => [m.id, m.name]))
+
+  // Find best load per (movementId, repCount) across all sets in this result.
+  const candidates = new Map<string, { movementId: string; repCount: number; load: number; loadUnit: string; movementName: string }>()
+  for (const mr of movementResults) {
+    const movementName = movementNames.get(mr.workoutMovementId)
+    if (!movementName) continue
+    for (const set of (mr.sets ?? [])) {
+      if (!set.reps || set.load === undefined) continue
+      const repCount = parseRepsToInt(set.reps)
+      if (repCount <= 0) continue
+      const key = `${mr.workoutMovementId}::${repCount}`
+      const existing = candidates.get(key)
+      if (!existing || set.load > existing.load) {
+        candidates.set(key, {
+          movementId: mr.workoutMovementId,
+          repCount,
+          load: set.load,
+          loadUnit: mr.loadUnit ?? 'LB',
+          movementName,
+        })
+      }
+    }
+  }
+
+  if (candidates.size === 0) return []
+
+  // Batch-fetch existing PRs for all candidate (movementId, repCount) pairs.
+  const existingPrs = await prisma.movementPR.findMany({
+    where: {
+      userId,
+      OR: [...candidates.values()].map(({ movementId, repCount }) => ({ movementId, repCount })),
+    },
+    select: { movementId: true, repCount: true, load: true },
+  })
+  const existingByKey = new Map(existingPrs.map((pr) => [`${pr.movementId}::${pr.repCount}`, pr.load]))
+
+  // Upsert only the candidates that beat the current record.
+  const newPrs: NewPr[] = []
+  await Promise.all(
+    [...candidates.values()].map(async (c) => {
+      const key = `${c.movementId}::${c.repCount}`
+      const existingLoad = existingByKey.get(key)
+      if (existingLoad !== undefined && c.load <= existingLoad) return
+      await prisma.movementPR.upsert({
+        where: { userId_movementId_repCount: { userId, movementId: c.movementId, repCount: c.repCount } },
+        create: { userId, movementId: c.movementId, repCount: c.repCount, load: c.load, loadUnit: c.loadUnit as LoadUnit, resultId },
+        update: { load: c.load, loadUnit: c.loadUnit as LoadUnit, resultId, achievedAt: new Date() },
+      })
+      newPrs.push({
+        movementId: c.movementId,
+        movementName: c.movementName,
+        repCount: c.repCount,
+        load: c.load,
+        loadUnit: c.loadUnit,
+        estimatedOneRepMax: epley1RM(c.load, c.repCount),
+      })
+    }),
+  )
+  return newPrs
 }
 
 export async function findLeaderboardByWorkout(workoutId: string, filters: LeaderboardFilters) {

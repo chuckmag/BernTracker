@@ -326,6 +326,20 @@ export interface WorkoutResult {
   workout: { type: WorkoutType }
 }
 
+export interface NewPr {
+  movementId: string
+  movementName: string
+  repCount: number
+  load: number
+  loadUnit: string
+  estimatedOneRepMax: number
+}
+
+export interface LogResultResponse {
+  result: WorkoutResult
+  newPrs: NewPr[]
+}
+
 export interface HistoryResult extends Omit<WorkoutResult, 'workout'> {
   workout: { id: string; title: string; type: WorkoutType; scheduledAt: string }
 }

@@ -241,7 +241,7 @@ describe('LogResultScreen — strength sets table', () => {
       workoutMovements: [makeMovement('m-1', 'Back Squat', { sets: 1, reps: '5', load: 225, loadUnit: 'LB' })],
     })
     ;(api.workouts.get as jest.Mock).mockResolvedValue(w)
-    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({})
+    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({ result: {}, newPrs: [] })
 
     const navigation = makeNavigation()
     const { findByText, getByLabelText } = render(
@@ -270,7 +270,7 @@ describe('LogResultScreen — strength sets table', () => {
       workoutMovements: [makeMovement('m-1', 'Back Squat', { sets: 1, reps: '5', load: 200, loadUnit: 'LB' })],
     })
     ;(api.workouts.get as jest.Mock).mockResolvedValue(w)
-    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({})
+    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({ result: {}, newPrs: [] })
 
     const { findByText, getByLabelText } = render(
       <LogResultScreen navigation={makeNavigation()} route={makeRoute({ workoutId: 'w-3' })} />,
@@ -358,7 +358,7 @@ describe('LogResultScreen — score-mode workouts', () => {
   test('AMRAP with tracksRounds=true posts ROUNDS_REPS score', async () => {
     const w = makeWorkout({ tracksRounds: true })
     ;(api.workouts.get as jest.Mock).mockResolvedValue(w)
-    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({})
+    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({ result: {}, newPrs: [] })
 
     const navigation = makeNavigation()
     const { findByText, getByTestId } = render(
@@ -382,7 +382,7 @@ describe('LogResultScreen — score-mode workouts', () => {
 
   test('FOR_TIME posts TIME score with collapsed seconds', async () => {
     ;(api.workouts.get as jest.Mock).mockResolvedValue(FOR_TIME_WORKOUT)
-    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({})
+    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({ result: {}, newPrs: [] })
 
     const { findByText, getByTestId } = render(
       <LogResultScreen navigation={makeNavigation()} route={makeRoute({ workoutId: 'w-2' })} />,
@@ -401,7 +401,7 @@ describe('LogResultScreen — score-mode workouts', () => {
 
   test('FOR_TIME capped toggle sets cappedOut=true and uses seconds=0', async () => {
     ;(api.workouts.get as jest.Mock).mockResolvedValue(FOR_TIME_WORKOUT)
-    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({})
+    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({ result: {}, newPrs: [] })
 
     const { findByText, getByTestId } = render(
       <LogResultScreen navigation={makeNavigation()} route={makeRoute({ workoutId: 'w-2' })} />,
@@ -534,7 +534,7 @@ describe('LogResultScreen — edit + delete', () => {
   test('NON_BINARY identifiedGender derives workoutGender=OPEN', async () => {
     setUser('NON_BINARY')
     ;(api.workouts.get as jest.Mock).mockResolvedValue(makeWorkout())
-    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({})
+    ;(api.workouts.logResult as jest.Mock).mockResolvedValue({ result: {}, newPrs: [] })
 
     const { findByText, getByTestId } = render(
       <LogResultScreen navigation={makeNavigation()} route={makeRoute()} />,

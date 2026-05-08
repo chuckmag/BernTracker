@@ -213,6 +213,11 @@ export async function findWorkoutsByGymAndDateRange(
   }))
 }
 
+export async function findWorkoutTypeById(id: string): Promise<string | null> {
+  const row = await prisma.workout.findUnique({ where: { id }, select: { type: true } })
+  return row?.type ?? null
+}
+
 export async function findWorkoutById(id: string) {
   return prisma.workout.findUnique({
     where: { id },
