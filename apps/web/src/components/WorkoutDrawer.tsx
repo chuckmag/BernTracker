@@ -301,6 +301,7 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
     setError(null)
     setShowPublishConfirm(false)
     setShowDeleteConfirm(false)
+    setDeleting(false)
     setLocalWorkoutId(workout?.id ?? null)
     setLocalStatus(workout?.status ?? 'DRAFT')
     setAutosavedAt(null)

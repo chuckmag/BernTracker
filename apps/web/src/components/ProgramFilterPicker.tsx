@@ -21,7 +21,7 @@ interface ProgramFilterPickerProps {
 }
 
 export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilterPickerProps) {
-  const { selected, available, loading, toggle, clear } = useProgramFilter()
+  const { selected, available, personalProgramId, loading, toggle, clear } = useProgramFilter()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -49,7 +49,9 @@ export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilt
   }
 
   const isPersonalSelected = selected.includes(PERSONAL_PROGRAM_SENTINEL)
-  const selectedGymPrograms = available
+  // Exclude the personal program from the gym list — it has its own dedicated row.
+  const gymPrograms = available.filter(({ program }) => program.id !== personalProgramId)
+  const selectedGymPrograms = gymPrograms
     .map((gp) => gp.program)
     .filter((p) => selected.includes(p.id))
 
@@ -99,7 +101,7 @@ export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilt
               <span className="text-xs text-slate-400 dark:text-gray-500 shrink-0">private</span>
             </label>
 
-            {available.map(({ program }) => {
+            {gymPrograms.map(({ program }) => {
               const isSelected = selected.includes(program.id)
               return (
                 <label
@@ -124,7 +126,7 @@ export default function ProgramFilterPicker({ variant = 'sidebar' }: ProgramFilt
               )
             })}
 
-            {available.length === 0 && !loading && (
+            {gymPrograms.length === 0 && !loading && (
               <p className="px-3 py-2 text-xs text-slate-500 dark:text-gray-400">No gym programs.</p>
             )}
 
