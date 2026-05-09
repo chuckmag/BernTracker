@@ -79,14 +79,12 @@
     {
       "clientId": "wodalytics-web",
       "name": "WODalytics Web",
-      "description": "Web app — authorization code flow",
+      "description": "Web SPA — public client with PKCE. No client secret: the app runs entirely in the browser and cannot securely store one (OAuth 2.1 §2.1.1).",
       "enabled": true,
-      "publicClient": false,
-      "secret": "CHANGE-ME-VIA-KEYCLOAK-ADMIN",
+      "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": false,
-      "authorizationServicesEnabled": false,
+      "attributes": { "pkce.code.challenge.method": "S256" },
       "redirectUris": [
         "https://qa.wodalytics.com/*",
         "http://local.wodalytics.com/*",

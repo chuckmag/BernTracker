@@ -54,10 +54,7 @@ Create `infra/keycloak/Dockerfile` with the above content and point the Railway 
 
 ### 4. Post-import secrets (required — do this immediately after first boot)
 
-The committed realm JSON uses placeholder values for secrets that Keycloak cannot interpolate. After Keycloak starts, go to the Keycloak admin console (`qa.wodalytics.com/auth/admin`) and update:
-
-**wodalytics-web client secret:**
-Clients → wodalytics-web → Credentials → Regenerate secret. Copy the new value and set it as `KEYCLOAK_WEB_CLIENT_SECRET` in the Railway web service env vars.
+All three clients (`wodalytics-web`, `wodalytics-mobile`, `wodalytics-mcp`) are **public clients with PKCE** — no client secrets to manage. The only post-import secret to configure is the Google identity provider.
 
 **Google identity provider:**
 Identity Providers → google → Client ID / Client Secret. Set these to the values from the Google Cloud Console OAuth client registered for qa.wodalytics.com.
@@ -109,7 +106,8 @@ curl -H "Authorization: Bearer <admin-token>" \
 
 ## Secrets that are NOT committed
 
-- `wodalytics-web` client secret — set via Keycloak admin after import
 - Google IDP `clientId` / `clientSecret` — set via Keycloak admin after import
 - `KEYCLOAK_ADMIN_PASSWORD` — Railway env var only
 - `KC_DB_PASSWORD` — Railway env var only
+
+All three OAuth clients are public clients (PKCE, no secret) — there are no client secrets to manage or rotate.
