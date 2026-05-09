@@ -21,6 +21,23 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # /auth/* -> Keycloak authorization server over private networking.
+    # KC_HTTP_RELATIVE_PATH=/auth keeps all Keycloak URLs under this prefix so
+    # its session cookies land on the same domain as the web app, avoiding
+    # cross-subdomain third-party cookie restrictions in modern browsers.
+    location /auth/ {
+        set $keycloak_backend "${KEYCLOAK_INTERNAL_HOST}:${KEYCLOAK_INTERNAL_PORT}";
+        proxy_pass http://$keycloak_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Keycloak emits large response headers (OIDC metadata, set-cookie chains).
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+    }
+
     # Everything else: SPA fallback to index.html for React Router.
     location / {
         try_files $uri $uri/ /index.html;

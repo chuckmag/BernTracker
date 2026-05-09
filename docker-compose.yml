@@ -10,6 +10,7 @@ services:
       - api
       - web
       - studio
+      - keycloak
 
   postgres:
     image: postgres:16
@@ -23,6 +24,26 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # Keycloak authorization server. Imports realm-wodalytics.json on first boot.
+  # Admin console: http://local.wodalytics.com/auth/admin  (admin / admin)
+  # OIDC discovery: http://local.wodalytics.com/auth/realms/wodalytics/.well-known/openid-configuration
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    container_name: wodalytics-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: local.wodalytics.com
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY: edge
+    volumes:
+      - ./infra/keycloak/realm-wodalytics.json:/opt/keycloak/data/import/realm-wodalytics.json:ro
+    ports:
+      - "8080:8080"
+
   api:
     image: wodalytics-api:local
     build:
@@ -35,8 +56,10 @@ services:
       NODE_ENV: development
       ALLOWED_ORIGINS: http://local.wodalytics.com,http://localhost:5173
       FRONTEND_URL: http://local.wodalytics.com
+      KEYCLOAK_ISSUER_URL: http://local.wodalytics.com/auth/realms/wodalytics
     depends_on:
       - postgres
+      - keycloak
 
   web:
     build:
