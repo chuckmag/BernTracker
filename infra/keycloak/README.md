@@ -52,9 +52,31 @@ COPY infra/keycloak/realm-wodalytics.json /opt/keycloak/data/import/realm-wodaly
 
 Create `infra/keycloak/Dockerfile` with the above content and point the Railway service at it.
 
-### 4. Post-import secrets (required — do this immediately after first boot)
+### 4. Post-import steps (required — do these immediately after first boot)
 
-All three clients (`wodalytics-web`, `wodalytics-mobile`, `wodalytics-mcp`) are **public clients with PKCE** — no client secrets to manage. The only post-import secret to configure is the Google identity provider.
+All three clients (`wodalytics-web`, `wodalytics-mobile`, `wodalytics-mcp`) are **public clients with PKCE** — no client secrets to manage.
+
+**User Profile — unmanaged attribute policy (required for custom user attributes):**
+
+Keycloak 26's User Profile silently drops any custom user attribute (`wodalytics_user_id`, `wodalytics_role`) that isn't declared in the realm's UP schema. The realm JSON sets the attribute schema correctly but Keycloak's import path does not apply the `unmanagedAttributePolicy` setting. Set it once via the admin REST API after first boot:
+
+```bash
+# Get an admin token
+ADMIN_TOKEN=$(curl -sf -X POST https://qa.wodalytics.com/auth/realms/master/protocol/openid-connect/token \
+  -d "client_id=admin-cli&grant_type=password&username=admin&password=<KEYCLOAK_ADMIN_PASSWORD>" \
+  | jq -r .access_token)
+
+# Enable unmanaged (custom) attributes
+curl -sf -X PUT \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  https://qa.wodalytics.com/auth/admin/realms/wodalytics/users/profile \
+  -d "$(curl -sf -H "Authorization: Bearer $ADMIN_TOKEN" \
+    https://qa.wodalytics.com/auth/admin/realms/wodalytics/users/profile \
+    | jq '.unmanagedAttributePolicy = "ENABLED"')"
+```
+
+Or set it in the admin console: Realm Settings → User Profile → Unmanaged attributes → **Allow**.
 
 **Google identity provider:**
 Identity Providers → google → Client ID / Client Secret. Set these to the values from the Google Cloud Console OAuth client registered for qa.wodalytics.com.

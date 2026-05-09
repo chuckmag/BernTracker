@@ -13,6 +13,9 @@
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 604800,
   "offlineSessionMaxLifespanEnabled": false,
+  "attributes": {
+    "userProfileConfig": "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}],\"unmanagedAttributePolicy\":\"ENABLED\"}"
+  },
   "clientScopes": [
     {
       "name": "wodalytics-claims",
@@ -95,9 +98,7 @@
         "http://local.wodalytics.com",
         "http://localhost:5173"
       ],
-      "defaultClientScopes": [
-        "web-origins", "acr", "profile", "email", "wodalytics-claims"
-      ],
+      "defaultClientScopes": ["wodalytics-claims"],
       "optionalClientScopes": ["offline_access"]
     },
     {
@@ -115,9 +116,7 @@
         "exp://127.0.0.1:8081"
       ],
       "webOrigins": [],
-      "defaultClientScopes": [
-        "web-origins", "acr", "profile", "email", "wodalytics-claims"
-      ],
+      "defaultClientScopes": ["wodalytics-claims"],
       "optionalClientScopes": ["offline_access"]
     },
     {
@@ -134,9 +133,7 @@
         "http://localhost:*"
       ],
       "webOrigins": ["https://mcp.qa.wodalytics.com"],
-      "defaultClientScopes": [
-        "web-origins", "acr", "profile", "email", "wodalytics-claims"
-      ],
+      "defaultClientScopes": ["wodalytics-claims"],
       "optionalClientScopes": [
         "wodalytics:workouts:read",
         "wodalytics:results:read",

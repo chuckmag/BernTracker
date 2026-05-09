@@ -1,3 +1,5 @@
+name: wodalytics
+
 services:
   proxy:
     image: nginx:alpine
