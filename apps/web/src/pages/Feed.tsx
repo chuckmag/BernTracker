@@ -261,7 +261,12 @@ export default function Feed() {
   const today = new Date()
   const todayKey = toDateKey(today)
 
-  const allWorkouts = [...workouts, ...personalWorkouts]
+  const seenIds = new Set<string>()
+  const allWorkouts = [...workouts, ...personalWorkouts].filter((w) => {
+    if (seenIds.has(w.id)) return false
+    seenIds.add(w.id)
+    return true
+  })
 
   // Future tiles only extend as far as the last day with a workout scheduled.
   // If nothing is planned ahead, the feed ends at today.
