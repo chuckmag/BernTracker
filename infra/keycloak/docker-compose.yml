@@ -1,0 +1,14 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HTTP_PORT: 8080
+      KC_FEATURES: token-exchange
+    volumes:
+      - ./realm-wodalytics.json:/opt/keycloak/data/import/realm-wodalytics.json:ro
+    ports:
+      - "8180:8080"

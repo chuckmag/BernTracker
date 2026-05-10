@@ -81,14 +81,20 @@ KEYCLOAK_ISSUER_URL=https://qa.wodalytics.com/auth/realms/wodalytics
 
 ## Local development
 
-`docker compose up` starts a local Keycloak instance at `http://local.wodalytics.com/auth` with the realm pre-imported.
+`docker compose up` (from this directory) starts a local Keycloak instance at `http://localhost:8180/auth` using an embedded H2 database — no separate Postgres required.
 
-Admin console: `http://local.wodalytics.com/auth/admin` (admin / admin)
+Admin console: `http://localhost:8180/auth/admin` (admin / admin)
 
-The `.env` file needs:
+The `.env` file needs (already present if you copied `.env.example`):
 ```
-KEYCLOAK_ISSUER_URL=http://local.wodalytics.com/auth/realms/wodalytics
+KEYCLOAK_ISSUER_URL=http://localhost:8180/auth/realms/wodalytics
+VITE_KEYCLOAK_URL=http://localhost:8180/auth
 ```
+
+`KEYCLOAK_ISSUER_URL` tells the API where to fetch JWKS and how to validate the `iss` claim.
+`VITE_KEYCLOAK_URL` points the web SPA directly at the local Keycloak container — it bypasses the nginx `/auth` proxy that QA uses, since there is no nginx in the `npm run dev:worktree` workflow.
+
+**Note:** Google sign-in does not work in local dev — the Google IDP credentials are only set on the QA instance. Use email/password login for local testing (create a user in the Keycloak admin console under the `wodalytics` realm → Users → Add user).
 
 ## Realm-as-code
 
