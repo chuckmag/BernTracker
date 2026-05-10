@@ -37,12 +37,20 @@ KC_FEATURES=token-exchange
 
 All three clients (`wodalytics-web`, `wodalytics-mobile`, `wodalytics-mcp`) are **public clients with PKCE** — no client secrets to manage.
 
-**Tighten redirect URIs and web origins (security hardening — remove the dev wildcards):**
+**Realm files — two variants:**
 
-The realm JSON ships with `"*"` in both Valid Redirect URIs and Web Origins for `wodalytics-web`. This lets local development work with any random port (`npm run dev:worktree`) — Keycloak does not support port wildcards, so a bare `*` is the only option. **Remove both `*` entries immediately after the QA import** — leave only the specific QA and local.wodalytics.com entries:
+`realm-wodalytics.json` is the QA/prod source of truth. It only registers specific redirect URIs and origins (`qa.wodalytics.com`, `local.wodalytics.com`, `localhost:5173`). Do not add localhost wildcards here.
 
-- Clients → wodalytics-web → Valid redirect URIs → remove `*` → Save
-- Clients → wodalytics-web → Web origins → remove `*` → Save
+`realm-wodalytics-dev.json` is generated from the prod file with `*` appended to the `wodalytics-web` client's redirect URIs and web origins. This is what `docker-compose.yml` imports locally, so any random `dev:worktree` port is accepted. Keycloak does not support port wildcards so a bare `*` is the only option for local dev.
+
+When making realm changes: edit `realm-wodalytics.json`, then regenerate the dev variant:
+```bash
+cd infra/keycloak
+jq '
+  (.clients[] | select(.clientId == "wodalytics-web") | .redirectUris) += ["*"] |
+  (.clients[] | select(.clientId == "wodalytics-web") | .webOrigins) += ["*"]
+' realm-wodalytics.json > realm-wodalytics-dev.json
+```
 
 **User Profile — unmanaged attribute policy (required for custom user attributes):**
 

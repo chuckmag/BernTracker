@@ -9,6 +9,6 @@ services:
       KC_HTTP_PORT: 8080
       KC_FEATURES: token-exchange
     volumes:
-      - ./realm-wodalytics.json:/opt/keycloak/data/import/realm-wodalytics.json:ro
+      - ./realm-wodalytics-dev.json:/opt/keycloak/data/import/realm-wodalytics.json:ro
     ports:
       - "8180:8080"

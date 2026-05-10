@@ -21,7 +21,10 @@
       "name": "wodalytics-claims",
       "description": "WODalytics user ID and role as JWT claims",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "false", "display.on.consent.screen": "false" },
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
       "protocolMappers": [
         {
           "name": "wodalytics_user_id",
@@ -57,25 +60,37 @@
       "name": "wodalytics:workouts:read",
       "description": "Read workouts and programs the user has access to",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "true" }
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
     },
     {
       "name": "wodalytics:results:read",
       "description": "Read own results and public leaderboards",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "true" }
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
     },
     {
       "name": "wodalytics:results:write",
       "description": "Log results for accessible workouts",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "true" }
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
     },
     {
       "name": "wodalytics:programs:write",
       "description": "Create workouts in personal program",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "true" }
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true"
+      }
     }
   ],
   "clients": [
@@ -87,20 +102,30 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "attributes": { "pkce.code.challenge.method": "S256" },
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
       "redirectUris": [
         "https://qa.wodalytics.com/*",
         "http://local.wodalytics.com/*",
-        "http://localhost:5173/*"
+        "http://localhost:5173/*",
+        "*"
       ],
       "webOrigins": [
         "https://qa.wodalytics.com",
         "http://local.wodalytics.com",
         "http://localhost:5173",
-        "+"
+        "+",
+        "*"
       ],
-      "defaultClientScopes": ["wodalytics-claims", "email", "profile"],
-      "optionalClientScopes": ["offline_access"]
+      "defaultClientScopes": [
+        "wodalytics-claims",
+        "email",
+        "profile"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ]
     },
     {
       "clientId": "wodalytics-mobile",
@@ -110,15 +135,21 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "attributes": { "pkce.code.challenge.method": "S256" },
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
       "redirectUris": [
         "wodalytics://auth/callback",
         "exp://localhost:8081",
         "exp://127.0.0.1:8081"
       ],
       "webOrigins": [],
-      "defaultClientScopes": ["wodalytics-claims"],
-      "optionalClientScopes": ["offline_access"]
+      "defaultClientScopes": [
+        "wodalytics-claims"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ]
     },
     {
       "clientId": "wodalytics-mcp",
@@ -128,14 +159,19 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "attributes": { "pkce.code.challenge.method": "S256" },
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
       "redirectUris": [
         "https://mcp.qa.wodalytics.com/callback",
-        "http://localhost:*",
-        "https://claude.ai/api/mcp/auth_callback"
+        "http://localhost:*"
       ],
-      "webOrigins": ["https://mcp.qa.wodalytics.com", "https://claude.ai"],
-      "defaultClientScopes": ["wodalytics-claims"],
+      "webOrigins": [
+        "https://mcp.qa.wodalytics.com"
+      ],
+      "defaultClientScopes": [
+        "wodalytics-claims"
+      ],
       "optionalClientScopes": [
         "wodalytics:workouts:read",
         "wodalytics:results:read",
