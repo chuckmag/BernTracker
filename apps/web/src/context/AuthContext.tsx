@@ -26,13 +26,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     keycloak
       .init({
-        onLoad: 'check-sso',
-        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
         pkceMethod: 'S256',
-        // The login iframe check uses third-party cookies to detect session
-        // expiry. Chrome blocks cross-origin postMessage between different
-        // localhost ports, causing timeouts. Disable it — token expiry is
-        // caught by updateToken() in apiFetch instead.
+        // check-sso creates a hidden iframe to Keycloak's auth endpoint.
+        // Keycloak's own JS in that iframe tries its own cross-origin iframe
+        // check, which times out (Chrome blocks it), blocking the redirect to
+        // silent-check-sso.html. Without onLoad, keycloak-js still handles the
+        // post-login ?code= exchange and restores sessions from sessionStorage.
         checkLoginIframe: false,
       })
       .then(async (authenticated) => {
