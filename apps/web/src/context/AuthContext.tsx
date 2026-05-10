@@ -9,6 +9,7 @@ interface AuthState {
   isLoading: boolean
   login: () => void
   loginWithGoogle: () => void
+  register: () => void
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
 }
@@ -47,12 +48,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setIsLoading(false))
   }, [])
 
+  const postLoginUri = window.location.origin + '/'
+
   function login() {
-    keycloak.login()
+    keycloak.login({ redirectUri: postLoginUri })
   }
 
   function loginWithGoogle() {
-    keycloak.login({ idpHint: 'google' })
+    keycloak.login({ idpHint: 'google', redirectUri: postLoginUri })
+  }
+
+  function register() {
+    keycloak.register({ redirectUri: postLoginUri })
   }
 
   async function logout() {
@@ -70,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
