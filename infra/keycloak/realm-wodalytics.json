@@ -98,7 +98,7 @@
         "https://qa.wodalytics.com",
         "http://local.wodalytics.com",
         "http://localhost:5173",
-        "+"
+        "*"
       ],
       "defaultClientScopes": ["wodalytics-claims", "email", "profile"],
       "optionalClientScopes": ["offline_access"]
