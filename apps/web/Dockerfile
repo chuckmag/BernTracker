@@ -31,7 +31,7 @@ ENV API_INTERNAL_PORT=3000
 # which reads /etc/resolv.conf at startup and exports NGINX_LOCAL_RESOLVERS.
 # Lets the same template work on local Docker (127.0.0.11) and Railway (Railway's resolver).
 ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
-ENV NGINX_ENVSUBST_FILTER='^(PORT|API_INTERNAL_HOST|API_INTERNAL_PORT|NGINX_LOCAL_RESOLVERS)$'
+ENV NGINX_ENVSUBST_FILTER='^(PORT|API_INTERNAL_HOST|API_INTERNAL_PORT|NGINX_LOCAL_RESOLVERS|KEYCLOAK_INTERNAL_HOST|KEYCLOAK_INTERNAL_PORT)$'
 
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/nginx.conf.template /etc/nginx/templates/default.conf.template
