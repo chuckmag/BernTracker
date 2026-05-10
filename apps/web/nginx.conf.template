@@ -38,6 +38,40 @@ server {
         proxy_busy_buffers_size 256k;
     }
 
+    # Upstream health probes — hit /health/api or /health/auth to check
+    # whether nginx can reach each upstream. Returns 200 + the upstream's own
+    # response on success; 503 + JSON on connection failure or timeout so you
+    # know which leg is down without inspecting nginx error logs.
+    location = /health/api {
+        set $api_backend "${API_INTERNAL_HOST}:${API_INTERNAL_PORT}";
+        rewrite ^ /api/health break;
+        proxy_pass http://$api_backend;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 5s;
+        proxy_intercept_errors on;
+        error_page 502 503 504 =503 @api_down;
+        access_log off;
+    }
+    location @api_down {
+        default_type application/json;
+        return 503 '{"status":"down","upstream":"api"}';
+    }
+
+    location = /health/auth {
+        set $keycloak_backend "${KEYCLOAK_INTERNAL_HOST}:${KEYCLOAK_INTERNAL_PORT}";
+        rewrite ^ /auth/realms/wodalytics break;
+        proxy_pass http://$keycloak_backend;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 5s;
+        proxy_intercept_errors on;
+        error_page 502 503 504 =503 @auth_down;
+        access_log off;
+    }
+    location @auth_down {
+        default_type application/json;
+        return 503 '{"status":"down","upstream":"auth"}';
+    }
+
     # Everything else: SPA fallback to index.html for React Router.
     location / {
         try_files $uri $uri/ /index.html;
