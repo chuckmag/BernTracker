@@ -68,6 +68,12 @@ Or set it in the admin console: Realm Settings → User Profile → Unmanaged at
 **Google identity provider:**
 Identity Providers → google → Client ID / Client Secret. Set these to the values from the Google Cloud Console OAuth client registered for qa.wodalytics.com.
 
+Also add the Keycloak broker callback to the Google Cloud Console's **Authorized redirect URIs** for that client:
+```
+https://qa.wodalytics.com/auth/realms/wodalytics/broker/google/endpoint
+```
+(The Google OAuth flow goes: SPA → Keycloak → Google → back to Keycloak at this URI → back to SPA. Google must know about the Keycloak leg.)
+
 ### 4. Nginx wiring
 
 The web app's `nginx.conf.template` already contains the `/auth/` proxy block (added in this PR). Set these Railway env vars on the **web service** so nginx can resolve Keycloak:
