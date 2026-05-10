@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { accessToken, isLoading } = useAuth()
+  const { user, isLoading } = useAuth()
 
   if (isLoading) {
     return (
@@ -12,7 +12,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     )
   }
 
-  if (!accessToken) {
+  if (!user) {
     return <Navigate to="/login" replace />
   }
 

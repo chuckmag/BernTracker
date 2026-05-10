@@ -17,9 +17,8 @@ const mockAuth = {
     identifiedGender: null,
     isWodalyticsAdmin: false,
   },
-  accessToken: 'tok',
   isLoading: false,
-  login: vi.fn(),
+  refreshUser: vi.fn(),
   logout: vi.fn(),
 }
 
@@ -66,7 +65,7 @@ import { api } from '../lib/api'
 beforeEach(() => {
   vi.clearAllMocks()
   mockAuth.user.avatarUrl = null
-  vi.mocked(api.auth.me).mockResolvedValue({ ...mockAuth.user, avatarUrl: '/uploads/avatars/u1/x.webp' })
+  mockAuth.refreshUser.mockResolvedValue(undefined)
   // jsdom doesn't ship a real Object URL implementation; stub it.
   if (typeof URL.createObjectURL !== 'function') {
     URL.createObjectURL = vi.fn(() => 'blob:mock')
@@ -107,7 +106,7 @@ describe('AvatarUploader', () => {
     await user.upload(input, file)
     await user.click(await screen.findByRole('button', { name: /Save photo/ }))
     await waitFor(() => expect(api.users.me.avatar.upload).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(api.auth.me).toHaveBeenCalled())
+    await waitFor(() => expect(mockAuth.refreshUser).toHaveBeenCalled())
   })
 
   it('rejects files larger than 20MB inline (no cropper, no API call)', async () => {
@@ -139,6 +138,6 @@ describe('AvatarUploader', () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /Remove/ }))
     await waitFor(() => expect(api.users.me.avatar.remove).toHaveBeenCalled())
-    await waitFor(() => expect(api.auth.me).toHaveBeenCalled())
+    await waitFor(() => expect(mockAuth.refreshUser).toHaveBeenCalled())
   })
 })

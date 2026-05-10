@@ -1,69 +1,72 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { api, setUnauthorizedHandler, setAccessToken as setApiToken, type AuthUser } from '../lib/api'
+import keycloak from '../lib/keycloak'
+import { api, type AuthUser } from '../lib/api'
 
 export type { IdentifiedGender } from '../lib/api'
 
 interface AuthState {
   user: AuthUser | null
-  accessToken: string | null
   isLoading: boolean
-  login: (token: string, user: AuthUser) => void
+  login: () => void
+  loginWithGoogle: () => void
   logout: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-
-  const didFetch = useRef(false)
-
-  useEffect(() => {
-    setUnauthorizedHandler(() => {
-      setApiToken(null)
-      setAccessToken(null)
-      setUser(null)
-      window.location.replace('/login')
-    })
-  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  const didInit = useRef(false)
 
   useEffect(() => {
-    if (didFetch.current) return
-    didFetch.current = true
+    if (didInit.current) return
+    didInit.current = true
 
-    api.auth.refresh()
-      .then(async (refreshed) => {
-        if (!refreshed) return
-        setAccessToken(refreshed.accessToken)
-        setApiToken(refreshed.accessToken)
-        try {
-          const me = await api.auth.me(refreshed.accessToken)
-          setUser(me)
-        } catch {
-          // me failed — treat as unauthenticated; unauthorized handler will redirect if needed
+    keycloak
+      .init({
+        onLoad: 'check-sso',
+        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+        pkceMethod: 'S256',
+      })
+      .then(async (authenticated) => {
+        if (authenticated) {
+          try {
+            const me = await api.auth.me()
+            setUser(me)
+          } catch {
+            // me failed — treat as unauthenticated
+          }
         }
       })
       .finally(() => setIsLoading(false))
   }, [])
 
-  function login(token: string, u: AuthUser) {
-    setAccessToken(token)
-    setApiToken(token)
-    setUser(u)
+  function login() {
+    keycloak.login()
+  }
+
+  function loginWithGoogle() {
+    keycloak.login({ idpHint: 'google' })
   }
 
   async function logout() {
-    await api.auth.logout().catch(() => {})
-    setAccessToken(null)
-    setApiToken(null)
-    setUser(null)
     localStorage.removeItem('gymId')
+    await keycloak.logout({ redirectUri: window.location.origin + '/login' })
+  }
+
+  async function refreshUser() {
+    try {
+      const me = await api.auth.me()
+      setUser(me)
+    } catch {
+      // best-effort
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
