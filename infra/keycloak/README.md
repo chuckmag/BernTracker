@@ -37,11 +37,12 @@ KC_FEATURES=token-exchange
 
 All three clients (`wodalytics-web`, `wodalytics-mobile`, `wodalytics-mcp`) are **public clients with PKCE** — no client secrets to manage.
 
-**Tighten redirect URIs (security hardening — remove the dev wildcard):**
+**Tighten redirect URIs and web origins (security hardening — remove the dev wildcards):**
 
-The realm JSON ships with `"*"` in `wodalytics-web`'s Valid Redirect URIs so that local development with random ports (e.g. `npm run dev:worktree`) works without listing every possible port (Keycloak does not support port wildcards). **Remove `*` immediately after the QA import** — leave only the specific QA and local.wodalytics.com entries:
+The realm JSON ships with `"*"` in both Valid Redirect URIs and Web Origins for `wodalytics-web`. This lets local development work with any random port (`npm run dev:worktree`) — Keycloak does not support port wildcards, so a bare `*` is the only option. **Remove both `*` entries immediately after the QA import** — leave only the specific QA and local.wodalytics.com entries:
 
-Clients → wodalytics-web → Valid redirect URIs → remove `*` → Save.
+- Clients → wodalytics-web → Valid redirect URIs → remove `*` → Save
+- Clients → wodalytics-web → Web origins → remove `*` → Save
 
 **User Profile — unmanaged attribute policy (required for custom user attributes):**
 
