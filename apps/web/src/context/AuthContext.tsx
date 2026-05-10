@@ -29,6 +29,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         onLoad: 'check-sso',
         silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
         pkceMethod: 'S256',
+        // The login iframe check uses third-party cookies to detect session
+        // expiry. Chrome blocks cross-origin postMessage between different
+        // localhost ports, causing timeouts. Disable it — token expiry is
+        // caught by updateToken() in apiFetch instead.
+        checkLoginIframe: false,
       })
       .then(async (authenticated) => {
         if (authenticated) {
