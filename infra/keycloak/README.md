@@ -15,7 +15,7 @@ In the Railway project, add a new service connected to this GitHub repo. Configu
 - **Root Directory:** `infra/keycloak`
 - **Dockerfile Path:** `Dockerfile`
 
-Setting Root Directory to `infra/keycloak` scopes the build context to that subdirectory, so the `COPY realm-wodalytics.json` in the Dockerfile resolves correctly. Railway builds the image using `infra/keycloak/Dockerfile`, which copies the realm JSON into the Keycloak image so it auto-imports on first boot.
+Setting Root Directory to `infra/keycloak` scopes the build context to that subdirectory, so the `COPY realm-wodalytics.json` in the Dockerfile resolves correctly. The Dockerfile's `CMD ["start", "--import-realm"]` handles the start command — leave the Railway start command field empty.
 
 Set the following environment variables on the service in Railway:
 
@@ -31,12 +31,6 @@ KC_HTTP_RELATIVE_PATH=/auth
 KC_HTTP_ENABLED=true
 KC_PROXY=edge
 KC_FEATURES=token-exchange
-```
-
-Start command:
-
-```
-start --import-realm
 ```
 
 ### 3. Post-import steps (required — do these immediately after first boot)
