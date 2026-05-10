@@ -120,8 +120,7 @@ function setUser(identifiedGender: 'MALE' | 'FEMALE' | 'NON_BINARY' | 'PREFER_NO
   ;(useAuth as jest.Mock).mockReturnValue({
     user: { id: 'me', email: 'me@gym.com', name: 'Me', identifiedGender },
     isLoading: false,
-    login: jest.fn(),
-    loginWithGoogle: jest.fn(),
+    loginWithTokens: jest.fn(),
     logout: jest.fn(),
   })
 }

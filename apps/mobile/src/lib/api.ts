@@ -6,6 +6,7 @@ import type {
   WorkoutGender,
   WorkoutLevel,
 } from '@wodalytics/types'
+import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
 export type { AgeDivision, IdentifiedGender, ResultValue, WorkoutGender, WorkoutLevel }
 export { AGE_DIVISIONS, deriveWorkoutGender, getAgeDivision } from '@wodalytics/types'
@@ -415,18 +416,22 @@ async function request<T>(
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers })
 
   if (res.status === 401 && retry) {
-    // Attempt token refresh
+    // Attempt Keycloak token refresh
     const { refreshToken } = await getStoredTokens()
     if (refreshToken) {
-      const refreshRes = await fetch(`${BASE_URL}/api/auth/refresh`, {
+      const refreshRes = await fetch(discovery.tokenEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: KEYCLOAK_CLIENT_ID,
+          refresh_token: refreshToken,
+        }).toString(),
       })
       if (refreshRes.ok) {
         const data = await refreshRes.json()
-        _accessToken = data.accessToken
-        await storeTokens(data.accessToken, refreshToken)
+        _accessToken = data.access_token
+        await storeTokens(data.access_token, data.refresh_token ?? refreshToken)
         return request<T>(path, options, false)
       }
     }
@@ -449,12 +454,6 @@ async function request<T>(
 
 export const api = {
   auth: {
-    login: (email: string, password: string) =>
-      request<{ accessToken: string; refreshToken: string; user: AuthUser }>('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }),
-
     me: () =>
       request<AuthUser>('/api/auth/me'),
   },

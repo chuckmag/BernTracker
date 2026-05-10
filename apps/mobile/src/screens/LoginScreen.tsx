@@ -1,124 +1,103 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from 'react-native'
-import * as Linking from 'expo-linking'
+import * as AuthSession from 'expo-auth-session'
 import * as WebBrowser from 'expo-web-browser'
 import { useAuth } from '../context/AuthContext'
+import { discovery, CLIENT_ID } from '../lib/keycloak'
 
 WebBrowser.maybeCompleteAuthSession()
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://qa.wodalytics.com'
+const redirectUri = AuthSession.makeRedirectUri({ scheme: 'com.wodalytics.app' })
+
+const BASE_CONFIG = {
+  clientId: CLIENT_ID,
+  scopes: ['openid'],
+  redirectUri,
+  usePKCE: true,
+}
 
 export default function LoginScreen() {
-  const { login, loginWithGoogle } = useAuth()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const { loginWithTokens } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // Server-side Google OAuth flow.
-  //
-  // Google only ever sees `${API_URL}/api/auth/google/callback` as the redirect
-  // URI — that's the one registered in Google Cloud Console for the web client.
-  // The mobile app never appears in the OAuth handshake; the API does the code
-  // exchange and then redirects to our app scheme with tokens as query params.
-  // WebBrowser.openAuthSessionAsync intercepts that redirect and returns the URL.
+  // Two separate requests: same PKCE config, Google variant adds kc_idp_hint
+  // so Keycloak skips its login form and goes straight to Google.
+  const [requestStd, responseStd, promptStandard] = AuthSession.useAuthRequest(BASE_CONFIG, discovery)
+  const [requestGoogle, responseGoogle, promptGoogle] = AuthSession.useAuthRequest(
+    { ...BASE_CONFIG, extraParams: { kc_idp_hint: 'google' } },
+    discovery,
+  )
+
+  async function handleResponse(
+    response: AuthSession.AuthSessionResult | null,
+    request: AuthSession.AuthRequest | null,
+  ) {
+    if (!response) return
+    if (response.type === 'error') {
+      setError(response.error?.description ?? 'Authentication failed.')
+      setLoading(false)
+      return
+    }
+    if (response.type === 'cancel' || response.type === 'dismiss') {
+      setLoading(false)
+      return
+    }
+    if (response.type !== 'success') return
+
+    try {
+      const tokenRes = await AuthSession.exchangeCodeAsync(
+        {
+          clientId: CLIENT_ID,
+          redirectUri,
+          code: response.params.code,
+          extraParams: { code_verifier: request!.codeVerifier! },
+        },
+        discovery,
+      )
+      await loginWithTokens(tokenRes.accessToken, tokenRes.refreshToken!)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sign in failed')
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { handleResponse(responseStd, requestStd) }, [responseStd])
+  useEffect(() => { handleResponse(responseGoogle, requestGoogle) }, [responseGoogle])
+
+  async function handleSignIn() {
+    setError(null)
+    setLoading(true)
+    await promptStandard()
+  }
+
   async function handleGoogleSignIn() {
     setError(null)
     setLoading(true)
-    try {
-      const redirectUrl = Linking.createURL('/auth-callback')
-      const authUrl = `${API_URL}/api/auth/google?mobile_redirect=${encodeURIComponent(redirectUrl)}`
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl)
-
-      if (result.type === 'cancel' || result.type === 'dismiss') return
-      if (result.type !== 'success' || !result.url) {
-        setError('Google sign-in failed. Please try again.')
-        return
-      }
-
-      const { queryParams } = Linking.parse(result.url)
-      const errorCode = typeof queryParams?.error === 'string' ? queryParams.error : null
-      if (errorCode) {
-        setError(`Google sign-in failed (${errorCode}). Check API logs.`)
-        return
-      }
-
-      const accessToken = typeof queryParams?.token === 'string' ? queryParams.token : null
-      const refreshToken = typeof queryParams?.refreshToken === 'string' ? queryParams.refreshToken : null
-      if (!accessToken || !refreshToken) {
-        setError('Google sign-in failed — no tokens returned.')
-        return
-      }
-
-      await loginWithGoogle(accessToken, refreshToken)
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Google sign-in failed')
-    } finally {
-      setLoading(false)
-    }
+    await promptGoogle()
   }
 
-  async function handleLogin() {
-    if (!email.trim() || !password) {
-      setError('Email and password are required.')
-      return
-    }
-    setError(null)
-    setLoading(true)
-    try {
-      await login(email.trim(), password)
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Login failed'
-      setError(msg === 'Unauthorized' ? 'Invalid email or password.' : msg)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const ready = !!requestStd && !!requestGoogle
+  const disabled = loading || !ready
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.container}>
       <View style={styles.inner}>
         <Text style={styles.logo}>WODalytics</Text>
         <Text style={styles.subtitle}>Sign in to your gym</Text>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#6b7280"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#6b7280"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          onSubmitEditing={handleLogin}
-          returnKeyType="go"
-        />
-
         <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={loading}
+          style={[styles.button, disabled && styles.buttonDisabled]}
+          onPress={handleSignIn}
+          disabled={disabled}
         >
           {loading
             ? <ActivityIndicator color="#fff" />
@@ -133,14 +112,14 @@ export default function LoginScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.googleButton, loading && styles.buttonDisabled]}
+          style={[styles.googleButton, disabled && styles.buttonDisabled]}
           onPress={handleGoogleSignIn}
-          disabled={loading}
+          disabled={disabled}
         >
           <Text style={styles.googleButtonText}>Sign in with Google</Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   )
 }
 
@@ -172,17 +151,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 12,
     textAlign: 'center',
-  },
-  input: {
-    backgroundColor: '#111827',
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#ffffff',
-    marginBottom: 12,
   },
   button: {
     backgroundColor: '#4f46e5',
