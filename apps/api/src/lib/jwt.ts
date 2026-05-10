@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import jwt from 'jsonwebtoken'
+import { createRemoteJWKSet, jwtVerify } from 'jose'
 import type { Role } from '@wodalytics/db'
 
 const ACCESS_EXPIRY = '15m'
@@ -37,4 +38,47 @@ export function verifyAccessToken(token: string): { sub: string; role: Role } {
 export function verifyRefreshToken(token: string): { sub: string; role: Role } {
   const payload = jwt.verify(token, secret('JWT_REFRESH_SECRET')) as { sub: string; role: Role }
   return { sub: payload.sub, role: payload.role }
+}
+
+// Decode the `iss` claim without verification — used to route to the correct
+// verifier without a second full parse. Malformed tokens return undefined.
+export function getTokenIssuer(token: string): string | undefined {
+  try {
+    const decoded = jwt.decode(token) as { iss?: string } | null
+    return decoded?.iss
+  } catch {
+    return undefined
+  }
+}
+
+// Lazily initialized so the module loads without KEYCLOAK_ISSUER_URL set
+// (e.g. integration tests that only exercise the legacy JWT path).
+let _keycloakJWKS: ReturnType<typeof createRemoteJWKSet> | null = null
+
+function keycloakIssuer(): string {
+  const url = process.env.KEYCLOAK_ISSUER_URL
+  if (!url) throw new Error('Missing env var: KEYCLOAK_ISSUER_URL')
+  return url
+}
+
+function keycloakJWKS(): ReturnType<typeof createRemoteJWKSet> {
+  if (!_keycloakJWKS) {
+    _keycloakJWKS = createRemoteJWKSet(
+      new URL(`${keycloakIssuer()}/protocol/openid-connect/certs`),
+    )
+  }
+  return _keycloakJWKS
+}
+
+export async function verifyKeycloakToken(token: string): Promise<{ userId: string; role: Role }> {
+  const { payload } = await jwtVerify(token, keycloakJWKS(), {
+    issuer: keycloakIssuer(),
+    algorithms: ['RS256'],
+  })
+  const userId = payload['wodalytics_user_id']
+  const role = payload['wodalytics_role']
+  if (typeof userId !== 'string' || typeof role !== 'string') {
+    throw new Error('Keycloak token missing wodalytics_user_id or wodalytics_role claims')
+  }
+  return { userId, role: role as Role }
 }

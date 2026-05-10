@@ -1,12 +1,18 @@
 import type { Request, Response, NextFunction } from 'express'
 import type { Role } from '@wodalytics/db'
 import { prisma } from '@wodalytics/db'
-import { verifyAccessToken } from '../lib/jwt.js'
+import { verifyAccessToken, verifyKeycloakToken, getTokenIssuer } from '../lib/jwt.js'
 import { createLogger } from '../lib/logger.js'
 
 const log = createLogger('auth')
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+// Dual-validation window: accepts both Keycloak-issued tokens (RS256, verified
+// via JWKS) and legacy WODalytics tokens (HS256, verified via JWT_SECRET).
+// Issuer is read from the unverified token payload to pick the correct path —
+// an attacker cannot spoof this to downgrade to the weaker path because each
+// verifier independently checks the signature with its own key material.
+// Remove the legacy branch once web + mobile have migrated to Keycloak (#328).
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization
   if (!header?.startsWith('Bearer ')) {
     log.warning(req, `requireAuth: missing or malformed Authorization header — ${req.method} ${req.path}`)
@@ -15,8 +21,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
   const token = header.slice(7)
   try {
-    const { sub, role } = verifyAccessToken(token)
-    req.user = { id: sub, role }
+    const iss = getTokenIssuer(token)
+    if (iss === process.env.KEYCLOAK_ISSUER_URL) {
+      const { userId, role } = await verifyKeycloakToken(token)
+      req.user = { id: userId, role }
+    } else {
+      const { sub, role } = verifyAccessToken(token)
+      req.user = { id: sub, role }
+    }
     next()
   } catch (err) {
     log.warning(req, `requireAuth: token verification failed — ${req.method} ${req.path}`, err instanceof Error ? err.message : err)
