@@ -10,13 +10,14 @@ In the Railway project, add a new Postgres service named `wodalytics-auth-db`. K
 
 ### 2. Create the Keycloak service
 
-In the Railway project, add a new service from a Docker image:
+In the Railway project, add a new service connected to this GitHub repo. Configure the service settings:
 
-```
-Image: quay.io/keycloak/keycloak:26.2
-```
+- **Root Directory:** `infra/keycloak`
+- **Dockerfile Path:** `Dockerfile`
 
-Set the following environment variables in Railway:
+Setting Root Directory to `infra/keycloak` scopes the build context to that subdirectory, so the `COPY realm-wodalytics.json` in the Dockerfile resolves correctly. The Dockerfile's `CMD ["start", "--import-realm"]` handles the start command — leave the Railway start command field empty.
+
+Set the following environment variables on the service in Railway:
 
 ```
 KEYCLOAK_ADMIN=admin
@@ -32,27 +33,7 @@ KC_PROXY=edge
 KC_FEATURES=token-exchange
 ```
 
-Start command (import realm on first boot, then start):
-
-```
-start --import-realm
-```
-
-Mount `infra/keycloak/realm-wodalytics.json` as `/opt/keycloak/data/import/realm-wodalytics.json`.
-On Railway this requires a volume mount or building a custom Docker image — see step 4.
-
-### 3. Custom Docker image (recommended for realm import)
-
-Because Railway doesn't support arbitrary volume mounts from the repo, build a thin image that embeds the realm JSON:
-
-```dockerfile
-FROM quay.io/keycloak/keycloak:26.2
-COPY infra/keycloak/realm-wodalytics.json /opt/keycloak/data/import/realm-wodalytics.json
-```
-
-Create `infra/keycloak/Dockerfile` with the above content and point the Railway service at it.
-
-### 4. Post-import steps (required — do these immediately after first boot)
+### 3. Post-import steps (required — do these immediately after first boot)
 
 All three clients (`wodalytics-web`, `wodalytics-mobile`, `wodalytics-mcp`) are **public clients with PKCE** — no client secrets to manage.
 
@@ -81,7 +62,7 @@ Or set it in the admin console: Realm Settings → User Profile → Unmanaged at
 **Google identity provider:**
 Identity Providers → google → Client ID / Client Secret. Set these to the values from the Google Cloud Console OAuth client registered for qa.wodalytics.com.
 
-### 5. Nginx wiring
+### 4. Nginx wiring
 
 The web app's `nginx.conf.template` already contains the `/auth/` proxy block (added in this PR). Set these Railway env vars on the **web service** so nginx can resolve Keycloak:
 
@@ -90,7 +71,7 @@ KEYCLOAK_INTERNAL_HOST=<keycloak-railway-private-domain>
 KEYCLOAK_INTERNAL_PORT=8080
 ```
 
-### 6. API env var
+### 5. API env var
 
 Set on the **api service** in Railway:
 
