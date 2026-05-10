@@ -22,7 +22,8 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const token = header.slice(7)
   try {
     const iss = getTokenIssuer(token)
-    if (iss === process.env.KEYCLOAK_ISSUER_URL) {
+    const keycloakIssuerUrl = process.env.KEYCLOAK_ISSUER_URL
+    if (keycloakIssuerUrl && iss === keycloakIssuerUrl) {
       const { userId, role } = await verifyKeycloakToken(token)
       req.user = { id: userId, role }
     } else {
