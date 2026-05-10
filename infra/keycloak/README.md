@@ -37,6 +37,12 @@ KC_FEATURES=token-exchange
 
 All three clients (`wodalytics-web`, `wodalytics-mobile`, `wodalytics-mcp`) are **public clients with PKCE** — no client secrets to manage.
 
+**Tighten redirect URIs (security hardening — remove the dev wildcard):**
+
+The realm JSON ships with `"*"` in `wodalytics-web`'s Valid Redirect URIs so that local development with random ports (e.g. `npm run dev:worktree`) works without listing every possible port (Keycloak does not support port wildcards). **Remove `*` immediately after the QA import** — leave only the specific QA and local.wodalytics.com entries:
+
+Clients → wodalytics-web → Valid redirect URIs → remove `*` → Save.
+
 **User Profile — unmanaged attribute policy (required for custom user attributes):**
 
 Keycloak 26's User Profile silently drops any custom user attribute (`wodalytics_user_id`, `wodalytics_role`) that isn't declared in the realm's UP schema. The realm JSON sets the attribute schema correctly but Keycloak's import path does not apply the `unmanagedAttributePolicy` setting. Set it once via the admin REST API after first boot:

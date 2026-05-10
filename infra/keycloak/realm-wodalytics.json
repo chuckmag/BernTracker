@@ -91,11 +91,13 @@
       "redirectUris": [
         "https://qa.wodalytics.com/*",
         "http://local.wodalytics.com/*",
-        "http://localhost:*/*"
+        "http://localhost:5173/*",
+        "*"
       ],
       "webOrigins": [
         "https://qa.wodalytics.com",
         "http://local.wodalytics.com",
+        "http://localhost:5173",
         "+"
       ],
       "defaultClientScopes": ["wodalytics-claims", "email", "profile"],
