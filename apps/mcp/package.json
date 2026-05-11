@@ -7,7 +7,8 @@
     "dev": "node --import tsx/esm src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "NODE_OPTIONS='--conditions=source' npx dotenv-cli -e ../../.env -- npx tsx tests/scaffold.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

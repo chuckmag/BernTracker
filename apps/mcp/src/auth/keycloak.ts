@@ -17,6 +17,11 @@ function jwks(): ReturnType<typeof createRemoteJWKSet> {
   return _jwks
 }
 
+/** Reset the cached JWKS getter — for use in tests only. */
+export function resetJwksCache(): void {
+  _jwks = null
+}
+
 export async function requireKeycloakAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization
   if (!header?.startsWith('Bearer ')) {
