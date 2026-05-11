@@ -1,0 +1,27 @@
+{
+  "name": "@wodalytics/mcp",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx/esm src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "tsc --noEmit",
+    "test": "NODE_OPTIONS='--conditions=source' npx dotenv-cli -e ../../.env -- npx tsx tests/scaffold.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@wodalytics/db": "*",
+    "@wodalytics/types": "*",
+    "express": "^4.21.2",
+    "jose": "^6.2.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

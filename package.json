@@ -12,6 +12,7 @@
     "dev:jobs": "cd apps/api && npm run job",
     "dev:web": "cd apps/web && npm run dev",
     "dev:mobile": "cd apps/mobile && npm run dev",
+    "dev:mcp": "cd apps/mcp && npm run dev",
     "dev:worktree": "node scripts/dev-worktree.mjs",
     "dev:worktree:stop": "node scripts/stop-worktree.mjs",
     "setup:worktree": "node scripts/setup-worktree.mjs",
