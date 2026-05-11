@@ -35,7 +35,7 @@ This is the fastest feedback loop — no Keycloak, no deployed service, no token
    {
      "mcpServers": {
        "wodalytics": {
-         "command": "node",
+         "command": "/opt/homebrew/bin/node",
          "args": [
            "/path/to/repo/apps/mcp/dist/index.js",
            "--stdio"
@@ -48,6 +48,8 @@ This is the fastest feedback loop — no Keycloak, no deployed service, no token
    }
    ```
    Replace `/path/to/repo` with the absolute path to your checkout (or worktree). If working in a worktree the path will be `.claude/worktrees/<branch>/apps/mcp/dist/index.js`.
+
+   > **Use the full path to `node`** — Claude Desktop is a macOS GUI app and launches processes with a restricted `PATH` that excludes Homebrew (`/opt/homebrew/bin`). Using `"command": "node"` results in a *"Could not load connectors directory"* error. Verify your node path with `which node` if it differs from `/opt/homebrew/bin/node`.
 
 3. Restart Claude Desktop — MCP servers only initialize on launch.
 
