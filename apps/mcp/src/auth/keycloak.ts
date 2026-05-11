@@ -22,7 +22,7 @@ export function resetJwksCache(): void {
   _jwks = null
 }
 
-export async function requireKeycloakAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization
   if (!header?.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Unauthorized' })
