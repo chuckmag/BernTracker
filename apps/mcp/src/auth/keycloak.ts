@@ -22,10 +22,14 @@ export function resetJwksCache(): void {
   _jwks = null
 }
 
+function unauthorized(res: Response): void {
+  res.set('WWW-Authenticate', 'Bearer').status(401).json({ error: 'Unauthorized' })
+}
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization
   if (!header?.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Unauthorized' })
+    unauthorized(res)
     return
   }
   const token = header.slice(7)
@@ -37,12 +41,12 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const userId = payload['wodalytics_user_id']
     const role = payload['wodalytics_role']
     if (typeof userId !== 'string' || typeof role !== 'string') {
-      res.status(401).json({ error: 'Unauthorized' })
+      unauthorized(res)
       return
     }
     req.user = { id: userId, role: role as Role }
     next()
   } catch {
-    res.status(401).json({ error: 'Unauthorized' })
+    unauthorized(res)
   }
 }
