@@ -130,9 +130,10 @@
       "attributes": { "pkce.code.challenge.method": "S256" },
       "redirectUris": [
         "https://mcp.qa.wodalytics.com/callback",
-        "http://localhost:*"
+        "http://localhost:*",
+        "https://claude.ai/api/mcp/auth_callback"
       ],
-      "webOrigins": ["https://mcp.qa.wodalytics.com"],
+      "webOrigins": ["https://mcp.qa.wodalytics.com", "https://claude.ai"],
       "defaultClientScopes": ["wodalytics-claims"],
       "optionalClientScopes": [
         "wodalytics:workouts:read",
