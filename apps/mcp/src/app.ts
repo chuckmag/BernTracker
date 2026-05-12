@@ -3,10 +3,12 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import { requireAuth } from './auth/keycloak.js'
 import { createMcpServer } from './server.js'
+import { requestLogger } from './middleware/requestLogger.js'
 
 export function createApp(): express.Express {
   const app = express()
   app.use(express.json())
+  app.use(requestLogger)
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' })
