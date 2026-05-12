@@ -217,7 +217,8 @@
         "wodalytics:results:write",
         "wodalytics:programs:write",
         "offline_access"
-      ]
+      ],
+      "logoUri": "https://claude.ai/favicon.ico"
     }
   ],
   "identityProviders": [

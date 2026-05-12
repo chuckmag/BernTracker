@@ -194,94 +194,89 @@ body {
 
 /* OAuth grant consent page */
 .grant-card {
-  max-width: 448px;
-  padding: 2rem 2.5rem 2.5rem;
+  max-width: 420px;
+  padding: 2rem;
 }
 
-/* Logo row — spans are inline so they flow horizontally even without flex support */
-.grant-logos {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  white-space: nowrap;
+/* Logo row — higher specificity (div.grant-logos) overrides any injected display:block */
+div.grant-logos {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.875rem;
+  margin-bottom: 1.75rem;
 }
 
 .grant-logo-bubble {
-  display: inline-flex;
-  vertical-align: middle;
   width: 52px;
   height: 52px;
   border-radius: 50%;
+  display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .grant-logo-bubble--client {
   background-color: var(--color-bg-page);
   color: var(--color-text-muted);
-  border: 1.5px solid var(--color-border-subtle);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .grant-logo-bubble--wodalytics {
   background-color: var(--color-primary);
-  color: #ffffff;
+  border: none;
 }
 
 .grant-logo-img {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
+  border-radius: 0;
 }
 
-.grant-logo-connector {
-  display: inline-flex;
-  vertical-align: middle;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
+.grant-logo-arrow {
   color: var(--color-border-input);
-  margin: 0 0.25rem;
+  display: flex;
+  align-items: center;
 }
 
 .grant-title {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 400;
   color: var(--color-text-heading);
   text-align: center;
-  line-height: 1.6;
+  line-height: 1.55;
   margin-bottom: 1.5rem;
 }
 
-.grant-client-name {
-  font-weight: 600;
-}
-
-/* Scope permission list */
-.scope-list {
+/* Scope permission list — higher specificity (ul.scope-list) to beat any injected list styles */
+ul.scope-list {
   list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
   border: 1px solid var(--color-border-subtle);
   border-radius: 0.5rem;
-  margin-bottom: 1.5rem;
   overflow: hidden;
 }
 
-.scope-item {
+ul.scope-list li.scope-item {
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.6875rem 0.875rem;
   font-size: 0.875rem;
   color: var(--color-text-input);
   border-bottom: 1px solid var(--color-border-subtle);
-  line-height: 1.4;
+  list-style: none;
 }
 
-.scope-item:last-child { border-bottom: none; }
+ul.scope-list li.scope-item:last-child { border-bottom: none; }
 
 .scope-check {
   flex-shrink: 0;
-  margin-top: 0.125rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -290,18 +285,19 @@ body {
 }
 
 /* Side-by-side Deny / Allow buttons */
-.grant-actions {
+form.grant-actions {
   display: flex;
+  flex-direction: row;
   gap: 0.75rem;
 }
 
-.grant-actions .btn {
-  display: block;
+form.grant-actions .btn {
   flex: 1;
   margin-top: 0;
+  display: block;
 }
 
-.grant-actions .btn-outline { margin-top: 0; }
+form.grant-actions .btn-outline { margin-top: 0; }
 
 /* Forgot password */
 .forgot-link {
