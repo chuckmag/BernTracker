@@ -29,6 +29,7 @@ export function createMcpApp() {
       authorization_servers: [issuer],
       bearer_methods_supported: ['header'],
       scopes_supported: [
+        'openid',
         'wodalytics:workouts:read',
         'wodalytics:results:read',
         'wodalytics:results:write',

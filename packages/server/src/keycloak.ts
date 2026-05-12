@@ -55,7 +55,7 @@ export async function verifyKeycloakToken(token: string): Promise<KeycloakClaims
       const raw = decodeJwt(token)
       console.log(
         `[keycloak] debug verified-but-no-sub: iss=${raw.iss} typ=${raw['typ']} azp=${raw['azp']} ` +
-          `sub_type=${typeof raw.sub} sub_val=${raw.sub} ` +
+          `scope=${raw['scope']} sub_type=${typeof raw.sub} sub_val=${raw.sub} ` +
           `keys=${Object.keys(raw).join(',')}`,
       )
     } catch {
