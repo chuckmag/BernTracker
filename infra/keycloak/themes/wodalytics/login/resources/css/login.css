@@ -192,6 +192,34 @@ body {
   gap: 0.75rem;
 }
 
+/* OAuth consent scope list */
+.scope-list {
+  list-style: none;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.375rem;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+.scope-item {
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--color-text-input);
+  border-bottom: 1px solid var(--color-border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.scope-item:last-child { border-bottom: none; }
+.scope-item::before {
+  content: "";
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
 /* Forgot password */
 .forgot-link {
   display: block;
