@@ -1,25 +1,22 @@
 #!/bin/bash
-# Keycloak entrypoint with realm reconciliation via Admin REST API.
+# Keycloak entrypoint with full realm reconciliation via keycloak-config-cli.
 #
 # On every boot:
 #   1. Substitutes __GOOGLE_IDP_CLIENT_ID__ / __GOOGLE_IDP_CLIENT_SECRET__
-#      in the realm template (same as the previous entrypoint.sh).
+#      in the realm template.
 #   2. Starts Keycloak in the background and waits for it to be ready.
-#   3. Acquires an admin token and reconciles realm-wodalytics.json:
-#        - First boot (realm missing):  full realm import via POST /admin/realms
-#        - Subsequent boots:            partial import (OVERWRITE) for clients,
-#                                       roles, and identity providers
-#      Users and active sessions are never touched.
+#   3. Runs keycloak-config-cli, which reconciles the full realm JSON against
+#      the running Keycloak instance: clients, roles, IDPs, clientScopes,
+#      authentication flows, and realm-level settings (loginTheme, token
+#      timeouts, etc.). Users and active sessions are never touched.
 #
-# Resources covered by partialImport OVERWRITE:
-#   clients (redirect URIs, scopes, etc.), roles, identityProviders
-# Not covered (changes require a manual step — see README):
-#   clientScopes, authentication flows
+# keycloak-config-cli applies what is in the JSON and leaves everything else
+# alone (--import.remote-state.enabled=false). To remove a resource from
+# Keycloak, delete it manually in the admin UI and remove it from the JSON.
 set -euo pipefail
 
 REALM_TEMPLATE=/realm-template.json
-REALM_FILE=/opt/keycloak/data/import/realm-wodalytics.json
-REALM=wodalytics
+REALM_FILE=/tmp/realm-wodalytics.json
 KC_RELATIVE_PATH="${KC_HTTP_RELATIVE_PATH:-}"
 KC_MAIN_URL="http://localhost:8080${KC_RELATIVE_PATH}"
 KC_MGMT_URL="http://localhost:9000"
@@ -32,7 +29,6 @@ log() { echo "[entrypoint] $*"; }
 
 # ── 1. Substitute Google IDP credentials in realm template ───────────────────
 log "Preparing realm JSON (substituting Google IDP credentials)..."
-mkdir -p /opt/keycloak/data/import
 content=$(<"${REALM_TEMPLATE}")
 content="${content//__GOOGLE_IDP_CLIENT_ID__/${GOOGLE_IDP_CLIENT_ID:-__GOOGLE_IDP_CLIENT_ID__}}"
 content="${content//__GOOGLE_IDP_CLIENT_SECRET__/${GOOGLE_IDP_CLIENT_SECRET:-__GOOGLE_IDP_CLIENT_SECRET__}}"
@@ -60,56 +56,17 @@ until curl -sf "${KC_MGMT_URL}/health/ready" > /dev/null 2>&1; do
 done
 log "Keycloak ready after ${ELAPSED}s"
 
-# ── 4. Obtain admin token from master realm ───────────────────────────────────
-log "Acquiring admin token..."
-TOKEN=$(curl -sf \
-  -X POST "${KC_MAIN_URL}/realms/master/protocol/openid-connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  --data-urlencode "client_id=admin-cli" \
-  --data-urlencode "grant_type=password" \
-  --data-urlencode "username=${ADMIN_USER}" \
-  --data-urlencode "password=${ADMIN_PASS}" \
-  | jq -r '.access_token')
+# ── 4. Reconcile realm via keycloak-config-cli ───────────────────────────────
+log "Reconciling realm config via keycloak-config-cli..."
+java -jar /keycloak-config-cli.jar \
+  --keycloak.url="${KC_MAIN_URL}" \
+  --keycloak.user="${ADMIN_USER}" \
+  --keycloak.password="${ADMIN_PASS}" \
+  --import.files.locations="${REALM_FILE}" \
+  --import.var-substitution.enabled=false \
+  --import.remote-state.enabled=false
+log "Realm reconciliation complete"
 
-if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-  log "ERROR: Could not obtain admin token — check KEYCLOAK_ADMIN / KEYCLOAK_ADMIN_PASSWORD" >&2
-  kill "$KC_PID"
-  exit 1
-fi
-
-# ── 5. Reconcile realm JSON ───────────────────────────────────────────────────
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  "${KC_MAIN_URL}/admin/realms/${REALM}")
-
-if [ "$HTTP_STATUS" = "404" ]; then
-  # First boot: import the full realm
-  log "Realm '${REALM}' not found — running full import..."
-  curl -sf \
-    -X POST "${KC_MAIN_URL}/admin/realms" \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d @"${REALM_FILE}"
-  log "Full realm import complete"
-
-else
-  # Subsequent boots: apply client/role/IDP changes without touching users
-  log "Realm '${REALM}' exists — running partial import (OVERWRITE)..."
-  jq '{
-    ifResourceExists: "OVERWRITE",
-    clients:           (.clients           // []),
-    roles:             (.roles             // {}),
-    identityProviders: (.identityProviders // [])
-  }' "${REALM_FILE}" \
-  | curl -sf \
-      -X POST "${KC_MAIN_URL}/admin/realms/${REALM}/partialImport" \
-      -H "Authorization: Bearer ${TOKEN}" \
-      -H "Content-Type: application/json" \
-      -d @-
-  log "Partial import complete"
-fi
-
-log "Realm reconciliation done — handing off to Keycloak (PID ${KC_PID})"
-
-# ── 6. Stay alive until Keycloak exits ───────────────────────────────────────
+# ── 5. Stay alive until Keycloak exits ───────────────────────────────────────
+log "Handing off to Keycloak (PID ${KC_PID})"
 wait "$KC_PID"

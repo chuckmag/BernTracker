@@ -1,17 +1,16 @@
 FROM quay.io/keycloak/keycloak:26.2
 
-# jq is required by docker-entrypoint.sh to build the partialImport payload
+# keycloak-config-cli reconciles the full realm on every boot — clients,
+# roles, IDPs, clientScopes, authentication flows, and realm-level settings
+# (loginTheme, token timeouts, etc.). Users and sessions are never touched.
+# The Keycloak image already ships a JVM, so no extra runtime is needed.
 USER root
-RUN curl -sL https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64 \
-    -o /usr/local/bin/jq && chmod +x /usr/local/bin/jq
+RUN curl -sL https://github.com/adorsys/keycloak-config-cli/releases/download/v6.5.0/keycloak-config-cli-26.5.4.jar \
+    -o /keycloak-config-cli.jar
 USER keycloak
 
 COPY realm-wodalytics.json /realm-template.json
 COPY themes/wodalytics /opt/keycloak/themes/wodalytics
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
-# docker-entrypoint.sh: substitutes Google IDP credentials, starts Keycloak
-# in the background, waits for readiness, then reconciles realm-wodalytics.json
-# via Admin REST API (full import on first boot; partialImport+OVERWRITE on
-# subsequent boots so realm JSON changes are applied without wiping users).
 ENTRYPOINT ["/bin/bash", "/docker-entrypoint.sh"]
