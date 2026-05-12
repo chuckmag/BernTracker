@@ -28,10 +28,20 @@ ADMIN_PASS="${KC_BOOTSTRAP_ADMIN_PASSWORD:-${KEYCLOAK_ADMIN_PASSWORD:-}}"
 log() { echo "[entrypoint] $*"; }
 
 # ── 1. Substitute Google IDP credentials in realm template ───────────────────
-log "Preparing realm JSON (substituting Google IDP credentials)..."
+# If the env vars are absent, pass --import.managed.identity-provider=IGNORE
+# so keycloak-config-cli skips IDPs entirely and leaves whatever is already
+# in Keycloak untouched, rather than overwriting with placeholder strings.
+log "Preparing realm JSON..."
 content=$(<"${REALM_TEMPLATE}")
-content="${content//__GOOGLE_IDP_CLIENT_ID__/${GOOGLE_IDP_CLIENT_ID:-__GOOGLE_IDP_CLIENT_ID__}}"
-content="${content//__GOOGLE_IDP_CLIENT_SECRET__/${GOOGLE_IDP_CLIENT_SECRET:-__GOOGLE_IDP_CLIENT_SECRET__}}"
+IDP_MANAGED_FLAG=""
+if [[ -n "${GOOGLE_IDP_CLIENT_ID:-}" && -n "${GOOGLE_IDP_CLIENT_SECRET:-}" ]]; then
+  content="${content//__GOOGLE_IDP_CLIENT_ID__/${GOOGLE_IDP_CLIENT_ID}}"
+  content="${content//__GOOGLE_IDP_CLIENT_SECRET__/${GOOGLE_IDP_CLIENT_SECRET}}"
+  log "Google IDP credentials substituted"
+else
+  IDP_MANAGED_FLAG="--import.managed.identity-provider=IGNORE"
+  log "GOOGLE_IDP_CLIENT_ID/SECRET not set — identity provider import skipped (existing KC config preserved)"
+fi
 printf '%s\n' "$content" > "${REALM_FILE}"
 
 # ── 2. Start Keycloak in the background ──────────────────────────────────────
@@ -58,7 +68,8 @@ java -jar /keycloak-config-cli.jar \
   --import.var-substitution.enabled=false \
   --import.remote-state.enabled=false \
   --keycloak.availability-check.enabled=true \
-  --keycloak.availability-check.timeout=PT3M
+  --keycloak.availability-check.timeout=PT3M \
+  ${IDP_MANAGED_FLAG}
 log "Realm reconciliation complete"
 
 # ── 4. Stay alive until Keycloak exits ───────────────────────────────────────
