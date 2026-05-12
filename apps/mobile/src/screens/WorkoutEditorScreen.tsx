@@ -20,6 +20,7 @@ import { api, type DistanceUnit, type LoadUnit, type Movement, type Workout, typ
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles'
 import { useTheme } from '../lib/theme'
 import { useMovements } from '../context/MovementsContext'
+import { detectMovementsInText } from '@wodalytics/types'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
 
@@ -40,7 +41,12 @@ const AUTOSAVE_DEBOUNCE_MS = 1500
 // WorkoutDrawer.tsx) so the suggestion latency feels equivalent on both
 // surfaces. Detection produces *suggestions*, not auto-tags — the user
 // accepts each one with the ✓ button.
-const MOVEMENT_DETECT_DEBOUNCE_MS = 800
+// Match-detection debounce. Used to be 800ms when matching ran on the
+// server; matching is now a synchronous call against the cached catalog
+// (#330) so the debounce is only here to throttle re-render churn while
+// the user is mid-typing. 150ms is the smallest value that still feels
+// responsive without thrashing setState on every keystroke.
+const MOVEMENT_DETECT_DEBOUNCE_MS = 150
 // Same content thresholds as web (apps/web/src/components/WorkoutDrawer.tsx)
 // — keeps an idle tap-then-cancel from creating an empty draft on the server.
 const AUTOSAVE_MIN_TITLE = 3
@@ -458,10 +464,10 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
   }, [snapshot, loading, submitting, deleting, timeCapInvalid, title, description, trimmedCoachNotesForSave, type, timeCapForSave, tracksRoundsForSave, movementsForSave, localWorkoutId, mode, scheduledAt])
 
   // ── Movement detect ──────────────────────────────────────────────────────
-  // Debounced suggest-from-description. The detect endpoint returns full
-  // Movement objects (id + name + category), which we store directly in
-  // `suggestedMovements` so pills render off the response alone — the
-  // catalog from `useMovements()` is no longer required (resilience fix).
+  // Synchronous match against the cached catalog (#330). The matcher is a
+  // pure function in @wodalytics/types — no network round-trip, no loading
+  // state. Empty catalog (auth still loading, or fetch failed) leaves
+  // suggestions empty rather than throwing.
   //
   // Detection produces *suggestions*, not auto-tags — the user accepts each
   // pill explicitly to add to selectedMovements, or dismisses to drop it
@@ -474,25 +480,27 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
     }
 
     const handle = setTimeout(() => {
-      api.movements.detect(description)
-        .then((detected) => {
-          // Filter out anything already selected or explicitly dismissed —
-          // suggestions should only surface new options the user hasn't
-          // weighed in on yet.
-          const selectedIds = new Set(selectedMovements.map((m) => m.id))
-          const fresh = detected.filter(
-            (m) => !selectedIds.has(m.id) && !dismissedIds.has(m.id),
-          )
-          setSuggestedMovements(fresh)
-        })
-        .catch(() => {})
+      const detected = detectMovementsInText(description, allMovements)
+      // Filter out anything already selected or explicitly dismissed —
+      // suggestions should only surface new options the user hasn't
+      // weighed in on yet.
+      const selectedIds = new Set(selectedMovements.map((m) => m.id))
+      const fresh = detected.filter(
+        (m) => !selectedIds.has(m.id) && !dismissedIds.has(m.id),
+      )
+      setSuggestedMovements(fresh)
     }, MOVEMENT_DETECT_DEBOUNCE_MS)
     return () => clearTimeout(handle)
     // selectedMovements + dismissedIds are intentionally read at debounce
-    // tick time only — including them in deps would re-fire detect on every
-    // accept/dismiss, hammering the API for no new value.
+    // tick time only — including them in deps would re-run detect on every
+    // accept/dismiss, churning state for no new value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [description, loading])
+    // allMovements is read inside the effect but depended on by length,
+    // not reference — the test stub returns a fresh array per render and
+    // would loop the effect otherwise. Length is a reliable signal for
+    // "catalog became available / changed size."
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [description, loading, allMovements.length])
 
   // Shared add-to-selection — used by both the suggestion ✓ button and the
   // manual search dropdown. De-dupes; appends to the end so the user

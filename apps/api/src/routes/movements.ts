@@ -7,7 +7,6 @@ import {
   findPendingMovements,
   reviewMovementById,
   updatePendingMovementById,
-  detectMovementsInText,
 } from '../db/movementDbManager.js'
 import { findMovementPrAndHistoryForUser } from '../db/resultDbManager.js'
 import { SuggestMovementSchema, ReviewMovementSchema, UpdatePendingMovementSchema } from '@wodalytics/types'
@@ -16,11 +15,12 @@ const router = Router()
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-// /pending and /detect must be registered before /:id to avoid Express treating them as IDs
+// /pending must be registered before /:id to avoid Express treating it as an ID.
+// `POST /movements/detect` was removed in #330 — clients now run the matcher
+// against their cached catalog via @wodalytics/types#detectMovementsInText.
 router.get('/movements', requireAuth, getMovements)
 router.post('/movements/suggest', requireAuth, suggestMovement)
 router.get('/movements/pending', requireAuth, requireWodalyticsAdmin, getPendingMovements)
-router.post('/movements/detect', requireAuth, detectMovements)
 router.get('/movements/:id/my-history', requireAuth, getMyMovementHistory)
 router.patch('/movements/:id/review', requireAuth, requireWodalyticsAdmin, reviewMovement)
 router.patch('/movements/:id', requireAuth, requireWodalyticsAdmin, updatePendingMovement)
@@ -96,16 +96,6 @@ async function updatePendingMovement(req: Request, res: Response) {
     if (statusCode) return res.status(statusCode).json({ error: err instanceof Error ? err.message : 'Error' })
     throw err
   }
-}
-
-async function detectMovements(req: Request, res: Response) {
-  const { description } = req.body as { description?: string }
-  if (!description || typeof description !== 'string') {
-    return res.status(400).json({ error: 'description: Required' })
-  }
-
-  const movements = await detectMovementsInText(description)
-  res.json(movements)
 }
 
 async function getMyMovementHistory(req: Request, res: Response) {
