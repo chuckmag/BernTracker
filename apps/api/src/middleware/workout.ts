@@ -4,7 +4,7 @@ import { ProgramRole } from '@wodalytics/db'
 import { findWorkoutWithProgramGyms } from '../db/workoutDbManager.js'
 import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
 import { findUserProgramMembership } from '../db/userProgramDbManager.js'
-import { createLogger } from '../lib/logger.js'
+import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('workout')
 

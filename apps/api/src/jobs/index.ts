@@ -1,5 +1,5 @@
 import { prisma } from '@wodalytics/db'
-import { createLogger } from '../lib/logger.js'
+import { createLogger } from '@wodalytics/server'
 import { runCrossfitWodJob } from './crossfitWod.js'
 import { runSeedCrossfitMovementsJob } from './seedCrossfitMovements.js'
 import { runDedupeLegacyMovementsJob } from './dedupeLegacyMovements.js'

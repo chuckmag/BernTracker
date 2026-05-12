@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { createLogger } from '../lib/logger.js'
+import { createLogger } from './logger.js'
 
 const request = createLogger('request')
 const response = createLogger('response')

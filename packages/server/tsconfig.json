@@ -1,13 +1,12 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "composite": true,
     "outDir": "./dist",
     "rootDir": "./src"
   },
   "include": ["src"],
   "references": [
-    { "path": "../../packages/db" },
-    { "path": "../../packages/server" },
-    { "path": "../../packages/types" }
+    { "path": "../../packages/db" }
   ]
 }

@@ -21,8 +21,8 @@ import dashboardRouter from './routes/dashboard'
 import analyticsRouter from './routes/analytics'
 import reactionsRouter from './routes/reactions'
 import commentsRouter from './routes/comments'
-import { createLogger } from './lib/logger.js'
-import { requestLogger } from './middleware/requestLogger.js'
+import { createLogger } from '@wodalytics/server'
+import { requestLogger } from '@wodalytics/server'
 
 // ── Process-level error handlers ─────────────────────────────────────────────
 // Catch any exception or promise rejection that escapes Express (e.g. an async

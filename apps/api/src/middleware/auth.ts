@@ -1,9 +1,9 @@
 import type { Request, Response, NextFunction } from 'express'
 import type { Role } from '@wodalytics/db'
 import { prisma } from '@wodalytics/db'
-import { verifyAccessToken, verifyKeycloakToken, getTokenIssuer } from '../lib/jwt.js'
-import type { KeycloakClaims } from '../lib/jwt.js'
-import { createLogger } from '../lib/logger.js'
+import { verifyAccessToken, getTokenIssuer } from '../lib/jwt.js'
+import { verifyKeycloakToken, createLogger } from '@wodalytics/server'
+import type { KeycloakClaims } from '@wodalytics/server'
 
 const log = createLogger('auth')
 
@@ -15,6 +15,10 @@ const log = createLogger('auth')
 async function findOrCreateKeycloakUser(
   claims: Extract<KeycloakClaims, { provisioned: false }>,
 ): Promise<{ id: string; role: Role }> {
+  if (!claims.email) {
+    throw new Error('Keycloak token missing email claim — cannot provision user without email')
+  }
+
   const existing = await prisma.oAuthAccount.findUnique({
     where: { provider_providerId: { provider: 'keycloak', providerId: claims.sub } },
     select: { user: { select: { id: true, role: true } } },

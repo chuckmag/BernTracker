@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { createLogger } from './logger.js'
+import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('crossfit-wod-client')
 

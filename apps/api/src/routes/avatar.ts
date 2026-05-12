@@ -8,7 +8,7 @@ import {
   processAndStoreImage,
   deriveKeyFromUrl,
 } from '../lib/imageUploadMiddleware.js'
-import { createLogger } from '../lib/logger.js'
+import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('avatar')
 

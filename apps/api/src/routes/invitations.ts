@@ -20,7 +20,7 @@ import {
   setInvitationStatus,
   acceptPreSignupInvitationAndJoinGym,
 } from '../db/invitationDbManager.js'
-import { createLogger } from '../lib/logger.js'
+import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('invitations')
 

@@ -1,6 +1,5 @@
 import { randomUUID } from 'crypto'
 import jwt from 'jsonwebtoken'
-import { createRemoteJWKSet, jwtVerify } from 'jose'
 import type { Role } from '@wodalytics/db'
 
 const ACCESS_EXPIRY = '15m'
@@ -51,54 +50,3 @@ export function getTokenIssuer(token: string): string | undefined {
   }
 }
 
-// Lazily initialized so the module loads without KEYCLOAK_ISSUER_URL set
-// (e.g. integration tests that only exercise the legacy JWT path).
-let _keycloakJWKS: ReturnType<typeof createRemoteJWKSet> | null = null
-
-function keycloakIssuer(): string {
-  const url = process.env.KEYCLOAK_ISSUER_URL
-  if (!url) throw new Error('Missing env var: KEYCLOAK_ISSUER_URL')
-  return url
-}
-
-function keycloakJWKS(): ReturnType<typeof createRemoteJWKSet> {
-  if (!_keycloakJWKS) {
-    _keycloakJWKS = createRemoteJWKSet(
-      new URL(`${keycloakIssuer()}/protocol/openid-connect/certs`),
-    )
-  }
-  return _keycloakJWKS
-}
-
-export type KeycloakClaims =
-  | { provisioned: true; userId: string; role: Role }
-  | { provisioned: false; sub: string; email: string; name: string | null }
-
-export async function verifyKeycloakToken(token: string): Promise<KeycloakClaims> {
-  const { payload } = await jwtVerify(token, keycloakJWKS(), {
-    issuer: keycloakIssuer(),
-    algorithms: ['RS256'],
-  })
-
-  // Fast path: token has our custom claims (set after the Keycloak user is
-  // provisioned in our DB and the attributes are written back to Keycloak).
-  const userId = payload['wodalytics_user_id']
-  const role = payload['wodalytics_role']
-  if (typeof userId === 'string' && typeof role === 'string') {
-    return { provisioned: true, userId, role: role as Role }
-  }
-
-  // First-login path: custom attributes not yet on the Keycloak user. Fall
-  // back to the standard OIDC claims so requireAuth can provision via email.
-  const sub = payload.sub
-  const email = payload['email']
-  const name = payload['name']
-  if (typeof sub !== 'string') throw new Error('Keycloak token missing sub claim')
-  if (typeof email !== 'string') throw new Error('Keycloak token missing email claim — ensure email scope is in the client defaultClientScopes')
-  return {
-    provisioned: false,
-    sub,
-    email,
-    name: typeof name === 'string' ? name : null,
-  }
-}
