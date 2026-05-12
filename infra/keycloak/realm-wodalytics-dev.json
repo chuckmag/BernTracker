@@ -99,7 +99,8 @@
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Read workouts and programs accessible to your account"
       }
     },
     {
@@ -108,7 +109,8 @@
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Read your workout results and leaderboards"
       }
     },
     {
@@ -117,7 +119,8 @@
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Log and edit your workout results"
       }
     },
     {
@@ -126,7 +129,8 @@
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Create workouts in your personal program"
       }
     }
   ],
@@ -134,7 +138,7 @@
     {
       "clientId": "wodalytics-web",
       "name": "WODalytics Web",
-      "description": "Web SPA — public client with PKCE. No client secret: the app runs entirely in the browser and cannot securely store one (OAuth 2.1 §2.1.1).",
+      "description": "Web SPA \u2014 public client with PKCE. No client secret: the app runs entirely in the browser and cannot securely store one (OAuth 2.1 \u00a72.1.1).",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
@@ -165,7 +169,7 @@
     {
       "clientId": "wodalytics-mobile",
       "name": "WODalytics Mobile",
-      "description": "Mobile app — public client with PKCE",
+      "description": "Mobile app \u2014 public client with PKCE",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
@@ -189,7 +193,7 @@
     {
       "clientId": "wodalytics-mcp",
       "name": "WODalytics MCP",
-      "description": "MCP server — public client with PKCE for AI agent authorization",
+      "description": "MCP server \u2014 public client with PKCE for AI agent authorization",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
