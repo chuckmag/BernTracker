@@ -4,11 +4,12 @@
 # On every boot:
 #   1. Substitutes __GOOGLE_IDP_CLIENT_ID__ / __GOOGLE_IDP_CLIENT_SECRET__
 #      in the realm template.
-#   2. Starts Keycloak in the background and waits for it to be ready.
-#   3. Runs keycloak-config-cli, which reconciles the full realm JSON against
-#      the running Keycloak instance: clients, roles, IDPs, clientScopes,
-#      authentication flows, and realm-level settings (loginTheme, token
-#      timeouts, etc.). Users and active sessions are never touched.
+#   2. Starts Keycloak in the background.
+#   3. Runs keycloak-config-cli with availability-check enabled — it waits
+#      for Keycloak to be ready (up to 3 min), then reconciles the full realm
+#      JSON: clients, roles, IDPs, clientScopes, authentication flows, and
+#      realm-level settings (loginTheme, token timeouts, etc.).
+#      Users and active sessions are never touched.
 #
 # keycloak-config-cli applies what is in the JSON and leaves everything else
 # alone (--import.remote-state.enabled=false). To remove a resource from
@@ -19,7 +20,6 @@ REALM_TEMPLATE=/realm-template.json
 REALM_FILE=/tmp/realm-wodalytics.json
 KC_RELATIVE_PATH="${KC_HTTP_RELATIVE_PATH:-}"
 KC_MAIN_URL="http://localhost:8080${KC_RELATIVE_PATH}"
-KC_MGMT_URL="http://localhost:9000"
 
 # Support both Keycloak 22+ env var names and the legacy names still in use
 ADMIN_USER="${KC_BOOTSTRAP_ADMIN_USERNAME:-${KEYCLOAK_ADMIN:-admin}}"
@@ -35,38 +35,32 @@ content="${content//__GOOGLE_IDP_CLIENT_SECRET__/${GOOGLE_IDP_CLIENT_SECRET:-__G
 printf '%s\n' "$content" > "${REALM_FILE}"
 
 # ── 2. Start Keycloak in the background ──────────────────────────────────────
-log "Starting Keycloak..."
-/opt/keycloak/bin/kc.sh start &
+# KC_START_COMMAND defaults to "start" (production). Override to "start-dev"
+# for local testing without a production database.
+KC_START_COMMAND="${KC_START_COMMAND:-start}"
+log "Starting Keycloak (${KC_START_COMMAND})..."
+/opt/keycloak/bin/kc.sh ${KC_START_COMMAND} &
 KC_PID=$!
 
 # Forward SIGTERM/SIGINT so Railway can shut the container down cleanly
 trap 'log "Forwarding shutdown signal to Keycloak"; kill "$KC_PID" 2>/dev/null' SIGTERM SIGINT
 
-# ── 3. Wait for Keycloak to be ready (management port, up to 3 min) ──────────
-log "Waiting for Keycloak to be ready (up to 3 min)..."
-ELAPSED=0
-until curl -sf "${KC_MGMT_URL}/health/ready" > /dev/null 2>&1; do
-  if [ "$ELAPSED" -ge 180 ]; then
-    log "ERROR: Keycloak did not become ready within 3 minutes" >&2
-    kill "$KC_PID"
-    exit 1
-  fi
-  sleep 3
-  ELAPSED=$((ELAPSED + 3))
-done
-log "Keycloak ready after ${ELAPSED}s"
-
-# ── 4. Reconcile realm via keycloak-config-cli ───────────────────────────────
-log "Reconciling realm config via keycloak-config-cli..."
+# ── 3. Reconcile realm via keycloak-config-cli ───────────────────────────────
+# --keycloak.availability-check.enabled waits for Keycloak to accept
+# connections before running the import (up to PT3M = 3 minutes), so
+# no separate health-check polling loop is needed.
+log "Waiting for Keycloak, then reconciling realm config..."
 java -jar /keycloak-config-cli.jar \
   --keycloak.url="${KC_MAIN_URL}" \
   --keycloak.user="${ADMIN_USER}" \
   --keycloak.password="${ADMIN_PASS}" \
   --import.files.locations="${REALM_FILE}" \
   --import.var-substitution.enabled=false \
-  --import.remote-state.enabled=false
+  --import.remote-state.enabled=false \
+  --keycloak.availability-check.enabled=true \
+  --keycloak.availability-check.timeout=PT3M
 log "Realm reconciliation complete"
 
-# ── 5. Stay alive until Keycloak exits ───────────────────────────────────────
+# ── 4. Stay alive until Keycloak exits ───────────────────────────────────────
 log "Handing off to Keycloak (PID ${KC_PID})"
 wait "$KC_PID"
