@@ -9,6 +9,11 @@ const webPort = parseInt(process.env.WEB_PORT ?? '5173', 10)
 const apiPort = process.env.API_PORT ?? '3000'
 
 export default defineConfig({
+  // The .env file lives at the monorepo root (two levels above apps/web/).
+  // Without this, Vite only searches apps/web/ and VITE_KEYCLOAK_URL is
+  // undefined at runtime, causing keycloak-js to fall back to
+  // window.location.origin + '/auth' (the Vite dev server, not Keycloak).
+  envDir: '../../',
   plugins: [react(), tailwindcss()],
   // Resolve workspace packages (`@wodalytics/*`) via their `exports.source`
   // condition, i.e. directly from src/*.ts. Without this Vite falls back to

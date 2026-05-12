@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useGym } from '../context/GymContext.tsx'
 
@@ -37,11 +37,9 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth()
   const { gymRole } = useGym()
-  const navigate = useNavigate()
 
   async function handleSignOut() {
     await logout()
-    navigate('/login', { replace: true })
   }
 
   const isStaff = gymRole && gymRole !== 'MEMBER'

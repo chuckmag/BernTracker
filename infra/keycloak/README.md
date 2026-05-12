@@ -37,6 +37,21 @@ KC_FEATURES=token-exchange
 
 All three clients (`wodalytics-web`, `wodalytics-mobile`, `wodalytics-mcp`) are **public clients with PKCE** — no client secrets to manage.
 
+**Realm files — two variants:**
+
+`realm-wodalytics.json` is the QA/prod source of truth. It only registers specific redirect URIs and origins (`qa.wodalytics.com`, `local.wodalytics.com`, `localhost:5173`). Do not add localhost wildcards here.
+
+`realm-wodalytics-dev.json` is generated from the prod file with `*` appended to the `wodalytics-web` client's redirect URIs and web origins. This is what `docker-compose.yml` imports locally, so any random `dev:worktree` port is accepted. Keycloak does not support port wildcards so a bare `*` is the only option for local dev.
+
+When making realm changes: edit `realm-wodalytics.json`, then regenerate the dev variant:
+```bash
+cd infra/keycloak
+jq '
+  (.clients[] | select(.clientId == "wodalytics-web") | .redirectUris) += ["*"] |
+  (.clients[] | select(.clientId == "wodalytics-web") | .webOrigins) += ["*"]
+' realm-wodalytics.json > realm-wodalytics-dev.json
+```
+
 **User Profile — unmanaged attribute policy (required for custom user attributes):**
 
 Keycloak 26's User Profile silently drops any custom user attribute (`wodalytics_user_id`, `wodalytics_role`) that isn't declared in the realm's UP schema. The realm JSON sets the attribute schema correctly but Keycloak's import path does not apply the `unmanagedAttributePolicy` setting. Set it once via the admin REST API after first boot:
@@ -62,6 +77,12 @@ Or set it in the admin console: Realm Settings → User Profile → Unmanaged at
 **Google identity provider:**
 Identity Providers → google → Client ID / Client Secret. Set these to the values from the Google Cloud Console OAuth client registered for qa.wodalytics.com.
 
+Also add the Keycloak broker callback to the Google Cloud Console's **Authorized redirect URIs** for that client:
+```
+https://qa.wodalytics.com/auth/realms/wodalytics/broker/google/endpoint
+```
+(The Google OAuth flow goes: SPA → Keycloak → Google → back to Keycloak at this URI → back to SPA. Google must know about the Keycloak leg.)
+
 ### 4. Nginx wiring
 
 The web app's `nginx.conf.template` already contains the `/auth/` proxy block (added in this PR). Set these Railway env vars on the **web service** so nginx can resolve Keycloak:
@@ -81,14 +102,20 @@ KEYCLOAK_ISSUER_URL=https://qa.wodalytics.com/auth/realms/wodalytics
 
 ## Local development
 
-`docker compose up` starts a local Keycloak instance at `http://local.wodalytics.com/auth` with the realm pre-imported.
+`docker compose up` (from this directory) starts a local Keycloak instance at `http://localhost:8180/auth` using an embedded H2 database — no separate Postgres required.
 
-Admin console: `http://local.wodalytics.com/auth/admin` (admin / admin)
+Admin console: `http://localhost:8180/auth/admin` (admin / admin)
 
-The `.env` file needs:
+The `.env` file needs (already present if you copied `.env.example`):
 ```
-KEYCLOAK_ISSUER_URL=http://local.wodalytics.com/auth/realms/wodalytics
+KEYCLOAK_ISSUER_URL=http://localhost:8180/auth/realms/wodalytics
+VITE_KEYCLOAK_URL=http://localhost:8180/auth
 ```
+
+`KEYCLOAK_ISSUER_URL` tells the API where to fetch JWKS and how to validate the `iss` claim.
+`VITE_KEYCLOAK_URL` points the web SPA directly at the local Keycloak container — it bypasses the nginx `/auth` proxy that QA uses, since there is no nginx in the `npm run dev:worktree` workflow.
+
+**Note:** Google sign-in does not work in local dev — the Google IDP credentials are only set on the QA instance. Use email/password login for local testing (create a user in the Keycloak admin console under the `wodalytics` realm → Users → Add user).
 
 ## Realm-as-code
 

@@ -1,0 +1,19 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HTTP_PORT: 8080
+      KC_FEATURES: token-exchange
+      GOOGLE_IDP_CLIENT_ID: ${GOOGLE_IDP_CLIENT_ID:-}
+      GOOGLE_IDP_CLIENT_SECRET: ${GOOGLE_IDP_CLIENT_SECRET:-}
+    volumes:
+      - ./realm-wodalytics-dev.json:/realm-template.json:ro
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./themes/wodalytics:/opt/keycloak/themes/wodalytics:ro
+    ports:
+      - "8180:8080"

@@ -49,9 +49,8 @@ vi.mock('react-router-dom', async () => {
 vi.mock('../context/AuthContext.tsx', () => ({
   useAuth: () => ({
     user: { id: 'u1', email: 'new@test.com' },
-    accessToken: 'tok',
     isLoading: false,
-    login: vi.fn(),
+    refreshUser: vi.fn().mockResolvedValue(undefined),
     logout: vi.fn(),
   }),
 }))
@@ -85,7 +84,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.users.me.profile.get).mockResolvedValue(newProfile)
   vi.mocked(api.users.me.profile.update).mockResolvedValue({ ...newProfile, onboardedAt: '2026-05-03T00:00:00.000Z' })
-  vi.mocked(api.auth.me).mockResolvedValue({ id: 'u1', email: 'new@test.com', name: null, firstName: null, lastName: null, avatarUrl: null, birthday: null, onboardedAt: '2026-05-03T00:00:00.000Z', role: 'MEMBER', identifiedGender: null, isWodalyticsAdmin: false })
   vi.mocked(api.users.me.invitations.pendingAll).mockResolvedValue([])
 })
 

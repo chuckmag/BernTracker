@@ -2,9 +2,46 @@ import type { Request, Response, NextFunction } from 'express'
 import type { Role } from '@wodalytics/db'
 import { prisma } from '@wodalytics/db'
 import { verifyAccessToken, verifyKeycloakToken, getTokenIssuer } from '../lib/jwt.js'
+import type { KeycloakClaims } from '../lib/jwt.js'
 import { createLogger } from '../lib/logger.js'
 
 const log = createLogger('auth')
+
+// Provisions a WODalytics user from a first-login Keycloak token (one that
+// lacks the custom wodalytics_user_id / wodalytics_role claims). Mirrors the
+// findOrCreateGoogleUser pattern in routes/auth.ts: OAuthAccount links the
+// Keycloak sub to our internal user ID; email is the tie-breaker for accounts
+// that pre-dated Keycloak (e.g., migrated users whose email already exists).
+async function findOrCreateKeycloakUser(
+  claims: Extract<KeycloakClaims, { provisioned: false }>,
+): Promise<{ id: string; role: Role }> {
+  const existing = await prisma.oAuthAccount.findUnique({
+    where: { provider_providerId: { provider: 'keycloak', providerId: claims.sub } },
+    select: { user: { select: { id: true, role: true } } },
+  })
+  if (existing) return existing.user
+
+  const existingByEmail = await prisma.user.findUnique({
+    where: { email: claims.email },
+    select: { id: true, role: true },
+  })
+  if (existingByEmail) {
+    await prisma.oAuthAccount.create({
+      data: { userId: existingByEmail.id, provider: 'keycloak', providerId: claims.sub },
+    })
+    return existingByEmail
+  }
+
+  const newUser = await prisma.user.create({
+    data: {
+      email: claims.email,
+      name: claims.name,
+      oauthAccounts: { create: { provider: 'keycloak', providerId: claims.sub } },
+    },
+    select: { id: true, role: true },
+  })
+  return newUser
+}
 
 // Dual-validation window: accepts both Keycloak-issued tokens (RS256, verified
 // via JWKS) and legacy WODalytics tokens (HS256, verified via JWT_SECRET).
@@ -22,10 +59,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const token = header.slice(7)
   try {
     const iss = getTokenIssuer(token)
-    const keycloakIssuerUrl = process.env.KEYCLOAK_ISSUER_URL
-    if (keycloakIssuerUrl && iss === keycloakIssuerUrl) {
-      const { userId, role } = await verifyKeycloakToken(token)
-      req.user = { id: userId, role }
+    if (iss === process.env.KEYCLOAK_ISSUER_URL) {
+      const claims = await verifyKeycloakToken(token)
+      if (claims.provisioned) {
+        req.user = { id: claims.userId, role: claims.role }
+      } else {
+        const user = await findOrCreateKeycloakUser(claims)
+        req.user = { id: user.id, role: user.role }
+      }
     } else {
       const { sub, role } = verifyAccessToken(token)
       req.user = { id: sub, role }
