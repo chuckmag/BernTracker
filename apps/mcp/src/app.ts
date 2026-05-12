@@ -1,7 +1,6 @@
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
-import { createApp } from '@wodalytics/server'
-import { requireAuth } from './auth/keycloak.js'
+import { createApp, requireKeycloakAuth } from '@wodalytics/server'
 import { createMcpServer } from './server.js'
 
 export function createMcpApp() {
@@ -55,7 +54,7 @@ export function createMcpApp() {
   })
 
   // Streamable HTTP — primary transport (MCP spec 2025-03-26)
-  app.post('/mcp', requireAuth, async (req, res) => {
+  app.post('/mcp', requireKeycloakAuth, async (req, res) => {
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
     const server = createMcpServer()
     await server.connect(transport)
@@ -65,7 +64,7 @@ export function createMcpApp() {
   // Legacy SSE — compatibility for clients not yet on Streamable HTTP
   const sseTransports = new Map<string, SSEServerTransport>()
 
-  app.get('/sse', requireAuth, async (req, res) => {
+  app.get('/sse', requireKeycloakAuth, async (req, res) => {
     const transport = new SSEServerTransport('/messages', res)
     const sessionId = transport.sessionId
     sseTransports.set(sessionId, transport)
@@ -76,7 +75,7 @@ export function createMcpApp() {
     await server.connect(transport)
   })
 
-  app.post('/messages', requireAuth, async (req, res) => {
+  app.post('/messages', requireKeycloakAuth, async (req, res) => {
     const sessionId = req.query['sessionId'] as string | undefined
     const transport = sessionId ? sseTransports.get(sessionId) : undefined
     if (!transport) {
