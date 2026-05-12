@@ -198,30 +198,28 @@ body {
   padding: 2rem 2.5rem 2.5rem;
 }
 
+/* Logo row — spans are inline so they flow horizontally even without flex support */
 .grant-logos {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.875rem;
-  margin-bottom: 1.25rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  white-space: nowrap;
 }
 
 .grant-logo-bubble {
-  width: 48px;
-  height: 48px;
+  display: inline-flex;
+  vertical-align: middle;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.125rem;
-  font-weight: 700;
   flex-shrink: 0;
 }
 
 .grant-logo-bubble--client {
   background-color: var(--color-bg-page);
-  color: var(--color-text-heading);
-  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-muted);
+  border: 1.5px solid var(--color-border-subtle);
 }
 
 .grant-logo-bubble--wodalytics {
@@ -229,9 +227,21 @@ body {
   color: #ffffff;
 }
 
-.grant-logo-arrow {
-  color: var(--color-text-muted);
-  flex-shrink: 0;
+.grant-logo-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.grant-logo-connector {
+  display: inline-flex;
+  vertical-align: middle;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  color: var(--color-border-input);
+  margin: 0 0.25rem;
 }
 
 .grant-title {
