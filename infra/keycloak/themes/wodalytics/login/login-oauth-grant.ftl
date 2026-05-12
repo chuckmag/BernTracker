@@ -14,9 +14,10 @@
       <#assign clientLabel = client.name?has_content?then(client.name, client.clientId)>
 
       <div class="grant-logos">
+        <#assign clientLogoUri = (client.attributes["logo_uri"])!"">
         <div class="grant-logo-bubble grant-logo-bubble--client" aria-hidden="true">
-          <#if client.logoUri?has_content>
-            <img src="${client.logoUri}" alt="" class="grant-logo-img">
+          <#if clientLogoUri?has_content>
+            <img src="${clientLogoUri}" alt="" class="grant-logo-img">
           <#else>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="12" cy="8" r="4" fill="currentColor"/>

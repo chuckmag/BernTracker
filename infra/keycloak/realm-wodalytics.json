@@ -217,8 +217,7 @@
         "wodalytics:results:write",
         "wodalytics:programs:write",
         "offline_access"
-      ],
-      "logoUri": null
+      ]
     }
   ],
   "identityProviders": [
