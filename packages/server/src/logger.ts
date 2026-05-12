@@ -24,13 +24,6 @@ export interface Logger {
   debug(message: string, ...extra: unknown[]): void
 }
 
-/**
- * Returns a logger tagged with the given label. Each method maps to a log level:
- *
- *   log.info(req, message)   → INFO [tag](requestId) message
- *   log.warning(message)     → WARNING [tag] message
- *   log.error(req, msg, err) → ERROR [tag](requestId) msg  { err }
- */
 export function createLogger(tag: string): Logger {
   return {
     error(reqOrMessage: Request | string, ...args: unknown[]) {

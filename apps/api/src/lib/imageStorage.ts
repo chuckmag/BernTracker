@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
-import { createLogger } from './logger.js'
+import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('imageStorage')
 

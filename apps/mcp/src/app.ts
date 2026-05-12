@@ -1,40 +1,45 @@
-import express from 'express'
+import type { Request, Response } from 'express'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
-import { requireAuth } from './auth/keycloak.js'
+import { createApp, requireKeycloakAuth } from '@wodalytics/server'
 import { createMcpServer } from './server.js'
 
-export function createApp(): express.Express {
-  const app = express()
-  app.use(express.json())
+export function createMcpApp() {
+  const app = createApp()
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' })
   })
 
   // RFC 9728 — OAuth 2.0 Protected Resource Metadata.
-  // MCP clients (including Claude.ai) check this endpoint FIRST to discover
-  // which authorization server protects this resource. Without it they cannot
-  // start the OAuth flow and report the server as unreachable.
-  app.get('/.well-known/oauth-protected-resource', (_req, res) => {
+  // Per RFC 9728 §5, clients construct the metadata URL by appending the
+  // resource path to /.well-known/oauth-protected-resource. For our resource
+  // https://mcp.qa.wodalytics.com/mcp the canonical URL is
+  // /.well-known/oauth-protected-resource/mcp. We also serve the root form as
+  // a fallback for clients that try both.
+  function protectedResourceMetadata(req: Request, res: Response): void {
     const issuer = process.env.KEYCLOAK_ISSUER_URL
     if (!issuer) {
       res.status(503).json({ error: 'Authorization server not configured' })
       return
     }
-    const resource = process.env.MCP_PUBLIC_URL ?? `https://${_req.hostname}`
+    const resource = process.env.MCP_PUBLIC_URL ?? `https://${req.hostname}`
     res.json({
       resource,
       authorization_servers: [issuer],
       bearer_methods_supported: ['header'],
       scopes_supported: [
+        'openid',
         'wodalytics:workouts:read',
         'wodalytics:results:read',
         'wodalytics:results:write',
         'wodalytics:programs:write',
       ],
     })
-  })
+  }
+
+  app.get('/.well-known/oauth-protected-resource', protectedResourceMetadata)
+  app.get('/.well-known/oauth-protected-resource/mcp', protectedResourceMetadata)
 
   // RFC 8414 — OAuth 2.0 Authorization Server Metadata.
   // Proxies Keycloak's discovery doc so clients that fall back to this
@@ -56,7 +61,7 @@ export function createApp(): express.Express {
   })
 
   // Streamable HTTP — primary transport (MCP spec 2025-03-26)
-  app.post('/mcp', requireAuth, async (req, res) => {
+  app.post('/mcp', requireKeycloakAuth, async (req, res) => {
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
     const server = createMcpServer()
     await server.connect(transport)
@@ -66,7 +71,7 @@ export function createApp(): express.Express {
   // Legacy SSE — compatibility for clients not yet on Streamable HTTP
   const sseTransports = new Map<string, SSEServerTransport>()
 
-  app.get('/sse', requireAuth, async (req, res) => {
+  app.get('/sse', requireKeycloakAuth, async (req, res) => {
     const transport = new SSEServerTransport('/messages', res)
     const sessionId = transport.sessionId
     sseTransports.set(sessionId, transport)
@@ -77,7 +82,7 @@ export function createApp(): express.Express {
     await server.connect(transport)
   })
 
-  app.post('/messages', requireAuth, async (req, res) => {
+  app.post('/messages', requireKeycloakAuth, async (req, res) => {
     const sessionId = req.query['sessionId'] as string | undefined
     const transport = sessionId ? sseTransports.get(sessionId) : undefined
     if (!transport) {

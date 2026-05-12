@@ -4,7 +4,7 @@ import { prisma } from '@wodalytics/db'
 import { findProgramWithGymIds } from '../db/programDbManager.js'
 import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
 import { isAdminEmail } from './auth.js'
-import { createLogger } from '../lib/logger.js'
+import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('program')
 

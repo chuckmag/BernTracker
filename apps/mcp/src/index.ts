@@ -1,6 +1,6 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createMcpServer } from './server.js'
-import { createApp } from './app.js'
+import { createMcpApp } from './app.js'
 
 async function startStdio(): Promise<void> {
   const server = createMcpServer()
@@ -9,7 +9,7 @@ async function startStdio(): Promise<void> {
 }
 
 async function startHttp(): Promise<void> {
-  const app = createApp()
+  const app = createMcpApp()
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3002
   app.listen(port, () => {
     console.log(`INFO [mcp] listening on port ${port}`)
