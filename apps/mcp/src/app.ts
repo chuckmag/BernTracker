@@ -12,8 +12,34 @@ export function createApp(): express.Express {
     res.json({ status: 'ok' })
   })
 
-  // OIDC discovery — proxies Keycloak's authorization server metadata so MCP
-  // clients can auto-discover the authorization endpoint (RFC 8414).
+  // RFC 9728 — OAuth 2.0 Protected Resource Metadata.
+  // MCP clients (including Claude.ai) check this endpoint FIRST to discover
+  // which authorization server protects this resource. Without it they cannot
+  // start the OAuth flow and report the server as unreachable.
+  app.get('/.well-known/oauth-protected-resource', (_req, res) => {
+    const issuer = process.env.KEYCLOAK_ISSUER_URL
+    if (!issuer) {
+      res.status(503).json({ error: 'Authorization server not configured' })
+      return
+    }
+    const resource = process.env.MCP_PUBLIC_URL ?? `https://${_req.hostname}`
+    res.json({
+      resource,
+      authorization_servers: [issuer],
+      bearer_methods_supported: ['header'],
+      scopes_supported: [
+        'wodalytics:workouts:read',
+        'wodalytics:results:read',
+        'wodalytics:results:write',
+        'wodalytics:programs:write',
+      ],
+    })
+  })
+
+  // RFC 8414 — OAuth 2.0 Authorization Server Metadata.
+  // Proxies Keycloak's discovery doc so clients that fall back to this
+  // endpoint (or follow the authorization_servers pointer above) get the
+  // full set of Keycloak endpoints.
   app.get('/.well-known/oauth-authorization-server', async (_req, res) => {
     const issuer = process.env.KEYCLOAK_ISSUER_URL
     if (!issuer) {
