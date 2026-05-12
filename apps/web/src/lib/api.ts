@@ -36,7 +36,6 @@ export async function apiFetch(
 async function req<T>(path: string, { token: _token, ...opts }: RequestInit & { token?: string } = {}): Promise<T> {
   const res = await apiFetch(path, opts)
   if (res.status === 401) {
-    keycloak.login()
     throw new Error('Session expired. Please log in again.')
   }
   if (res.status === 204) return undefined as T

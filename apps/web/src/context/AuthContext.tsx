@@ -41,7 +41,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const me = await api.auth.me()
             setUser(me)
           } catch {
-            // me failed — treat as unauthenticated
+            // Token was rejected by the API — clear it so the next login()
+            // call starts a fresh auth flow instead of retrying the same token.
+            keycloak.clearToken()
           }
         }
       })
