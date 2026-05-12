@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from 'jose'
+import { createRemoteJWKSet, jwtVerify, decodeJwt } from 'jose'
 import type { Role } from '@wodalytics/db'
 
 // Lazily initialized so the module loads without KEYCLOAK_ISSUER_URL set.
@@ -49,7 +49,20 @@ export async function verifyKeycloakToken(token: string): Promise<KeycloakClaims
   }
 
   const sub = payload.sub
-  if (typeof sub !== 'string') throw new Error('Keycloak token missing sub claim')
+  if (typeof sub !== 'string') {
+    // Debug: decode without verification to inspect actual token structure
+    try {
+      const raw = decodeJwt(token)
+      console.log(
+        `[keycloak] debug verified-but-no-sub: iss=${raw.iss} typ=${raw['typ']} azp=${raw['azp']} ` +
+          `sub_type=${typeof raw.sub} sub_val=${raw.sub} ` +
+          `keys=${Object.keys(raw).join(',')}`,
+      )
+    } catch {
+      console.log('[keycloak] debug verified-but-no-sub: could not decode JWT')
+    }
+    throw new Error('Keycloak token missing sub claim')
+  }
 
   return {
     provisioned: false,
