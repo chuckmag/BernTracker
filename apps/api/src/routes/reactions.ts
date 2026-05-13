@@ -8,7 +8,7 @@ import {
   removeReactionFromComment,
   findReactionSummaryByResultId,
   ALLOWED_EMOJIS,
-} from '../db/reactionDbManager.js'
+} from '@wodalytics/db'
 
 const router = Router()
 

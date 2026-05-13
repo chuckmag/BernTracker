@@ -1,9 +1,16 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth.js'
-import { createResult, detectAndUpsertStrengthPrs, findLeaderboardByWorkout, findResultHistoryByUser, updateResultByOwner, deleteResultByOwner } from '../db/resultDbManager.js'
-import { expandMovementIdsWithVariations } from '../db/movementDbManager.js'
-import { findWorkoutTypeById } from '../db/workoutDbManager.js'
+import {
+  createResult,
+  detectAndUpsertStrengthPrs,
+  findLeaderboardByWorkout,
+  findResultHistoryByUser,
+  updateResultByOwner,
+  deleteResultByOwner,
+  expandMovementIdsWithVariations,
+  findWorkoutTypeById,
+} from '@wodalytics/db'
 import { CreateResultSchema, UpdateResultSchema, derivePrimaryScore } from '@wodalytics/types'
 import type { WorkoutLevel, WorkoutGender } from '@wodalytics/db'
 

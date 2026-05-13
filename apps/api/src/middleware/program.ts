@@ -1,8 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import type { Role } from '@wodalytics/db'
 import { prisma } from '@wodalytics/db'
-import { findProgramWithGymIds } from '../db/programDbManager.js'
-import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
+import { findProgramWithGymIds, findGymMembershipByUserAndGym } from '@wodalytics/db'
 import { isAdminEmail } from './auth.js'
 import { createLogger } from '@wodalytics/server'
 

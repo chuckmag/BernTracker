@@ -13,10 +13,15 @@ API-specific guidance. See the repo-root `CLAUDE.md` for cross-cutting topics (w
 
 ## DB manager pattern
 
-All Prisma queries must live in model-specific manager files under `src/db/`, not inline in route handlers. One file per Prisma model (or logical model group):
+All Prisma queries must live in model-specific manager files under `packages/db/src/managers/`, not inline in route handlers. One file per Prisma model (or logical model group). Import them from `@wodalytics/db`:
 
+```typescript
+import { findGymById, findGymMembershipByUserAndGym } from '@wodalytics/db'
 ```
-src/db/
+
+Example managers:
+```
+packages/db/src/managers/
   gymDbManager.ts          # prisma.gym.*
   userGymDbManager.ts      # prisma.userGym.* (memberships)
   gymProgramDbManager.ts   # prisma.gymProgram.* + prisma.program.create

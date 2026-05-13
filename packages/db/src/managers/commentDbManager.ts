@@ -1,4 +1,4 @@
-import { prisma } from '@wodalytics/db'
+import { prisma } from '../client.js'
 
 // ─── Query helpers ────────────────────────────────────────────────────────────
 

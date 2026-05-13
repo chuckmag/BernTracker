@@ -1,14 +1,20 @@
-import { PrismaClient } from '@prisma/client'
+export { prisma } from './client.js'
+export * from './client.js'
 
-declare global {
-  // eslint-disable-next-line no-var
-  var prisma: PrismaClient | undefined
-}
-
-export const prisma = global.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma
-}
-
-export * from '@prisma/client'
+export * from './managers/analyticsDbManager.js'
+export * from './managers/commentDbManager.js'
+export * from './managers/dashboardDbManager.js'
+export * from './managers/emergencyContactDbManager.js'
+export * from './managers/gymDbManager.js'
+export * from './managers/gymMembershipRequestDbManager.js'
+export * from './managers/gymProgramDbManager.js'
+export * from './managers/invitationDbManager.js'
+export * from './managers/movementDbManager.js'
+export * from './managers/namedWorkoutDbManager.js'
+export * from './managers/programDbManager.js'
+export * from './managers/reactionDbManager.js'
+export * from './managers/resultDbManager.js'
+export * from './managers/userGymDbManager.js'
+export * from './managers/userProfileDbManager.js'
+export * from './managers/userProgramDbManager.js'
+export * from './managers/workoutDbManager.js'

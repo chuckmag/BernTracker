@@ -6,7 +6,7 @@ import {
   findNamedWorkoutById,
   createNamedWorkoutWithOptionalTemplate,
   updateNamedWorkoutById,
-} from '../db/namedWorkoutDbManager.js'
+} from '@wodalytics/db'
 import { CreateNamedWorkoutSchema, UpdateNamedWorkoutSchema } from '@wodalytics/types'
 
 const router = Router()

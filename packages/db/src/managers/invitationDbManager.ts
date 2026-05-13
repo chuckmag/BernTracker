@@ -1,4 +1,4 @@
-import { prisma, type Role, type InvitationStatus } from '@wodalytics/db'
+import { prisma, type Role, type InvitationStatus } from '../client.js'
 import crypto from 'node:crypto'
 
 // No 0/O/1/I to avoid visual ambiguity when reading codes aloud or off a screen

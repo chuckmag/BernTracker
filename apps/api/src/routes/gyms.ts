@@ -6,13 +6,11 @@ import {
   findGymById,
   updateGymNameAndTimezone,
   findGymsForBrowseAndUser,
-} from '../db/gymDbManager.js'
-import {
   findMembersWithProgramSubscriptionsByGymId,
   updateGymMemberRole,
   removeGymMember,
   findGymMembershipsByUserId,
-} from '../db/userGymDbManager.js'
+} from '@wodalytics/db'
 
 const router = Router()
 
