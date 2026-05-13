@@ -134,13 +134,13 @@ export function registerResultTools(server: McpServer, ctxUserId?: string): void
 
   server.tool(
     'log_result',
-    'Post or update a result for any workout you have access to. Idempotent — if a result already exists for this workout it is replaced with the new value. Value must match the ResultValue schema from packages/types.',
+    'Post or update a result for any workout you have access to. Idempotent — if a result already exists for this workout it is replaced with the new value. Value must match the ResultValue schema from packages/types. The notes field supports Markdown — use it to summarise how the workout felt, highlight PRs, or add coaching observations in a way that looks great in the app.',
     {
       workoutId: z.string().describe('Workout ID'),
       level: z.enum(['RX_PLUS', 'RX', 'SCALED', 'MODIFIED']).describe('Workout level'),
       workoutGender: z.enum(['MALE', 'FEMALE', 'OPEN']).describe('Leaderboard gender grouping'),
       value: z.record(z.unknown()).describe('Result value object — must include either a score or movementResults'),
-      notes: z.string().optional().describe('Optional notes'),
+      notes: z.string().optional().describe('Optional notes — supports Markdown. Use **bold** for highlights (e.g. "**New PR!**"), bullet lists for per-movement breakdowns, and *italics* for effort/RPE notes. Keep it concise so it renders cleanly on mobile.'),
     },
     async (args) => {
       const userId = resolveUserId(ctxUserId, 'log_result')

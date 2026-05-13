@@ -97,13 +97,13 @@ export function registerProgramTools(server: McpServer, ctxUserId?: string): voi
 
   server.tool(
     'create_workout',
-    "Create a workout in the user's personal program. Movement names are fuzzy-matched against the movement library.",
+    "Create a workout in the user's personal program. Movement names are fuzzy-matched against the movement library. The description field supports Markdown — use bold headers, bullet lists, and inline code to make the workout look polished in the app.",
     {
       title: z.string().describe('Workout title'),
       type: z
         .enum(['STRENGTH', 'FOR_TIME', 'EMOM', 'CARDIO', 'AMRAP', 'METCON', 'WARMUP'])
         .describe('Workout type'),
-      description: z.string().optional().describe('Workout description or notes'),
+      description: z.string().optional().describe('Workout description — supports Markdown. Use **bold** for labels, bullet lists for movement cues, and `code` for time domains or rep schemes. Example: "**5 Rounds**\\n- 10 Pull-ups\\n- 20 Push-ups\\n\\n*Time cap: 20 min*"'),
       scheduledAt: z.string().optional().describe('ISO datetime string for when the workout is scheduled (defaults to now)'),
       movements: z
         .array(
