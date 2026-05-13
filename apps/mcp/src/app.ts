@@ -1,11 +1,11 @@
 import type { Request, Response } from 'express'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
-import { createApp, requireKeycloakAuth } from '@wodalytics/server'
+import { createApp as createBaseApp, requireKeycloakAuth } from '@wodalytics/server'
 import { createMcpServer } from './server.js'
 
-export function createMcpApp() {
-  const app = createApp()
+export function createApp() {
+  const app = createBaseApp()
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' })
@@ -63,7 +63,7 @@ export function createMcpApp() {
   // Streamable HTTP — primary transport (MCP spec 2025-03-26)
   app.post('/mcp', requireKeycloakAuth, async (req, res) => {
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
-    const server = createMcpServer()
+    const server = createMcpServer(req.user?.id)
     await server.connect(transport)
     await transport.handleRequest(req, res, req.body)
   })
@@ -77,7 +77,7 @@ export function createMcpApp() {
     sseTransports.set(sessionId, transport)
     res.on('close', () => sseTransports.delete(sessionId))
 
-    const server = createMcpServer()
+    const server = createMcpServer(req.user?.id)
     // connect() calls transport.start() internally — do not call start() again
     await server.connect(transport)
   })

@@ -1,15 +1,16 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createMcpServer } from './server.js'
-import { createMcpApp } from './app.js'
+import { createApp } from './app.js'
 
 async function startStdio(): Promise<void> {
-  const server = createMcpServer()
+  const userId = process.env.WODALYTICS_USER_ID
+  const server = createMcpServer(userId)
   const transport = new StdioServerTransport()
   await server.connect(transport)
 }
 
 async function startHttp(): Promise<void> {
-  const app = createMcpApp()
+  const app = createApp()
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3002
   app.listen(port, () => {
     console.log(`INFO [mcp] listening on port ${port}`)

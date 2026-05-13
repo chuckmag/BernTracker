@@ -1,3 +1,3 @@
-// Placeholder — tools will import db managers directly once implemented (#319–#322).
-// Long-term: extract shared managers to packages/db-managers or similar (#315 follow-up).
+// Tools import DB managers directly from @wodalytics/db.
+// This file is kept as a marker for the extraction follow-up (#315).
 export {}
