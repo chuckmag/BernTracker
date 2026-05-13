@@ -88,6 +88,7 @@ export async function verifyKeycloakToken(token: string): Promise<KeycloakClaims
   const { payload } = await jwtVerify(token, keycloakJWKS(), {
     issuer: keycloakIssuer(),
     algorithms: ['RS256'],
+    clockTolerance: 60, // 60-second tolerance for clock skew between Railway and Keycloak
   })
 
   // Fast path: provisioned token carries custom claims in the access token.
