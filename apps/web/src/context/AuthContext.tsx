@@ -25,6 +25,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (didInit.current) return
     didInit.current = true
 
+    // Proactively refresh the access token every 4 minutes so the Keycloak
+    // session stays alive regardless of API call frequency. Without this, a
+    // user who leaves the tab open without triggering any requests can hit
+    // the SSO session idle timeout and get force-logged-out on their next action.
+    let refreshInterval: ReturnType<typeof setInterval> | null = null
+
+    keycloak.onTokenExpired = () => {
+      keycloak.updateToken(300).catch(() => keycloak.login())
+    }
+
     keycloak
       .init({
         pkceMethod: 'S256',
@@ -37,6 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .then(async (authenticated) => {
         if (authenticated) {
+          refreshInterval = setInterval(
+            () => keycloak.updateToken(300).catch(() => keycloak.login()),
+            4 * 60 * 1000,
+          )
           try {
             const me = await api.auth.me()
             setUser(me)
@@ -48,6 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .finally(() => setIsLoading(false))
+
+    return () => {
+      if (refreshInterval) clearInterval(refreshInterval)
+    }
   }, [])
 
   const postLoginUri = window.location.origin + '/'
