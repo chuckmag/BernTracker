@@ -11,7 +11,7 @@
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
   "accessTokenLifespan": 900,
-  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionIdleTimeout": 604800,
   "ssoSessionMaxLifespan": 604800,
   "offlineSessionMaxLifespanEnabled": false,
   "attributes": {
