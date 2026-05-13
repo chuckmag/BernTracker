@@ -623,7 +623,7 @@ function SetsTable({
                 <td key={c.key} className="pr-1.5 pb-1.5">
                   <input
                     type="text"
-                    inputMode={c.key === 'reps' || c.key === 'tempo' ? 'text' : 'decimal'}
+                    inputMode={c.key === 'tempo' ? 'text' : 'decimal'}
                     aria-label={`Set ${sIdx + 1} ${c.label}`}
                     value={s[c.key]}
                     onChange={(e) => onUpdate(movementIdx, sIdx, c.key, e.target.value)}

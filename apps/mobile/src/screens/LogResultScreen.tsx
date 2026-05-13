@@ -709,7 +709,7 @@ const prStyles = StyleSheet.create({
 // ─── SetsTableRN ─────────────────────────────────────────────────────────────
 
 const ALL_COLUMNS: { key: keyof SetRow; label: string; placeholder: string; numeric: boolean }[] = [
-  { key: 'reps',     label: 'Reps',     placeholder: '5 or 1.1.1', numeric: false },
+  { key: 'reps',     label: 'Reps',     placeholder: '5 or 1.1.1', numeric: true  },
   { key: 'load',     label: 'Load',     placeholder: '225',         numeric: true  },
   { key: 'tempo',    label: 'Tempo',    placeholder: '3.1.1.0',     numeric: false },
   { key: 'distance', label: 'Distance', placeholder: '500',         numeric: true  },
