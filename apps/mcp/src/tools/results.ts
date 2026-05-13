@@ -48,7 +48,7 @@ export function registerResultTools(server: McpServer, ctxUserId?: string): void
       limit: z.number().int().min(1).max(100).optional().default(20).describe('Max results (capped at 100)'),
     },
     async (args) => {
-      const userId = resolveUserId(ctxUserId)
+      const userId = resolveUserId(ctxUserId, 'get_workout_results')
       if (!userId) return mcpUnauthorized()
 
       const readable = await canReadPublicResults(args.workoutId)
@@ -97,7 +97,7 @@ export function registerResultTools(server: McpServer, ctxUserId?: string): void
       limit: z.number().int().min(1).max(100).optional().default(20).describe('Max results (capped at 100)'),
     },
     async (args) => {
-      const userId = resolveUserId(ctxUserId)
+      const userId = resolveUserId(ctxUserId, 'get_my_results')
       if (!userId) return mcpUnauthorized()
 
       const results = await prisma.result.findMany({
@@ -143,7 +143,7 @@ export function registerResultTools(server: McpServer, ctxUserId?: string): void
       notes: z.string().optional().describe('Optional notes'),
     },
     async (args) => {
-      const userId = resolveUserId(ctxUserId)
+      const userId = resolveUserId(ctxUserId, 'log_result')
       if (!userId) return mcpUnauthorized()
 
       const accessible = await hasWorkoutAccess(args.workoutId, userId)

@@ -104,7 +104,7 @@ export function registerWorkoutTools(server: McpServer, ctxUserId?: string): voi
       limit: z.number().int().min(1).max(50).optional().default(20).describe('Max results (capped at 50)'),
     },
     async (args) => {
-      const userId = resolveUserId(ctxUserId)
+      const userId = resolveUserId(ctxUserId, 'list_workouts')
       if (!userId) return mcpUnauthorized()
 
       const gymIds = await userGymIds(userId)
@@ -169,7 +169,7 @@ export function registerWorkoutTools(server: McpServer, ctxUserId?: string): voi
       workoutId: z.string().describe('Workout ID'),
     },
     async (args) => {
-      const userId = resolveUserId(ctxUserId)
+      const userId = resolveUserId(ctxUserId, 'get_workout')
       if (!userId) return mcpUnauthorized()
 
       const accessible = await hasWorkoutAccess(args.workoutId, userId)
@@ -187,7 +187,7 @@ export function registerWorkoutTools(server: McpServer, ctxUserId?: string): voi
     "Today's published workout from the user's gym default program. Returns null if none is scheduled.",
     {},
     async () => {
-      const userId = resolveUserId(ctxUserId)
+      const userId = resolveUserId(ctxUserId, 'get_today_workout')
       if (!userId) return mcpUnauthorized()
 
       const membership = await prisma.userGym.findFirst({

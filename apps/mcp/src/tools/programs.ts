@@ -41,7 +41,7 @@ export function registerProgramTools(server: McpServer, ctxUserId?: string): voi
     'List programs the user is enrolled in, including their personal program and gym programs.',
     {},
     async () => {
-      const userId = resolveUserId(ctxUserId)
+      const userId = resolveUserId(ctxUserId, 'get_programs')
       if (!userId) return mcpUnauthorized()
 
       const gymIds = await userGymIds(userId)
@@ -122,7 +122,7 @@ export function registerProgramTools(server: McpServer, ctxUserId?: string): voi
         .describe('Movements to include in the workout'),
     },
     async (args) => {
-      const userId = resolveUserId(ctxUserId)
+      const userId = resolveUserId(ctxUserId, 'create_workout')
       if (!userId) return mcpUnauthorized()
 
       // Resolve all movement names before writing anything

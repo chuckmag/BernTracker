@@ -1,7 +1,15 @@
 import { prisma } from '@wodalytics/db'
+import { createLogger } from '@wodalytics/server'
 
-export function resolveUserId(ctxUserId?: string): string | undefined {
-  return ctxUserId ?? process.env.WODALYTICS_USER_ID
+const log = createLogger('mcp-tool')
+
+export function resolveUserId(ctxUserId?: string, toolName?: string): string | undefined {
+  const userId = ctxUserId ?? process.env.WODALYTICS_USER_ID
+  const source = ctxUserId ? 'jwt' : process.env.WODALYTICS_USER_ID ? 'env' : 'none'
+  if (toolName) {
+    log.info(`${toolName}: userId=${userId ?? '(none)'} source=${source}`)
+  }
+  return userId
 }
 
 export function mcpUnauthorized() {
