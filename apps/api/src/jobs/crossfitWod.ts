@@ -1,5 +1,5 @@
 import { WorkoutStatus } from '@wodalytics/db'
-import { createLogger } from '../lib/logger.js'
+import { createLogger } from '@wodalytics/server'
 import {
   fetchCrossfitWod,
   type NormalizedCrossfitWod,

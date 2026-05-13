@@ -76,6 +76,13 @@ server {
         return 503 '{"status":"down","upstream":"auth"}';
     }
 
+    # index.html must never be cached so browsers always fetch the latest
+    # entry point after a deployment (hashed JS/CSS assets are fine to cache).
+    location = /index.html {
+        add_header Cache-Control "no-store";
+        try_files /index.html =404;
+    }
+
     # Everything else: SPA fallback to index.html for React Router.
     location / {
         try_files $uri $uri/ /index.html;

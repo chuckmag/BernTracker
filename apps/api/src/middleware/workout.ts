@@ -6,7 +6,7 @@ import {
   findGymMembershipByUserAndGym,
   findUserProgramMembership,
 } from '@wodalytics/db'
-import { createLogger } from '../lib/logger.js'
+import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('workout')
 
