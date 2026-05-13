@@ -1,4 +1,4 @@
-import { prisma, type Role, type MembershipRequestStatus } from '@wodalytics/db'
+import { prisma, type Role, type MembershipRequestStatus } from '../client.js'
 
 const REQUEST_SELECT = {
   id: true,
@@ -51,7 +51,7 @@ export async function findPendingStaffInvitationsForUser(args: { userId: string;
   })
 }
 
-export async function findInvitationById(id: string) {
+export async function findMembershipRequestById(id: string) {
   return prisma.gymMembershipRequest.findUnique({
     where: { id },
     select: REQUEST_SELECT,
@@ -90,7 +90,7 @@ export async function createStaffInvitation(args: {
   })
 }
 
-export async function setInvitationStatus(args: {
+export async function setMembershipRequestStatus(args: {
   id: string
   status: MembershipRequestStatus
   decidedById: string

@@ -8,8 +8,8 @@ import {
   reviewMovementById,
   updatePendingMovementById,
   detectMovementsInText,
-} from '../db/movementDbManager.js'
-import { findMovementPrAndHistoryForUser } from '../db/resultDbManager.js'
+  findMovementPrAndHistoryForUser,
+} from '@wodalytics/db'
 import { SuggestMovementSchema, ReviewMovementSchema, UpdatePendingMovementSchema } from '@wodalytics/types'
 
 const router = Router()

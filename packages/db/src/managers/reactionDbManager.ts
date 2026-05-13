@@ -1,4 +1,4 @@
-import { prisma } from '@wodalytics/db'
+import { prisma } from '../client.js'
 
 export const ALLOWED_EMOJIS = ['👍', '❤️', '🔥', '💪', '🎉', '😂'] as const
 const ALLOWED_EMOJI_SET = new Set<string>(ALLOWED_EMOJIS)

@@ -26,25 +26,19 @@ import {
   findBrowseProgramsForGymAndUser,
   setGymProgramDefault,
   clearGymProgramDefault,
-} from '../db/gymProgramDbManager.js'
-import {
   findProgramWithGymIds,
   updateProgramById,
   deleteProgramById,
   isProgramDefaultForAnyGym,
   findUnaffiliatedPublicProgramsForUser,
-} from '../db/programDbManager.js'
-import {
   findGymMembershipByUserAndGym,
   findGymMemberByEmail,
-} from '../db/userGymDbManager.js'
-import {
   findProgramById,
   unsubscribeUserFromProgram,
   createUserProgramSubscription,
   findProgramMembersWithUserInfo,
   findProgramsAvailableToUserInGym,
-} from '../db/userProgramDbManager.js'
+} from '@wodalytics/db'
 
 const STAFF_ROLES = ['OWNER', 'PROGRAMMER', 'COACH'] as const
 

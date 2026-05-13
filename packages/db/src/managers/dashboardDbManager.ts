@@ -1,5 +1,5 @@
-import { prisma } from '@wodalytics/db'
-import type { WorkoutType } from '@wodalytics/db'
+import { prisma } from '../client.js'
+import type { WorkoutType } from '../client.js'
 import { findLeaderboardByWorkout } from './resultDbManager.js'
 
 // Warmup and recovery types are deprioritised — prefer a real conditioning

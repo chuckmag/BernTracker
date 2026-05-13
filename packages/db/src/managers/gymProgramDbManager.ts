@@ -1,4 +1,4 @@
-import { prisma, type ProgramVisibility } from '@wodalytics/db'
+import { prisma, type ProgramVisibility } from '../client.js'
 
 interface CreateProgramData {
   name: string

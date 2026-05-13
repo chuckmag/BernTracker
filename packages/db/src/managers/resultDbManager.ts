@@ -1,5 +1,5 @@
-import { prisma } from '@wodalytics/db'
-import type { WorkoutLevel, WorkoutGender, Prisma, MovementCategory, LoadUnit } from '@wodalytics/db'
+import { prisma } from '../client.js'
+import type { WorkoutLevel, WorkoutGender, Prisma, MovementCategory, LoadUnit } from '../client.js'
 
 interface CreateResultData {
   userId: string

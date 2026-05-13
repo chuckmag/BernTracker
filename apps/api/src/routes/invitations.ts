@@ -3,15 +3,13 @@ import type { Role } from '@wodalytics/db'
 import { CreateGymInviteSchema, CreateAppInviteSchema } from '@wodalytics/types'
 import { requireAuth } from '../middleware/auth.js'
 import { validateGymExists, requireGymWriteAccess } from '../middleware/gym.js'
-import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
-import { findUserProfileById } from '../db/userProfileDbManager.js'
 import {
+  findGymMembershipByUserAndGym,
+  findUserProfileById,
   findExistingPendingInvitation,
   createStaffInvitation,
   findUserByEmail,
   findPendingStaffInvitationsForUser,
-} from '../db/gymMembershipRequestDbManager.js'
-import {
   createInvitation,
   findInvitationByCode,
   findInvitationById,
@@ -19,7 +17,7 @@ import {
   findExistingPendingCodeInvite,
   setInvitationStatus,
   acceptPreSignupInvitationAndJoinGym,
-} from '../db/invitationDbManager.js'
+} from '@wodalytics/db'
 import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('invitations')

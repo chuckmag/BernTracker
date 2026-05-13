@@ -1,5 +1,5 @@
-import { prisma } from '@wodalytics/db'
-import type { WorkoutCategory, WorkoutType } from '@wodalytics/db'
+import { prisma } from '../client.js'
+import type { WorkoutCategory, WorkoutType } from '../client.js'
 
 const templateWorkoutSelect = {
   select: {

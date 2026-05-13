@@ -10,13 +10,11 @@ import {
   updateUserProfileById,
   maybeMarkOnboarded,
   findPublicUserProfileById,
-} from '../db/userProfileDbManager.js'
-import {
   findEmergencyContactsByUserId,
   createEmergencyContactForUser,
   updateEmergencyContactByIdAndUserId,
   deleteEmergencyContactByIdAndUserId,
-} from '../db/emergencyContactDbManager.js'
+} from '@wodalytics/db'
 
 const router = Router()
 

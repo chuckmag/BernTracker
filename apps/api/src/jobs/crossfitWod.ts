@@ -10,12 +10,10 @@ import {
   createProgramByName,
   ensureProgramIsPublic,
   findProgramByName,
-} from '../db/programDbManager.js'
-import {
   countWorkoutsByProgramId,
   createWorkoutForProgram,
   findWorkoutByExternalSourceId,
-} from '../db/workoutDbManager.js'
+} from '@wodalytics/db'
 
 const log = createLogger('jobs.crossfit-wod')
 
