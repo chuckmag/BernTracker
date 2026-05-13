@@ -1,11 +1,49 @@
-import type { Request, Response } from 'express'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import type { Request, Response, NextFunction } from 'express'
+import express from 'express'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
-import { createApp, requireKeycloakAuth } from '@wodalytics/server'
+import { createApp as createBaseApp, requireKeycloakAuth, createLogger } from '@wodalytics/server'
+import { prisma } from '@wodalytics/db'
 import { createMcpServer } from './server.js'
 
-export function createMcpApp() {
-  const app = createApp()
+const _dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const log = createLogger('mcp-auth')
+
+// Provisioned Keycloak tokens carry `wodalytics_user_id` — the WODalytics DB
+// CUID — so requireKeycloakAuth sets req.user.id correctly. Unprovisioned
+// tokens (e.g. Claude.ai DCR client that hasn't gone through the API's
+// provisioning flow) only carry the Keycloak `sub` UUID. Look that up via
+// OAuthAccount so tools always get the DB CUID, not the Keycloak UUID.
+async function resolveDbUser(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  if (!req.user?.id || req.user.role !== undefined) {
+    next()
+    return
+  }
+  const sub = req.user.id
+  const account = await prisma.oAuthAccount.findUnique({
+    where: { provider_providerId: { provider: 'keycloak', providerId: sub } },
+    select: { userId: true, user: { select: { role: true } } },
+  })
+  if (account) {
+    log.info(req, `resolved Keycloak sub ${sub} → DB userId=${account.userId}`)
+    req.user = { id: account.userId, role: account.user.role }
+  } else {
+    log.warning(req, `no OAuthAccount found for Keycloak sub=${sub} — user may not be provisioned`)
+  }
+  next()
+}
+
+export function createApp() {
+  const app = createBaseApp()
+
+  app.use(express.static(path.join(_dirname, '../public')))
+
+  app.get('/', (_req, res) => {
+    res.json({ name: 'WODalytics MCP Server', status: 'ok' })
+  })
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' })
@@ -61,9 +99,10 @@ export function createMcpApp() {
   })
 
   // Streamable HTTP — primary transport (MCP spec 2025-03-26)
-  app.post('/mcp', requireKeycloakAuth, async (req, res) => {
+  app.post('/mcp', requireKeycloakAuth, resolveDbUser, async (req, res) => {
+    log.info(req, `userId=${req.user?.id ?? '(none)'} method=${req.body?.method ?? '?'}`)
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined })
-    const server = createMcpServer()
+    const server = createMcpServer(req.user?.id)
     await server.connect(transport)
     await transport.handleRequest(req, res, req.body)
   })
@@ -71,18 +110,18 @@ export function createMcpApp() {
   // Legacy SSE — compatibility for clients not yet on Streamable HTTP
   const sseTransports = new Map<string, SSEServerTransport>()
 
-  app.get('/sse', requireKeycloakAuth, async (req, res) => {
+  app.get('/sse', requireKeycloakAuth, resolveDbUser, async (req, res) => {
     const transport = new SSEServerTransport('/messages', res)
     const sessionId = transport.sessionId
     sseTransports.set(sessionId, transport)
     res.on('close', () => sseTransports.delete(sessionId))
 
-    const server = createMcpServer()
+    const server = createMcpServer(req.user?.id)
     // connect() calls transport.start() internally — do not call start() again
     await server.connect(transport)
   })
 
-  app.post('/messages', requireKeycloakAuth, async (req, res) => {
+  app.post('/messages', requireKeycloakAuth, resolveDbUser, async (req, res) => {
     const sessionId = req.query['sessionId'] as string | undefined
     const transport = sessionId ? sseTransports.get(sessionId) : undefined
     if (!transport) {

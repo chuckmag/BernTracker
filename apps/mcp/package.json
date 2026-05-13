@@ -8,7 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "tsc --noEmit",
-    "test": "NODE_OPTIONS='--conditions=source' npx dotenv-cli -e ../../.env -- npx tsx tests/scaffold.ts"
+    "test": "npx dotenv-cli -e ../../.env -- npx tsx tests/scaffold.ts && npx dotenv-cli -e ../../.env -- npx tsx tests/tools.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
