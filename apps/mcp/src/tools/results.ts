@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
-import { prisma, createResult, findWorkoutTypeById, detectAndUpsertStrengthPrs } from '@wodalytics/db'
+import { prisma, findWorkoutTypeById, detectAndUpsertStrengthPrs } from '@wodalytics/db'
 import { ResultValueSchema, derivePrimaryScore } from '@wodalytics/types'
 import { mcpUnauthorized, resolveUserId, userGymIds, userProgramIds } from './shared.js'
 import type { WorkoutLevel, WorkoutGender } from '@wodalytics/db'
@@ -134,7 +134,7 @@ export function registerResultTools(server: McpServer, ctxUserId?: string): void
 
   server.tool(
     'log_result',
-    'Post a result for any workout you have access to. Value must match the ResultValue schema from packages/types.',
+    'Post or update a result for any workout you have access to. Idempotent — if a result already exists for this workout it is replaced with the new value. Value must match the ResultValue schema from packages/types.',
     {
       workoutId: z.string().describe('Workout ID'),
       level: z.enum(['RX_PLUS', 'RX', 'SCALED', 'MODIFIED']).describe('Workout level'),
@@ -163,44 +163,47 @@ export function registerResultTools(server: McpServer, ctxUserId?: string): void
       }
 
       const primaryScore = derivePrimaryScore(parsed.data)
+      const scoreFields = {
+        primaryScoreKind: primaryScore?.kind ?? null,
+        primaryScoreValue: primaryScore?.value ?? null,
+      }
 
-      try {
-        const result = await createResult({
+      const result = await prisma.result.upsert({
+        where: { userId_workoutId: { userId, workoutId: args.workoutId } },
+        create: {
           userId,
           workoutId: args.workoutId,
           level: args.level as WorkoutLevel,
           workoutGender: args.workoutGender as WorkoutGender,
           value: parsed.data,
-          notes: args.notes,
-          primaryScoreKind: primaryScore?.kind ?? null,
-          primaryScoreValue: primaryScore?.value ?? null,
-        })
+          notes: args.notes ?? null,
+          ...scoreFields,
+        },
+        update: {
+          level: args.level as WorkoutLevel,
+          workoutGender: args.workoutGender as WorkoutGender,
+          value: parsed.data,
+          notes: args.notes ?? null,
+          ...scoreFields,
+        },
+      })
 
-        const workoutType = await findWorkoutTypeById(args.workoutId)
-        // Fire-and-forget PR detection — don't block the response on this
-        detectAndUpsertStrengthPrs(result.id, result.value, workoutType ?? '', userId).catch(() => undefined)
+      const workoutType = await findWorkoutTypeById(args.workoutId)
+      // Fire-and-forget PR detection — don't block the response on this
+      detectAndUpsertStrengthPrs(result.id, result.value, workoutType ?? '', userId).catch(() => undefined)
 
-        return {
-          content: [{
-            type: 'text' as const,
-            text: JSON.stringify({
-              id: result.id,
-              workoutId: result.workoutId,
-              level: result.level,
-              workoutGender: result.workoutGender,
-              primaryScoreValue: result.primaryScoreValue,
-              createdAt: result.createdAt.toISOString(),
-            }),
-          }],
-        }
-      } catch (err: unknown) {
-        if (err instanceof Error && (err as Error & { statusCode?: number }).statusCode === 409) {
-          return {
-            content: [{ type: 'text' as const, text: 'You already have a result for this workout' }],
-            isError: true,
-          }
-        }
-        throw err
+      return {
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            id: result.id,
+            workoutId: result.workoutId,
+            level: result.level,
+            workoutGender: result.workoutGender,
+            primaryScoreValue: result.primaryScoreValue,
+            createdAt: result.createdAt.toISOString(),
+          }),
+        }],
       }
     },
   )

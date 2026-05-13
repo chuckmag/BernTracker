@@ -24,7 +24,7 @@
  *   T15: log_result — invalid value shape returns validation error
  *   T16: log_result — inaccessible workout returns error
  *   T17: log_result — valid FOR_TIME result logged successfully
- *   T18: log_result — duplicate result returns error
+ *   T18: log_result — second call updates existing result (idempotent)
  *
  * Run: cd apps/mcp && npx dotenv-cli -e ../../.env -- npx tsx tests/tools.ts
  */
@@ -606,17 +606,21 @@ async function run(): Promise<void> {
       check('level matches', 'RX', result?.level)
     }
 
-    console.log('\n=== T18: log_result — duplicate result returns error ===')
+    console.log('\n=== T18: log_result — second call updates existing result (idempotent) ===')
     {
-      // gymUser already logged todayWorkoutId in T17
+      // gymUser already logged todayWorkoutId in T17 (600s). Re-logging with a
+      // different time and level should update the row, not error.
       const r = await callTool(BASE, gymToken, 'log_result', {
         workoutId: f.todayWorkoutId,
         level: 'SCALED',
         workoutGender: 'OPEN',
         value: { score: { kind: 'TIME', seconds: 999, cappedOut: false } },
       })
-      check('isError', true, r.isError)
-      checkTrue('text mentions already have', r.text.toLowerCase().includes('already'))
+      check('not error', false, r.isError)
+      const result = r.parsed as Record<string, unknown> | null
+      check('level updated to SCALED', 'SCALED', result?.level)
+      // primaryScoreValue encodes the TIME score — should reflect the new 999s
+      check('primaryScoreValue updated', 999, result?.primaryScoreValue)
     }
   } finally {
     await cleanupFixtures(f).catch((err) => console.error('Cleanup error:', err))
