@@ -347,7 +347,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+        <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-5">
           {alreadyLogged && <p className="text-sm text-red-400">You've already logged this workout.</p>}
           {error && !alreadyLogged && <p className="text-sm text-red-400">{error}</p>}
 
@@ -424,14 +424,15 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
             </p>
           )}
 
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 uppercase tracking-wide mb-1.5">
-              Notes <span className="normal-case font-normal">(optional)</span>
-            </label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="How'd it go?"
-              className="w-full bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded-md px-3 py-2 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-primary resize-none" />
-          </div>
+          {/* Notes + delete confirm — flex-1 so notes fills remaining drawer height */}
+          <div className="flex flex-col flex-1 min-h-0 gap-5">
+            <div className="flex flex-col flex-1 min-h-0">
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                Notes <span className="normal-case font-normal">(optional)</span>
+              </label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How'd it go?"
+                className="w-full flex-1 min-h-[70px] bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded-md px-3 py-2 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-primary resize-none" />
+            </div>
 
           {/* Delete confirmation */}
           {showDeleteConfirm && (
@@ -454,6 +455,7 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* Footer */}
