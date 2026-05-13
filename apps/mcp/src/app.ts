@@ -1,9 +1,14 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Request, Response, NextFunction } from 'express'
+import express from 'express'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
 import { createApp as createBaseApp, requireKeycloakAuth, createLogger } from '@wodalytics/server'
 import { prisma } from '@wodalytics/db'
 import { createMcpServer } from './server.js'
+
+const _dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const log = createLogger('mcp-auth')
 
@@ -33,6 +38,12 @@ async function resolveDbUser(req: Request, _res: Response, next: NextFunction): 
 
 export function createApp() {
   const app = createBaseApp()
+
+  app.use(express.static(path.join(_dirname, '../public')))
+
+  app.get('/', (_req, res) => {
+    res.json({ name: 'WODalytics MCP Server', status: 'ok' })
+  })
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' })
