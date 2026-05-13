@@ -15,6 +15,8 @@
     "dev:mcp": "cd apps/mcp && npm run dev",
     "dev:worktree": "node scripts/dev-worktree.mjs",
     "dev:worktree:stop": "node scripts/stop-worktree.mjs",
+    "teardown:worktree": "node scripts/teardown-worktree.mjs",
+    "prune:worktrees": "node scripts/prune-worktrees.mjs",
     "setup:worktree": "node scripts/setup-worktree.mjs",
     "test:worktree": "node scripts/test-worktree.mjs",
     "find-free-ports": "node scripts/find-free-ports.mjs",
