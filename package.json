@@ -16,6 +16,7 @@
     "dev:worktree": "node scripts/dev-worktree.mjs",
     "dev:worktree:stop": "node scripts/stop-worktree.mjs",
     "teardown:worktree": "node scripts/teardown-worktree.mjs",
+    "watch:pr": "node scripts/watch-pr.mjs",
     "prune:worktrees": "node scripts/prune-worktrees.mjs",
     "setup:worktree": "node scripts/setup-worktree.mjs",
     "test:worktree": "node scripts/test-worktree.mjs",
