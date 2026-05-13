@@ -1,9 +1,11 @@
 import type { Request, Response, NextFunction } from 'express'
 import type { Role } from '@wodalytics/db'
 import { ProgramRole } from '@wodalytics/db'
-import { findWorkoutWithProgramGyms } from '../db/workoutDbManager.js'
-import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
-import { findUserProgramMembership } from '../db/userProgramDbManager.js'
+import {
+  findWorkoutWithProgramGyms,
+  findGymMembershipByUserAndGym,
+  findUserProgramMembership,
+} from '@wodalytics/db'
 import { createLogger } from '../lib/logger.js'
 
 const log = createLogger('workout')

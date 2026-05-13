@@ -1,4 +1,4 @@
-import { prisma, type Gender, type LoadUnit, type DistanceUnit } from '@wodalytics/db'
+import { prisma, type Gender, type LoadUnit, type DistanceUnit } from '../client.js'
 
 export const PROFILE_SELECT = {
   id: true,

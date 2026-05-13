@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { findGymById } from '../db/gymDbManager.js'
-import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
+import { findGymById, findGymMembershipByUserAndGym } from '@wodalytics/db'
 
 const writeAccessRoles = ['OWNER', 'PROGRAMMER', 'COACH']
 

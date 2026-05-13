@@ -1,6 +1,6 @@
-import { prisma } from '@wodalytics/db'
-import { WorkoutStatus } from '@wodalytics/db'
-import type { WorkoutType, LoadUnit, DistanceUnit } from '@wodalytics/db'
+import { prisma } from '../client.js'
+import { WorkoutStatus } from '../client.js'
+import type { WorkoutType, LoadUnit, DistanceUnit } from '../client.js'
 
 // Per-movement prescription. Only `movementId` is required; every other
 // column is optional and only filled in when the programmer wants to track

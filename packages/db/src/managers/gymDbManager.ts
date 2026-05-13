@@ -1,4 +1,4 @@
-import { prisma } from '@wodalytics/db'
+import { prisma } from '../client.js'
 
 export async function createGymAndAddOwnerMember(
   data: { name: string; slug: string; timezone?: string },

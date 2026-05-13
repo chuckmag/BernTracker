@@ -2,7 +2,7 @@ import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { validateGymExists, requireGymMembership } from '../middleware/gym.js'
-import { getDashboardToday as getDashboardTodayDb } from '../db/dashboardDbManager.js'
+import { getDashboardToday as getDashboardTodayDb } from '@wodalytics/db'
 
 const router = Router()
 

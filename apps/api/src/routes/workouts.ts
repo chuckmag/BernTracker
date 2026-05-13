@@ -22,12 +22,10 @@ import {
   publishWorkoutsByGymAndDateRange,
   deleteWorkout,
   applyTemplateToWorkout,
-} from '../db/workoutDbManager.js'
-import { expandMovementIdsWithVariations } from '../db/movementDbManager.js'
-import { findProgramGymAccessForUser } from '../db/programDbManager.js'
-import {
-  findGymMembershipByUserAndGym
-} from '../db/userGymDbManager.js'
+  expandMovementIdsWithVariations,
+  findProgramGymAccessForUser,
+  findGymMembershipByUserAndGym,
+} from '@wodalytics/db'
 import { CreateWorkoutSchema, UpdateWorkoutSchema } from '@wodalytics/types'
 import { Role } from '@wodalytics/db'
 

@@ -7,7 +7,7 @@ import {
   createReply,
   editComment,
   softDeleteComment,
-} from '../db/commentDbManager.js'
+} from '@wodalytics/db'
 
 const router = Router()
 

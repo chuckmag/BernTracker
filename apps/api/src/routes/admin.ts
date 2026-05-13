@@ -30,15 +30,13 @@ import {
   createUnaffiliatedProgram,
   updateProgramById,
   deleteProgramById,
-} from '../db/programDbManager.js'
-import {
   createWorkoutForProgram,
   findWorkoutById,
   findWorkoutsByProgramId,
   updateWorkout,
   publishWorkoutById,
   deleteWorkout,
-} from '../db/workoutDbManager.js'
+} from '@wodalytics/db'
 
 const router = Router()
 

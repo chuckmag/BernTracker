@@ -5,7 +5,7 @@ import {
   getConsistencyDataForUser,
   getTopStrengthMovementsForUser,
   getStrengthPRTrajectoryForUser,
-} from '../db/analyticsDbManager.js'
+} from '@wodalytics/db'
 
 const router = Router()
 
