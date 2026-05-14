@@ -30,6 +30,7 @@ apps/mobile/node_modules/
 
 # Claude Code
 .claude/worktrees/
+.worktree-bypass
 
 # Playwright runtime artifacts
 apps/web/test-results/
