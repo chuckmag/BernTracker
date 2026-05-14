@@ -47,10 +47,11 @@ async function findAllTodaysWorkouts(gymId: string, userId: string, programIds?:
     include: workoutInclude,
   })
 
-  // Non-recovery first, then warmup / mobility / cooldown.
+  // Recovery (warmup/mobility/cooldown) first — reflects natural class flow in the tab strip.
+  // The frontend pre-selects the first non-recovery entry as the default active tab.
   const nonRecovery = workouts.filter((w) => !RECOVERY_TYPES.includes(w.type))
   const recovery = workouts.filter((w) => RECOVERY_TYPES.includes(w.type))
-  return [...nonRecovery, ...recovery]
+  return [...recovery, ...nonRecovery]
 }
 
 export async function getDashboardToday(gymId: string, userId: string, programIds?: string[]) {

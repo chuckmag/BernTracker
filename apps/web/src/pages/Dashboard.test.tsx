@@ -153,6 +153,35 @@ describe('Dashboard', () => {
     expect(await screen.findByText('Fran')).toBeInTheDocument()
   })
 
+  it('pre-selects the first non-recovery workout when warmup appears first', async () => {
+    const { api } = await import('../lib/api')
+    const warmupWorkout = { ...franWorkout, id: 'w0', title: 'Daily Warm Up', type: 'WARMUP' as const }
+    vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
+      workouts: [
+        { workout: warmupWorkout, myResult: null, leaderboard: null, programSubscriberCount: 0, isHeroWorkoutGymAffiliated: true },
+        { workout: franWorkout, myResult: null, leaderboard: { rank: null, totalLogged: 5, percentile: null }, programSubscriberCount: 0, isHeroWorkoutGymAffiliated: true },
+      ],
+      gymMemberCount: 30,
+    } satisfies DashboardToday)
+
+    renderDashboard()
+    // Fran (the non-recovery workout) should be visible in the hero heading
+    expect(await screen.findByRole('heading', { name: 'Fran' })).toBeInTheDocument()
+    // Warm Up tab should exist but not be the selected content
+    expect(screen.queryByRole('heading', { name: 'Daily Warm Up' })).not.toBeInTheDocument()
+  })
+
+  it('does not crash when API returns old flat shape (defensive compat)', async () => {
+    const { api } = await import('../lib/api')
+    // Simulate old API shape missing the workouts array
+    vi.mocked(api.gyms.dashboard.today).mockResolvedValue(
+      { gymMemberCount: 0 } as unknown as DashboardToday,
+    )
+
+    renderDashboard()
+    expect(await screen.findByText('No workout today')).toBeInTheDocument()
+  })
+
   it('shows Hot Today card when workout is present', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.gyms.dashboard.today).mockResolvedValue({

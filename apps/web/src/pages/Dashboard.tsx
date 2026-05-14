@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type DashboardToday } from '../lib/api.ts'
+import { isRecoveryWorkoutType } from '../lib/workoutTypeStyles.ts'
 import { useGym } from '../context/GymContext.tsx'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useProgramFilter } from '../context/ProgramFilterContext.tsx'
@@ -96,7 +97,15 @@ export default function Dashboard() {
     let cancelled = false
     const programIds = selectedProgramId ? [selectedProgramId] : undefined
     api.gyms.dashboard.today(gymId, programIds)
-      .then((d) => { if (!cancelled) { setData(d); setActiveWorkoutIdx(0) } })
+      .then((d) => {
+        if (!cancelled) {
+          setData(d)
+          // Pre-select the first non-recovery workout (warmup/mobility/cooldown tabs
+          // appear first in the strip for natural class flow, but the main WOD is the default).
+          const firstMain = d.workouts?.findIndex((w) => !isRecoveryWorkoutType(w.workout.type)) ?? -1
+          setActiveWorkoutIdx(firstMain === -1 ? 0 : firstMain)
+        }
+      })
       .catch((e: Error & { status?: number }) => {
         if (cancelled) return
         if (e.status === 403) {
@@ -157,7 +166,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {!gymLoading && !loading && !noGym && !error && data && data.workouts.length > 0 && (() => {
+          {!gymLoading && !loading && !noGym && !error && data && (data.workouts?.length ?? 0) > 0 && (() => {
             const activeEntry = data.workouts[activeWorkoutIdx] ?? data.workouts[0]
             return (
               <>
@@ -176,7 +185,7 @@ export default function Dashboard() {
             )
           })()}
 
-          {!gymLoading && !loading && !noGym && !error && data && data.workouts.length === 0 && (
+          {!gymLoading && !loading && !noGym && !error && data && !(data.workouts?.length) && (
             <EmptyState
               title="No workout today"
               body={
@@ -195,7 +204,7 @@ export default function Dashboard() {
           )}
 
           {/* Hot Today — top results by social activity (reactions + comments) */}
-          {!noGym && data && data.workouts.length > 0 && (
+          {!noGym && data && (data.workouts?.length ?? 0) > 0 && (
             <HotTodayCard workoutId={(data.workouts[activeWorkoutIdx] ?? data.workouts[0]).workout.id} />
           )}
         </div>
