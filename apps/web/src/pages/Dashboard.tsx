@@ -33,6 +33,7 @@ export default function Dashboard() {
   // Gates the fetch so we never fire with the empty initial state.
   const [initialized, setInitialized] = useState(false)
   const [data, setData] = useState<DashboardToday | null>(null)
+  const [activeWorkoutIdx, setActiveWorkoutIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const [noGym, setNoGym] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -95,7 +96,7 @@ export default function Dashboard() {
     let cancelled = false
     const programIds = selectedProgramId ? [selectedProgramId] : undefined
     api.gyms.dashboard.today(gymId, programIds)
-      .then((d) => { if (!cancelled) setData(d) })
+      .then((d) => { if (!cancelled) { setData(d); setActiveWorkoutIdx(0) } })
       .catch((e: Error & { status?: number }) => {
         if (cancelled) return
         if (e.status === 403) {
@@ -156,25 +157,26 @@ export default function Dashboard() {
             </div>
           )}
 
-          {!gymLoading && !loading && !noGym && !error && data?.workout && (
-            <>
-              <WodHeroCard
-                workout={data.workout}
-                myResult={data.myResult}
-                leaderboard={data.leaderboard}
-                gymMemberCount={data.gymMemberCount}
-                programSubscriberCount={data.programSubscriberCount}
-                isHeroWorkoutGymAffiliated={data.isHeroWorkoutGymAffiliated}
-              />
-              <LeaderboardCard
-                workoutId={data.workout.id}
-                workoutTitle={data.workout.title}
-                myUserId={user?.id ?? ''}
-              />
-            </>
-          )}
+          {!gymLoading && !loading && !noGym && !error && data && data.workouts.length > 0 && (() => {
+            const activeEntry = data.workouts[activeWorkoutIdx] ?? data.workouts[0]
+            return (
+              <>
+                <WodHeroCard
+                  workouts={data.workouts}
+                  gymMemberCount={data.gymMemberCount}
+                  activeIdx={activeWorkoutIdx}
+                  onActiveIdxChange={setActiveWorkoutIdx}
+                />
+                <LeaderboardCard
+                  workoutId={activeEntry.workout.id}
+                  workoutTitle={activeEntry.workout.title}
+                  myUserId={user?.id ?? ''}
+                />
+              </>
+            )
+          })()}
 
-          {!gymLoading && !loading && !noGym && !error && data && !data.workout && (
+          {!gymLoading && !loading && !noGym && !error && data && data.workouts.length === 0 && (
             <EmptyState
               title="No workout today"
               body={
@@ -193,7 +195,9 @@ export default function Dashboard() {
           )}
 
           {/* Hot Today — top results by social activity (reactions + comments) */}
-          {!noGym && data?.workout && <HotTodayCard workoutId={data.workout.id} />}
+          {!noGym && data && data.workouts.length > 0 && (
+            <HotTodayCard workoutId={(data.workouts[activeWorkoutIdx] ?? data.workouts[0]).workout.id} />
+          )}
         </div>
 
         {/* Right rail — desktop only */}
