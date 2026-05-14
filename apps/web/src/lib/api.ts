@@ -362,15 +362,20 @@ export interface DashboardLeaderboard {
   percentile: number | null
 }
 
-export interface DashboardToday {
-  workout: Workout | null
+export interface DashboardTodayWorkout {
+  workout: Workout
   myResult: DashboardTodayResult | null
   leaderboard: DashboardLeaderboard | null
-  gymMemberCount: number
-  /** Subscribers to the hero workout's program via UserProgram. Used when isHeroWorkoutGymAffiliated is false. */
+  /** Subscribers to this workout's program via UserProgram. Used when isHeroWorkoutGymAffiliated is false. */
   programSubscriberCount: number
   /** False for unaffiliated programs (e.g. CrossFit Mainsite) — use programSubscriberCount for the social count. */
   isHeroWorkoutGymAffiliated: boolean
+}
+
+export interface DashboardToday {
+  /** All published workouts for today, non-recovery first. Index 0 is the default hero. */
+  workouts: DashboardTodayWorkout[]
+  gymMemberCount: number
 }
 
 export interface MyGym {
