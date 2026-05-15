@@ -12,13 +12,14 @@ import { useFocusEffect } from '@react-navigation/native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { AGE_DIVISIONS, getAgeDivision } from '@wodalytics/types'
-import { api, type AgeDivision, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender } from '../lib/api'
+import { api, type AgeDivision, type Workout, type LeaderboardEntry, type WorkoutLevel, type WorkoutGender, type UserWorkoutPlan } from '../lib/api'
 import { styleFor } from '../lib/workoutTypeStyles'
 import { useAuth } from '../context/AuthContext'
 import { useGym } from '../context/GymContext'
 import { formatResultValue } from '../lib/format'
 import MovementHistorySection from '../components/MovementHistorySection'
 import ResultReactions from '../components/ResultReactions'
+import WorkoutPlanModal from '../components/WorkoutPlanModal'
 
 type Props = StackScreenProps<RootStackParamList, 'WodDetail'>
 
@@ -71,6 +72,12 @@ export default function WodDetailScreen({ route, navigation }: Props) {
   // and closed for MEMBER. Same contract as web (#184). User can always toggle.
   const isStaff = activeGym?.role === 'COACH' || activeGym?.role === 'PROGRAMMER' || activeGym?.role === 'OWNER'
   const [showCoachNotes, setShowCoachNotes] = useState(isStaff)
+
+  // Plan state
+  const [myPlan, setMyPlan] = useState<UserWorkoutPlan | null>(null)
+  const [memberPlans, setMemberPlans] = useState<UserWorkoutPlan[]>([])
+  const [showPlanModal, setShowPlanModal] = useState(false)
+  const [planTarget, setPlanTarget] = useState<{ id: string; name: string | null; firstName: string | null; lastName: string | null; email: string } | null>(null)
   // Edit gating is server-derived now (#242 slice 2b): the workout response
   // carries `canEdit`, computed by the same logic as requireWorkoutWriteAccess
   // — covers the gym-PROGRAMMER/OWNER case slice 2a couldn't. Treat absent as
@@ -124,6 +131,18 @@ export default function WodDetailScreen({ route, navigation }: Props) {
   }, [workoutId])
 
   useFocusEffect(useCallback(() => { loadLeaderboard() }, [loadLeaderboard]))
+
+  // Load user's own plan when workoutId or user is available.
+  useEffect(() => {
+    if (!user) return
+    api.plans.getForUser(workoutId, user.id).then(setMyPlan).catch(() => setMyPlan(null))
+  }, [workoutId, user])
+
+  // Staff: load all member plans for this workout.
+  useEffect(() => {
+    if (!isStaff) return
+    api.plans.listForWorkout(workoutId).then(setMemberPlans).catch(() => {})
+  }, [workoutId, isStaff])
 
   // Auto-detect the viewer's age division from their birthday once the
   // workout is loaded. Mirrors the web auto-detect behaviour.
@@ -185,6 +204,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
     : null
 
   return (
+    <>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Header */}
       <View style={styles.header}>
@@ -239,6 +259,51 @@ export default function WodDetailScreen({ route, navigation }: Props) {
         </TouchableOpacity>
       ) : null}
 
+      {/* My Plan */}
+      {user && (
+        <View style={styles.section}>
+          <View style={styles.planHeader}>
+            <Text style={styles.sectionLabel}>MY PLAN</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setPlanTarget({ id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, email: user.email })
+                setShowPlanModal(true)
+              }}
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              accessibilityRole="button"
+            >
+              <Text style={styles.planEditBtn}>{myPlan ? 'Edit' : 'Set Plan'}</Text>
+            </TouchableOpacity>
+          </View>
+          {myPlan ? (
+            <View style={styles.planCard}>
+              {myPlan.level && (
+                <View style={styles.planLevelBadge}>
+                  <Text style={styles.planLevelText}>{LEVEL_LABELS[myPlan.level]}</Text>
+                </View>
+              )}
+              {myPlan.value?.movementResults?.map((mr) => {
+                const wm = workout?.workoutMovements.find((w) => w.movement.id === mr.workoutMovementId)
+                if (!wm) return null
+                const label = mr.sets
+                  .map((s) => [s.reps, s.load != null ? `${s.load} ${mr.loadUnit ?? 'lb'}` : null].filter(Boolean).join(' @ '))
+                  .filter(Boolean)
+                  .join(', ')
+                return (
+                  <Text key={mr.workoutMovementId} style={styles.planMovementRow}>
+                    <Text style={styles.planMovementName}>{wm.movement.name}</Text>
+                    {label ? <Text style={styles.planMovementLabel}>  {label}</Text> : null}
+                  </Text>
+                )
+              })}
+              {myPlan.notes ? <Text style={styles.planNotes}>{myPlan.notes}</Text> : null}
+            </View>
+          ) : (
+            <Text style={styles.planEmpty}>No plan set yet.</Text>
+          )}
+        </View>
+      )}
+
       {/* Log Result CTA */}
       {hasLogged ? (
         <TouchableOpacity
@@ -279,6 +344,54 @@ export default function WodDetailScreen({ route, navigation }: Props) {
               navigation={navigation}
             />
           ))}
+        </View>
+      )}
+
+      {/* Member Plans (staff only) */}
+      {isStaff && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            MEMBER PLANS{memberPlans.length > 0 ? ` (${memberPlans.length})` : ''}
+          </Text>
+          {memberPlans.length === 0 ? (
+            <Text style={styles.planEmpty}>No plans set yet.</Text>
+          ) : (
+            memberPlans.map((plan) => {
+              const memberName = plan.user?.firstName
+                ? [plan.user.firstName, plan.user.lastName].filter(Boolean).join(' ')
+                : (plan.user?.name ?? plan.user?.email ?? 'Unknown')
+              return (
+                <TouchableOpacity
+                  key={plan.userId}
+                  style={styles.memberPlanRow}
+                  onPress={() => {
+                    if (!plan.user) return
+                    setPlanTarget({
+                      id: plan.user.id,
+                      name: plan.user.name,
+                      firstName: plan.user.firstName,
+                      lastName: plan.user.lastName,
+                      email: plan.user.email,
+                    })
+                    setShowPlanModal(true)
+                  }}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Edit ${memberName}'s plan`}
+                >
+                  <View style={styles.memberPlanInfo}>
+                    <Text style={styles.memberPlanName}>{memberName}</Text>
+                    {plan.level ? (
+                      <View style={styles.planLevelBadge}>
+                        <Text style={styles.planLevelText}>{LEVEL_LABELS[plan.level]}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.memberPlanEdit}>Edit →</Text>
+                </TouchableOpacity>
+              )
+            })
+          )}
         </View>
       )}
 
@@ -386,6 +499,43 @@ export default function WodDetailScreen({ route, navigation }: Props) {
         )}
       </View>
     </ScrollView>
+
+    {showPlanModal && planTarget && workout && (
+      <WorkoutPlanModal
+        visible={showPlanModal}
+        workout={workout}
+        targetUser={planTarget}
+        existingPlan={
+          planTarget.id === user?.id
+            ? (myPlan ?? undefined)
+            : (memberPlans.find((p) => p.userId === planTarget.id) ?? undefined)
+        }
+        onClose={() => { setShowPlanModal(false); setPlanTarget(null) }}
+        onSaved={(plan) => {
+          setShowPlanModal(false)
+          setPlanTarget(null)
+          if (plan.userId === user?.id) {
+            setMyPlan(plan)
+          } else {
+            setMemberPlans((prev) => {
+              const idx = prev.findIndex((p) => p.userId === plan.userId)
+              return idx >= 0 ? prev.map((p, i) => i === idx ? plan : p) : [...prev, plan]
+            })
+          }
+        }}
+        onDeleted={() => {
+          const deletedId = planTarget.id
+          setShowPlanModal(false)
+          setPlanTarget(null)
+          if (deletedId === user?.id) {
+            setMyPlan(null)
+          } else {
+            setMemberPlans((prev) => prev.filter((p) => p.userId !== deletedId))
+          }
+        }}
+      />
+    )}
+    </>
   )
 }
 
@@ -604,5 +754,80 @@ const styles = StyleSheet.create({
   leaderboardLevel: {
     fontSize: 12,
     color: '#6b7280',
+  },
+  planHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  planEditBtn: {
+    fontSize: 13,
+    color: '#818cf8',
+  },
+  planCard: {
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    padding: 12,
+    gap: 6,
+  },
+  planLevelBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1e1b4b',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 2,
+  },
+  planLevelText: {
+    fontSize: 12,
+    color: '#818cf8',
+    fontWeight: '600',
+  },
+  planMovementRow: {
+    fontSize: 14,
+    color: '#d1d5db',
+    lineHeight: 20,
+  },
+  planMovementName: {
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  planMovementLabel: {
+    color: '#9ca3af',
+    fontSize: 13,
+  },
+  planNotes: {
+    fontSize: 13,
+    color: '#6b7280',
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  planEmpty: {
+    fontSize: 14,
+    color: '#4b5563',
+  },
+  memberPlanRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2937',
+  },
+  memberPlanInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  memberPlanName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  memberPlanEdit: {
+    fontSize: 13,
+    color: '#818cf8',
   },
 })
