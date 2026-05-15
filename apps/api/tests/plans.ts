@@ -237,6 +237,88 @@ async function main() {
       check('Coach GET all plans → at least 1', true, (r.body as any[]).length >= 1)
     }
 
+    // ── Plan load format regression ──────────────────────────────────────────
+    // Reproduces: plans with numeric loads (stored before the string-load migration)
+    // or mixed numeric+range loads must not produce a 400 validation error.
+
+    console.log('\n=== Plan load format regression ===')
+    {
+      // Numeric loads only — mirrors a plan saved before the string migration
+      const numericBody = {
+        level: 'RX',
+        value: {
+          movementResults: [{
+            workoutMovementId,
+            loadUnit: 'LB',
+            distanceUnit: 'M',
+            sets: [
+              { reps: '5', load: 185 },
+              { reps: '5', load: 205 },
+              { reps: '5', load: 225 },
+            ],
+          }],
+        },
+        notes: 'Numeric loads',
+      }
+      const r = await req('PUT', `/workouts/${workoutId}/plans/${memberId}`, memberToken, numericBody)
+      check('Numeric loads accepted → 200', 200, r.status)
+      check('Numeric loads → level preserved', 'RX', (r.body as any).level)
+    }
+    {
+      // String range load — new format
+      const rangeBody = {
+        level: 'RX_PLUS',
+        value: {
+          movementResults: [{
+            workoutMovementId,
+            loadUnit: 'LB',
+            distanceUnit: 'M',
+            sets: [
+              { reps: '1', load: '315' },
+              { reps: '1', load: '335-355' },
+              { reps: '1', load: '365-385' },
+            ],
+          }],
+        },
+        notes: 'String range loads',
+      }
+      const r = await req('PUT', `/workouts/${workoutId}/plans/${memberId}`, memberToken, rangeBody)
+      check('String range loads accepted → 200', 200, r.status)
+      check('String range → level RX_PLUS', 'RX_PLUS', (r.body as any).level)
+    }
+    {
+      // Mixed — numbers for earlier sets, range on the final "go up if you feel good" set
+      const mixedBody = {
+        level: 'RX_PLUS',
+        value: {
+          movementResults: [{
+            workoutMovementId,
+            loadUnit: 'LB',
+            distanceUnit: 'M',
+            sets: [
+              { reps: '1.1.1', load: 95 },
+              { reps: '1.1.1', load: 105 },
+              { reps: '1.1.1', load: 115 },
+              { reps: '1', load: '135-155' },
+            ],
+          }],
+        },
+        notes: 'Go on feel',
+      }
+      const r = await req('PUT', `/workouts/${workoutId}/plans/${memberId}`, memberToken, mixedBody)
+      check('Mixed numeric+range loads accepted → 200', 200, r.status)
+      const firstLoad = (r.body as any).value?.movementResults?.[0]?.sets?.[0]?.load
+      check('Numeric load coerced to string on save', '95', String(firstLoad))
+      const lastLoad = (r.body as any).value?.movementResults?.[0]?.sets?.[3]?.load
+      check('Range load preserved', '135-155', lastLoad)
+    }
+    {
+      // Null level should default to 'RX' instead of producing a validation error
+      const r = await req('PUT', `/workouts/${workoutId}/plans/${memberId}`, memberToken, { level: null, notes: 'Null level' })
+      check('Null level defaults to RX → 200', 200, r.status)
+      check('Null level → stored as RX', 'RX', (r.body as any).level)
+    }
+
     // ── Member updates their own plan ────────────────────────────────────────
 
     console.log('\n=== Member updates own plan ===')
