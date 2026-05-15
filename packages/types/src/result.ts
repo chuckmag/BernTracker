@@ -189,10 +189,11 @@ export type UpdateResultInput = z.infer<typeof UpdateResultSchema>
 // ─── Workout plan ──────────────────────────────────────────────────────────────
 
 // Plan set entries allow load as a string so coaches can prescribe ranges like
-// "135-155" (warmup-to-working) without forcing a single number.
+// "135-155" (warmup-to-working) without forcing a single number. Numbers are
+// coerced to strings so plans saved before the string migration stay valid.
 export const PlanSetEntrySchema = z.object({
   reps:     RepsFieldSchema.optional(),
-  load:     z.string().optional(),
+  load:     z.union([z.string(), z.number().positive().transform((n) => String(n))]).optional(),
   distance: z.number().positive().optional(),
   calories: z.number().int().nonnegative().optional(),
   seconds:  z.number().int().nonnegative().optional(),

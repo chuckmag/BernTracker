@@ -47,7 +47,7 @@ function initSets(wm: WorkoutMovementWithPrescription, existingMovement?: UserWo
   if (existingSets?.length) {
     return existingSets.map((s) => ({
       reps:     s.reps ?? '',
-      load:     s.load ?? '',
+      load:     s.load != null ? String(s.load) : '',
       distance: s.distance !== undefined ? String(s.distance) : '',
       calories: s.calories !== undefined ? String(s.calories) : '',
       seconds:  s.seconds !== undefined ? String(s.seconds) : '',
