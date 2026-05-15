@@ -68,7 +68,7 @@ function initSections(workout: Workout, existingPlan?: UserWorkoutPlan): Movemen
 }
 
 export default function WorkoutPlanModal({ visible, workout, targetUser, existingPlan, onClose, onSaved, onDeleted }: Props) {
-  const [level, setLevel] = useState<WorkoutLevel | null>(existingPlan?.level ?? null)
+  const [level, setLevel] = useState<WorkoutLevel>(existingPlan?.level ?? 'RX')
   const [notes, setNotes] = useState(existingPlan?.notes ?? '')
   const [sections, setSections] = useState<MovementSection[]>(() => initSections(workout, existingPlan))
   const [saving, setSaving] = useState(false)
@@ -109,14 +109,14 @@ export default function WorkoutPlanModal({ visible, workout, targetUser, existin
           sets: s.sets
             .map((r) => ({
               ...(r.reps ? { reps: r.reps } : {}),
-              ...(r.load ? { load: parseFloat(r.load) } : {}),
+              ...(r.load ? { load: r.load } : {}),
             }))
             .filter((s) => Object.keys(s).length > 0),
         }))
         .filter((mr) => mr.sets.length > 0)
 
       const plan = await api.plans.upsert(workout.id, targetUser.id, {
-        level: level ?? null,
+        level,
         value: movementResults.length > 0 ? { movementResults } : null,
         notes: notes.trim() || null,
       })
@@ -183,7 +183,7 @@ export default function WorkoutPlanModal({ visible, workout, targetUser, existin
                 <TouchableOpacity
                   key={l.value}
                   style={[styles.levelChip, level === l.value && styles.levelChipActive]}
-                  onPress={() => setLevel(level === l.value ? null : l.value)}
+                  onPress={() => setLevel(l.value)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: level === l.value }}
                 >
@@ -223,8 +223,8 @@ export default function WorkoutPlanModal({ visible, workout, targetUser, existin
                       style={[styles.setInput, styles.loadCell]}
                       value={row.load}
                       onChangeText={(v) => updateSet(si, ri, 'load', v)}
-                      keyboardType="decimal-pad"
-                      placeholder="—"
+                      keyboardType="default"
+                      placeholder="e.g. 135 or 135-155"
                       placeholderTextColor="#4b5563"
                       accessibilityLabel={`Set ${ri + 1} load`}
                     />

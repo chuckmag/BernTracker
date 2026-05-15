@@ -21,6 +21,7 @@ import {
   type DistanceUnit,
   type LoadUnit,
   type NewPr,
+  type UserWorkoutPlan,
   type Workout,
   type WorkoutLevel,
   type WorkoutMovementWithPrescription,
@@ -278,6 +279,7 @@ export default function LogResultScreen({ route, navigation }: Props) {
 
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [loadingWorkout, setLoadingWorkout] = useState(true)
+  const [myPlan, setMyPlan] = useState<UserWorkoutPlan | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -312,9 +314,26 @@ export default function LogResultScreen({ route, navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workoutId])
 
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    api.plans.getForUser(workoutId, user.id)
+      .then((p) => { if (!cancelled) setMyPlan(p) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [workoutId, user?.id])
+
   const mode = workout ? loggingModeFor(workout) : 'notes-only'
   const scoreKind = workout ? scoreKindFor(workout) : 'TIME'
   const canLogSets = mode === 'sets' && movements.length > 0
+
+  const planLoadsByMovementId = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const mr of myPlan?.value?.movementResults ?? []) {
+      map.set(mr.workoutMovementId, mr.sets.map((s) => s.load ?? ''))
+    }
+    return map
+  }, [myPlan])
 
   function buildValue(): { ok: true; value: ResultValue } | { ok: false; error: string } {
     let movementResults: { workoutMovementId: string; loadUnit?: LoadUnit; distanceUnit?: DistanceUnit; sets: Record<string, unknown>[] }[] = []
@@ -519,6 +538,7 @@ export default function LogResultScreen({ route, navigation }: Props) {
               prescription={
                 workout.workoutMovements.find((wm) => wm.movement.id === movements[activeMovement].workoutMovementId) ?? null
               }
+              planLoadPlaceholders={planLoadsByMovementId.get(movements[activeMovement].workoutMovementId)}
               onUpdate={updateSet}
               onAddSet={addSet}
               onRemoveSet={removeSet}
@@ -735,6 +755,7 @@ function SetsTableRN({
   movementIdx,
   category,
   prescription,
+  planLoadPlaceholders,
   onUpdate,
   onAddSet,
   onRemoveSet,
@@ -744,6 +765,7 @@ function SetsTableRN({
   movementIdx: number
   category: WorkoutCategory
   prescription: WorkoutMovementWithPrescription | null
+  planLoadPlaceholders?: string[]
   onUpdate: (mIdx: number, sIdx: number, field: keyof SetRow, value: string) => void
   onAddSet: (mIdx: number) => void
   onRemoveSet: (mIdx: number, sIdx: number) => void
@@ -870,7 +892,7 @@ function SetsTableRN({
                 style={styles.tableInput}
                 value={s[c.key]}
                 onChangeText={(v) => onUpdate(movementIdx, sIdx, c.key, v)}
-                placeholder={c.placeholder}
+                placeholder={c.key === 'load' && planLoadPlaceholders?.[sIdx] ? planLoadPlaceholders[sIdx] : c.placeholder}
                 placeholderTextColor="#4b5563"
                 keyboardType={c.numeric ? 'decimal-pad' : 'default'}
                 accessibilityLabel={`Set ${sIdx + 1} ${c.label}`}

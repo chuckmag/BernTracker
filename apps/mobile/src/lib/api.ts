@@ -342,7 +342,7 @@ export interface LogResultResponse {
 
 export interface UserWorkoutPlanSet {
   reps?: string
-  load?: number
+  load?: string
   distance?: number
   calories?: number
   seconds?: number
