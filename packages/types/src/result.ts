@@ -185,3 +185,29 @@ export const UpdateResultSchema = z.object({
 })
 
 export type UpdateResultInput = z.infer<typeof UpdateResultSchema>
+
+// ─── Workout plan ──────────────────────────────────────────────────────────────
+
+// Per-user workout plan value — same movementResults shape as ResultValue but
+// without the score block (a plan is about intended loads/reps, not a score).
+export const PlanMovementResultSchema = z.object({
+  workoutMovementId: z.string().min(1),
+  loadUnit:          LoadUnitSchema.optional(),
+  distanceUnit:      DistanceUnitSchema.optional(),
+  sets:              z.array(SetEntrySchema),
+})
+
+export const PlanValueSchema = z.object({
+  movementResults: z.array(PlanMovementResultSchema).default([]),
+})
+
+export type PlanMovementResult = z.infer<typeof PlanMovementResultSchema>
+export type PlanValue          = z.infer<typeof PlanValueSchema>
+
+export const UpsertWorkoutPlanSchema = z.object({
+  level: WorkoutLevelSchema.optional(),
+  value: PlanValueSchema.nullable().optional(),
+  notes: z.string().nullable().optional(),
+})
+
+export type UpsertWorkoutPlanInput = z.infer<typeof UpsertWorkoutPlanSchema>

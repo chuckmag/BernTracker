@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, Fragment } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useGym } from '../context/GymContext.tsx'
-import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender } from '../lib/api.ts'
+import { api, type Workout, type WorkoutCategory, type WorkoutResult, type WorkoutLevel, type WorkoutGender, type UserWorkoutPlan, type Member } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import LogResultDrawer from '../components/LogResultDrawer.tsx'
+import WorkoutPlanDrawer from '../components/WorkoutPlanDrawer.tsx'
 import ResultReactions from '../components/ResultReactions.tsx'
 import WorkoutMovementHistory from '../components/WorkoutMovementHistory.tsx'
 import MarkdownDescription from '../components/MarkdownDescription.tsx'
@@ -72,12 +73,14 @@ export default function WodDetail() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useAuth()
-  const { gymRole } = useGym()
+  const { gymId, gymRole } = useGym()
   const locationState = location.state as { from?: string; originWorkoutId?: string } | null
   const fromHistory = locationState?.from === 'history'
   // When the user arrives via a past-result link from the movement history
   // section, hide Your History to prevent infinite result → history → result nesting.
   const fromMovementHistory = locationState?.from === 'movement-history'
+
+  const isStaff = gymRole === 'COACH' || gymRole === 'PROGRAMMER' || gymRole === 'OWNER'
 
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [results, setResults] = useState<WorkoutResult[]>([])
@@ -89,6 +92,13 @@ export default function WodDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showLogDrawer, setShowLogDrawer] = useState(false)
+
+  // Plan state
+  const [myPlan, setMyPlan] = useState<UserWorkoutPlan | null>(null)
+  const [memberPlans, setMemberPlans] = useState<UserWorkoutPlan[]>([])
+  const [gymMembers, setGymMembers] = useState<Member[]>([])
+  const [showPlanDrawer, setShowPlanDrawer] = useState(false)
+  const [planDrawerTarget, setPlanDrawerTarget] = useState<{ id: string; name: string | null; firstName: string | null; lastName: string | null; email: string } | null>(null)
 
   // Tracks which workout id has had the auto-detect default applied.
   // The auto-detect snaps levelFilter to the viewer's own logged level on
@@ -109,6 +119,19 @@ export default function WodDetail() {
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false))
   }, [id])
+
+  // Load user's own plan when the workout and user are available.
+  useEffect(() => {
+    if (!id || !user) return
+    api.plans.getForUser(id, user.id).then(setMyPlan).catch(() => setMyPlan(null))
+  }, [id, user])
+
+  // Staff: load all member plans + gym members for the plan editor.
+  useEffect(() => {
+    if (!id || !isStaff) return
+    api.plans.listForWorkout(id).then(setMemberPlans).catch(() => {})
+    if (gymId) api.gyms.members.list(gymId).then(setGymMembers).catch(() => {})
+  }, [id, isStaff, gymId])
 
   useEffect(() => {
     if (loading) return
@@ -259,6 +282,52 @@ export default function WodDetail() {
         >
           View on CrossFit.com →
         </a>
+      )}
+
+      {/* My Plan */}
+      {user && (
+        <div className="rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">My Plan</h3>
+            <button
+              onClick={() => {
+                setPlanDrawerTarget({ id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, email: user.email })
+                setShowPlanDrawer(true)
+              }}
+              className="text-xs text-primary hover:text-primary transition-colors"
+            >
+              {myPlan ? 'Edit' : 'Set Plan'}
+            </button>
+          </div>
+          {myPlan ? (
+            <div className="space-y-1.5">
+              {myPlan.level && (
+                <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {LEVEL_LABELS[myPlan.level]}
+                </span>
+              )}
+              {myPlan.value?.movementResults?.map((mr) => {
+                const wm = workout.workoutMovements.find((w) => w.movement.id === mr.workoutMovementId)
+                if (!wm) return null
+                const label = mr.sets
+                  .map((s) => [s.reps, s.load != null ? `${s.load} ${mr.loadUnit ?? 'lb'}` : null].filter(Boolean).join(' @ '))
+                  .filter(Boolean)
+                  .join(', ')
+                return (
+                  <p key={mr.workoutMovementId} className="text-sm text-slate-700 dark:text-gray-300">
+                    <span className="font-medium">{wm.movement.name}</span>
+                    {label && <span className="ml-2 text-xs text-slate-500 dark:text-gray-400">{label}</span>}
+                  </p>
+                )
+              })}
+              {myPlan.notes && (
+                <p className="text-xs text-slate-500 dark:text-gray-400 italic mt-1">{myPlan.notes}</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500 dark:text-gray-400">No plan set yet.</p>
+          )}
+        </div>
       )}
 
       {/* Log Result CTA */}
@@ -439,6 +508,80 @@ export default function WodDetail() {
         )}
       </div>
 
+      {/* Member Plans (staff only) */}
+      {isStaff && (
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Member Plans</h2>
+            {memberPlans.length > 0 && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400">
+                {memberPlans.length}
+              </span>
+            )}
+            <hr className="flex-1 border-slate-200 dark:border-gray-800" />
+          </div>
+
+          {memberPlans.length > 0 && (
+            <div className="space-y-2 mb-3">
+              {memberPlans.map((plan) => {
+                const memberName = plan.user?.firstName
+                  ? [plan.user.firstName, plan.user.lastName].filter(Boolean).join(' ')
+                  : (plan.user?.name ?? plan.user?.email ?? 'Unknown')
+                return (
+                  <button
+                    key={plan.userId}
+                    onClick={() => {
+                      if (!plan.user) return
+                      setPlanDrawerTarget({
+                        id: plan.user.id,
+                        name: plan.user.name,
+                        firstName: plan.user.firstName,
+                        lastName: plan.user.lastName,
+                        email: plan.user.email,
+                      })
+                      setShowPlanDrawer(true)
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 hover:border-primary/50 dark:hover:border-primary/40 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-slate-950 dark:text-white">{memberName}</span>
+                      {plan.level && (
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                          {LEVEL_LABELS[plan.level]}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-primary">Edit →</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {gymMembers.length > 0 && (() => {
+            const withoutPlan = gymMembers.filter((m) => !memberPlans.some((p) => p.userId === m.id))
+            if (withoutPlan.length === 0) return null
+            return (
+              <select
+                className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-primary"
+                value=""
+                onChange={(e) => {
+                  const m = withoutPlan.find((m) => m.id === e.target.value)
+                  if (!m) return
+                  setPlanDrawerTarget({ id: m.id, name: m.name, firstName: null, lastName: null, email: m.email })
+                  setShowPlanDrawer(true)
+                }}
+              >
+                <option value="" disabled>Set plan for…</option>
+                {withoutPlan.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name ?? m.email}</option>
+                ))}
+              </select>
+            )
+          })()}
+        </div>
+      )}
+
       {/* Your History — one section per movement, hidden when arrived from a past result link */}
       {user && !fromMovementHistory && (workout.workoutMovements?.length ?? 0) > 0 && (
         <div className="space-y-6">
@@ -467,6 +610,41 @@ export default function WodDetail() {
         onDeleted={() => {
           setShowLogDrawer(false)
           api.results.leaderboard(id!).then(setResults).catch(() => {})
+        }}
+      />
+    )}
+
+    {showPlanDrawer && planDrawerTarget && (
+      <WorkoutPlanDrawer
+        workout={workout}
+        targetUser={planDrawerTarget}
+        existingPlan={
+          planDrawerTarget.id === user?.id
+            ? (myPlan ?? undefined)
+            : (memberPlans.find((p) => p.userId === planDrawerTarget.id) ?? undefined)
+        }
+        onClose={() => { setShowPlanDrawer(false); setPlanDrawerTarget(null) }}
+        onSaved={(plan) => {
+          setShowPlanDrawer(false)
+          setPlanDrawerTarget(null)
+          if (plan.userId === user?.id) {
+            setMyPlan(plan)
+          } else {
+            setMemberPlans((prev) => {
+              const idx = prev.findIndex((p) => p.userId === plan.userId)
+              return idx >= 0 ? prev.map((p, i) => i === idx ? plan : p) : [...prev, plan]
+            })
+          }
+        }}
+        onDeleted={() => {
+          const deletedUserId = planDrawerTarget.id
+          setShowPlanDrawer(false)
+          setPlanDrawerTarget(null)
+          if (deletedUserId === user?.id) {
+            setMyPlan(null)
+          } else {
+            setMemberPlans((prev) => prev.filter((p) => p.userId !== deletedUserId))
+          }
         }}
       />
     )}

@@ -337,6 +337,25 @@ export interface HistoryResult extends Omit<WorkoutResult, 'workout'> {
   workout: { id: string; title: string; type: WorkoutType; scheduledAt: string }
 }
 
+export interface UserWorkoutPlan {
+  id: string
+  userId: string
+  workoutId: string
+  level: WorkoutLevel | null
+  value: { movementResults: Array<{
+    workoutMovementId: string
+    loadUnit?: string
+    distanceUnit?: string
+    sets: Array<{ reps?: string; load?: number; tempo?: string; distance?: number; calories?: number; seconds?: number }>
+  }> } | null
+  notes: string | null
+  createdById: string
+  createdAt: string
+  updatedAt: string
+  createdBy: { id: string; name: string | null; firstName: string | null; lastName: string | null }
+  user?: { id: string; name: string | null; firstName: string | null; lastName: string | null; email: string; avatarUrl: string | null }
+}
+
 export interface ResultHistoryPage {
   results: HistoryResult[]
   total: number
@@ -1017,6 +1036,29 @@ export const api = {
       const qs = parts.length ? `&${parts.join('&')}` : ''
       return req<ResultHistoryPage>(`/api/me/results?page=${page}${qs}`, { token })
     },
+  },
+
+  plans: {
+    listForWorkout: (workoutId: string, token?: string) =>
+      req<UserWorkoutPlan[]>(`/api/workouts/${workoutId}/plans`, { token }),
+
+    getForUser: (workoutId: string, userId: string, token?: string) =>
+      req<UserWorkoutPlan>(`/api/workouts/${workoutId}/plans/${userId}`, { token }),
+
+    upsert: (
+      workoutId: string,
+      userId: string,
+      data: { level?: WorkoutLevel | null; value?: { movementResults: unknown[] } | null; notes?: string | null },
+      token?: string,
+    ) =>
+      req<UserWorkoutPlan>(`/api/workouts/${workoutId}/plans/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        token,
+      }),
+
+    delete: (workoutId: string, userId: string, token?: string) =>
+      req<void>(`/api/workouts/${workoutId}/plans/${userId}`, { method: 'DELETE', token }),
   },
 
   movements: {
