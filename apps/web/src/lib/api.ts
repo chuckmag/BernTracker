@@ -346,7 +346,7 @@ export interface UserWorkoutPlan {
     workoutMovementId: string
     loadUnit?: string
     distanceUnit?: string
-    sets: Array<{ reps?: string; load?: number; tempo?: string; distance?: number; calories?: number; seconds?: number }>
+    sets: Array<{ reps?: string; load?: string; distance?: number; calories?: number; seconds?: number }>
   }> } | null
   notes: string | null
   createdById: string

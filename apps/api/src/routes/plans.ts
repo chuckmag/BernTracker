@@ -75,7 +75,10 @@ async function upsertWorkoutPlan(req: Request, res: Response) {
   const requesterId = req.user!.id
 
   const parsed = UpsertWorkoutPlanSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
+  if (!parsed.success) {
+    const msg = parsed.error.issues.map((i) => i.message).join(', ')
+    return res.status(400).json({ error: `Invalid plan: ${msg}` })
+  }
 
   if (requesterId !== targetUserId) {
     const ctx = await loadWorkoutAccess(workoutId, requesterId)
@@ -89,7 +92,7 @@ async function upsertWorkoutPlan(req: Request, res: Response) {
   const plan = await upsertWorkoutPlanForUser({
     userId: targetUserId,
     workoutId,
-    level: parsed.data.level ?? null,
+    level: parsed.data.level,
     value: (parsed.data.value as any) ?? null,
     notes: parsed.data.notes ?? null,
     createdById: requesterId,

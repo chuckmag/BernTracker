@@ -188,24 +188,35 @@ export type UpdateResultInput = z.infer<typeof UpdateResultSchema>
 
 // ─── Workout plan ──────────────────────────────────────────────────────────────
 
+// Plan set entries allow load as a string so coaches can prescribe ranges like
+// "135-155" (warmup-to-working) without forcing a single number.
+export const PlanSetEntrySchema = z.object({
+  reps:     RepsFieldSchema.optional(),
+  load:     z.string().optional(),
+  distance: z.number().positive().optional(),
+  calories: z.number().int().nonnegative().optional(),
+  seconds:  z.number().int().nonnegative().optional(),
+})
+
 // Per-user workout plan value — same movementResults shape as ResultValue but
 // without the score block (a plan is about intended loads/reps, not a score).
 export const PlanMovementResultSchema = z.object({
   workoutMovementId: z.string().min(1),
   loadUnit:          LoadUnitSchema.optional(),
   distanceUnit:      DistanceUnitSchema.optional(),
-  sets:              z.array(SetEntrySchema),
+  sets:              z.array(PlanSetEntrySchema),
 })
 
 export const PlanValueSchema = z.object({
   movementResults: z.array(PlanMovementResultSchema).default([]),
 })
 
+export type PlanSetEntry       = z.infer<typeof PlanSetEntrySchema>
 export type PlanMovementResult = z.infer<typeof PlanMovementResultSchema>
 export type PlanValue          = z.infer<typeof PlanValueSchema>
 
 export const UpsertWorkoutPlanSchema = z.object({
-  level: WorkoutLevelSchema.optional(),
+  level: WorkoutLevelSchema.nullish().transform((v) => v ?? 'RX'),
   value: PlanValueSchema.nullable().optional(),
   notes: z.string().nullable().optional(),
 })

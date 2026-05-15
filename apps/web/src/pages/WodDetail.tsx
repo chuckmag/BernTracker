@@ -602,6 +602,7 @@ export default function WodDetail() {
       <LogResultDrawer
         workout={workout}
         existingResult={myResult ?? undefined}
+        plan={myPlan ?? undefined}
         onClose={() => setShowLogDrawer(false)}
         onSaved={() => {
           setShowLogDrawer(false)

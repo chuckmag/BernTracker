@@ -20,8 +20,6 @@ const LEVELS: { value: WorkoutLevel; label: string }[] = [
   { value: 'MODIFIED', label: 'Modified' },
 ]
 
-const LEVEL_OPTIONS = [{ value: '' as const, label: 'No level set' }, ...LEVELS] as const
-
 // ─── Per-set row ───────────────────────────────────────────────────────────────
 
 interface SetRow {
@@ -44,12 +42,12 @@ function blankSet(): SetRow {
   return { reps: '', load: '', distance: '', calories: '', seconds: '' }
 }
 
-function initSets(wm: WorkoutMovementWithPrescription, existingMovement?: UserWorkoutPlan['value'] extends null ? never : { sets: Array<{reps?: string; load?: number}> } | undefined): SetRow[] {
-  const existingSets = (existingMovement as any)?.sets as Array<{ reps?: string; load?: number; distance?: number; calories?: number; seconds?: number }> | undefined
+function initSets(wm: WorkoutMovementWithPrescription, existingMovement?: UserWorkoutPlan['value'] extends null ? never : { sets: Array<{reps?: string; load?: string}> } | undefined): SetRow[] {
+  const existingSets = (existingMovement as any)?.sets as Array<{ reps?: string; load?: string; distance?: number; calories?: number; seconds?: number }> | undefined
   if (existingSets?.length) {
     return existingSets.map((s) => ({
       reps:     s.reps ?? '',
-      load:     s.load !== undefined ? String(s.load) : '',
+      load:     s.load ?? '',
       distance: s.distance !== undefined ? String(s.distance) : '',
       calories: s.calories !== undefined ? String(s.calories) : '',
       seconds:  s.seconds !== undefined ? String(s.seconds) : '',
@@ -91,7 +89,7 @@ export default function WorkoutPlanDrawer({
   onSaved,
   onDeleted,
 }: WorkoutPlanDrawerProps) {
-  const [level, setLevel] = useState<WorkoutLevel | ''>(existingPlan?.level ?? '')
+  const [level, setLevel] = useState<WorkoutLevel>(existingPlan?.level ?? 'RX')
   const [notes, setNotes] = useState<string>(existingPlan?.notes ?? '')
   const [sections, setSections] = useState<MovementSection[]>(() => initSections(workout, existingPlan))
   const [saving, setSaving] = useState(false)
@@ -137,7 +135,7 @@ export default function WorkoutPlanDrawer({
           const sets = s.sets
             .map((row) => ({
               ...(row.reps     ? { reps:     row.reps }              : {}),
-              ...(row.load     ? { load:     parseFloat(row.load) }  : {}),
+              ...(row.load     ? { load:     row.load }              : {}),
               ...(row.distance ? { distance: parseFloat(row.distance) } : {}),
               ...(row.calories ? { calories: parseInt(row.calories, 10) }  : {}),
               ...(row.seconds  ? { seconds:  parseInt(row.seconds, 10) }  : {}),
@@ -154,7 +152,7 @@ export default function WorkoutPlanDrawer({
         .filter((mr) => mr.sets.length > 0)
 
       const plan = await api.plans.upsert(workout.id, targetUser.id, {
-        level:  level || null,
+        level,
         value:  movementResults.length > 0 ? { movementResults } : null,
         notes:  notes.trim() || null,
       })
@@ -215,19 +213,24 @@ export default function WorkoutPlanDrawer({
         <div className="flex-1 px-5 py-4 space-y-5 overflow-y-auto">
           {/* Level */}
           <div>
-            <label htmlFor="plan-level" className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1.5">
-              Level
-            </label>
-            <select
-              id="plan-level"
-              value={level}
-              onChange={(e) => setLevel(e.target.value as WorkoutLevel | '')}
-              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-primary"
-            >
-              {LEVEL_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+            <p className="text-xs font-medium text-slate-600 dark:text-gray-400 mb-1.5">Level</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {LEVELS.map(({ value: v, label }) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setLevel(v)}
+                  className={[
+                    'px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                    level === v
+                      ? 'bg-primary text-white'
+                      : 'bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-gray-700 hover:text-slate-950 dark:hover:text-white',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           {/* Movement prescriptions */}
@@ -265,9 +268,9 @@ export default function WorkoutPlanDrawer({
                     />
                     {tracksLoad && (
                       <input
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        placeholder="—"
+                        placeholder="e.g. 135 or 135-155"
                         value={row.load}
                         onChange={(e) => updateSet(si, ri, 'load', e.target.value)}
                         className="bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-primary"
