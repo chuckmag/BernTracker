@@ -8,16 +8,19 @@ import {
   type DistanceUnit,
   type LoadUnit,
   type NewPr,
+  type UserWorkoutPlan,
   type Workout,
   type WorkoutLevel,
   type WorkoutMovementWithPrescription,
   type WorkoutResult,
 } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES, type WorkoutCategory } from '../lib/workoutTypeStyles'
+import MovementTabStrip from './ui/MovementTabStrip.tsx'
 
 interface LogResultDrawerProps {
   workout: Workout
   existingResult?: WorkoutResult
+  plan?: UserWorkoutPlan
   onClose: () => void
   onSaved: () => void
   onDeleted?: () => void
@@ -142,7 +145,7 @@ function initialMovementSections(workout: Workout, existing?: WorkoutResult): Mo
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
-export default function LogResultDrawer({ workout, existingResult, onClose, onSaved, onDeleted }: LogResultDrawerProps) {
+export default function LogResultDrawer({ workout, existingResult, plan, onClose, onSaved, onDeleted }: LogResultDrawerProps) {
   const { user } = useAuth()
   const isEdit = !!existingResult
   const workoutGender = deriveWorkoutGender(user?.identifiedGender ?? null)
@@ -286,6 +289,15 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
     return workout.workoutMovements.find((wm) => wm.movement.id === active.workoutMovementId) ?? null
   }, [active, workout.workoutMovements])
 
+  // Per-movement load placeholders from the user's plan (e.g. "135-155")
+  const planLoadsByMovementId = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const mr of plan?.value?.movementResults ?? []) {
+      map.set(mr.workoutMovementId, mr.sets.map((s) => s.load ?? ''))
+    }
+    return map
+  }, [plan])
+
   return (
     <>
       {prModal.length > 0 && (
@@ -374,31 +386,18 @@ export default function LogResultDrawer({ workout, existingResult, onClose, onSa
           {/* Sets table (Strength + Skill with prescription) */}
           {canLogSets && active && (
             <div className="space-y-3">
-              {movements.length > 1 && (
-                <div className="flex gap-1 overflow-x-auto -mx-1 px-1" role="tablist" aria-label="Movements">
-                  {movements.map((m, i) => (
-                    <button
-                      key={m.workoutMovementId}
-                      type="button"
-                      role="tab"
-                      aria-selected={i === activeMovement}
-                      onClick={() => setActiveMovement(i)}
-                      className={[
-                        'px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors',
-                        i === activeMovement ? 'bg-slate-200 dark:bg-gray-700 text-slate-950 dark:text-white' : 'bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
-                      ].join(' ')}
-                    >
-                      {m.movementName}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <MovementTabStrip
+                movements={movements}
+                active={activeMovement}
+                onChange={setActiveMovement}
+              />
 
               <SetsTable
                 movement={active}
                 movementIdx={activeMovement}
                 category={WORKOUT_TYPE_STYLES[workout.type].category}
                 prescription={activePrescription}
+                planLoadPlaceholders={planLoadsByMovementId.get(active.workoutMovementId)}
                 onUpdate={updateSet}
                 onAddSet={addSet}
                 onRemoveSet={removeSet}
@@ -489,6 +488,7 @@ function SetsTable({
   movementIdx,
   category,
   prescription,
+  planLoadPlaceholders,
   onUpdate,
   onAddSet,
   onRemoveSet,
@@ -498,6 +498,7 @@ function SetsTable({
   movementIdx: number
   category: WorkoutCategory
   prescription: WorkoutMovementWithPrescription | null
+  planLoadPlaceholders?: string[]
   onUpdate: (mIdx: number, sIdx: number, field: keyof SetRow, value: string) => void
   onAddSet: (mIdx: number) => void
   onRemoveSet: (mIdx: number, sIdx: number) => void
@@ -627,7 +628,7 @@ function SetsTable({
                     aria-label={`Set ${sIdx + 1} ${c.label}`}
                     value={s[c.key]}
                     onChange={(e) => onUpdate(movementIdx, sIdx, c.key, e.target.value)}
-                    placeholder={c.placeholder}
+                    placeholder={c.key === 'load' && planLoadPlaceholders?.[sIdx] ? planLoadPlaceholders[sIdx] : c.placeholder}
                     className="w-full bg-white dark:bg-gray-800 text-slate-950 dark:text-white text-sm rounded px-2 py-1.5 border border-slate-300 dark:border-gray-700 focus:outline-none focus:border-primary"
                   />
                 </td>
