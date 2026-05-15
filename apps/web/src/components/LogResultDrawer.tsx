@@ -15,6 +15,7 @@ import {
   type WorkoutResult,
 } from '../lib/api.ts'
 import { WORKOUT_TYPE_STYLES, type WorkoutCategory } from '../lib/workoutTypeStyles'
+import MovementTabStrip from './ui/MovementTabStrip.tsx'
 
 interface LogResultDrawerProps {
   workout: Workout
@@ -385,25 +386,11 @@ export default function LogResultDrawer({ workout, existingResult, plan, onClose
           {/* Sets table (Strength + Skill with prescription) */}
           {canLogSets && active && (
             <div className="space-y-3">
-              {movements.length > 1 && (
-                <div className="flex gap-1 overflow-x-auto -mx-1 px-1" role="tablist" aria-label="Movements">
-                  {movements.map((m, i) => (
-                    <button
-                      key={m.workoutMovementId}
-                      type="button"
-                      role="tab"
-                      aria-selected={i === activeMovement}
-                      onClick={() => setActiveMovement(i)}
-                      className={[
-                        'px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors',
-                        i === activeMovement ? 'bg-slate-200 dark:bg-gray-700 text-slate-950 dark:text-white' : 'bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
-                      ].join(' ')}
-                    >
-                      {m.movementName}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <MovementTabStrip
+                movements={movements}
+                active={activeMovement}
+                onChange={setActiveMovement}
+              />
 
               <SetsTable
                 movement={active}

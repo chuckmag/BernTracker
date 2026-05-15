@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { LoadUnit, DistanceUnit, WorkoutLevel, Workout, UserWorkoutPlan, WorkoutMovementWithPrescription, Member } from '../lib/api.ts'
 import { api } from '../lib/api.ts'
 import Button from './ui/Button.tsx'
+import MovementTabStrip from './ui/MovementTabStrip.tsx'
 
 interface WorkoutPlanDrawerProps {
   workout: Workout
@@ -92,6 +93,7 @@ export default function WorkoutPlanDrawer({
   const [level, setLevel] = useState<WorkoutLevel>(existingPlan?.level ?? 'RX')
   const [notes, setNotes] = useState<string>(existingPlan?.notes ?? '')
   const [sections, setSections] = useState<MovementSection[]>(() => initSections(workout, existingPlan))
+  const [activeSection, setActiveSection] = useState(0)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -233,16 +235,22 @@ export default function WorkoutPlanDrawer({
             </div>
           </div>
 
-          {/* Movement prescriptions */}
-          {showMovements && sections.map((section, si) => {
-            const wm = workout.workoutMovements[si]
-            const tracksLoad     = wm?.tracksLoad ?? true
-            const hasDistance    = wm?.distance != null
-            const hasCalories    = wm?.calories != null
+          {/* Movement prescriptions — tabbed when multiple movements */}
+          {showMovements && (() => {
+            const section = sections[activeSection]
+            if (!section) return null
+            const wm = workout.workoutMovements[activeSection]
+            const tracksLoad  = wm?.tracksLoad ?? true
+            const hasDistance = wm?.distance != null
+            const hasCalories = wm?.calories != null
 
             return (
-              <div key={section.workoutMovementId} className="space-y-2">
-                <p className="text-sm font-medium text-slate-950 dark:text-white">{section.movementName}</p>
+              <div className="space-y-3">
+                <MovementTabStrip
+                  movements={sections}
+                  active={activeSection}
+                  onChange={setActiveSection}
+                />
 
                 {/* Column headers */}
                 <div className="grid gap-2 text-xs font-medium text-slate-500 dark:text-gray-400" style={{ gridTemplateColumns: 'auto 1fr 1fr auto' }}>
@@ -262,7 +270,7 @@ export default function WorkoutPlanDrawer({
                       inputMode="numeric"
                       placeholder="—"
                       value={row.reps}
-                      onChange={(e) => updateSet(si, ri, 'reps', e.target.value)}
+                      onChange={(e) => updateSet(activeSection, ri, 'reps', e.target.value)}
                       className="bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-primary"
                       aria-label={`Set ${ri + 1} reps for ${section.movementName}`}
                     />
@@ -272,7 +280,7 @@ export default function WorkoutPlanDrawer({
                         inputMode="decimal"
                         placeholder="e.g. 135 or 135-155"
                         value={row.load}
-                        onChange={(e) => updateSet(si, ri, 'load', e.target.value)}
+                        onChange={(e) => updateSet(activeSection, ri, 'load', e.target.value)}
                         className="bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-primary"
                         aria-label={`Set ${ri + 1} load for ${section.movementName}`}
                       />
@@ -283,7 +291,7 @@ export default function WorkoutPlanDrawer({
                         inputMode="decimal"
                         placeholder="—"
                         value={row.distance}
-                        onChange={(e) => updateSet(si, ri, 'distance', e.target.value)}
+                        onChange={(e) => updateSet(activeSection, ri, 'distance', e.target.value)}
                         className="bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-primary"
                         aria-label={`Set ${ri + 1} distance for ${section.movementName}`}
                       />
@@ -294,13 +302,13 @@ export default function WorkoutPlanDrawer({
                         inputMode="numeric"
                         placeholder="—"
                         value={row.calories}
-                        onChange={(e) => updateSet(si, ri, 'calories', e.target.value)}
+                        onChange={(e) => updateSet(activeSection, ri, 'calories', e.target.value)}
                         className="bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-2 py-1.5 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:border-primary"
                         aria-label={`Set ${ri + 1} calories for ${section.movementName}`}
                       />
                     )}
                     <button
-                      onClick={() => removeSet(si, ri)}
+                      onClick={() => removeSet(activeSection, ri)}
                       disabled={section.sets.length <= 1}
                       aria-label={`Remove set ${ri + 1}`}
                       className="-my-1 -mr-1 w-7 h-7 inline-flex items-center justify-center rounded text-slate-400 dark:text-gray-500 hover:text-rose-600 dark:hover:text-rose-400 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
@@ -311,14 +319,14 @@ export default function WorkoutPlanDrawer({
                 ))}
 
                 <button
-                  onClick={() => addSet(si)}
+                  onClick={() => addSet(activeSection)}
                   className="text-xs text-primary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
                 >
                   + Add set
                 </button>
               </div>
             )
-          })}
+          })()}
 
           {/* Notes */}
           <div>
