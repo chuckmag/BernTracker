@@ -301,7 +301,7 @@ function StrengthChart({ results }: { results: MovementHistoryResult[] }) {
   )
 }
 
-function EnduranceChart({ prTable }: { prTable: Extract<MovementPrTable, { category: 'ENDURANCE' }> }) {
+function EnduranceChart({ prTable }: { prTable: Extract<MovementPrTable, { category: 'ENDURANCE' | 'MONOSTRUCTURAL' }> }) {
   const data = prTable.entries.map((e) => ({
     label: `${e.distance}${e.distanceUnit.toLowerCase()}`,
     seconds: e.bestSeconds,
@@ -326,7 +326,7 @@ function EnduranceChart({ prTable }: { prTable: Extract<MovementPrTable, { categ
 
 function PrChart({ prTable, results }: { prTable: MovementPrTable; results: MovementHistoryResult[] }) {
   if (prTable.category === 'STRENGTH') return <StrengthChart results={results} />
-  if (prTable.category === 'ENDURANCE') return <EnduranceChart prTable={prTable} />
+  if (prTable.category === 'ENDURANCE' || prTable.category === 'MONOSTRUCTURAL') return <EnduranceChart prTable={prTable} />
   return <p className="text-xs text-slate-400 dark:text-gray-500">Chart not available for this movement type.</p>
 }
 
@@ -524,7 +524,7 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
     data &&
     (data.prTable.category === 'STRENGTH'
       ? true
-      : data.prTable.category === 'ENDURANCE'
+      : data.prTable.category === 'ENDURANCE' || data.prTable.category === 'MONOSTRUCTURAL'
         ? data.prTable.entries.length > 0
         : data.prTable.category === 'MACHINE'
           ? data.prTable.outputCapped.calories.length > 0 || data.prTable.outputCapped.distance.length > 0 || data.prTable.timeCapped.calories.length > 0 || data.prTable.timeCapped.distance.length > 0
@@ -560,10 +560,10 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
               }
             />
           )}
-          {data.prTable.category === 'ENDURANCE' && <EndurancePrTable entries={data.prTable.entries} />}
+          {(data.prTable.category === 'ENDURANCE' || data.prTable.category === 'MONOSTRUCTURAL') && <EndurancePrTable entries={data.prTable.entries} />}
           {data.prTable.category === 'MACHINE' && <MachinePrTable prTable={data.prTable} />}
 
-          {(data.prTable.category === 'STRENGTH' || data.prTable.category === 'ENDURANCE') && (
+          {(data.prTable.category === 'STRENGTH' || data.prTable.category === 'ENDURANCE' || data.prTable.category === 'MONOSTRUCTURAL') && (
             <div>
               <button
                 onClick={() => setShowChart((v) => !v)}

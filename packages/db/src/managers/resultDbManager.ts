@@ -1,5 +1,5 @@
 import { prisma } from '../client.js'
-import type { WorkoutLevel, WorkoutGender, Prisma, MovementCategory, LoadUnit } from '../client.js'
+import type { WorkoutLevel, WorkoutGender, Prisma, MovementCategory, MovementPrType, LoadUnit } from '../client.js'
 
 interface CreateResultData {
   userId: string
@@ -325,6 +325,29 @@ function computeStrengthPrTable(movementId: string, results: ResultWithWorkout[]
     .sort((a, b) => a.reps - b.reps)
 }
 
+function computeMaxRepsPrTable(movementId: string, results: ResultWithWorkout[]) {
+  let best: { maxReps: number; workoutId: string; resultId: string; workoutScheduledAt: string } | null = null
+
+  for (const result of results) {
+    const { sets } = extractMovementSets(result.value, movementId)
+    for (const set of sets) {
+      if (!set.reps) continue
+      const reps = parseRepsToInt(set.reps)
+      if (reps <= 0) continue
+      if (!best || reps > best.maxReps) {
+        best = {
+          maxReps: reps,
+          workoutId: result.workout.id,
+          resultId: result.id,
+          workoutScheduledAt: result.workout.scheduledAt.toISOString(),
+        }
+      }
+    }
+  }
+
+  return best ? [best] : []
+}
+
 function computeEndurancePrTable(movementId: string, results: ResultWithWorkout[]) {
   // Key: `${distance}::${distanceUnit}` — best time per distinct distance+unit combo
   const byDistance = new Map<string, {
@@ -418,16 +441,19 @@ function computeMachinePrTable(movementId: string, results: ResultWithWorkout[])
   }
 }
 
-function buildPrTable(category: MovementCategory, movementId: string, results: ResultWithWorkout[]) {
+function buildPrTable(category: MovementCategory, movementId: string, results: ResultWithWorkout[], prTypes?: MovementPrType[]) {
+  // Prefer prTypes[0] when available; fall back to category for legacy rows.
+  const primaryType = prTypes?.[0]
+  if (primaryType === 'MAX_REPS') return { category, entries: computeMaxRepsPrTable(movementId, results) }
+  if (primaryType === 'TIME') return { category, entries: computeEndurancePrTable(movementId, results) }
+  if (primaryType === 'DISTANCE' || primaryType === 'CALORIES') return { category, ...computeMachinePrTable(movementId, results) }
+  if (primaryType === 'LOAD') return { category, entries: computeStrengthPrTable(movementId, results) }
+  // Legacy category fallback for rows not yet migrated to prTypes
   switch (category) {
-    case 'STRENGTH':
-      return { category, entries: computeStrengthPrTable(movementId, results) }
-    case 'ENDURANCE':
-      return { category, entries: computeEndurancePrTable(movementId, results) }
-    case 'MACHINE':
-      return { category, ...computeMachinePrTable(movementId, results) }
-    default:
-      return { category, entries: [] as never[] }
+    case 'STRENGTH': return { category, entries: computeStrengthPrTable(movementId, results) }
+    case 'ENDURANCE': return { category, entries: computeEndurancePrTable(movementId, results) }
+    case 'MACHINE': return { category, ...computeMachinePrTable(movementId, results) }
+    default: return { category, entries: [] as never[] }
   }
 }
 
@@ -438,7 +464,7 @@ export async function findMovementPrAndHistoryForUser(
 ) {
   const movement = await prisma.movement.findUnique({
     where: { id: movementId },
-    select: { id: true, name: true, category: true },
+    select: { id: true, name: true, category: true, prTypes: true },
   })
   if (!movement) throw Object.assign(new Error('Movement not found'), { statusCode: 404 })
 
@@ -457,7 +483,7 @@ export async function findMovementPrAndHistoryForUser(
   const { page, limit } = pagination
   const pageResults = allResults.slice((page - 1) * limit, page * limit)
 
-  const prTable = buildPrTable(movement.category, movementId, allResults)
+  const prTable = buildPrTable(movement.category, movementId, allResults, movement.prTypes)
 
   const displayResults = pageResults.map((r) => {
     const { sets, loadUnit, distanceUnit } = extractMovementSets(r.value, movementId)
@@ -482,6 +508,7 @@ export async function findMovementPrAndHistoryForUser(
     movementId: movement.id,
     movementName: movement.name,
     category: movement.category,
+    prTypes: movement.prTypes,
     prTable,
     results: displayResults,
     total,

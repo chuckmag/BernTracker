@@ -72,18 +72,31 @@ enum MovementStatus {
   REJECTED
 }
 
-// Drives which PR-table layout and chart shape to show in the "Your History"
-// section of the workout detail page.
-// STRENGTH  → max load per rep count (1RM, 2RM, …)
-// ENDURANCE → best time per distance (400 m, 1 mi, 5 k, …)
-// MACHINE   → best time per calorie/distance target OR best output per time target
-// GYMNASTICS / SKILL → history feed only, no PR table
+// Groups movements for display in the Movements page and drives legacy PR-table
+// layout in "Your History". ENDURANCE and MACHINE are kept for backwards
+// compatibility — new movements use MONOSTRUCTURAL instead.
+// PR computation is now driven by Movement.prTypes, not this field.
 enum MovementCategory {
   STRENGTH
-  ENDURANCE
-  MACHINE
+  MONOSTRUCTURAL // running, rowing, biking, ski erg, swimming — replaces ENDURANCE + MACHINE
   GYMNASTICS
   SKILL
+  // Legacy values — existing rows kept as-is; admin Setup page migrates them to MONOSTRUCTURAL
+  ENDURANCE
+  MACHINE
+}
+
+// Ordered list of PR types tracked for a movement (Movement.prTypes).
+// The first entry is the primary/default shown in summary views.
+// Multiple entries mean the movement tracks PRs across several dimensions
+// (e.g. Rowing: [DISTANCE, CALORIES, TIME]).
+enum MovementPrType {
+  LOAD     // best load per rep count (1RM, 3RM, 5RM…) — strength movements
+  MAX_REPS // max consecutive reps unbroken — HSPU, pull-ups, double-unders
+  TIME     // fastest time for a given distance — running, monostructural
+  DISTANCE // best distance in a given time window — machine, row/bike for meters
+  CALORIES // best calories in a given time window — assault bike, rower for cals
+  NONE     // no PR tracked — warm-up movements, pure skill drills
 }
 
 // Self-identified gender — stored on the user profile for demographics
@@ -524,10 +537,14 @@ model Movement {
   id         String            @id @default(cuid())
   name       String            @unique
   status     MovementStatus    @default(ACTIVE)
-  // Drives PR-table layout in "Your History". Defaults to STRENGTH so all
-  // existing movements keep current behaviour; a follow-up task will
-  // categorize non-strength movements explicitly.
+  // Display grouping for the Movements page. Defaults to STRENGTH for all
+  // existing movements; the admin Movement Setup page is used to recategorize.
   category   MovementCategory  @default(STRENGTH)
+  // Ordered list of PR types tracked for this movement. First entry = primary.
+  // Multiple entries = movement tracks PRs across several dimensions, e.g.
+  // Rowing: [DISTANCE, CALORIES, TIME]; Pull-Up: [MAX_REPS, LOAD].
+  // Defaults to [LOAD] so all existing movements keep their current behaviour.
+  prTypes    MovementPrType[]  @default([LOAD])
   // Authoritative reference URL for the movement — usually a CrossFit
   // /essentials/the-<slug> page. Surfaced as a "Learn more" link in the
   // member UI; the body content stays on the source site so we don't have

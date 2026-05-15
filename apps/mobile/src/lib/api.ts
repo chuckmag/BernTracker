@@ -218,7 +218,8 @@ export interface ResultHistoryItem {
   createdAt: string
 }
 
-export type MovementCategory = 'STRENGTH' | 'ENDURANCE' | 'MACHINE' | 'GYMNASTICS' | 'SKILL'
+export type MovementCategory = 'STRENGTH' | 'MONOSTRUCTURAL' | 'GYMNASTICS' | 'SKILL' | 'ENDURANCE' | 'MACHINE'
+export type MovementPrType = 'LOAD' | 'MAX_REPS' | 'TIME' | 'DISTANCE' | 'CALORIES' | 'NONE'
 
 export interface MovementHistorySet {
   reps?: string
@@ -247,6 +248,13 @@ export interface StrengthPrEntry {
   workoutScheduledAt: string
 }
 
+export interface MaxRepsPrEntry {
+  maxReps: number
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
 export interface EndurancePrEntry {
   distance: number
   distanceUnit: string
@@ -260,11 +268,12 @@ export interface MovementHistoryPage {
   movementId: string
   movementName: string
   category: MovementCategory
+  prTypes: MovementPrType[]
   prTable:
     | { category: 'STRENGTH'; entries: StrengthPrEntry[] }
-    | { category: 'ENDURANCE'; entries: EndurancePrEntry[] }
+    | { category: 'ENDURANCE' | 'MONOSTRUCTURAL'; entries: EndurancePrEntry[] }
+    | { category: 'GYMNASTICS' | 'SKILL'; entries: MaxRepsPrEntry[] | never[] }
     | { category: 'MACHINE'; outputCapped: { calories: unknown[]; distance: unknown[] }; timeCapped: { calories: unknown[]; distance: unknown[] } }
-    | { category: 'GYMNASTICS' | 'SKILL'; entries: never[] }
   results: MovementHistoryResult[]
   total: number
   page: number
