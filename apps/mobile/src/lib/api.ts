@@ -286,7 +286,7 @@ export interface MovementHistoryPage {
 export interface BenchmarkResult {
   id: string
   userId: string
-  namedWorkoutId: string
+  namedWorkoutName: string
   achievedAt: string
   level: WorkoutLevel
   workoutGender: WorkoutGender

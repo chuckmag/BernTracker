@@ -6,7 +6,7 @@ ADD COLUMN     "sourceUrl" TEXT;
 CREATE TABLE "BenchmarkResult" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "namedWorkoutId" TEXT NOT NULL,
+    "namedWorkoutName" TEXT NOT NULL,
     "achievedAt" TIMESTAMP(3) NOT NULL,
     "level" "WorkoutLevel" NOT NULL,
     "workoutGender" "WorkoutGender" NOT NULL,
@@ -21,16 +21,13 @@ CREATE TABLE "BenchmarkResult" (
 );
 
 -- CreateIndex
-CREATE INDEX "BenchmarkResult_userId_namedWorkoutId_idx" ON "BenchmarkResult"("userId", "namedWorkoutId");
+CREATE INDEX "BenchmarkResult_userId_namedWorkoutName_idx" ON "BenchmarkResult"("userId", "namedWorkoutName");
 
 -- CreateIndex
-CREATE INDEX "BenchmarkResult_namedWorkoutId_primaryScoreKind_primaryScor_idx" ON "BenchmarkResult"("namedWorkoutId", "primaryScoreKind", "primaryScoreValue");
+CREATE INDEX "BenchmarkResult_namedWorkoutName_primaryScoreKind_primarySc_idx" ON "BenchmarkResult"("namedWorkoutName", "primaryScoreKind", "primaryScoreValue");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "BenchmarkResult_userId_namedWorkoutId_achievedAt_key" ON "BenchmarkResult"("userId", "namedWorkoutId", "achievedAt");
+CREATE UNIQUE INDEX "BenchmarkResult_userId_namedWorkoutName_achievedAt_key" ON "BenchmarkResult"("userId", "namedWorkoutName", "achievedAt");
 
 -- AddForeignKey
 ALTER TABLE "BenchmarkResult" ADD CONSTRAINT "BenchmarkResult_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "BenchmarkResult" ADD CONSTRAINT "BenchmarkResult_namedWorkoutId_fkey" FOREIGN KEY ("namedWorkoutId") REFERENCES "NamedWorkout"("id") ON DELETE CASCADE ON UPDATE CASCADE;

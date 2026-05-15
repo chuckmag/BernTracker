@@ -3,7 +3,7 @@ import type { WorkoutLevel, WorkoutGender } from '../client.js'
 
 export async function createBenchmarkResult(data: {
   userId: string
-  namedWorkoutId: string
+  namedWorkoutName: string
   achievedAt: Date
   level: WorkoutLevel
   workoutGender: WorkoutGender
@@ -15,9 +15,9 @@ export async function createBenchmarkResult(data: {
   return prisma.benchmarkResult.create({ data })
 }
 
-export async function findBenchmarkResultsForUser(userId: string, namedWorkoutId: string) {
+export async function findBenchmarkResultsForUser(userId: string, namedWorkoutName: string) {
   return prisma.benchmarkResult.findMany({
-    where: { userId, namedWorkoutId },
+    where: { userId, namedWorkoutName },
     orderBy: { achievedAt: 'desc' },
   })
 }

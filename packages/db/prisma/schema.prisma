@@ -439,29 +439,30 @@ model NamedWorkout {
   templateWorkoutId String?   @unique
   templateWorkout   Workout?  @relation("NamedWorkoutTemplate", fields: [templateWorkoutId], references: [id])
   workouts          Workout[] @relation("NamedWorkoutInstances")
-  benchmarkResults  BenchmarkResult[]
 }
 
 model BenchmarkResult {
-  id             String        @id @default(cuid())
-  userId         String
-  namedWorkoutId String
-  achievedAt     DateTime
-  level          WorkoutLevel
-  workoutGender  WorkoutGender
-  value          Json
-  notes          String?
+  id                String        @id @default(cuid())
+  userId            String
+  // Stores the NamedWorkout name as a plain string — no FK so the record
+  // persists as a historical audit even if the NamedWorkout is later renamed
+  // or deleted. Query via namedWorkout.name (unique on NamedWorkout).
+  namedWorkoutName  String
+  achievedAt        DateTime
+  level             WorkoutLevel
+  workoutGender     WorkoutGender
+  value             Json
+  notes             String?
   primaryScoreKind  String?
   primaryScoreValue Float?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  namedWorkout NamedWorkout @relation(fields: [namedWorkoutId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, namedWorkoutId, achievedAt])
-  @@index([userId, namedWorkoutId])
-  @@index([namedWorkoutId, primaryScoreKind, primaryScoreValue])
+  @@unique([userId, namedWorkoutName, achievedAt])
+  @@index([userId, namedWorkoutName])
+  @@index([namedWorkoutName, primaryScoreKind, primaryScoreValue])
 }
 
 model Workout {
@@ -497,7 +498,6 @@ model Workout {
   // nullable: members can log personal workouts outside any program
   program          Program?          @relation(fields: [programId], references: [id], onDelete: SetNull)
   results          Result[]
-  userPlans        UserWorkoutPlan[]
   namedWorkout     NamedWorkout?     @relation("NamedWorkoutInstances", fields: [namedWorkoutId], references: [id])
   templateFor      NamedWorkout?     @relation("NamedWorkoutTemplate") // required by Prisma parser — not used in queries
   workoutMovements WorkoutMovement[]
@@ -558,29 +558,6 @@ model Result {
 
   @@unique([userId, workoutId])
   @@index([workoutId, primaryScoreKind, primaryScoreValue])
-}
-
-model UserWorkoutPlan {
-  id          String        @id @default(cuid())
-  userId      String
-  workoutId   String
-  level       WorkoutLevel?
-  // movementResults JSON — same shape as Result.value (omitting the score
-  // block). Null when the plan only records a level or notes.
-  value       Json?
-  notes       String?
-  // Tracks who most recently set this plan so coaches can see whether it was
-  // self-set or coach-set.
-  createdById String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workout   Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
-  createdBy User    @relation("UserWorkoutPlanCreatedBy", fields: [createdById], references: [id])
-
-  @@unique([userId, workoutId])
-  @@index([workoutId])
 }
 
 model Movement {
