@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import type { Workout, WorkoutLevel, UserWorkoutPlan, LoadUnit, DistanceUnit } from '../lib/api'
 import { api } from '../lib/api'
+import MovementTabStrip from './MovementTabStrip'
 
 interface Props {
   visible: boolean
@@ -71,6 +72,7 @@ export default function WorkoutPlanModal({ visible, workout, targetUser, existin
   const [level, setLevel] = useState<WorkoutLevel>(existingPlan?.level ?? 'RX')
   const [notes, setNotes] = useState(existingPlan?.notes ?? '')
   const [sections, setSections] = useState<MovementSection[]>(() => initSections(workout, existingPlan))
+  const [activeSection, setActiveSection] = useState(0)
   const [saving, setSaving] = useState(false)
 
   const userName = targetUser.firstName
@@ -194,57 +196,65 @@ export default function WorkoutPlanModal({ visible, workout, targetUser, existin
               ))}
             </ScrollView>
 
-            {/* Movement sections */}
-            {showMovements && sections.map((section, si) => (
-              <View key={section.workoutMovementId} style={styles.movementSection}>
-                <Text style={styles.movementName}>{section.movementName}</Text>
+            {/* Movement sections — tabbed when multiple movements */}
+            {showMovements && (() => {
+              const section = sections[activeSection]
+              if (!section) return null
+              return (
+                <View style={styles.movementSection}>
+                  <MovementTabStrip
+                    movements={sections}
+                    active={activeSection}
+                    onChange={setActiveSection}
+                  />
 
-                {/* Column headers */}
-                <View style={styles.setHeaderRow}>
-                  <Text style={[styles.setHeaderCell, styles.setNumCell]}>#</Text>
-                  <Text style={[styles.setHeaderCell, styles.repsCell]}>Reps</Text>
-                  <Text style={[styles.setHeaderCell, styles.loadCell]}>Load ({section.loadUnit})</Text>
-                  <View style={styles.removeCell} />
-                </View>
-
-                {section.sets.map((row, ri) => (
-                  <View key={ri} style={styles.setRow}>
-                    <Text style={[styles.setNum, styles.setNumCell]}>{ri + 1}</Text>
-                    <TextInput
-                      style={[styles.setInput, styles.repsCell]}
-                      value={row.reps}
-                      onChangeText={(v) => updateSet(si, ri, 'reps', v)}
-                      keyboardType="numeric"
-                      placeholder="—"
-                      placeholderTextColor="#4b5563"
-                      accessibilityLabel={`Set ${ri + 1} reps`}
-                    />
-                    <TextInput
-                      style={[styles.setInput, styles.loadCell]}
-                      value={row.load}
-                      onChangeText={(v) => updateSet(si, ri, 'load', v)}
-                      keyboardType="default"
-                      placeholder="e.g. 135 or 135-155"
-                      placeholderTextColor="#4b5563"
-                      accessibilityLabel={`Set ${ri + 1} load`}
-                    />
-                    <TouchableOpacity
-                      style={styles.removeCell}
-                      onPress={() => removeSet(si, ri)}
-                      disabled={section.sets.length <= 1}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Remove set ${ri + 1}`}
-                    >
-                      <Text style={[styles.removeBtn, section.sets.length <= 1 && styles.removeBtnDisabled]}>−</Text>
-                    </TouchableOpacity>
+                  {/* Column headers */}
+                  <View style={styles.setHeaderRow}>
+                    <Text style={[styles.setHeaderCell, styles.setNumCell]}>#</Text>
+                    <Text style={[styles.setHeaderCell, styles.repsCell]}>Reps</Text>
+                    <Text style={[styles.setHeaderCell, styles.loadCell]}>Load ({section.loadUnit})</Text>
+                    <View style={styles.removeCell} />
                   </View>
-                ))}
 
-                <TouchableOpacity onPress={() => addSet(si)} style={styles.addSetBtn}>
-                  <Text style={styles.addSetText}>+ Add set</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+                  {section.sets.map((row, ri) => (
+                    <View key={ri} style={styles.setRow}>
+                      <Text style={[styles.setNum, styles.setNumCell]}>{ri + 1}</Text>
+                      <TextInput
+                        style={[styles.setInput, styles.repsCell]}
+                        value={row.reps}
+                        onChangeText={(v) => updateSet(activeSection, ri, 'reps', v)}
+                        keyboardType="numeric"
+                        placeholder="—"
+                        placeholderTextColor="#4b5563"
+                        accessibilityLabel={`Set ${ri + 1} reps`}
+                      />
+                      <TextInput
+                        style={[styles.setInput, styles.loadCell]}
+                        value={row.load}
+                        onChangeText={(v) => updateSet(activeSection, ri, 'load', v)}
+                        keyboardType="default"
+                        placeholder="e.g. 135 or 135-155"
+                        placeholderTextColor="#4b5563"
+                        accessibilityLabel={`Set ${ri + 1} load`}
+                      />
+                      <TouchableOpacity
+                        style={styles.removeCell}
+                        onPress={() => removeSet(activeSection, ri)}
+                        disabled={section.sets.length <= 1}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove set ${ri + 1}`}
+                      >
+                        <Text style={[styles.removeBtn, section.sets.length <= 1 && styles.removeBtnDisabled]}>−</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+
+                  <TouchableOpacity onPress={() => addSet(activeSection)} style={styles.addSetBtn}>
+                    <Text style={styles.addSetText}>+ Add set</Text>
+                  </TouchableOpacity>
+                </View>
+              )
+            })()}
 
             {/* Notes */}
             <Text style={styles.fieldLabel}>NOTES FOR ATHLETE</Text>

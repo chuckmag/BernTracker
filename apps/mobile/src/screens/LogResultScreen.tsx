@@ -29,6 +29,7 @@ import {
   type ResultValue,
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import MovementTabStrip from '../components/MovementTabStrip'
 
 type Props = StackScreenProps<RootStackParamList, 'LogResult'>
 
@@ -507,29 +508,11 @@ export default function LogResultScreen({ route, navigation }: Props) {
         {/* Sets table — Strength + Skill Work with prescription */}
         {canLogSets && movements[activeMovement] && (
           <View style={styles.setsSection}>
-            {movements.length > 1 && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.tabStrip}
-                contentContainerStyle={styles.tabStripContent}
-              >
-                {movements.map((m, i) => (
-                  <TouchableOpacity
-                    key={m.workoutMovementId}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: i === activeMovement }}
-                    onPress={() => setActiveMovement(i)}
-                    style={[styles.tabChip, i === activeMovement && styles.tabChipActive]}
-                    testID={`movement-tab-${i}`}
-                  >
-                    <Text style={[styles.tabText, i === activeMovement && styles.tabTextActive]}>
-                      {m.movementName}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
+            <MovementTabStrip
+              movements={movements}
+              active={activeMovement}
+              onChange={setActiveMovement}
+            />
 
             <SetsTableRN
               movement={movements[activeMovement]}
@@ -1172,17 +1155,6 @@ const styles = StyleSheet.create({
 
   // Sets table
   setsSection: { marginTop: 16 },
-  tabStrip: { marginBottom: 12 },
-  tabStripContent: { gap: 6, paddingRight: 4 },
-  tabChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#111827',
-    borderRadius: 8,
-  },
-  tabChipActive: { backgroundColor: '#374151' },
-  tabText: { color: '#9ca3af', fontSize: 13, fontWeight: '500' },
-  tabTextActive: { color: '#ffffff', fontWeight: '600' },
 
   unitRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 8 },
   unitGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
