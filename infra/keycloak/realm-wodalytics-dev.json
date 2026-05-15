@@ -193,13 +193,14 @@
     {
       "clientId": "wodalytics-mcp",
       "name": "WODalytics MCP",
-      "description": "MCP server \u2014 public client with PKCE for AI agent authorization",
+      "description": "MCP server \u2014 public client with PKCE + DPoP for AI agent authorization",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "attributes": {
-        "pkce.code.challenge.method": "S256"
+        "pkce.code.challenge.method": "S256",
+        "dpop.bound.access.tokens": "true"
       },
       "redirectUris": [
         "https://mcp.qa.wodalytics.com/callback",
@@ -220,6 +221,45 @@
       ]
     }
   ],
+  "clientProfiles": {
+    "profiles": [
+      {
+        "name": "mcp-cimd-profile",
+        "description": "Client ID Metadata Document profile for unregistered MCP clients (dev: http allowed for local tooling)",
+        "executors": [
+          {
+            "executor": "client-id-metadata-document",
+            "configuration": {
+              "allow-http-scheme": ["true"],
+              "trusted-domains": ["claude.ai", "vscode.dev", "localhost", "127.0.0.1"],
+              "restrict-same-domain": ["false"],
+              "required-properties": [],
+              "only-allow-confidential-client": ["false"]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "clientPolicies": {
+    "policies": [
+      {
+        "name": "mcp-cimd-policy",
+        "description": "Apply CIMD profile to any client whose client_id is a URL from a trusted MCP tool domain",
+        "enabled": true,
+        "conditions": [
+          {
+            "condition": "client-id-uri",
+            "configuration": {
+              "uri-scheme": ["https", "http"],
+              "trusted-domains": ["claude.ai", "vscode.dev", "localhost", "127.0.0.1"]
+            }
+          }
+        ],
+        "profiles": ["mcp-cimd-profile"]
+      }
+    ]
+  },
   "identityProviders": [
     {
       "alias": "google",

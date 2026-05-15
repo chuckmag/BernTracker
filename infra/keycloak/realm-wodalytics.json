@@ -138,7 +138,7 @@
     {
       "clientId": "wodalytics-web",
       "name": "WODalytics Web",
-      "description": "Web SPA \u2014 public client with PKCE. No client secret: the app runs entirely in the browser and cannot securely store one (OAuth 2.1 \u00a72.1.1).",
+      "description": "Web SPA — public client with PKCE. No client secret: the app runs entirely in the browser and cannot securely store one (OAuth 2.1 §2.1.1).",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
@@ -167,7 +167,7 @@
     {
       "clientId": "wodalytics-mobile",
       "name": "WODalytics Mobile",
-      "description": "Mobile app \u2014 public client with PKCE",
+      "description": "Mobile app — public client with PKCE",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
@@ -191,14 +191,28 @@
     {
       "clientId": "wodalytics-mcp",
       "name": "WODalytics MCP",
-      "description": "MCP server \u2014 public client with PKCE for AI agent authorization",
+      "description": "MCP server — public client with PKCE + DPoP for AI agent authorization",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "attributes": {
-        "pkce.code.challenge.method": "S256"
+        "pkce.code.challenge.method": "S256",
+        "dpop.bound.access.tokens": "true"
       },
+      "protocolMappers": [
+        {
+          "name": "mcp-server-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "https://mcp.qa.wodalytics.com",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ],
       "redirectUris": [
         "https://mcp.qa.wodalytics.com/callback",
         "http://localhost:*",
@@ -220,6 +234,45 @@
       ]
     }
   ],
+  "clientProfiles": {
+    "profiles": [
+      {
+        "name": "mcp-cimd-profile",
+        "description": "Client ID Metadata Document profile for unregistered MCP clients authenticating via a URL-based client_id",
+        "executors": [
+          {
+            "executor": "client-id-metadata-document",
+            "configuration": {
+              "allow-http-scheme": ["false"],
+              "trusted-domains": ["claude.ai", "vscode.dev"],
+              "restrict-same-domain": ["false"],
+              "required-properties": [],
+              "only-allow-confidential-client": ["false"]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "clientPolicies": {
+    "policies": [
+      {
+        "name": "mcp-cimd-policy",
+        "description": "Apply CIMD profile to any client whose client_id is an https URL from a trusted MCP tool domain",
+        "enabled": true,
+        "conditions": [
+          {
+            "condition": "client-id-uri",
+            "configuration": {
+              "uri-scheme": ["https"],
+              "trusted-domains": ["claude.ai", "vscode.dev"]
+            }
+          }
+        ],
+        "profiles": ["mcp-cimd-profile"]
+      }
+    ]
+  },
   "identityProviders": [
     {
       "alias": "google",

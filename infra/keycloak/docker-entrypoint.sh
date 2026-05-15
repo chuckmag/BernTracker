@@ -48,7 +48,13 @@ printf '%s\n' "$content" > "${REALM_FILE}"
 # KC_START_COMMAND defaults to "start" (production). Override to "start-dev"
 # for local testing without a production database.
 KC_START_COMMAND="${KC_START_COMMAND:-start}"
-log "Starting Keycloak (${KC_START_COMMAND})..."
+
+# cimd (Client ID Metadata Document) enables unregistered MCP clients to
+# authenticate using a URL as their client_id. Appended to any existing
+# KC_FEATURES so Railway env overrides are preserved rather than clobbered.
+export KC_FEATURES="${KC_FEATURES:+${KC_FEATURES},}cimd"
+
+log "Starting Keycloak (${KC_START_COMMAND}, KC_FEATURES=${KC_FEATURES})..."
 /opt/keycloak/bin/kc.sh ${KC_START_COMMAND} &
 KC_PID=$!
 
