@@ -2,6 +2,7 @@ export { prisma } from './client.js'
 export * from './client.js'
 
 export * from './managers/analyticsDbManager.js'
+export * from './managers/benchmarkResultDbManager.js'
 export * from './managers/commentDbManager.js'
 export * from './managers/dashboardDbManager.js'
 export * from './managers/emergencyContactDbManager.js'

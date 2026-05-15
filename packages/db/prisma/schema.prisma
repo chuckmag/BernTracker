@@ -248,6 +248,7 @@ model User {
   comments              Comment[]
   workoutPlans          UserWorkoutPlan[]
   createdWorkoutPlans   UserWorkoutPlan[]      @relation("UserWorkoutPlanCreatedBy")
+  benchmarkResults      BenchmarkResult[]
 }
 
 model OAuthAccount {
@@ -425,17 +426,42 @@ model Invitation {
 }
 
 model NamedWorkout {
-  id        String          @id @default(cuid())
-  name      String          @unique
-  category  WorkoutCategory
-  aliases   String[]
-  isActive  Boolean         @default(true)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id          String          @id @default(cuid())
+  name        String          @unique
+  category    WorkoutCategory
+  aliases     String[]
+  isActive    Boolean         @default(true)
+  description String?
+  sourceUrl   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   templateWorkoutId String?   @unique
   templateWorkout   Workout?  @relation("NamedWorkoutTemplate", fields: [templateWorkoutId], references: [id])
   workouts          Workout[] @relation("NamedWorkoutInstances")
+  benchmarkResults  BenchmarkResult[]
+}
+
+model BenchmarkResult {
+  id             String        @id @default(cuid())
+  userId         String
+  namedWorkoutId String
+  achievedAt     DateTime
+  level          WorkoutLevel
+  workoutGender  WorkoutGender
+  value          Json
+  notes          String?
+  primaryScoreKind  String?
+  primaryScoreValue Float?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  namedWorkout NamedWorkout @relation(fields: [namedWorkoutId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, namedWorkoutId, achievedAt])
+  @@index([userId, namedWorkoutId])
+  @@index([namedWorkoutId, primaryScoreKind, primaryScoreValue])
 }
 
 model Workout {
@@ -475,6 +501,7 @@ model Workout {
   namedWorkout     NamedWorkout?     @relation("NamedWorkoutInstances", fields: [namedWorkoutId], references: [id])
   templateFor      NamedWorkout?     @relation("NamedWorkoutTemplate") // required by Prisma parser — not used in queries
   workoutMovements WorkoutMovement[]
+  userPlans        UserWorkoutPlan[]
   import           WorkoutImport?    @relation(fields: [importId], references: [id], onDelete: SetNull)
 
   @@index([importId])
@@ -531,6 +558,29 @@ model Result {
 
   @@unique([userId, workoutId])
   @@index([workoutId, primaryScoreKind, primaryScoreValue])
+}
+
+model UserWorkoutPlan {
+  id          String        @id @default(cuid())
+  userId      String
+  workoutId   String
+  level       WorkoutLevel?
+  // movementResults JSON — same shape as Result.value (omitting the score
+  // block). Null when the plan only records a level or notes.
+  value       Json?
+  notes       String?
+  // Tracks who most recently set this plan so coaches can see whether it was
+  // self-set or coach-set.
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workout   Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("UserWorkoutPlanCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([userId, workoutId])
+  @@index([workoutId])
 }
 
 model Movement {

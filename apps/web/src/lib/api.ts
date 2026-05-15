@@ -191,7 +191,24 @@ export interface NamedWorkout {
   category: WorkoutCategory
   aliases: string[]
   isActive: boolean
+  description: string | null
+  sourceUrl: string | null
   templateWorkout: { id: string; type: WorkoutType; description: string; workoutMovements: { movement: Movement }[] } | null
+}
+
+export interface BenchmarkResult {
+  id: string
+  userId: string
+  namedWorkoutId: string
+  achievedAt: string
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  value: object
+  notes: string | null
+  primaryScoreKind: string | null
+  primaryScoreValue: number | null
+  createdAt: string
+  updatedAt: string
 }
 
 export type LoadUnit = 'LB' | 'KG'
