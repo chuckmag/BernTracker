@@ -51,6 +51,52 @@ router.get('/gyms/:gymId/workouts', requireAuth, requireGymMembership, getWorkou
 router.get('/gyms/:gymId/workouts', requireAuth, async (req, res) => { ... })
 ```
 
+### Thin-wrapper mandate
+
+A route handler has exactly four responsibilities, in order:
+
+1. **Extract** — pull params, query strings, and userId from `req`
+2. **Validate** — parse the request body with a Zod schema; return 400 on failure
+3. **Delegate** — call one DB manager function with the extracted, validated inputs
+4. **Map** — translate the manager's return value or thrown error to an HTTP response
+
+Everything else belongs in a DB manager. Specifically, routes must **not**:
+
+- Make raw `prisma.*` calls
+- Perform multi-step DB workflows (lookup → transform → write)
+- Contain branching business logic (deriving values, aggregating results)
+
+The test: if you copy the core logic out of a route and paste it into an MCP tool, should it work unchanged? If yes, it belongs in a manager. If it's inherently HTTP-specific (status codes, headers), it belongs in the route.
+
+```typescript
+// Good — route is a thin wrapper
+async function createBenchmarkResultHandler(req: Request, res: Response) {
+  const parsed = CreateBenchmarkResultSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
+
+  const score = derivePrimaryScore(parsed.data.value)   // pure utility, not a DB call
+  const result = await logBenchmarkResult(req.user!.id, req.params.namedWorkoutId as string, {
+    ...parsed.data,
+    achievedAt: new Date(parsed.data.achievedAt),
+    primaryScoreKind: score?.kind ?? null,
+    primaryScoreValue: score?.value ?? null,
+  })
+  if (!result) return res.status(404).json({ error: 'Named workout not found' })
+  res.status(201).json(result)
+}
+
+// Avoid — route doing DB work and logic
+async function createBenchmarkResultHandler(req: Request, res: Response) {
+  const namedWorkout = await findNamedWorkoutById(req.params.id)  // ← DB query in route
+  if (!namedWorkout) return res.status(404).json(...)
+  const score = derivePrimaryScore(req.body.value)
+  await prisma.benchmarkResult.create({ data: { namedWorkoutName: namedWorkout.name, ... } })  // ← raw Prisma
+  ...
+}
+```
+
+Score derivation (`derivePrimaryScore` from `@wodalytics/types`) is acceptable in routes because `packages/db` does not depend on `packages/types`. Pass the pre-computed `primaryScoreKind`/`primaryScoreValue` into the manager.
+
 ## Error logging conventions
 
 Use `console.log("")` (not `console.error`) for diagnostic output. Log at every auth/authorization failure point and whenever catching an unexpected exception.

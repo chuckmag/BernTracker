@@ -10,9 +10,11 @@ WODalytics is a CrossFit workout tracking tool for gym members and trainers.
 
 This file covers cross-cutting topics — anything that spans the monorepo or applies to all apps. App-specific patterns (design systems, DB conventions, route handler style, mobile testing, etc.) live in per-app `CLAUDE.md` files and load automatically when you work in that subtree:
 
-- `apps/api/CLAUDE.md` — DB manager pattern, route handler style, error logging, background jobs, API integration tests.
+- `apps/api/CLAUDE.md` — DB manager pattern, route handler style (thin-wrapper mandate), error logging, background jobs, API integration tests.
+- `apps/mcp/CLAUDE.md` — MCP tool handler style (thin-wrapper mandate), local testing, auth setup.
 - `apps/web/CLAUDE.md` — design system (primitives, tokens, a11y, ARIA), unit + E2E testing patterns.
 - `apps/mobile/CLAUDE.md` — mobile-only conventions; design system to be added when established.
+- `packages/db/CLAUDE.md` — manager pattern, naming rules, what belongs in a manager vs. a caller.
 
 **When adding new guidance:** put it in the most specific `CLAUDE.md` that owns it. If a rule only applies to web, it belongs in `apps/web/CLAUDE.md`. Promote to root only when the rule genuinely spans apps. Keeping per-app rules out of the root file keeps it short enough to actually be read.
 
@@ -26,7 +28,9 @@ This file covers cross-cutting topics — anything that spans the monorepo or ap
 - **Touching the schema?** Read *Schema migrations* below — every schema PR must commit its migration file.
 - **Opening a PR?** Read *Pull requests* below — the Tests section format is required.
 - **Web work?** `apps/web/CLAUDE.md` — primitives before custom Tailwind.
-- **API work?** `apps/api/CLAUDE.md` — DB manager pattern is mandatory.
+- **API work?** `apps/api/CLAUDE.md` — DB manager pattern + thin-wrapper mandate are mandatory.
+- **MCP work?** `apps/mcp/CLAUDE.md` — tool handlers are thin wrappers over DB managers; no inline Prisma.
+- **DB manager work?** `packages/db/CLAUDE.md` — naming rules, what belongs here vs. in callers.
 
 ## Default workflow
 
@@ -255,7 +259,9 @@ launchctl unload ~/Library/LaunchAgents/com.wodalytics.db-backup.plist
 - **Source of truth for the data model:** `packages/db/prisma/schema.prisma`.
 - **Shared result value types:** `packages/types/src/result.ts`.
 - **Auth verification:** `apps/api/src/middleware/auth.ts` — single point for all routes.
+- **Shared business logic layer:** `packages/db/src/managers/` — all Prisma access lives here; API routes, MCP tools, and background jobs call managers, never `prisma.*` directly. See `packages/db/CLAUDE.md`.
 - **API REST conventions, DB managers, route handlers, jobs:** see `apps/api/CLAUDE.md`.
+- **MCP tool handlers:** see `apps/mcp/CLAUDE.md`.
 - **Web design system, primitives, a11y:** see `apps/web/CLAUDE.md`.
 
 ## Key enums

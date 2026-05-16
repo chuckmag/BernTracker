@@ -22,6 +22,7 @@ import analyticsRouter from './routes/analytics'
 import reactionsRouter from './routes/reactions'
 import commentsRouter from './routes/comments'
 import plansRouter from './routes/plans'
+import benchmarksRouter from './routes/benchmarks.js'
 import { createLogger } from '@wodalytics/server'
 import { requestLogger } from '@wodalytics/server'
 
@@ -80,6 +81,7 @@ app.use('/api', analyticsRouter)
 app.use('/api', reactionsRouter)
 app.use('/api', commentsRouter)
 app.use('/api', plansRouter)
+app.use('/api', benchmarksRouter)
 
 // Static-file route for the LocalFsImageStorage backend (dev-only). When
 // AWS_S3_BUCKET is set we never write here; the route is harmless to leave

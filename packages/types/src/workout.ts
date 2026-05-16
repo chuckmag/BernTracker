@@ -4,6 +4,9 @@ import {
   DistanceUnitSchema,
   RepsFieldSchema,
   TempoFieldSchema,
+  ResultValueSchema,
+  WorkoutLevelSchema,
+  WorkoutGenderSchema,
 } from './result.js'
 
 export const WorkoutTypeSchema = z.enum([
@@ -115,7 +118,27 @@ export const UpdateNamedWorkoutSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, { message: 'At least one field is required' })
 
+export const CreateBenchmarkResultSchema = z.object({
+  achievedAt: z.string().datetime(),
+  level: WorkoutLevelSchema,
+  workoutGender: WorkoutGenderSchema,
+  value: ResultValueSchema,
+  notes: z.string().optional(),
+})
+
+export const UpdateBenchmarkResultSchema = z
+  .object({
+    achievedAt: z.string().datetime().optional(),
+    level: WorkoutLevelSchema.optional(),
+    workoutGender: WorkoutGenderSchema.optional(),
+    value: ResultValueSchema.optional(),
+    notes: z.string().nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: 'At least one field is required' })
+
 export type CreateWorkoutInput = z.infer<typeof CreateWorkoutSchema>
 export type UpdateWorkoutInput = z.infer<typeof UpdateWorkoutSchema>
 export type CreateNamedWorkoutInput = z.infer<typeof CreateNamedWorkoutSchema>
 export type UpdateNamedWorkoutInput = z.infer<typeof UpdateNamedWorkoutSchema>
+export type CreateBenchmarkResultInput = z.infer<typeof CreateBenchmarkResultSchema>
+export type UpdateBenchmarkResultInput = z.infer<typeof UpdateBenchmarkResultSchema>

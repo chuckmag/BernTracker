@@ -9,15 +9,50 @@ MCP server-specific guidance. See the repo-root `CLAUDE.md` for cross-cutting to
 - **Transports:** Streamable HTTP (`POST /mcp`) primary; legacy SSE (`GET /sse` + `POST /messages`) for older clients; stdio (`--stdio` flag) for local Claude Desktop testing.
 - **Auth:** `src/auth/keycloak.ts` exports `requireAuth` — validates RS256 Bearer JWTs via JWKS at `KEYCLOAK_ISSUER_URL`. Stdio mode bypasses auth entirely (trusted process pipe).
 - **Tools:** registered in `src/server.ts` via `registerXxxTools()` functions in `src/tools/`. One file per domain group.
-- **DB access:** import managers directly from `apps/api/src/db/` for now. Extraction to a shared package is tracked in #315.
+- **DB access:** import manager functions from `@wodalytics/db`. Never call `prisma.*` inline in a tool handler — see *Tool handler style* below.
 - **OIDC discovery:** `GET /.well-known/oauth-authorization-server` proxies the Keycloak discovery document so AI clients can auto-discover the auth server (RFC 8414).
+
+## Tool handler style — thin-wrapper mandate
+
+MCP tool handlers are the MCP transport layer's equivalent of REST route handlers: thin wrappers that resolve identity, delegate to a DB manager, and serialize the result. Business logic lives in `packages/db/src/managers/`, not here.
+
+A tool handler has exactly four responsibilities:
+
+1. **Authenticate** — call `resolveUserId(ctxUserId, 'tool_name')`; return `mcpUnauthorized()` if absent
+2. **Validate** — check args with Zod (the SDK validates schema types; add semantic guards if needed)
+3. **Delegate** — call one DB manager function from `@wodalytics/db`
+4. **Serialize** — `JSON.stringify` the result into `{ content: [{ type: 'text', text }] }`
+
+**Never call `prisma.*` inside a tool handler.** If the manager you need doesn't exist, add it to `packages/db/src/managers/` first. This keeps data-access logic in one place, reusable by the API, MCP, jobs, and any future consumer.
+
+```typescript
+// Good — tool is a thin wrapper over a manager
+server.tool('get_my_benchmarks', 'List benchmark WODs with your history', {}, async (_args) => {
+  const userId = resolveUserId(ctxUserId, 'get_my_benchmarks')
+  if (!userId) return mcpUnauthorized()
+
+  const summary = await findBenchmarkSummaryForUser(userId)
+  return { content: [{ type: 'text' as const, text: JSON.stringify(summary) }] }
+})
+
+// Avoid — Prisma leaking into a tool handler
+server.tool('get_my_benchmarks', ..., async (_args) => {
+  const userId = resolveUserId(ctxUserId, 'get_my_benchmarks')
+  if (!userId) return mcpUnauthorized()
+  const results = await prisma.benchmarkResult.findMany({ where: { userId } })  // ← wrong
+  ...
+})
+```
+
+The `prisma` client is still exported from `@wodalytics/db` for edge cases (raw SQL, transactions) that can't be expressed through a manager. Use it only when necessary and add a comment pointing at the manager gap.
 
 ## Adding a new tool
 
-1. Open the relevant `src/tools/*.ts` file (workouts, programs, or results).
-2. Replace the stub with a real implementation — call the db manager, enforce `MEMBER` role if needed, return `{ content: [{ type: 'text', text: JSON.stringify(result) }] }`.
-3. Build and smoke-test locally (see *Local testing* below).
-4. Run the integration test suite: `npm run test --workspace=@wodalytics/mcp`.
+1. Open the relevant `src/tools/*.ts` file (workouts, programs, results, or a new domain file).
+2. If the DB operation you need doesn't have a manager function, add one to `packages/db/src/managers/` first.
+3. Implement the tool handler as a thin wrapper: auth → validate → call manager → serialize.
+4. Build and smoke-test locally (see *Local testing* below).
+5. Run the integration test suite: `npm run test --workspace=@wodalytics/mcp`.
 
 ## Local testing with Claude Desktop (stdio)
 
