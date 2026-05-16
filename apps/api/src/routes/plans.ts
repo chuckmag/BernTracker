@@ -2,6 +2,7 @@ import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import {
+  Prisma,
   findWorkoutPlanForUser,
   findWorkoutPlansForWorkout,
   upsertWorkoutPlanForUser,
@@ -93,7 +94,7 @@ async function upsertWorkoutPlan(req: Request, res: Response) {
     userId: targetUserId,
     workoutId,
     level: parsed.data.level,
-    value: (parsed.data.value as any) ?? null,
+    value: parsed.data.value != null ? (parsed.data.value as any) : Prisma.JsonNull,
     notes: parsed.data.notes ?? null,
     createdById: requesterId,
   })

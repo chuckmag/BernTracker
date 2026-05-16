@@ -1,11 +1,12 @@
 import { prisma } from '../client.js'
-import type { WorkoutLevel, Prisma } from '../client.js'
+import { Prisma } from '../client.js'
+import type { WorkoutLevel } from '../client.js'
 
 interface UpsertWorkoutPlanData {
   userId: string
   workoutId: string
   level?: WorkoutLevel | null
-  value?: Prisma.InputJsonValue | null
+  value?: Prisma.InputJsonValue | typeof Prisma.JsonNull
   notes?: string | null
   createdById: string
 }
