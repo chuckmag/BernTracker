@@ -156,6 +156,8 @@ Skipping the live test runs and falling back to "static checks only" — like th
 
 > **Hard rule: never use `pkill node`, `killall node`, or any other broad process kill.** Those kill sibling worktrees too.
 
+> **Hard rule: never run `cd <path> && git <cmd>`.** The `cd` triggers Claude Code's "untrusted hooks" security prompt on every call. Use `git -C <path> <cmd>` instead — it runs git in the target directory without changing the shell's working directory, so no prompt fires. A PreToolUse hook enforces this and will block violating commands.
+
 **Automatic (normal path):** The PostToolUse hook fires after `gh pr create` and spawns `scripts/watch-pr.mjs` as a detached background daemon. The daemon polls `gh pr view` every 3 minutes. On merge it runs:
 1. `stop-worktree.mjs` — kills dev servers
 2. `git worktree remove --force` — deregisters the worktree and deletes the directory
