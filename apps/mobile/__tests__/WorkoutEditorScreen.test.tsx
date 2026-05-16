@@ -17,7 +17,7 @@ jest.mock('../src/lib/api', () => ({
     },
     movements: {
       list: jest.fn(),
-      detect: jest.fn(),
+      // `detect` removed from the API in #330 — matching is client-side now.
     },
   },
 }))
@@ -34,8 +34,11 @@ jest.mock('../src/context/MovementsContext', () => ({
 import { api } from '../src/lib/api'
 import { useMovements } from '../src/context/MovementsContext'
 
-const FRAN_THRUSTER = { id: 'mv-thr', name: 'Thruster', category: 'GYMNASTICS', isVariation: false } as any
-const FRAN_PULLUP = { id: 'mv-pu', name: 'Pull-up', category: 'GYMNASTICS', isVariation: false } as any
+// Aliases populated so Pass 1 of the client-side matcher (#330) reliably
+// matches "thruster" and "pull-up"-shaped tokens regardless of fuzzy
+// threshold behaviour on partial strings.
+const FRAN_THRUSTER = { id: 'mv-thr', name: 'Thruster', category: 'GYMNASTICS', isVariation: false, aliases: ['thruster', 'thrusters'] } as any
+const FRAN_PULLUP = { id: 'mv-pu', name: 'Pull-up', category: 'GYMNASTICS', isVariation: false, aliases: ['pull-up', 'pull up', 'pullup', 'pullups', 'pull-ups'] } as any
 const CATALOG = [FRAN_THRUSTER, FRAN_PULLUP]
 
 function makeNavigation() {
@@ -267,7 +270,6 @@ describe('WorkoutEditorScreen — autosave (slice 2b)', () => {
     // Detect fires whenever the description has any content; autosave tests
     // don't care about its return value but the call must resolve so the
     // setTimeout chain doesn't throw on tick advance.
-    ;(api.movements.detect as jest.Mock).mockResolvedValue([])
   })
   afterEach(() => {
     jest.useRealTimers()
@@ -374,7 +376,6 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
   })
 
   test('runs detect after the description debounces, then surfaces suggestion pills', async () => {
-    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER, FRAN_PULLUP])
     const { getByTestId, queryByTestId } = render(
       <WorkoutEditorScreen
         navigation={makeNavigation()}
@@ -382,14 +383,10 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
       />,
     )
     fireEvent.changeText(getByTestId('description-input'), '21-15-9 thrusters and pull-ups')
-    expect(api.movements.detect).not.toHaveBeenCalled()
 
-    // Past the 800ms debounce → detect fires once with the description.
-    await act(async () => { jest.advanceTimersByTime(900) })
-    await waitFor(() => {
-      expect(api.movements.detect).toHaveBeenCalledWith('21-15-9 thrusters and pull-ups')
-    })
-    // Suggestions render but selected list is still empty.
+    // Past the 150ms debounce → matcher runs against the cached catalog
+    // (#330 made detect synchronous and client-side).
+    await act(async () => { jest.advanceTimersByTime(300) })
     await waitFor(() => {
       expect(queryByTestId('suggested-movement-mv-thr')).toBeTruthy()
       expect(queryByTestId('suggested-movement-mv-pu')).toBeTruthy()
@@ -398,7 +395,6 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
   })
 
   test('accepting a suggestion moves it to selected and removes the pill', async () => {
-    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
     const { getByTestId, queryByTestId, findByTestId } = render(
       <WorkoutEditorScreen
         navigation={makeNavigation()}
@@ -406,7 +402,7 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
       />,
     )
     fireEvent.changeText(getByTestId('description-input'), 'thrusters')
-    await act(async () => { jest.advanceTimersByTime(900) })
+    await act(async () => { jest.advanceTimersByTime(300) })
 
     fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
     expect(queryByTestId('suggested-movement-mv-thr')).toBeNull()
@@ -415,7 +411,6 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
   })
 
   test('dismissing a suggestion removes the pill and keeps it out of subsequent detects', async () => {
-    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
     const { getByTestId, queryByTestId, findByTestId } = render(
       <WorkoutEditorScreen
         navigation={makeNavigation()}
@@ -423,20 +418,17 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
       />,
     )
     fireEvent.changeText(getByTestId('description-input'), 'thrusters')
-    await act(async () => { jest.advanceTimersByTime(900) })
+    await act(async () => { jest.advanceTimersByTime(300) })
     fireEvent.press(await findByTestId('suggested-movement-dismiss-mv-thr'))
     expect(queryByTestId('suggested-movement-mv-thr')).toBeNull()
 
-    // Trigger a second detect tick. Same response — but the dismissed id
-    // must be filtered out before suggestions render.
+    // Trigger a second detect tick — dismissed id must stay filtered out.
     fireEvent.changeText(getByTestId('description-input'), 'thrusters and barbells')
-    await act(async () => { jest.advanceTimersByTime(900) })
-    await waitFor(() => expect((api.movements.detect as jest.Mock).mock.calls.length).toBe(2))
+    await act(async () => { jest.advanceTimersByTime(300) })
     expect(queryByTestId('suggested-movement-mv-thr')).toBeNull()
   })
 
   test('save POSTs movementIds in display order', async () => {
-    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER, FRAN_PULLUP])
     ;(api.me.personalProgram.workouts.create as jest.Mock).mockResolvedValue({ id: 'new-w-1' })
     const navigation = makeNavigation()
     const { getByTestId, findByTestId } = render(
@@ -447,7 +439,7 @@ describe('WorkoutEditorScreen — movement detect + select (slice 3a)', () => {
     )
     fireEvent.changeText(getByTestId('title-input'), 'Fran')
     fireEvent.changeText(getByTestId('description-input'), '21-15-9 thrusters and pull-ups')
-    await act(async () => { jest.advanceTimersByTime(900) })
+    await act(async () => { jest.advanceTimersByTime(300) })
     // Accept thruster first, then pull-up — display order matches accept order.
     fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
     fireEvent.press(await findByTestId('suggested-movement-accept-mv-pu'))
@@ -534,7 +526,6 @@ describe('WorkoutEditorScreen — per-movement prescription (slice 3b)', () => {
   })
 
   test('a Metcon workout shows sets/reps/load by default; Strength hides load', async () => {
-    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
     const { getByTestId, queryByTestId, findByTestId } = render(
       <WorkoutEditorScreen
         navigation={makeNavigation()}
@@ -542,7 +533,7 @@ describe('WorkoutEditorScreen — per-movement prescription (slice 3b)', () => {
       />,
     )
     fireEvent.changeText(getByTestId('description-input'), 'thrusters')
-    await act(async () => { jest.advanceTimersByTime(900) })
+    await act(async () => { jest.advanceTimersByTime(300) })
     fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
 
     // Default type is METCON → sets, reps, load visible by default.
@@ -560,7 +551,6 @@ describe('WorkoutEditorScreen — per-movement prescription (slice 3b)', () => {
   })
 
   test('typing in a prescription input flows into the autosave payload (numbers coerced, units kept)', async () => {
-    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
     ;(api.me.personalProgram.workouts.create as jest.Mock).mockResolvedValue({ id: 'w-new' })
     const { getByTestId, findByTestId } = render(
       <WorkoutEditorScreen
@@ -570,7 +560,7 @@ describe('WorkoutEditorScreen — per-movement prescription (slice 3b)', () => {
     )
     fireEvent.changeText(getByTestId('title-input'), 'Heavy day')
     fireEvent.changeText(getByTestId('description-input'), 'thrusters')
-    await act(async () => { jest.advanceTimersByTime(900) })
+    await act(async () => { jest.advanceTimersByTime(300) })
     fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
 
     fireEvent.changeText(getByTestId('prescription-input-mv-thr-sets'), '5')
@@ -597,7 +587,6 @@ describe('WorkoutEditorScreen — per-movement prescription (slice 3b)', () => {
   })
 
   test('toggling tracksLoad flips the per-movement boolean in the payload', async () => {
-    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
     ;(api.me.personalProgram.workouts.create as jest.Mock).mockResolvedValue({ id: 'w-new' })
     const { getByTestId, findByTestId } = render(
       <WorkoutEditorScreen
@@ -607,7 +596,7 @@ describe('WorkoutEditorScreen — per-movement prescription (slice 3b)', () => {
     )
     fireEvent.changeText(getByTestId('title-input'), 'Heavy day')
     fireEvent.changeText(getByTestId('description-input'), 'thrusters')
-    await act(async () => { jest.advanceTimersByTime(900) })
+    await act(async () => { jest.advanceTimersByTime(300) })
     fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
 
     // Default tracksLoad = true; tap once → false.
@@ -670,12 +659,12 @@ describe('WorkoutEditorScreen — resilience + manual search (slice 3a follow-up
     jest.useRealTimers()
   })
 
-  test('suggestion pills render even when the catalog is empty (detect response carries full Movement objects)', async () => {
-    // Catalog fetch failed → useMovements() returns []. Detect still runs
-    // and returns full Movement objects, so pills must render off the
-    // response alone — no catalog dependency.
+  test('an empty catalog yields no suggestion pills (detect runs against the cached catalog)', async () => {
+    // Detect now runs client-side against `useMovements()`. With an empty
+    // catalog there's nothing to match against → no pills. This is the
+    // intended fallback when the catalog fetch hasn't resolved yet (or
+    // failed); the user can still add movements once the catalog loads.
     ;(useMovements as jest.Mock).mockReturnValue([])
-    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER, FRAN_PULLUP])
     const { getByTestId, queryByTestId } = render(
       <WorkoutEditorScreen
         navigation={makeNavigation()}
@@ -683,11 +672,9 @@ describe('WorkoutEditorScreen — resilience + manual search (slice 3a follow-up
       />,
     )
     fireEvent.changeText(getByTestId('description-input'), 'thrusters and pull-ups')
-    await act(async () => { jest.advanceTimersByTime(900) })
-    await waitFor(() => {
-      expect(queryByTestId('suggested-movement-mv-thr')).toBeTruthy()
-      expect(queryByTestId('suggested-movement-mv-pu')).toBeTruthy()
-    })
+    await act(async () => { jest.advanceTimersByTime(300) })
+    expect(queryByTestId('suggested-movement-mv-thr')).toBeNull()
+    expect(queryByTestId('suggested-movement-mv-pu')).toBeNull()
   })
 
   test('manual search filters the catalog and adds the chosen movement to selected', async () => {
@@ -715,7 +702,6 @@ describe('WorkoutEditorScreen — resilience + manual search (slice 3a follow-up
 
   test('manual search excludes already-selected movements from results', async () => {
     ;(useMovements as jest.Mock).mockReturnValue(CATALOG)
-    ;(api.movements.detect as jest.Mock).mockResolvedValue([FRAN_THRUSTER])
     const { getByTestId, queryByTestId, findByTestId } = render(
       <WorkoutEditorScreen
         navigation={makeNavigation()}
@@ -724,7 +710,7 @@ describe('WorkoutEditorScreen — resilience + manual search (slice 3a follow-up
     )
     // Add thruster via the suggestion flow.
     fireEvent.changeText(getByTestId('description-input'), 'thrusters')
-    await act(async () => { jest.advanceTimersByTime(900) })
+    await act(async () => { jest.advanceTimersByTime(300) })
     fireEvent.press(await findByTestId('suggested-movement-accept-mv-thr'))
 
     // Search "thrust" — already-selected mv-thr must NOT appear in results.

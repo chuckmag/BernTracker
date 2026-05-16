@@ -40,6 +40,10 @@ export interface Movement {
   id: string
   name: string
   parentId: string | null
+  // Programmer-curated short forms ("WB", "KBS", "Wall Ball") that the
+  // client-side matcher uses for exact-token detection (#330). Always
+  // populated on the GET /api/movements response.
+  aliases: string[]
 }
 
 export interface WorkoutMovementWithPrescription {
@@ -600,15 +604,9 @@ export const api = {
     // the web `useMovements()` provider hits (#243 slice 3a).
     list: () => request<Movement[]>('/api/movements'),
 
-    // Free-text → matched-movement detection. Mirrors the web drawer's
-    // debounced detect — server tokenises the description and returns
-    // the active Movement rows whose canonical names hit. Editor presents
-    // these as accept/dismiss suggestions; they're never auto-tagged.
-    detect: (description: string) =>
-      request<Movement[]>('/api/movements/detect', {
-        method: 'POST',
-        body: JSON.stringify({ description }),
-      }),
+    // `detect` removed in #330 — clients now run the matcher against the
+    // catalog they cache via useMovements(). Import `detectMovementsInText`
+    // from `@wodalytics/types` instead.
 
     myHistory: (movementId: string, page = 1, limit = 10) =>
       request<MovementHistoryPage>(

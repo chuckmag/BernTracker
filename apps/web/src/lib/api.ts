@@ -53,6 +53,10 @@ export interface Movement {
   id: string
   name: string
   parentId: string | null
+  // Programmer-curated short forms ("WB", "KBS", "Wall Ball") that the
+  // client-side matcher uses for exact-token detection (#330). Always
+  // populated on the GET /api/movements response.
+  aliases: string[]
 }
 
 export type MovementCategory = 'STRENGTH' | 'MONOSTRUCTURAL' | 'GYMNASTICS' | 'SKILL' | 'ENDURANCE' | 'MACHINE'
@@ -1096,12 +1100,9 @@ export const api = {
     list: (token?: string) =>
       req<Movement[]>('/api/movements', { token }),
 
-    detect: (description: string, token?: string) =>
-      req<Movement[]>('/api/movements/detect', {
-        method: 'POST',
-        body: JSON.stringify({ description }),
-        token,
-      }),
+    // `detect` removed in #330 — clients now run the matcher against the
+    // catalog they cache via useMovements(). Import `detectMovementsInText`
+    // from `@wodalytics/types` instead.
 
     suggest: (data: { name: string; parentId?: string }, token?: string) =>
       req<Movement>('/api/movements/suggest', {

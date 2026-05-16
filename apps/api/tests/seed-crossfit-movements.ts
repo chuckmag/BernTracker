@@ -91,11 +91,15 @@ async function runTests() {
   console.log('\n=== fuzzy match picks up an alias ===')
 
   // Confirm the detect path resolves a short alias to the canonical movement.
-  // Done via direct Prisma + Fuse import would duplicate the runtime logic;
-  // simpler to drive it through detectMovementsInText so we exercise the
-  // exact production path.
-  const { detectMovementsInText } = await import('../src/db/movementDbManager.js')
-  const matches = await detectMovementsInText('AMRAP 10: 15 WB Shots, 200m run, 10 KBS')
+  // The matcher moved client-side in #330 (lives in @wodalytics/types now);
+  // we feed it the catalog the seed just inserted so the test still
+  // exercises the exact algorithm clients run.
+  const { detectMovementsInText } = await import('@wodalytics/types')
+  const catalog = await prisma.movement.findMany({
+    where: { status: 'ACTIVE' },
+    select: { id: true, name: true, aliases: true },
+  })
+  const matches = detectMovementsInText('AMRAP 10: 15 WB Shots, 200m run, 10 KBS', catalog)
   const matchNames = matches.map((m) => m.name)
   check('alias "WB" resolves to Wall-ball Shot', true, matchNames.includes('Wall-ball Shot'))
   check('alias "KBS" resolves to Kettlebell Swing', true, matchNames.includes('Kettlebell Swing'))

@@ -343,12 +343,16 @@ describe('WorkoutDrawer prescription editor', () => {
 })
 
 describe('WorkoutDrawer movement suggestions', () => {
+  // Each variant carries a "snatch" alias so the typed token "snatch"
+  // pulls all five via Pass 1 of the matcher (the 60% length-ratio gate
+  // on Pass 2 would filter the longer canonical names like "Snatch
+  // Balance" otherwise — that gate is intentional, see #330).
   const SNATCH_VARIANTS = [
-    { id: 'mv-snatch',          name: 'Snatch',              parentId: null },
-    { id: 'mv-power-snatch',    name: 'Power Snatch',        parentId: null },
-    { id: 'mv-hang-snatch',     name: 'Hang Snatch',         parentId: null },
-    { id: 'mv-muscle-snatch',   name: 'Muscle Snatch',       parentId: null },
-    { id: 'mv-snatch-balance',  name: 'Snatch Balance',      parentId: null },
+    { id: 'mv-snatch',          name: 'Snatch',              parentId: null, aliases: ['snatch'] },
+    { id: 'mv-power-snatch',    name: 'Power Snatch',        parentId: null, aliases: ['snatch', 'power snatch'] },
+    { id: 'mv-hang-snatch',     name: 'Hang Snatch',         parentId: null, aliases: ['snatch', 'hang snatch'] },
+    { id: 'mv-muscle-snatch',   name: 'Muscle Snatch',       parentId: null, aliases: ['snatch', 'muscle snatch'] },
+    { id: 'mv-snatch-balance',  name: 'Snatch Balance',      parentId: null, aliases: ['snatch', 'snatch balance'] },
   ]
 
   beforeEach(() => {
@@ -364,8 +368,10 @@ describe('WorkoutDrawer movement suggestions', () => {
     await waitFor(() => expect(screen.getByRole('option', { name: 'General' })).toBeInTheDocument())
     await user.type(screen.getByPlaceholderText('e.g. Fran'), 'Snatch Day')
     await user.type(screen.getByPlaceholderText(/Workout details/), 'snatch')
-    await act(async () => { vi.advanceTimersByTime(1000) })
-    await waitFor(() => expect(api.movements.detect).toHaveBeenCalled())
+    // Detect runs synchronously now (#330) but is debounced 150ms; advance
+    // timers so the effect commits before assertions on the suggestion pills.
+    await act(async () => { vi.advanceTimersByTime(300) })
+    await waitFor(() => expect(screen.queryByLabelText(`Add ${SNATCH_VARIANTS[0].name}`)).toBeInTheDocument())
   }
 
   it('detection populates suggestion pills without auto-adding to selectedMovements', async () => {
@@ -418,8 +424,7 @@ describe('WorkoutDrawer movement suggestions', () => {
     // Trigger another detection by extending the description; Hang Snatch
     // must NOT reappear because it is now dismissed.
     await user.type(screen.getByPlaceholderText(/Workout details/), ' workout')
-    await act(async () => { vi.advanceTimersByTime(1000) })
-    await waitFor(() => expect(api.movements.detect).toHaveBeenCalledTimes(2))
+    await act(async () => { vi.advanceTimersByTime(300) })
 
     expect(screen.queryByLabelText('Add Hang Snatch')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Add Snatch')).toBeInTheDocument()

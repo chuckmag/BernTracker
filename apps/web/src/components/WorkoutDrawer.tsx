@@ -6,6 +6,7 @@ import { api, TYPE_ABBR, type DistanceUnit, type LoadUnit, type Movement, type N
 import type { ProgramScope } from '../lib/programScope'
 import { WORKOUT_CATEGORIES, WORKOUT_TYPE_STYLES, typesInCategory } from '../lib/workoutTypeStyles'
 import { useMovements } from '../context/MovementsContext.tsx'
+import { detectMovementsInText } from '@wodalytics/types'
 
 // Per-movement prescription as form state — strings everywhere so empty
 // inputs are first-class. Coerced to numbers/units at submit time.
@@ -219,7 +220,8 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [movementSearch, setMovementSearch] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
-  const [detectLoading, setDetectLoading] = useState(false)
+  // detectLoading state removed — matching is now synchronous client-side
+  // (#330) so there's no in-flight state to surface.
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [suggestError, setSuggestError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -455,30 +457,28 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, snapshot, canAutosave, localWorkoutId])
 
-  // Auto-detect movements from description (debounced 800ms). Detection
-  // produces suggestions, not auto-tags — the programmer accepts each one
-  // explicitly via the pill ✓ / ✗ controls below the prescription rows.
+  // Auto-detect movements from description. Now runs the matcher client-side
+  // against the cached catalog (#330) — no network round-trip, no loading
+  // state. A small 150ms debounce throttles re-render churn on fast typing
+  // but is otherwise unnecessary; matching itself takes microseconds.
+  // Detection produces suggestions, not auto-tags — the programmer accepts
+  // each one explicitly via the pill ✓ / ✗ controls below the prescription rows.
   useEffect(() => {
     if (!isOpen || !description.trim() || allMovements.length === 0) return
     const timer = setTimeout(() => {
-      setDetectLoading(true)
-      api.movements.detect(description)
-        .then((detected) => {
-          const selectedIds = new Set(selectedMovements.map((m) => m.id))
-          const fresh = detected
-            .filter((m) => !selectedIds.has(m.id) && !dismissedIds.has(m.id))
-            .map((m) => m.id)
-          setSuggestedMovementIds(fresh)
-        })
-        .catch(() => {})
-        .finally(() => setDetectLoading(false))
-    }, 800)
+      const detected = detectMovementsInText(description, allMovements)
+      const selectedIds = new Set(selectedMovements.map((m) => m.id))
+      const fresh = detected
+        .filter((m) => !selectedIds.has(m.id) && !dismissedIds.has(m.id))
+        .map((m) => m.id)
+      setSuggestedMovementIds(fresh)
+    }, 150)
     return () => clearTimeout(timer)
     // selectedMovements + dismissedIds intentionally omitted — captured at
-    // setup time, refreshed on the next description change. Avoids re-firing
-    // the detect API on every accept/dismiss.
+    // setup time, refreshed on the next description change. Avoids re-running
+    // detect on every accept/dismiss.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [description, isOpen, allMovements.length])
+  }, [description, isOpen, allMovements])
 
   function acceptSuggestion(id: string) {
     const movement = allMovements.find((m) => m.id === id)
@@ -949,7 +949,6 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
               <div>
                 <label className="block text-xs text-slate-600 dark:text-gray-400 mb-1">
                   Movements
-                  {detectLoading && <span className="ml-2 text-slate-500 dark:text-gray-400 text-[10px]">detecting…</span>}
                 </label>
 
                 {selectedMovements.length > 0 && (

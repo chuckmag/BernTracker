@@ -274,21 +274,13 @@ async function runTests() {
   }
 
   // ── POST /api/movements/detect ───────────────────────────────────────────────
-  console.log('\n=== POST /api/movements/detect ===')
-
+  // Endpoint removed in #330 — clients now run the matcher against the
+  // catalog they cache via useMovements(). Coverage moved to the shared
+  // util's unit tests (packages/types/src/movementMatcher.test.ts).
+  console.log('\n=== POST /api/movements/detect (removed in #330) ===')
   {
-    const r = await api('POST', '/movements/detect', memberToken, {
-      description: `21-15-9 Thruster-${TS} Pull-up-${TS}`,
-    })
-    check('T11: POST /api/movements/detect → 200', 200, r.status)
-    const arr = r.body as unknown as { id: string }[]
-    check('T11: detects thruster', true, arr.some((m) => m.id === thrusterMovementId))
-    check('T11: detects pull-up', true, arr.some((m) => m.id === pullUpMovementId))
-  }
-
-  {
-    const r = await api('POST', '/movements/detect', undefined, { description: 'test' })
-    check('T12: POST /api/movements/detect no auth → 401', 401, r.status)
+    const r = await api('POST', '/movements/detect', memberToken, { description: 'anything' })
+    check('T11: POST /api/movements/detect → 404 (route removed)', 404, r.status)
   }
 
   // ── GET /api/gyms/:gymId/workouts?movementIds= ───────────────────────────────
