@@ -156,6 +156,7 @@ router.post('/logout', async (req, res) => {
 
 // GET /me
 router.get('/me', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store')
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
     select: AUTH_USER_SELECT,

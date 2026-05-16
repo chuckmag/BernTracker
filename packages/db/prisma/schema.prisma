@@ -72,18 +72,31 @@ enum MovementStatus {
   REJECTED
 }
 
-// Drives which PR-table layout and chart shape to show in the "Your History"
-// section of the workout detail page.
-// STRENGTH  → max load per rep count (1RM, 2RM, …)
-// ENDURANCE → best time per distance (400 m, 1 mi, 5 k, …)
-// MACHINE   → best time per calorie/distance target OR best output per time target
-// GYMNASTICS / SKILL → history feed only, no PR table
+// Groups movements for display in the Movements page and drives legacy PR-table
+// layout in "Your History". ENDURANCE and MACHINE are kept for backwards
+// compatibility — new movements use MONOSTRUCTURAL instead.
+// PR computation is now driven by Movement.prTypes, not this field.
 enum MovementCategory {
   STRENGTH
-  ENDURANCE
-  MACHINE
+  MONOSTRUCTURAL // running, rowing, biking, ski erg, swimming — replaces ENDURANCE + MACHINE
   GYMNASTICS
   SKILL
+  // Legacy values — existing rows kept as-is; admin Setup page migrates them to MONOSTRUCTURAL
+  ENDURANCE
+  MACHINE
+}
+
+// Ordered list of PR types tracked for a movement (Movement.prTypes).
+// The first entry is the primary/default shown in summary views.
+// Multiple entries mean the movement tracks PRs across several dimensions
+// (e.g. Rowing: [DISTANCE, CALORIES, TIME]).
+enum MovementPrType {
+  LOAD     // best load per rep count (1RM, 3RM, 5RM…) — strength movements
+  MAX_REPS // max consecutive reps unbroken — HSPU, pull-ups, double-unders
+  TIME     // fastest time for a given distance — running, monostructural
+  DISTANCE // best distance in a given time window — machine, row/bike for meters
+  CALORIES // best calories in a given time window — assault bike, rower for cals
+  NONE     // no PR tracked — warm-up movements, pure skill drills
 }
 
 // Self-identified gender — stored on the user profile for demographics
@@ -233,6 +246,9 @@ model User {
   receivedInvitations   Invitation[]           @relation("ReceivedInvitations")
   reactions             Reaction[]
   comments              Comment[]
+  workoutPlans          UserWorkoutPlan[]
+  createdWorkoutPlans   UserWorkoutPlan[]      @relation("UserWorkoutPlanCreatedBy")
+  benchmarkResults      BenchmarkResult[]
 }
 
 model OAuthAccount {
@@ -410,17 +426,43 @@ model Invitation {
 }
 
 model NamedWorkout {
-  id        String          @id @default(cuid())
-  name      String          @unique
-  category  WorkoutCategory
-  aliases   String[]
-  isActive  Boolean         @default(true)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id          String          @id @default(cuid())
+  name        String          @unique
+  category    WorkoutCategory
+  aliases     String[]
+  isActive    Boolean         @default(true)
+  description String?
+  sourceUrl   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   templateWorkoutId String?   @unique
   templateWorkout   Workout?  @relation("NamedWorkoutTemplate", fields: [templateWorkoutId], references: [id])
   workouts          Workout[] @relation("NamedWorkoutInstances")
+}
+
+model BenchmarkResult {
+  id                String        @id @default(cuid())
+  userId            String
+  // Stores the NamedWorkout name as a plain string — no FK so the record
+  // persists as a historical audit even if the NamedWorkout is later renamed
+  // or deleted. Query via namedWorkout.name (unique on NamedWorkout).
+  namedWorkoutName  String
+  achievedAt        DateTime
+  level             WorkoutLevel
+  workoutGender     WorkoutGender
+  value             Json
+  notes             String?
+  primaryScoreKind  String?
+  primaryScoreValue Float?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, namedWorkoutName, achievedAt])
+  @@index([userId, namedWorkoutName])
+  @@index([namedWorkoutName, primaryScoreKind, primaryScoreValue])
 }
 
 model Workout {
@@ -459,6 +501,7 @@ model Workout {
   namedWorkout     NamedWorkout?     @relation("NamedWorkoutInstances", fields: [namedWorkoutId], references: [id])
   templateFor      NamedWorkout?     @relation("NamedWorkoutTemplate") // required by Prisma parser — not used in queries
   workoutMovements WorkoutMovement[]
+  userPlans        UserWorkoutPlan[]
   import           WorkoutImport?    @relation(fields: [importId], references: [id], onDelete: SetNull)
 
   @@index([importId])
@@ -521,10 +564,14 @@ model Movement {
   id         String            @id @default(cuid())
   name       String            @unique
   status     MovementStatus    @default(ACTIVE)
-  // Drives PR-table layout in "Your History". Defaults to STRENGTH so all
-  // existing movements keep current behaviour; a follow-up task will
-  // categorize non-strength movements explicitly.
+  // Display grouping for the Movements page. Defaults to STRENGTH for all
+  // existing movements; the admin Movement Setup page is used to recategorize.
   category   MovementCategory  @default(STRENGTH)
+  // Ordered list of PR types tracked for this movement. First entry = primary.
+  // Multiple entries = movement tracks PRs across several dimensions, e.g.
+  // Rowing: [DISTANCE, CALORIES, TIME]; Pull-Up: [MAX_REPS, LOAD].
+  // Defaults to [LOAD] so all existing movements keep their current behaviour.
+  prTypes    MovementPrType[]  @default([LOAD])
   // Authoritative reference URL for the movement — usually a CrossFit
   // /essentials/the-<slug> page. Surfaced as a "Learn more" link in the
   // member UI; the body content stays on the source site so we don't have
@@ -661,4 +708,36 @@ model Comment {
 
   @@index([resultId])
   @@index([parentId])
+}
+
+// Per-user, per-workout prescription set by a coach, programmer, or the user
+// themselves. Stores the intended level (RX/Scaled/Modified) and optional
+// per-movement targets (same movementResults JSON shape as Result.value) so
+// coaches can individualise workouts before class and members can see their
+// plan when viewing the workout detail page.
+//
+// Visibility: the user themselves + any COACH/PROGRAMMER/OWNER in a gym
+// linked to the workout's program. Write access: same staff roles, or the
+// user writing their own plan.
+model UserWorkoutPlan {
+  id          String        @id @default(cuid())
+  userId      String
+  workoutId   String
+  level       WorkoutLevel?
+  // movementResults JSON — same shape as Result.value (omitting the score
+  // block). Null when the plan only records a level or notes.
+  value       Json?
+  notes       String?
+  // Tracks who most recently set this plan so coaches can see whether it was
+  // self-set or coach-set.
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workout   Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("UserWorkoutPlanCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([userId, workoutId])
+  @@index([workoutId])
 }

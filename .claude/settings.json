@@ -1,4 +1,7 @@
 {
+  "permissions": {
+    "allow": ["Bash(cd *)"]
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -7,6 +10,15 @@
           {
             "type": "command",
             "command": "node scripts/hooks/require-worktree.mjs"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/hooks/no-cd-git.mjs"
           }
         ]
       }

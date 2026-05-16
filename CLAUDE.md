@@ -156,6 +156,8 @@ Skipping the live test runs and falling back to "static checks only" — like th
 
 > **Hard rule: never use `pkill node`, `killall node`, or any other broad process kill.** Those kill sibling worktrees too.
 
+> **Hard rule: never run `cd <path> && git <cmd>`.** The `cd` triggers Claude Code's "untrusted hooks" security prompt on every call. Use `git -C <path> <cmd>` instead — it runs git in the target directory without changing the shell's working directory, so no prompt fires. A PreToolUse hook enforces this and will block violating commands.
+
 **Automatic (normal path):** The PostToolUse hook fires after `gh pr create` and spawns `scripts/watch-pr.mjs` as a detached background daemon. The daemon polls `gh pr view` every 3 minutes. On merge it runs:
 1. `stop-worktree.mjs` — kills dev servers
 2. `git worktree remove --force` — deregisters the worktree and deletes the directory
@@ -328,6 +330,22 @@ Identify schema migrations at planning time and split them into their own tiny, 
 - Make the migration **additive** where possible — new nullable columns, new tables, no destructive `DROP` / incompatible `ALTER`. This keeps old code against the new schema, and new code against the old schema, both functional, decoupling the migration merge from the code merge.
 - Ship the migration PR first and let it deploy, then ship the feature PR that reads/writes the new columns.
 - If two engineers both need to touch the same model, coordinate so one lands first; the second rebases, deletes their local migration folder, re-runs `prisma migrate dev` against the updated schema, and commits the regenerated migration with a fresh timestamp.
+
+### API response shape changes — expand-contract pattern
+
+Railway deploys the API and web as independent services. There is always a window — sometimes minutes — where one service is ahead of the other. A breaking API response shape change (renaming a field, changing a flat field to an array, etc.) will crash whichever surface is deployed first while it talks to the service that hasn't been updated yet.
+
+**Rule: never make a breaking response shape change in a single PR.** Use the expand-contract pattern instead:
+
+1. **PR 1 — Expand:** Ship the API change that adds the *new* fields alongside the *old* ones. The response carries both shapes simultaneously. No frontend change in this PR. Safe to deploy in any order.
+2. **PR 2 — Migrate:** Update the frontend to read the new fields. By the time this deploys, the new API is everywhere, so the new web never sees the old shape.
+3. **PR 3 — Contract:** Remove the old fields from the API and clean up the types.
+
+Steps 2 and 3 can often be combined if the deploy window is tightly controlled, but step 1 must always land and deploy first.
+
+**Defensive frontend is still required.** Even with expand-contract in place, always use optional chaining (`data.workouts?.length`) on API response fields rather than assuming the shape is exact. This guards against: the window before step 1 deploys, a stale browser tab, and unexpected edge cases in the API.
+
+**Detecting the pattern:** if you're changing the type signature of a field that already exists in a response used by a deployed frontend — you need expand-contract. Adding a *new* optional field that nothing reads yet is safe. Renaming, changing structure, or making a previously-optional field required are all breaking.
 
 ## Issue sizing and breakdown strategy
 

@@ -39,7 +39,7 @@ vi.mock('../context/GymContext.tsx', () => ({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-import { api } from '../lib/api'
+import { api, type MovementPrType } from '../lib/api'
 
 function makeWorkout(overrides = {}) {
   return {
@@ -85,6 +85,7 @@ function emptyMovementHistory(movementId = 'm-1', movementName = 'Movement') {
     movementId,
     movementName,
     category: 'STRENGTH' as const,
+    prTypes: ['LOAD'] as MovementPrType[],
     prTable: { category: 'STRENGTH' as const, entries: [] },
     results: [],
     total: 0,

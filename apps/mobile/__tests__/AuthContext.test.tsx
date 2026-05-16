@@ -3,14 +3,14 @@
  *
  * Tests the two startup paths: cold start with no session, and warm start with
  * stored tokens that restore the authenticated user without requiring login.
+ * Also tests loginWithTokens (stores tokens + sets user from api.auth.me).
  */
 
 import React from 'react'
-import { render } from '@testing-library/react-native'
+import { render, act } from '@testing-library/react-native'
 import { Text } from 'react-native'
 import { AuthProvider, useAuth } from '../src/context/AuthContext'
 
-// Mock the api module — AuthContext calls these functions directly.
 jest.mock('../src/lib/api', () => ({
   api: {
     auth: { me: jest.fn() },
@@ -22,9 +22,8 @@ jest.mock('../src/lib/api', () => ({
   clearTokens: jest.fn(),
 }))
 
-import { api, getStoredTokens } from '../src/lib/api'
+import { api, getStoredTokens, storeTokens, setAccessToken } from '../src/lib/api'
 
-// A minimal consumer that exposes auth state as text so we can assert on it.
 function AuthConsumer() {
   const { user, isLoading } = useAuth()
   if (isLoading) return <Text testID="status">loading</Text>
@@ -72,5 +71,44 @@ describe('AuthContext', () => {
 
     const el = await findByTestId('status')
     expect(el.props.children).toBe('logged-in:user-123')
+  })
+
+  test('loginWithTokens stores tokens and populates user from api.auth.me', async () => {
+    ;(getStoredTokens as jest.Mock).mockResolvedValue({
+      accessToken: null,
+      refreshToken: null,
+    })
+    ;(api.auth.me as jest.Mock).mockResolvedValue({
+      id: 'user-456',
+      email: 'coach@gym.com',
+      name: 'Coach Bob',
+    })
+
+    let loginWithTokens!: (a: string, r: string) => Promise<void>
+
+    function Capture() {
+      const ctx = useAuth()
+      loginWithTokens = ctx.loginWithTokens
+      return <AuthConsumer />
+    }
+
+    const { findByTestId } = render(
+      <AuthProvider>
+        <Capture />
+      </AuthProvider>,
+    )
+
+    // Wait for initial load to finish
+    await findByTestId('status')
+
+    await act(async () => {
+      await loginWithTokens('new-access-token', 'new-refresh-token')
+    })
+
+    expect(storeTokens).toHaveBeenCalledWith('new-access-token', 'new-refresh-token')
+    expect(setAccessToken).toHaveBeenCalledWith('new-access-token')
+
+    const el = await findByTestId('status')
+    expect(el.props.children).toBe('logged-in:user-456')
   })
 })

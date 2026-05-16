@@ -3,15 +3,13 @@ import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
 import { formatResultValue } from '../lib/formatResult.ts'
 import Button from './ui/Button.tsx'
 import MarkdownDescription from './MarkdownDescription.tsx'
-import type { Workout, DashboardTodayResult, DashboardLeaderboard } from '../lib/api.ts'
+import type { DashboardTodayWorkout, DashboardTodayResult, DashboardLeaderboard } from '../lib/api.ts'
 
 interface Props {
-  workout: Workout
-  myResult: DashboardTodayResult | null
-  leaderboard: DashboardLeaderboard | null
+  workouts: DashboardTodayWorkout[]
   gymMemberCount: number
-  programSubscriberCount?: number
-  isHeroWorkoutGymAffiliated?: boolean
+  activeIdx: number
+  onActiveIdxChange: (idx: number) => void
   compact?: boolean
 }
 
@@ -38,7 +36,9 @@ function formatCap(seconds: number): string {
   return s === 0 ? `${m} min cap` : `${m}:${String(s).padStart(2, '0')} cap`
 }
 
-export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberCount, programSubscriberCount = 0, isHeroWorkoutGymAffiliated = true, compact = false }: Props) {
+export default function WodHeroCard({ workouts, gymMemberCount, activeIdx, onActiveIdxChange, compact = false }: Props) {
+  const entry = workouts[activeIdx]
+  const { workout, myResult, leaderboard, programSubscriberCount = 0, isHeroWorkoutGymAffiliated = true } = entry
   const typeStyle = WORKOUT_TYPE_STYLES[workout.type]
   const scored = myResult ? formatResultValue(myResult.value) : null
   const levelLabel = myResult ? (LEVEL_LABELS[myResult.level] ?? myResult.level) : null
@@ -48,8 +48,40 @@ export default function WodHeroCard({ workout, myResult, leaderboard, gymMemberC
       className={`bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl overflow-hidden ${compact ? 'p-4' : 'p-6 md:p-7'}`}
       aria-label={`Today's workout: ${workout.title}`}
     >
-      {/* Accent strip */}
+      {/* Accent strip — colour tracks the active tab's workout type */}
       <div className={`-mt-4 -mx-4 mb-4 h-1 ${typeStyle.accentBar.replace('border', 'bg')} md:-mt-7 md:-mx-7 md:mb-6`} aria-hidden="true" />
+
+      {/* Workout tabs — only rendered when there are multiple workouts */}
+      {workouts.length > 1 && (
+        <div
+          role="tablist"
+          aria-label="Today's workouts"
+          className="flex gap-1.5 mb-4 flex-wrap"
+        >
+          {workouts.map((entry, i) => {
+            const ts = WORKOUT_TYPE_STYLES[entry.workout.type]
+            const isActive = i === activeIdx
+            return (
+              <button
+                key={entry.workout.id}
+                role="tab"
+                aria-selected={isActive}
+                tabIndex={isActive ? 0 : -1}
+                onClick={() => onActiveIdxChange(i)}
+                title={entry.workout.title}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors min-h-7 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 ${
+                  isActive
+                    ? `${ts.bg} ${ts.tint} ring-1 ring-inset ring-current/20`
+                    : 'bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                <span>{ts.abbr}</span>
+                <span className="font-medium max-w-[120px] truncate">{entry.workout.title}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Header row: date + badges */}
       <div className="flex items-center gap-2 flex-wrap mb-3">

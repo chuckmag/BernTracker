@@ -59,7 +59,8 @@ export interface Movement {
   aliases: string[]
 }
 
-export type MovementCategory = 'STRENGTH' | 'ENDURANCE' | 'MACHINE' | 'GYMNASTICS' | 'SKILL'
+export type MovementCategory = 'STRENGTH' | 'MONOSTRUCTURAL' | 'GYMNASTICS' | 'SKILL' | 'ENDURANCE' | 'MACHINE'
+export type MovementPrType = 'LOAD' | 'MAX_REPS' | 'TIME' | 'DISTANCE' | 'CALORIES' | 'NONE'
 
 export interface MovementHistorySet {
   reps?: string
@@ -85,6 +86,13 @@ export interface StrengthPrEntry {
   reps: number
   maxLoad: number
   unit: string
+  workoutId: string
+  resultId: string
+  workoutScheduledAt: string
+}
+
+export interface MaxRepsPrEntry {
+  maxReps: number
   workoutId: string
   resultId: string
   workoutScheduledAt: string
@@ -135,14 +143,15 @@ export interface MachineTimeCapDistEntry {
 
 export type MovementPrTable =
   | { category: 'STRENGTH'; entries: StrengthPrEntry[] }
-  | { category: 'ENDURANCE'; entries: EndurancePrEntry[] }
+  | { category: 'ENDURANCE' | 'MONOSTRUCTURAL'; entries: EndurancePrEntry[] }
+  | { category: 'GYMNASTICS' | 'SKILL'; entries: MaxRepsPrEntry[] | never[] }
   | { category: 'MACHINE'; outputCapped: { calories: MachinePrCalEntry[]; distance: MachinePrDistEntry[] }; timeCapped: { calories: MachineTimeCapCalEntry[]; distance: MachineTimeCapDistEntry[] } }
-  | { category: 'GYMNASTICS' | 'SKILL'; entries: never[] }
 
 export interface MovementHistoryPage {
   movementId: string
   movementName: string
   category: MovementCategory
+  prTypes: MovementPrType[]
   prTable: MovementPrTable
   results: MovementHistoryResult[]
   total: number
@@ -186,7 +195,24 @@ export interface NamedWorkout {
   category: WorkoutCategory
   aliases: string[]
   isActive: boolean
+  description: string | null
+  sourceUrl: string | null
   templateWorkout: { id: string; type: WorkoutType; description: string; workoutMovements: { movement: Movement }[] } | null
+}
+
+export interface BenchmarkResult {
+  id: string
+  userId: string
+  namedWorkoutName: string
+  achievedAt: string
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  value: object
+  notes: string | null
+  primaryScoreKind: string | null
+  primaryScoreValue: number | null
+  createdAt: string
+  updatedAt: string
 }
 
 export type LoadUnit = 'LB' | 'KG'
@@ -341,6 +367,25 @@ export interface HistoryResult extends Omit<WorkoutResult, 'workout'> {
   workout: { id: string; title: string; type: WorkoutType; scheduledAt: string }
 }
 
+export interface UserWorkoutPlan {
+  id: string
+  userId: string
+  workoutId: string
+  level: WorkoutLevel | null
+  value: { movementResults: Array<{
+    workoutMovementId: string
+    loadUnit?: string
+    distanceUnit?: string
+    sets: Array<{ reps?: string; load?: string; distance?: number; calories?: number; seconds?: number }>
+  }> } | null
+  notes: string | null
+  createdById: string
+  createdAt: string
+  updatedAt: string
+  createdBy: { id: string; name: string | null; firstName: string | null; lastName: string | null }
+  user?: { id: string; name: string | null; firstName: string | null; lastName: string | null; email: string; avatarUrl: string | null }
+}
+
 export interface ResultHistoryPage {
   results: HistoryResult[]
   total: number
@@ -366,15 +411,20 @@ export interface DashboardLeaderboard {
   percentile: number | null
 }
 
-export interface DashboardToday {
-  workout: Workout | null
+export interface DashboardTodayWorkout {
+  workout: Workout
   myResult: DashboardTodayResult | null
   leaderboard: DashboardLeaderboard | null
-  gymMemberCount: number
-  /** Subscribers to the hero workout's program via UserProgram. Used when isHeroWorkoutGymAffiliated is false. */
+  /** Subscribers to this workout's program via UserProgram. Used when isHeroWorkoutGymAffiliated is false. */
   programSubscriberCount: number
   /** False for unaffiliated programs (e.g. CrossFit Mainsite) — use programSubscriberCount for the social count. */
   isHeroWorkoutGymAffiliated: boolean
+}
+
+export interface DashboardToday {
+  /** All published workouts for today, non-recovery first. Index 0 is the default hero. */
+  workouts: DashboardTodayWorkout[]
+  gymMemberCount: number
 }
 
 export interface MyGym {
@@ -1021,6 +1071,29 @@ export const api = {
       const qs = parts.length ? `&${parts.join('&')}` : ''
       return req<ResultHistoryPage>(`/api/me/results?page=${page}${qs}`, { token })
     },
+  },
+
+  plans: {
+    listForWorkout: (workoutId: string, token?: string) =>
+      req<UserWorkoutPlan[]>(`/api/workouts/${workoutId}/plans`, { token }),
+
+    getForUser: (workoutId: string, userId: string, token?: string) =>
+      req<UserWorkoutPlan>(`/api/workouts/${workoutId}/plans/${userId}`, { token }),
+
+    upsert: (
+      workoutId: string,
+      userId: string,
+      data: { level?: WorkoutLevel | null; value?: { movementResults: unknown[] } | null; notes?: string | null },
+      token?: string,
+    ) =>
+      req<UserWorkoutPlan>(`/api/workouts/${workoutId}/plans/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        token,
+      }),
+
+    delete: (workoutId: string, userId: string, token?: string) =>
+      req<void>(`/api/workouts/${workoutId}/plans/${userId}`, { method: 'DELETE', token }),
   },
 
   movements: {

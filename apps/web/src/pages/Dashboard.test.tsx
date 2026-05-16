@@ -96,16 +96,33 @@ describe('Dashboard', () => {
     vi.unstubAllGlobals()
   })
 
+  const emptyDashboard: DashboardToday = { workouts: [], gymMemberCount: 0 }
+
+  const franWorkout = {
+    id: 'w1',
+    title: 'Fran',
+    description: '21-15-9: Thrusters, Pull-ups',
+    coachNotes: null,
+    type: 'FOR_TIME' as const,
+    status: 'PUBLISHED' as const,
+    scheduledAt: new Date().toISOString(),
+    dayOrder: 0,
+    workoutMovements: [],
+    programId: null,
+    program: null,
+    namedWorkoutId: null,
+    namedWorkout: null,
+    timeCapSeconds: null,
+    tracksRounds: false,
+    _count: { results: 5 },
+    externalSourceId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
   it('renders greeting with first name', async () => {
     const { api } = await import('../lib/api')
-    vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
-      workout: null,
-      myResult: null,
-      leaderboard: null,
-      gymMemberCount: 0,
-      programSubscriberCount: 0,
-      isHeroWorkoutGymAffiliated: true,
-    } satisfies DashboardToday)
+    vi.mocked(api.gyms.dashboard.today).mockResolvedValue(emptyDashboard satisfies DashboardToday)
 
     renderDashboard()
     expect(await screen.findByText(/Good .+, Alex/)).toBeInTheDocument()
@@ -113,14 +130,7 @@ describe('Dashboard', () => {
 
   it('renders empty state when no workout today', async () => {
     const { api } = await import('../lib/api')
-    vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
-      workout: null,
-      myResult: null,
-      leaderboard: null,
-      gymMemberCount: 0,
-      programSubscriberCount: 0,
-      isHeroWorkoutGymAffiliated: true,
-    } satisfies DashboardToday)
+    vi.mocked(api.gyms.dashboard.today).mockResolvedValue(emptyDashboard satisfies DashboardToday)
 
     renderDashboard()
     expect(await screen.findByText('No workout today')).toBeInTheDocument()
@@ -129,67 +139,60 @@ describe('Dashboard', () => {
   it('renders WodHeroCard when workout present', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
-      workout: {
-        id: 'w1',
-        title: 'Fran',
-        description: '21-15-9: Thrusters, Pull-ups',
-        coachNotes: null,
-        type: 'FOR_TIME',
-        status: 'PUBLISHED',
-        scheduledAt: new Date().toISOString(),
-        dayOrder: 0,
-        workoutMovements: [],
-        programId: null,
-        program: null,
-        namedWorkoutId: null,
-        namedWorkout: null,
-        timeCapSeconds: null,
-        tracksRounds: false,
-        _count: { results: 5 },
-        externalSourceId: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      myResult: null,
-      leaderboard: { rank: null, totalLogged: 5, percentile: null },
+      workouts: [{
+        workout: franWorkout,
+        myResult: null,
+        leaderboard: { rank: null, totalLogged: 5, percentile: null },
+        programSubscriberCount: 0,
+        isHeroWorkoutGymAffiliated: true,
+      }],
       gymMemberCount: 30,
-      programSubscriberCount: 0,
-      isHeroWorkoutGymAffiliated: true,
     } satisfies DashboardToday)
 
     renderDashboard()
     expect(await screen.findByText('Fran')).toBeInTheDocument()
   })
 
+  it('pre-selects the first non-recovery workout when warmup appears first', async () => {
+    const { api } = await import('../lib/api')
+    const warmupWorkout = { ...franWorkout, id: 'w0', title: 'Daily Warm Up', type: 'WARMUP' as const }
+    vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
+      workouts: [
+        { workout: warmupWorkout, myResult: null, leaderboard: null, programSubscriberCount: 0, isHeroWorkoutGymAffiliated: true },
+        { workout: franWorkout, myResult: null, leaderboard: { rank: null, totalLogged: 5, percentile: null }, programSubscriberCount: 0, isHeroWorkoutGymAffiliated: true },
+      ],
+      gymMemberCount: 30,
+    } satisfies DashboardToday)
+
+    renderDashboard()
+    // Fran (the non-recovery workout) should be visible in the hero heading
+    expect(await screen.findByRole('heading', { name: 'Fran' })).toBeInTheDocument()
+    // Warm Up tab should exist but not be the selected content
+    expect(screen.queryByRole('heading', { name: 'Daily Warm Up' })).not.toBeInTheDocument()
+  })
+
+  it('does not crash when API returns old flat shape (defensive compat)', async () => {
+    const { api } = await import('../lib/api')
+    // Simulate old API shape missing the workouts array
+    vi.mocked(api.gyms.dashboard.today).mockResolvedValue(
+      { gymMemberCount: 0 } as unknown as DashboardToday,
+    )
+
+    renderDashboard()
+    expect(await screen.findByText('No workout today')).toBeInTheDocument()
+  })
+
   it('shows Hot Today card when workout is present', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
-      workout: {
-        id: 'w1',
-        title: 'Fran',
-        description: '21-15-9: Thrusters, Pull-ups',
-        coachNotes: null,
-        type: 'FOR_TIME',
-        status: 'PUBLISHED',
-        scheduledAt: new Date().toISOString(),
-        dayOrder: 0,
-        workoutMovements: [],
-        programId: null,
-        program: null,
-        namedWorkoutId: null,
-        namedWorkout: null,
-        timeCapSeconds: null,
-        tracksRounds: false,
-        _count: { results: 0 },
-        externalSourceId: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      myResult: null,
-      leaderboard: null,
+      workouts: [{
+        workout: { ...franWorkout, _count: { results: 0 } },
+        myResult: null,
+        leaderboard: null,
+        programSubscriberCount: 0,
+        isHeroWorkoutGymAffiliated: true,
+      }],
       gymMemberCount: 0,
-      programSubscriberCount: 0,
-      isHeroWorkoutGymAffiliated: true,
     } satisfies DashboardToday)
     vi.mocked(api.results.leaderboard).mockResolvedValue([])
 
@@ -247,9 +250,7 @@ describe('Dashboard', () => {
 
       const { useProgramFilter } = await import('../context/ProgramFilterContext')
       const { api } = await import('../lib/api')
-      vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
-        workout: null, myResult: null, leaderboard: null, gymMemberCount: 0, programSubscriberCount: 0, isHeroWorkoutGymAffiliated: true,
-      } satisfies DashboardToday)
+      vi.mocked(api.gyms.dashboard.today).mockResolvedValue(emptyDashboard satisfies DashboardToday)
 
       // Start loading
       vi.mocked(useProgramFilter).mockReturnValue(makeFilter({ loading: true, available: [] }))
@@ -271,9 +272,7 @@ describe('Dashboard', () => {
     it('falls back to defaultProgramId and persists it when no stored preference', async () => {
       const { useProgramFilter } = await import('../context/ProgramFilterContext')
       const { api } = await import('../lib/api')
-      vi.mocked(api.gyms.dashboard.today).mockResolvedValue({
-        workout: null, myResult: null, leaderboard: null, gymMemberCount: 0, programSubscriberCount: 0, isHeroWorkoutGymAffiliated: true,
-      } satisfies DashboardToday)
+      vi.mocked(api.gyms.dashboard.today).mockResolvedValue(emptyDashboard satisfies DashboardToday)
 
       vi.mocked(useProgramFilter).mockReturnValue(makeFilter({ loading: true, available: [] }))
       const { rerender } = renderDashboard()

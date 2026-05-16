@@ -28,11 +28,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     keycloak
       .init({
         pkceMethod: 'S256',
-        // check-sso creates a hidden iframe to Keycloak's auth endpoint.
-        // Keycloak's own JS in that iframe tries its own cross-origin iframe
-        // check, which times out (Chrome blocks it), blocking the redirect to
-        // silent-check-sso.html. Without onLoad, keycloak-js still handles the
-        // post-login ?code= exchange and restores sessions from sessionStorage.
+        // keycloak-js v26 does not persist tokens between page loads — they
+        // live in memory only. Without onLoad, every refresh returns
+        // authenticated=false and redirects the user to login even though the
+        // Keycloak SSO session (7-day idle timeout) is still active.
+        // check-sso + silentCheckSsoRedirectUri probes the Keycloak server via
+        // a hidden iframe on every page load, silently restoring tokens when
+        // the SSO session is alive.
+        onLoad: 'check-sso',
+        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+        // Disables the periodic login-iframe check. Keycloak's session-check
+        // iframe triggers a nested cross-origin iframe that Chrome blocks,
+        // which would hang and prevent the silent SSO probe from completing.
+        // The per-request updateToken(30) in apiFetch keeps the token fresh.
         checkLoginIframe: false,
       })
       .then(async (authenticated) => {
