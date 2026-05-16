@@ -49,12 +49,7 @@ printf '%s\n' "$content" > "${REALM_FILE}"
 # for local testing without a production database.
 KC_START_COMMAND="${KC_START_COMMAND:-start}"
 
-# cimd (Client ID Metadata Document) enables unregistered MCP clients to
-# authenticate using a URL as their client_id. Appended to any existing
-# KC_FEATURES so Railway env overrides are preserved rather than clobbered.
-export KC_FEATURES="${KC_FEATURES:+${KC_FEATURES},}cimd"
-
-log "Starting Keycloak (${KC_START_COMMAND}, KC_FEATURES=${KC_FEATURES})..."
+log "Starting Keycloak (${KC_START_COMMAND})..."
 /opt/keycloak/bin/kc.sh ${KC_START_COMMAND} &
 KC_PID=$!
 
