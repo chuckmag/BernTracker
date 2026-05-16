@@ -176,9 +176,9 @@
         "pkce.code.challenge.method": "S256"
       },
       "redirectUris": [
-        "wodalytics://auth/callback",
-        "exp://localhost:8081",
-        "exp://127.0.0.1:8081"
+        "com.wodalytics.app://*",
+        "exp://localhost:*",
+        "exp://127.0.0.1:*"
       ],
       "webOrigins": [],
       "defaultClientScopes": [

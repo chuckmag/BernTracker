@@ -12,8 +12,7 @@ import {
 interface AuthState {
   user: AuthUser | null
   isLoading: boolean
-  login: (email: string, password: string) => Promise<void>
-  loginWithGoogle: (accessToken: string, refreshToken: string) => Promise<void>
+  loginWithTokens: (accessToken: string, refreshToken: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -32,30 +31,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
-  // Restore session from secure store on app start
+  // Restore session from secure store on app start.
+  // Token refresh on 401 is handled inside request() in api.ts via the
+  // Keycloak token endpoint — no manual refresh loop needed here.
   useEffect(() => {
     if (didInit.current) return
     didInit.current = true
 
     ;(async () => {
       try {
-        const { accessToken, refreshToken } = await getStoredTokens()
-        if (!accessToken || !refreshToken) return
+        const { accessToken } = await getStoredTokens()
+        if (!accessToken) return
 
         setAccessToken(accessToken)
-        const me = await api.auth.me().catch(async () => {
-          // accessToken expired — try refresh
-          const refreshRes = await fetch(`${process.env.EXPO_PUBLIC_API_URL ?? 'https://qa.wodalytics.com'}/api/auth/refresh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken }),
-          })
-          if (!refreshRes.ok) return null
-          const data = await refreshRes.json()
-          setAccessToken(data.accessToken)
-          await storeTokens(data.accessToken, refreshToken)
-          return api.auth.me()
-        })
+        const me = await api.auth.me().catch(() => null)
         if (me) setUser(me)
       } catch {
         // Not logged in — stay on login screen
@@ -65,17 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })()
   }, [])
 
-  async function login(email: string, password: string) {
-    const { accessToken, refreshToken, user: u } = await api.auth.login(email, password)
-    await storeTokens(accessToken, refreshToken)
-    setAccessToken(accessToken)
-    setUser(u)
-  }
-
-  // Tokens are produced by the API after the server-side Google OAuth callback
-  // (see GET /api/auth/google/callback). LoginScreen extracts them from the
-  // app-scheme redirect and passes them in here.
-  async function loginWithGoogle(accessToken: string, refreshToken: string) {
+  async function loginWithTokens(accessToken: string, refreshToken: string) {
     await storeTokens(accessToken, refreshToken)
     setAccessToken(accessToken)
     const u = await api.auth.me()
@@ -89,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, loginWithTokens, logout }}>
       {children}
     </AuthContext.Provider>
   )
