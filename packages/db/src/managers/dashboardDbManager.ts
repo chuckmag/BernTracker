@@ -2,8 +2,8 @@ import { prisma } from '../client.js'
 import type { WorkoutType } from '../client.js'
 import { findLeaderboardByWorkout } from './resultDbManager.js'
 
-// Warmup and recovery types are deprioritised — prefer a real conditioning
-// or strength piece as the hero workout for the day.
+// Warmup and recovery types are shown after the main conditioning / strength
+// piece in the ordered workouts list, not deprioritised entirely.
 const RECOVERY_TYPES: WorkoutType[] = ['WARMUP', 'MOBILITY', 'COOLDOWN']
 
 function todayUtcRange() {
@@ -23,7 +23,7 @@ const workoutInclude = {
   _count: { select: { results: true } },
 } as const
 
-async function findTodaysHeroWorkout(gymId: string, userId: string, programIds?: string[]) {
+async function findAllTodaysWorkouts(gymId: string, userId: string, programIds?: string[]) {
   const { dayStart, dayEnd } = todayUtcRange()
 
   const baseWhere = {
@@ -41,81 +41,75 @@ async function findTodaysHeroWorkout(gymId: string, userId: string, programIds?:
     ],
   }
 
-  const preferred = await prisma.workout.findFirst({
-    where: { ...baseWhere, type: { notIn: RECOVERY_TYPES } },
-    orderBy: [{ dayOrder: 'asc' }, { createdAt: 'asc' }],
-    include: workoutInclude,
-  })
-  if (preferred) return preferred
-
-  return prisma.workout.findFirst({
+  const workouts = await prisma.workout.findMany({
     where: baseWhere,
     orderBy: [{ dayOrder: 'asc' }, { createdAt: 'asc' }],
     include: workoutInclude,
   })
+
+  // Recovery (warmup/mobility/cooldown) first — reflects natural class flow in the tab strip.
+  // The frontend pre-selects the first non-recovery entry as the default active tab.
+  const nonRecovery = workouts.filter((w) => !RECOVERY_TYPES.includes(w.type))
+  const recovery = workouts.filter((w) => RECOVERY_TYPES.includes(w.type))
+  return [...recovery, ...nonRecovery]
 }
 
 export async function getDashboardToday(gymId: string, userId: string, programIds?: string[]) {
-  const [workout, gymMemberCount] = await Promise.all([
-    findTodaysHeroWorkout(gymId, userId, programIds),
+  const [workouts, gymMemberCount] = await Promise.all([
+    findAllTodaysWorkouts(gymId, userId, programIds),
     prisma.userGym.count({ where: { gymId } }),
   ])
 
-  if (!workout) {
-    return {
-      workout: null,
-      myResult: null,
-      leaderboard: null,
-      gymMemberCount,
-      programSubscriberCount: 0,
-      isHeroWorkoutGymAffiliated: true,
-    }
+  if (workouts.length === 0) {
+    return { workouts: [], gymMemberCount }
   }
 
-  const heroProgramId = workout.program?.id
+  const workoutEntries = await Promise.all(
+    workouts.map(async (workout) => {
+      const heroProgramId = workout.program?.id
 
-  // Determine whether the hero workout's program is a gym program or an
-  // unaffiliated subscription (e.g. CrossFit Mainsite). Run this in parallel
-  // with the result + leaderboard fetches.
-  const [myResult, allResults, gymProgram, programSubscriberCount] = await Promise.all([
-    prisma.result.findUnique({
-      where: { userId_workoutId: { userId, workoutId: workout.id } },
-      select: {
-        id: true,
-        value: true,
-        level: true,
-        workoutGender: true,
-        primaryScoreKind: true,
-        primaryScoreValue: true,
-        createdAt: true,
-        notes: true,
-      },
+      const [myResult, allResults, gymProgram, programSubscriberCount] = await Promise.all([
+        prisma.result.findUnique({
+          where: { userId_workoutId: { userId, workoutId: workout.id } },
+          select: {
+            id: true,
+            value: true,
+            level: true,
+            workoutGender: true,
+            primaryScoreKind: true,
+            primaryScoreValue: true,
+            createdAt: true,
+            notes: true,
+          },
+        }),
+        findLeaderboardByWorkout(workout.id, {}),
+        heroProgramId
+          ? prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: heroProgramId } } })
+          : Promise.resolve(null),
+        heroProgramId
+          ? prisma.userProgram.count({ where: { programId: heroProgramId } })
+          : Promise.resolve(0),
+      ])
+
+      const isHeroWorkoutGymAffiliated = !!gymProgram
+      const userRank = myResult ? allResults.findIndex((r) => r.userId === userId) + 1 : null
+
+      return {
+        workout,
+        myResult,
+        leaderboard: {
+          rank: userRank,
+          totalLogged: allResults.length,
+          percentile:
+            userRank && allResults.length > 0
+              ? Math.round((1 - userRank / allResults.length) * 100)
+              : null,
+        },
+        programSubscriberCount,
+        isHeroWorkoutGymAffiliated,
+      }
     }),
-    findLeaderboardByWorkout(workout.id, {}),
-    heroProgramId
-      ? prisma.gymProgram.findUnique({ where: { gymId_programId: { gymId, programId: heroProgramId } } })
-      : Promise.resolve(null),
-    heroProgramId
-      ? prisma.userProgram.count({ where: { programId: heroProgramId } })
-      : Promise.resolve(0),
-  ])
+  )
 
-  const isHeroWorkoutGymAffiliated = !!gymProgram
-  const userRank = myResult ? allResults.findIndex((r) => r.userId === userId) + 1 : null
-
-  return {
-    workout,
-    myResult,
-    leaderboard: {
-      rank: userRank,
-      totalLogged: allResults.length,
-      percentile:
-        userRank && allResults.length > 0
-          ? Math.round((1 - userRank / allResults.length) * 100)
-          : null,
-    },
-    gymMemberCount,
-    programSubscriberCount,
-    isHeroWorkoutGymAffiliated,
-  }
+  return { workouts: workoutEntries, gymMemberCount }
 }

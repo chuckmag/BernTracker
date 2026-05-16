@@ -90,7 +90,7 @@ describe('WodDetailScreen', () => {
     ;(useAuth as jest.Mock).mockReturnValue({
       user: { id: 'me', email: 'me@gym.com', name: 'Me', identifiedGender: null },
       isLoading: false,
-      login: jest.fn(),
+      loginWithTokens: jest.fn(),
       logout: jest.fn(),
     })
     // Default to MEMBER for the existing tests — they don't care about role,

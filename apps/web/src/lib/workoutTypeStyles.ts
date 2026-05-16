@@ -76,3 +76,8 @@ export function typesInCategory(category: WorkoutCategory): WorkoutType[] {
     (t) => WORKOUT_TYPE_STYLES[t].category === category,
   )
 }
+
+/** True for warmup / mobility / cooldown types — used to skip past recovery entries when choosing a default active workout. */
+export function isRecoveryWorkoutType(type: WorkoutType): boolean {
+  return WORKOUT_TYPE_STYLES[type].category === 'Warmup/Recovery'
+}

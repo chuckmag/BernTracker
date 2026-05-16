@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import WodHeroCard from './WodHeroCard'
-import type { Workout, DashboardTodayResult, DashboardLeaderboard } from '../lib/api'
+import type { Workout, DashboardTodayWorkout, DashboardTodayResult, DashboardLeaderboard } from '../lib/api'
 
 const baseWorkout: Workout = {
   id: 'w1',
@@ -41,6 +41,18 @@ const baseWorkout: Workout = {
   updatedAt: new Date().toISOString(),
 }
 
+const warmupWorkout: Workout = {
+  ...baseWorkout,
+  id: 'w2',
+  title: 'Daily Warm Up',
+  description: '10 min general warm up',
+  type: 'WARMUP',
+  workoutMovements: [],
+  timeCapSeconds: null,
+  namedWorkoutId: null,
+  namedWorkout: null,
+}
+
 const baseLeaderboard: DashboardLeaderboard = {
   rank: 5,
   totalLogged: 20,
@@ -58,15 +70,40 @@ const baseResult: DashboardTodayResult = {
   notes: null,
 }
 
-function renderCard(props: Partial<Parameters<typeof WodHeroCard>[0]> = {}) {
+const baseEntry: DashboardTodayWorkout = {
+  workout: baseWorkout,
+  myResult: null,
+  leaderboard: { rank: null, totalLogged: 0, percentile: null },
+  programSubscriberCount: 0,
+  isHeroWorkoutGymAffiliated: true,
+}
+
+const warmupEntry: DashboardTodayWorkout = {
+  workout: warmupWorkout,
+  myResult: null,
+  leaderboard: { rank: null, totalLogged: 0, percentile: null },
+  programSubscriberCount: 0,
+  isHeroWorkoutGymAffiliated: true,
+}
+
+interface OverrideProps {
+  workouts?: DashboardTodayWorkout[]
+  gymMemberCount?: number
+  activeIdx?: number
+  onActiveIdxChange?: (idx: number) => void
+  compact?: boolean
+}
+
+function renderCard(overrides: OverrideProps = {}) {
+  const onActiveIdxChange = overrides.onActiveIdxChange ?? vi.fn()
   return render(
     <MemoryRouter>
       <WodHeroCard
-        workout={baseWorkout}
-        myResult={null}
-        leaderboard={{ rank: null, totalLogged: 0, percentile: null }}
+        workouts={[baseEntry]}
         gymMemberCount={50}
-        {...props}
+        activeIdx={0}
+        onActiveIdxChange={onActiveIdxChange}
+        {...overrides}
       />
     </MemoryRouter>,
   )
@@ -100,26 +137,26 @@ describe('WodHeroCard', () => {
   })
 
   it('shows result card when logged', () => {
-    renderCard({ myResult: baseResult, leaderboard: baseLeaderboard })
+    renderCard({ workouts: [{ ...baseEntry, myResult: baseResult, leaderboard: baseLeaderboard }] })
     expect(screen.getByText('7:42')).toBeInTheDocument()
     expect(screen.getByText('RX')).toBeInTheDocument()
     expect(screen.queryByText('Start workout')).not.toBeInTheDocument()
   })
 
   it('shows rank and total when logged', () => {
-    renderCard({ myResult: baseResult, leaderboard: baseLeaderboard })
+    renderCard({ workouts: [{ ...baseEntry, myResult: baseResult, leaderboard: baseLeaderboard }] })
     expect(screen.getByText(/#5/)).toBeInTheDocument()
   })
 
   it('shows participant count in footer', () => {
-    renderCard({ leaderboard: baseLeaderboard })
+    renderCard({ workouts: [{ ...baseEntry, leaderboard: baseLeaderboard }] })
     // count is in a styled child span; RTL getByText only matches direct text nodes
     expect(screen.getByText('20')).toBeInTheDocument()
     expect(screen.getByText(/members logged today/)).toBeInTheDocument()
   })
 
   it('shows gym member total in footer when gymMemberCount > 0', () => {
-    renderCard({ leaderboard: baseLeaderboard, gymMemberCount: 50 })
+    renderCard({ workouts: [{ ...baseEntry, leaderboard: baseLeaderboard }], gymMemberCount: 50 })
     expect(screen.getByText(/of 50/)).toBeInTheDocument()
   })
 
@@ -137,5 +174,34 @@ describe('WodHeroCard', () => {
   it('shows movement list on desktop', () => {
     renderCard()
     expect(screen.getByText('Kettlebell Swing')).toBeInTheDocument()
+  })
+
+  it('does not render tabs when there is only one workout', () => {
+    renderCard()
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+  })
+
+  it('renders tabs when there are multiple workouts', () => {
+    renderCard({ workouts: [baseEntry, warmupEntry] })
+    expect(screen.getByRole('tablist')).toBeInTheDocument()
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs).toHaveLength(2)
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('calls onActiveIdxChange when a non-active tab is clicked', () => {
+    const onActiveIdxChange = vi.fn()
+    renderCard({ workouts: [baseEntry, warmupEntry], onActiveIdxChange })
+    const tabs = screen.getAllByRole('tab')
+    fireEvent.click(tabs[1])
+    expect(onActiveIdxChange).toHaveBeenCalledWith(1)
+  })
+
+  it('shows the workout for the active tab index', () => {
+    renderCard({ workouts: [baseEntry, warmupEntry], activeIdx: 1 })
+    // The heading link is the canonical source — the same text also appears in the tab label
+    expect(screen.getByRole('heading', { name: 'Daily Warm Up' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Helen' })).not.toBeInTheDocument()
   })
 })

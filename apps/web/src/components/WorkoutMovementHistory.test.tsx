@@ -25,6 +25,7 @@ const strengthHistoryResponse = {
   movementId: 'mv-1',
   movementName: 'Back Squat',
   category: 'STRENGTH' as const,
+  prTypes: ['LOAD'] as import('../lib/api').MovementPrType[],
   prTable: {
     category: 'STRENGTH' as const,
     entries: [
