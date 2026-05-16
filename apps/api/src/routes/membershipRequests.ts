@@ -3,15 +3,15 @@ import type { Role } from '@wodalytics/db'
 import { CreateInvitationSchema } from '@wodalytics/types'
 import { requireAuth } from '../middleware/auth.js'
 import { validateGymExists, requireGymWriteAccess } from '../middleware/gym.js'
-import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
-import { findUserProfileById } from '../db/userProfileDbManager.js'
 import {
+  findGymMembershipByUserAndGym,
+  findUserProfileById,
   findStaffInvitationsByGymId,
   findPendingStaffInvitationsForUser,
-  findInvitationById,
+  findMembershipRequestById,
   findExistingPendingInvitation,
   createStaffInvitation,
-  setInvitationStatus,
+  setMembershipRequestStatus,
   findUserByEmail,
   acceptInvitationAndCreateMembership,
   findExistingPendingJoinRequest,
@@ -19,8 +19,8 @@ import {
   findPendingJoinRequestsByGymId,
   findPendingJoinRequestsForUser,
   approveJoinRequestAndCreateMembership,
-} from '../db/gymMembershipRequestDbManager.js'
-import { createLogger } from '../lib/logger.js'
+} from '@wodalytics/db'
+import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('invitations')
 
@@ -114,7 +114,7 @@ async function createInvitationForGym(req: Request, res: Response) {
 
 async function revokeInvitation(req: Request, res: Response) {
   const id = req.params.id as string
-  const invitation = await findInvitationById(id)
+  const invitation = await findMembershipRequestById(id)
   if (!invitation || invitation.gymId !== (req.params.gymId as string)) {
     res.status(404).json({ error: 'Invitation not found' })
     return
@@ -123,7 +123,7 @@ async function revokeInvitation(req: Request, res: Response) {
     res.status(409).json({ error: `Invitation is already ${invitation.status.toLowerCase()}.` })
     return
   }
-  const updated = await setInvitationStatus({
+  const updated = await setMembershipRequestStatus({
     id,
     status: 'REVOKED',
     decidedById: req.user!.id,
@@ -147,7 +147,7 @@ async function listMyPendingInvitations(req: Request, res: Response) {
 async function acceptInvitation(req: Request, res: Response) {
   const userId = req.user!.id
   const id = req.params.id as string
-  const invitation = await findInvitationById(id)
+  const invitation = await findMembershipRequestById(id)
   if (!invitation || invitation.direction !== 'STAFF_INVITED') {
     res.status(404).json({ error: 'Invitation not found' })
     return
@@ -186,7 +186,7 @@ async function acceptInvitation(req: Request, res: Response) {
 async function declineInvitation(req: Request, res: Response) {
   const userId = req.user!.id
   const id = req.params.id as string
-  const invitation = await findInvitationById(id)
+  const invitation = await findMembershipRequestById(id)
   if (!invitation || invitation.direction !== 'STAFF_INVITED') {
     res.status(404).json({ error: 'Invitation not found' })
     return
@@ -210,7 +210,7 @@ async function declineInvitation(req: Request, res: Response) {
     res.status(403).json({ error: 'Forbidden' })
     return
   }
-  const updated = await setInvitationStatus({
+  const updated = await setMembershipRequestStatus({
     id,
     status: 'DECLINED',
     decidedById: userId,
@@ -250,7 +250,7 @@ async function cancelMyJoinRequest(req: Request, res: Response) {
     res.status(404).json({ error: 'No pending request found' })
     return
   }
-  const updated = await setInvitationStatus({
+  const updated = await setMembershipRequestStatus({
     id: existing.id,
     status: 'REVOKED',
     decidedById: userId,
@@ -271,7 +271,7 @@ async function listJoinRequestsForGym(req: Request, res: Response) {
 async function approveJoinRequest(req: Request, res: Response) {
   const id = req.params.id as string
   const gymId = req.params.gymId as string
-  const request = await findInvitationById(id)
+  const request = await findMembershipRequestById(id)
   if (!request || request.gymId !== gymId || request.direction !== 'USER_REQUESTED') {
     res.status(404).json({ error: 'Join request not found' })
     return
@@ -300,7 +300,7 @@ async function approveJoinRequest(req: Request, res: Response) {
 async function declineJoinRequest(req: Request, res: Response) {
   const id = req.params.id as string
   const gymId = req.params.gymId as string
-  const request = await findInvitationById(id)
+  const request = await findMembershipRequestById(id)
   if (!request || request.gymId !== gymId || request.direction !== 'USER_REQUESTED') {
     res.status(404).json({ error: 'Join request not found' })
     return
@@ -309,7 +309,7 @@ async function declineJoinRequest(req: Request, res: Response) {
     res.status(409).json({ error: `Request is already ${request.status.toLowerCase()}.` })
     return
   }
-  const updated = await setInvitationStatus({
+  const updated = await setMembershipRequestStatus({
     id,
     status: 'DECLINED',
     decidedById: req.user!.id,

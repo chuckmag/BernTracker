@@ -1,5 +1,5 @@
 import { prisma } from '@wodalytics/db'
-import { createLogger } from '../lib/logger.js'
+import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('jobs.seed-crossfit-movements')
 

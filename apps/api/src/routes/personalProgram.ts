@@ -3,11 +3,11 @@ import type { Request, Response } from 'express'
 import { CreateWorkoutSchema } from '@wodalytics/types'
 import { WorkoutStatus } from '@wodalytics/db'
 import { requireAuth } from '../middleware/auth.js'
-import { findOrCreatePersonalProgramForUser } from '../db/programDbManager.js'
 import {
+  findOrCreatePersonalProgramForUser,
   createWorkoutForProgram as createWorkoutForProgramDb,
   findWorkoutsByProgramIdInDateRange,
-} from '../db/workoutDbManager.js'
+} from '@wodalytics/db'
 
 const router = Router()
 

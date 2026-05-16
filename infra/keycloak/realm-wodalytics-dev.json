@@ -1,0 +1,253 @@
+{
+  "realm": "wodalytics",
+  "displayName": "WODalytics",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": true,
+  "loginTheme": "wodalytics",
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 604800,
+  "ssoSessionMaxLifespan": 604800,
+  "offlineSessionMaxLifespanEnabled": false,
+  "attributes": {
+    "userProfileConfig": "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}],\"unmanagedAttributePolicy\":\"ENABLED\"}"
+  },
+  "clientScopes": [
+    {
+      "name": "wodalytics-claims",
+      "description": "WODalytics user ID and role as JWT claims",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "false"
+          }
+        },
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "false",
+            "user.attribute": "email",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "email",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-full-name-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "false",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "wodalytics_user_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "false",
+            "user.attribute": "wodalytics_user_id",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "wodalytics_user_id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "wodalytics_role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "false",
+            "user.attribute": "wodalytics_role",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "wodalytics_role",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wodalytics:workouts:read",
+      "description": "Read workouts and programs the user has access to",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Read workouts and programs accessible to your account"
+      }
+    },
+    {
+      "name": "wodalytics:results:read",
+      "description": "Read own results and public leaderboards",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Read your workout results and leaderboards"
+      }
+    },
+    {
+      "name": "wodalytics:results:write",
+      "description": "Log results for accessible workouts",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Log and edit your workout results"
+      }
+    },
+    {
+      "name": "wodalytics:programs:write",
+      "description": "Create workouts in personal program",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Create workouts in your personal program"
+      }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "wodalytics-web",
+      "name": "WODalytics Web",
+      "description": "Web SPA \u2014 public client with PKCE. No client secret: the app runs entirely in the browser and cannot securely store one (OAuth 2.1 \u00a72.1.1).",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "redirectUris": [
+        "https://qa.wodalytics.com/*",
+        "http://local.wodalytics.com/*",
+        "http://localhost:5173/*",
+        "*"
+      ],
+      "webOrigins": [
+        "https://qa.wodalytics.com",
+        "http://local.wodalytics.com",
+        "http://localhost:5173",
+        "+",
+        "*"
+      ],
+      "defaultClientScopes": [
+        "wodalytics-claims"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ]
+    },
+    {
+      "clientId": "wodalytics-mobile",
+      "name": "WODalytics Mobile",
+      "description": "Mobile app \u2014 public client with PKCE",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "redirectUris": [
+        "wodalytics://auth/callback",
+        "exp://localhost:8081",
+        "exp://127.0.0.1:8081"
+      ],
+      "webOrigins": [],
+      "defaultClientScopes": [
+        "wodalytics-claims"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ]
+    },
+    {
+      "clientId": "wodalytics-mcp",
+      "name": "WODalytics MCP",
+      "description": "MCP server \u2014 public client with PKCE for AI agent authorization",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "redirectUris": [
+        "https://mcp.qa.wodalytics.com/callback",
+        "http://localhost:*"
+      ],
+      "webOrigins": [
+        "https://mcp.qa.wodalytics.com"
+      ],
+      "defaultClientScopes": [
+        "wodalytics-claims"
+      ],
+      "optionalClientScopes": [
+        "wodalytics:workouts:read",
+        "wodalytics:results:read",
+        "wodalytics:results:write",
+        "wodalytics:programs:write",
+        "offline_access"
+      ]
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "google",
+      "displayName": "Google",
+      "providerId": "google",
+      "enabled": true,
+      "trustEmail": true,
+      "storeToken": false,
+      "addReadTokenRoleOnCreate": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId": "__GOOGLE_IDP_CLIENT_ID__",
+        "clientSecret": "__GOOGLE_IDP_CLIENT_SECRET__",
+        "syncMode": "IMPORT",
+        "hostedDomain": ""
+      }
+    }
+  ],
+  "identityProviderMappers": [
+    {
+      "name": "google-email-mapper",
+      "identityProviderAlias": "google",
+      "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": {
+        "syncMode": "INHERIT",
+        "user.attribute": "email",
+        "claim": "email"
+      }
+    }
+  ]
+}

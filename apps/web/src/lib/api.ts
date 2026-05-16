@@ -1,4 +1,5 @@
 import { WORKOUT_TYPE_STYLES } from './workoutTypeStyles'
+import keycloak from './keycloak'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 const REQUEST_TIMEOUT_MS = 10_000
@@ -11,67 +12,30 @@ function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response
   return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(id))
 }
 
-let _onUnauthorized: (() => void) | null = null
-let _accessToken: string | null = null
-
-export function setUnauthorizedHandler(handler: () => void) {
-  _onUnauthorized = handler
-}
-
-export function setAccessToken(token: string | null) {
-  _accessToken = token
-}
-
-let _refreshPromise: Promise<string | null> | null = null
-
-async function refreshAccessToken(): Promise<string | null> {
-  if (_refreshPromise) return _refreshPromise
-  _refreshPromise = fetchWithTimeout(`${BASE_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
-    .then((r) => {
-      if (!r.ok) return null
-      return r.json().then((d) => {
-        const newToken = d.accessToken as string
-        _accessToken = newToken
-        return newToken
-      })
-    })
-    .catch(() => null)
-    .finally(() => { _refreshPromise = null })
-  return _refreshPromise
-}
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function apiFetch(
   path: string,
-  options: RequestInit & { token?: string } = {},
+  { token: _token, ...options }: RequestInit & { token?: string } = {},
 ): Promise<Response> {
-  const { token, ...init } = options
-  const headers = new Headers(init.headers)
+  const headers = new Headers(options.headers)
   // Skip Content-Type for FormData so the browser sets the multipart boundary
   // automatically. Setting it explicitly to 'multipart/form-data' would clobber
   // the boundary and break the upload.
-  if (!(init.body instanceof FormData)) {
+  if (!(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
   }
-  const bearer = token ?? _accessToken
-  if (bearer) headers.set('Authorization', `Bearer ${bearer}`)
-
-  const res = await fetchWithTimeout(`${BASE_URL}${path}`, { ...init, headers, credentials: 'include' })
-
-  if (res.status === 401) {
-    const newToken = await refreshAccessToken()
-    if (newToken) {
-      headers.set('Authorization', `Bearer ${newToken}`)
-      return fetchWithTimeout(`${BASE_URL}${path}`, { ...init, headers, credentials: 'include' })
-    }
+  if (keycloak.authenticated) {
+    await keycloak.updateToken(30).catch(() => keycloak.login())
   }
+  if (keycloak.token) headers.set('Authorization', `Bearer ${keycloak.token}`)
 
-  return res
+  return fetchWithTimeout(`${BASE_URL}${path}`, { ...options, headers })
 }
 
-async function req<T>(path: string, opts: RequestInit & { token?: string } = {}): Promise<T> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function req<T>(path: string, { token: _token, ...opts }: RequestInit & { token?: string } = {}): Promise<T> {
   const res = await apiFetch(path, opts)
   if (res.status === 401) {
-    _onUnauthorized?.()
     throw new Error('Session expired. Please log in again.')
   }
   if (res.status === 204) return undefined as T
@@ -679,50 +643,9 @@ export interface BrowseGym {
   callerStatus: GymBrowseStatus
 }
 
-export interface AuthResponse {
-  accessToken: string
-  user: AuthUser
-}
-
-// Auth endpoints bypass `req()` because their 401s mean "wrong credentials"
-// or "no session yet" — not "session expired" (which would trigger the
-// unauthorized handler + refresh retry that `req()` does).
-async function authPost<T>(path: string, body?: unknown, failMsg = 'Request failed'): Promise<T> {
-  const res = await fetchWithTimeout(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  if (res.status === 204) return undefined as T
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? failMsg)
-  return data as T
-}
-
 export const api = {
   auth: {
-    // Full URL for the Google OAuth start endpoint. Not a fetch — the button
-    // navigates to it with window.location / window.open.
-    googleAuthUrl: (opts?: { prompt?: 'select_account' | 'consent' | 'none' }): string => {
-      const params = new URLSearchParams()
-      if (opts?.prompt) params.set('prompt', opts.prompt)
-      const qs = params.toString()
-      return `${BASE_URL}/api/auth/google${qs ? `?${qs}` : ''}`
-    },
-    register: (data: { name: string; email: string; password: string }) =>
-      authPost<AuthResponse>('/api/auth/register', data, 'Registration failed'),
-    login: (data: { email: string; password: string }) =>
-      authPost<AuthResponse>('/api/auth/login', data, 'Login failed'),
-    logout: () => authPost<void>('/api/auth/logout'),
-    refresh: async (): Promise<{ accessToken: string } | null> => {
-      try {
-        return await authPost<{ accessToken: string }>('/api/auth/refresh')
-      } catch {
-        return null
-      }
-    },
-    me: (token: string) => req<AuthUser>('/api/auth/me', { token }),
+    me: () => req<AuthUser>('/api/auth/me'),
   },
 
   users: {

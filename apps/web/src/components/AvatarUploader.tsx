@@ -22,7 +22,7 @@ interface AvatarUploaderProps {
 //  4. Server still does its 512×512 WebP normalize for the canonical avatar.
 // Refreshes /auth/me afterwards so AuthContext.user.avatarUrl propagates.
 export default function AvatarUploader({ size = 'lg', helper }: AvatarUploaderProps) {
-  const { user, accessToken, login } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [busy, setBusy] = useState<'prepare' | 'upload' | 'remove' | null>(null)
   const [previewSrc, setPreviewSrc] = useState<string | null>(null)
 
@@ -51,16 +51,6 @@ export default function AvatarUploader({ size = 'lg', helper }: AvatarUploaderPr
   }, [previewSrc])
 
   if (!user) return null
-
-  async function refreshUser() {
-    if (!accessToken) return
-    try {
-      const me = await api.auth.me(accessToken)
-      login(accessToken, me)
-    } catch {
-      // best-effort — the next /auth/me roundtrip will pick up the new URL.
-    }
-  }
 
   async function handleCropSave(blob: Blob) {
     setBusy('upload')

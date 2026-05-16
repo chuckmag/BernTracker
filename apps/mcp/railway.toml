@@ -1,0 +1,8 @@
+[build]
+dockerfilePath = "apps/mcp/Dockerfile"
+buildCommand = ""
+
+[deploy]
+startCommand = ""
+healthcheckPath = "/health"
+healthcheckTimeout = 30

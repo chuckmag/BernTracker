@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { prisma } from '@wodalytics/db'
 import { requireAuth } from '../middleware/auth.js'
 import { validateGymExists, requireGymWriteAccess } from '../middleware/gym.js'
-import { findGymMembershipByUserAndGym } from '../db/userGymDbManager.js'
+import { findGymMembershipByUserAndGym } from '@wodalytics/db'
 import { getImageStorage } from '../lib/imageStorage.js'
 import {
   imageUpload,
@@ -10,7 +10,7 @@ import {
   processAndStoreImage,
   deriveKeyFromUrl,
 } from '../lib/imageUploadMiddleware.js'
-import { createLogger } from '../lib/logger.js'
+import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('gymLogo')
 

@@ -56,7 +56,7 @@ const defaultFilterValue = {
   selected: [],
   gymProgramIds: [],
   personalProgramId: null,
-  defaultProgramId: null,
+  defaultProgramId: null as string | null,
   loading: false,
   setSelected: vi.fn(),
   toggle: vi.fn(),
@@ -223,8 +223,8 @@ describe('Dashboard', () => {
 
   describe('program selection persistence', () => {
     const twoPrograms: GymProgram[] = [
-      { gymId: 'gym-1', programId: 'prog-1', isDefault: false, createdAt: '', program: { id: 'prog-1', name: 'Program One', description: null, startDate: '', endDate: null, coverColor: null, visibility: 'PUBLIC', ownerUserId: null, createdAt: '', updatedAt: '' } },
-      { gymId: 'gym-1', programId: 'prog-2', isDefault: false, createdAt: '', program: { id: 'prog-2', name: 'Program Two', description: null, startDate: '', endDate: null, coverColor: null, visibility: 'PUBLIC', ownerUserId: null, createdAt: '', updatedAt: '' } },
+      { gymId: 'gym-1', programId: 'prog-1', isDefault: false, createdAt: '', program: { id: 'prog-1', name: 'Program One', description: null, startDate: '', endDate: null, coverColor: null, visibility: 'PUBLIC', createdAt: '', updatedAt: '' } },
+      { gymId: 'gym-1', programId: 'prog-2', isDefault: false, createdAt: '', program: { id: 'prog-2', name: 'Program Two', description: null, startDate: '', endDate: null, coverColor: null, visibility: 'PUBLIC', createdAt: '', updatedAt: '' } },
     ]
 
     function makeFilter(overrides: Partial<typeof defaultFilterValue>) {

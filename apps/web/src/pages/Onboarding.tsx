@@ -28,7 +28,7 @@ function formatInviter(
 }
 
 export default function Onboarding() {
-  const { login, accessToken } = useAuth()
+  const { refreshUser } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
 
@@ -101,10 +101,7 @@ export default function Onboarding() {
           identifiedGender: gender,
         })
         // Refresh AuthUser so RequireOnboarded lets us through.
-        if (accessToken) {
-          const me = await api.auth.me(accessToken)
-          login(accessToken, me)
-        }
+        await refreshUser()
         // Check for pending gym invitations before navigating to the feed.
         const pending = await api.users.me.invitations.pendingAll()
         const gymPending = pending.filter(

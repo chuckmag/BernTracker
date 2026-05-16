@@ -21,6 +21,68 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # /auth/* -> Keycloak authorization server over private networking.
+    # KC_HTTP_RELATIVE_PATH=/auth keeps all Keycloak URLs under this prefix so
+    # its session cookies land on the same domain as the web app, avoiding
+    # cross-subdomain third-party cookie restrictions in modern browsers.
+    location /auth/ {
+        set $keycloak_backend "${KEYCLOAK_INTERNAL_HOST}:${KEYCLOAK_INTERNAL_PORT}";
+        proxy_pass http://$keycloak_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Fail fast when Keycloak is unreachable rather than hanging for 60s
+        # (nginx default). Token endpoints should respond well within 10s.
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 10s;
+        # Keycloak emits large response headers (OIDC metadata, set-cookie chains).
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+    }
+
+    # Upstream health probes — hit /health/api or /health/auth to check
+    # whether nginx can reach each upstream. Returns 200 + the upstream's own
+    # response on success; 503 + JSON on connection failure or timeout so you
+    # know which leg is down without inspecting nginx error logs.
+    location = /health/api {
+        set $api_backend "${API_INTERNAL_HOST}:${API_INTERNAL_PORT}";
+        rewrite ^ /api/health break;
+        proxy_pass http://$api_backend;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 5s;
+        proxy_intercept_errors on;
+        error_page 502 503 504 =503 @api_down;
+        access_log off;
+    }
+    location @api_down {
+        default_type application/json;
+        return 503 '{"status":"down","upstream":"api"}';
+    }
+
+    location = /health/auth {
+        set $keycloak_backend "${KEYCLOAK_INTERNAL_HOST}:${KEYCLOAK_INTERNAL_PORT}";
+        rewrite ^ /auth/realms/wodalytics break;
+        proxy_pass http://$keycloak_backend;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 5s;
+        proxy_intercept_errors on;
+        error_page 502 503 504 =503 @auth_down;
+        access_log off;
+    }
+    location @auth_down {
+        default_type application/json;
+        return 503 '{"status":"down","upstream":"auth"}';
+    }
+
+    # index.html must never be cached so browsers always fetch the latest
+    # entry point after a deployment (hashed JS/CSS assets are fine to cache).
+    location = /index.html {
+        add_header Cache-Control "no-store";
+        try_files /index.html =404;
+    }
+
     # Everything else: SPA fallback to index.html for React Router.
     location / {
         try_files $uri $uri/ /index.html;

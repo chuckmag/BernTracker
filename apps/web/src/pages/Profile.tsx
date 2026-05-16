@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.tsx'
 import { useTheme } from '../context/ThemeContext.tsx'
 import {
@@ -42,7 +41,6 @@ function readTabFromHash(): Tab {
 export default function Profile() {
   const { user, logout } = useAuth()
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
-  const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -101,7 +99,6 @@ export default function Profile() {
 
   async function handleSignOut() {
     await logout()
-    navigate('/login', { replace: true })
   }
 
   if (!profile) {

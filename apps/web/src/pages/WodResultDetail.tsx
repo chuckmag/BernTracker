@@ -254,7 +254,7 @@ export default function WodResultDetail() {
         {result.notes ? (
           <div>
             <p className="text-[11px] font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wide mb-1">Notes</p>
-            <p className="text-sm text-slate-700 dark:text-gray-300 whitespace-pre-wrap">{result.notes}</p>
+            <MarkdownDescription source={result.notes} />
           </div>
         ) : (
           <p className="text-sm text-slate-500 dark:text-gray-500 italic">No notes for this result.</p>

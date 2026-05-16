@@ -77,9 +77,8 @@ vi.mock('../context/InvitationsContext.tsx', () => ({
 vi.mock('../context/AuthContext.tsx', () => ({
   useAuth: () => ({
     user: { id: 'u1', email: 'a@test.com', firstName: 'Alice', lastName: 'Anderson' },
-    accessToken: 'tok',
     isLoading: false,
-    login: vi.fn(),
+    refreshUser: vi.fn(),
     logout: vi.fn(),
   }),
 }))

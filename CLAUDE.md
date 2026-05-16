@@ -20,6 +20,7 @@ This file covers cross-cutting topics — anything that spans the monorepo or ap
 
 - **Default to a worktree.** Each Claude session should start by creating a `git worktree` off `main` and working there, unless the user explicitly says to stay in the main checkout. See *Default workflow* below.
 - **Open PRs without asking.** When work is shippable, push the branch and run `gh pr create` directly — share the URL for review rather than asking for permission first.
+- **Worktree teardown is automatic via the PR watcher.** After `gh pr create` a background watcher starts automatically (via PostToolUse hook). It polls the PR every 3 minutes and tears down the worktree the moment it merges, releasing the branch lock. Do NOT manually tear down the worktree while the PR is open — it keeps your working copy available for review feedback. If the hook misses a PR or you need to watch a specific PR manually: `npm run watch:pr -- <pr-url>`.
 - **Phone-suitable feature? Web AND mobile ship together — neither surface is primary, neither is a follow-up.** A phone-suitable feature is not done until both surfaces are merged. See *Parity-first feature design* below.
 - **Working in a worktree?** Read *Worktree development* below — `npm run dev:worktree` is collision-resistant but the workflow has details worth knowing.
 - **Touching the schema?** Read *Schema migrations* below — every schema PR must commit its migration file.
@@ -33,6 +34,7 @@ These two defaults exist because the user runs N parallel Claude sessions and th
 
 1. **Start in a worktree.** First action of any non-trivial task: `git worktree add .claude/worktrees/<branch> -b <branch> main` (or `git worktree add /tmp/<descriptive-name> -b <branch> main` if `.claude/worktrees/` isn't suitable). Do *not* work directly in the primary checkout. Reasons: parallel sessions don't step on each other's branches, the dev-stack ports auto-allocate per worktree (see below), and `git worktree remove` is the safe cleanup. Only stay in the primary checkout if the user explicitly says so.
 2. **Open PRs without asking.** Once the branch is in a shippable state (tests pass, scope is complete), push it and call `gh pr create` directly. Share the resulting URL. The user reviews on GitHub, not in chat. This *does not* extend to destructive actions — force-push, branch deletion, merge — those still need explicit confirmation.
+3. **Worktree teardown is automatic.** The PostToolUse hook (`scripts/hooks/spawn-pr-watcher.mjs`) fires automatically after every `gh pr create` call. It spawns a detached background daemon (`scripts/watch-pr.mjs`) that polls the PR every 3 minutes and runs `teardown:worktree` the moment the PR is merged. You do NOT need to manually tear down the worktree — leaving it alive during review is intentional so you can push fixup commits in response to review feedback. The watcher log is at `<main-repo>/.git/watch-pr/<pr-number>/watcher.log`. To cancel a watcher: `kill $(cat .git/watch-pr/<pr-number>/pid)`. To abandon a worktree without waiting for merge: `npm run teardown:worktree`.
 
 ## Parity-first feature design
 
@@ -146,23 +148,50 @@ Before reporting test success in a PR (especially for a slice or feature work), 
 1. From the worktree, run `npm run dev:worktree` in the background and wait for both servers to bind.
 2. Run **both** `npm run test:worktree -- api` and `npm run test:worktree -- e2e` against that stack.
 3. Report the actual numbers (passed / failed / total) plus any flaky tests.
-4. Tear the dev stack down with `npm run dev:worktree:stop` before opening the PR.
+4. After opening the PR, the PostToolUse hook automatically spawns a background watcher that will tear down the worktree once the PR merges. You do NOT need to manually tear down — the worktree stays alive so you can push fixup commits during review. The watcher log is at `<main-repo>/.git/watch-pr/<pr-number>/watcher.log`.
 
 Skipping the live test runs and falling back to "static checks only" — like the slice-1 / slice-2 PRs had to — is a regression that this workflow exists to prevent. If the worktree dev stack genuinely won't start (port conflict the helper can't resolve, DB unreachable), say so explicitly in the PR rather than papering over with "reviewer to verify".
 
-### Stopping the dev stack — the only sanctioned way
+### Worktree teardown — how it works
 
-> **Hard rule: never use `pkill node`, `killall node`, or any other broad process kill to clean up after `npm run dev:worktree`.** Those kill sibling worktrees too, which is the foot-gun this section exists to prevent.
+> **Hard rule: never use `pkill node`, `killall node`, or any other broad process kill.** Those kill sibling worktrees too.
 
-From a background / scripted context (which is most Claude sessions), shut the stack down with:
+**Automatic (normal path):** The PostToolUse hook fires after `gh pr create` and spawns `scripts/watch-pr.mjs` as a detached background daemon. The daemon polls `gh pr view` every 3 minutes. On merge it runs:
+1. `stop-worktree.mjs` — kills dev servers
+2. `git worktree remove --force` — deregisters the worktree and deletes the directory
+3. `git worktree prune` — cleans up any remaining stale entries
 
+**Manual — abandon without waiting for merge:**
 ```bash
-npm run dev:worktree:stop
+npm run teardown:worktree  # from inside the worktree
+```
+Stops dev stack + removes worktree immediately. Use this if the PR is being closed/abandoned, not merged.
+
+**Manual — stop processes only (mid-session, not end-of-session):**
+```bash
+npm run dev:worktree:stop  # kills dev servers, leaves worktree registered
 ```
 
-It reads `.dev-pids.local` and `.dev-ports.local` and kills only this worktree's orchestrator and any process still listening on this worktree's API/web ports. Idempotent — safe to run when nothing is running. Sibling worktrees in other directories are untouched.
+**Cancel the watcher for a specific PR:**
+```bash
+kill $(cat .git/watch-pr/<pr-number>/pid)
+```
 
-From an interactive terminal, Ctrl-C in the foreground process is equivalent and also cleans up the state files.
+**Manual watch invocation (if hook missed a PR):**
+```bash
+npm run watch:pr -- <pr-url>  # from the worktree root
+```
+
+### Batch cleanup — removing stale worktrees
+
+When many sessions have accumulated without teardown, run from the **main checkout** (not a worktree):
+
+```bash
+npm run prune:worktrees          # dry-run: shows what would be removed
+npm run prune:worktrees -- --yes # actually remove merged worktrees
+```
+
+This reads `.git/worktrees/` metadata directly (fast, doesn't run `git worktree list`), checks which branches are merged into `origin/main`, removes those worktrees and their directories, and runs `git worktree prune` to clean entries for missing directories. Unmerged worktrees are listed but kept.
 
 If you're unsure whether a stack is still running, check `.dev-pids.local` (presence + a live PID = running) before launching another. The orchestrator refuses to start a second instance over an existing live one.
 

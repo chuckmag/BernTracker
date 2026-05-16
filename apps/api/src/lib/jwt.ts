@@ -38,3 +38,15 @@ export function verifyRefreshToken(token: string): { sub: string; role: Role } {
   const payload = jwt.verify(token, secret('JWT_REFRESH_SECRET')) as { sub: string; role: Role }
   return { sub: payload.sub, role: payload.role }
 }
+
+// Decode the `iss` claim without verification — used to route to the correct
+// verifier without a second full parse. Malformed tokens return undefined.
+export function getTokenIssuer(token: string): string | undefined {
+  try {
+    const decoded = jwt.decode(token) as { iss?: string } | null
+    return decoded?.iss
+  } catch {
+    return undefined
+  }
+}
+

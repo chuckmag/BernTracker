@@ -1,69 +1,85 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { api, setUnauthorizedHandler, setAccessToken as setApiToken, type AuthUser } from '../lib/api'
+import keycloak from '../lib/keycloak'
+import { api, type AuthUser } from '../lib/api'
 
 export type { IdentifiedGender } from '../lib/api'
 
 interface AuthState {
   user: AuthUser | null
-  accessToken: string | null
   isLoading: boolean
-  login: (token: string, user: AuthUser) => void
+  login: () => void
+  loginWithGoogle: () => void
+  register: () => void
   logout: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-
-  const didFetch = useRef(false)
-
-  useEffect(() => {
-    setUnauthorizedHandler(() => {
-      setApiToken(null)
-      setAccessToken(null)
-      setUser(null)
-      window.location.replace('/login')
-    })
-  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  const didInit = useRef(false)
 
   useEffect(() => {
-    if (didFetch.current) return
-    didFetch.current = true
+    if (didInit.current) return
+    didInit.current = true
 
-    api.auth.refresh()
-      .then(async (refreshed) => {
-        if (!refreshed) return
-        setAccessToken(refreshed.accessToken)
-        setApiToken(refreshed.accessToken)
-        try {
-          const me = await api.auth.me(refreshed.accessToken)
-          setUser(me)
-        } catch {
-          // me failed — treat as unauthenticated; unauthorized handler will redirect if needed
+    keycloak
+      .init({
+        pkceMethod: 'S256',
+        // check-sso creates a hidden iframe to Keycloak's auth endpoint.
+        // Keycloak's own JS in that iframe tries its own cross-origin iframe
+        // check, which times out (Chrome blocks it), blocking the redirect to
+        // silent-check-sso.html. Without onLoad, keycloak-js still handles the
+        // post-login ?code= exchange and restores sessions from sessionStorage.
+        checkLoginIframe: false,
+      })
+      .then(async (authenticated) => {
+        if (authenticated) {
+          try {
+            const me = await api.auth.me()
+            setUser(me)
+          } catch {
+            // Token was rejected by the API — clear it so the next login()
+            // call starts a fresh auth flow instead of retrying the same token.
+            keycloak.clearToken()
+          }
         }
       })
       .finally(() => setIsLoading(false))
   }, [])
 
-  function login(token: string, u: AuthUser) {
-    setAccessToken(token)
-    setApiToken(token)
-    setUser(u)
+  const postLoginUri = window.location.origin + '/'
+
+  function login() {
+    keycloak.login({ redirectUri: postLoginUri })
+  }
+
+  function loginWithGoogle() {
+    keycloak.login({ idpHint: 'google', redirectUri: postLoginUri })
+  }
+
+  function register() {
+    keycloak.register({ redirectUri: postLoginUri })
   }
 
   async function logout() {
-    await api.auth.logout().catch(() => {})
-    setAccessToken(null)
-    setApiToken(null)
-    setUser(null)
     localStorage.removeItem('gymId')
+    await keycloak.logout({ redirectUri: window.location.origin + '/login' })
+  }
+
+  async function refreshUser() {
+    try {
+      const me = await api.auth.me()
+      setUser(me)
+    } catch {
+      // best-effort
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginWithGoogle, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

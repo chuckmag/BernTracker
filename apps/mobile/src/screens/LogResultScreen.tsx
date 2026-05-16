@@ -467,7 +467,7 @@ export default function LogResultScreen({ route, navigation }: Props) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]} keyboardShouldPersistTaps="handled">
         <Text style={styles.workoutTitle}>{workout.title}</Text>
         <Text style={styles.workoutType}>{workout.type.replace(/_/g, ' ')}</Text>
 
@@ -544,26 +544,27 @@ export default function LogResultScreen({ route, navigation }: Props) {
           </Text>
         )}
 
-        {/* Notes */}
-        <Text style={styles.sectionLabel}>NOTES</Text>
-        <TextInput
-          style={[styles.input, styles.notesInput]}
-          multiline
-          numberOfLines={3}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Optional"
-          placeholderTextColor="#6b7280"
-          testID="notes-input"
-        />
+        {/* Notes — flex: 1 fills remaining scroll space */}
+        <View style={styles.notesSection}>
+          <Text style={styles.sectionLabel}>NOTES</Text>
+          <TextInput
+            style={[styles.input, styles.notesInput]}
+            multiline
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Optional"
+            placeholderTextColor="#6b7280"
+            testID="notes-input"
+          />
+        </View>
+      </ScrollView>
 
-        {/* Errors */}
+      {/* Footer — pinned below scroll area so notes can fill remaining space */}
+      <View style={styles.footer}>
         {alreadyLogged && (
           <Text style={styles.error}>You've already logged this workout.</Text>
         )}
         {error && !alreadyLogged && <Text style={styles.error}>{error}</Text>}
-
-        {/* Submit */}
         <TouchableOpacity
           style={[styles.submitBtn, (submitting || alreadyLogged) && styles.submitBtnDisabled]}
           onPress={handleSubmit}
@@ -574,8 +575,6 @@ export default function LogResultScreen({ route, navigation }: Props) {
             : <Text style={styles.submitBtnText}>{isEdit ? 'Save changes' : 'Log result'}</Text>
           }
         </TouchableOpacity>
-
-        {/* Delete (edit mode only) */}
         {isEdit && (
           <TouchableOpacity
             style={styles.deleteBtn}
@@ -585,7 +584,7 @@ export default function LogResultScreen({ route, navigation }: Props) {
             <Text style={styles.deleteBtnText}>{deleting ? 'Deleting…' : 'Delete result'}</Text>
           </TouchableOpacity>
         )}
-      </ScrollView>
+      </View>
 
       <PRCelebrationModal
         prs={prModal}
@@ -710,7 +709,7 @@ const prStyles = StyleSheet.create({
 // ─── SetsTableRN ─────────────────────────────────────────────────────────────
 
 const ALL_COLUMNS: { key: keyof SetRow; label: string; placeholder: string; numeric: boolean }[] = [
-  { key: 'reps',     label: 'Reps',     placeholder: '5 or 1.1.1', numeric: false },
+  { key: 'reps',     label: 'Reps',     placeholder: '5 or 1.1.1', numeric: true  },
   { key: 'load',     label: 'Load',     placeholder: '225',         numeric: true  },
   { key: 'tempo',    label: 'Tempo',    placeholder: '3.1.1.0',     numeric: false },
   { key: 'distance', label: 'Distance', placeholder: '500',         numeric: true  },
@@ -1071,7 +1070,7 @@ function ScoreFieldsRN({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#030712' },
-  scrollContent: { paddingHorizontal: 16, paddingVertical: 16, paddingBottom: 48 },
+  scrollContent: { paddingHorizontal: 16, paddingVertical: 16 },
   center: {
     flex: 1,
     backgroundColor: '#030712',
@@ -1120,7 +1119,9 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   inputDisabled: { opacity: 0.4 },
-  notesInput: { textAlignVertical: 'top', minHeight: 70 },
+  notesSection: { flex: 1, minHeight: 120 },
+  notesInput: { textAlignVertical: 'top', flex: 1 },
+  footer: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24, borderTopWidth: 1, borderTopColor: '#1f2937', backgroundColor: '#030712' },
   toggle: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
   checkbox: {
     width: 20,
@@ -1140,7 +1141,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 12,
   },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
