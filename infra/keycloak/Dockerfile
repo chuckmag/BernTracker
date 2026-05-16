@@ -6,6 +6,7 @@
 # When upgrading Keycloak, pick the closest JAR version at or below the
 # new KC version from https://github.com/adorsys/keycloak-config-cli/releases
 FROM alpine:3.20 AS downloader
+ARG TARGETARCH
 RUN wget -q https://github.com/adorsys/keycloak-config-cli/releases/download/v6.5.0/keycloak-config-cli-26.5.4.jar \
     -O /keycloak-config-cli.jar
 
@@ -16,6 +17,12 @@ RUN wget -q https://github.com/adorsys/keycloak-config-cli/releases/download/v6.
 RUN wget -q "https://github.com/inventage/keycloak-password-hashprovider-extension/releases/download/2.0.0/extension-password-hashprovider-2.0.0-202307200659-6-d59b2187.jar" \
     -O /bcrypt-provider.jar
 
+# jq — statically linked, no libc dependency, so it runs on UBI Micro.
+# Used in docker-entrypoint.sh to strip identityProviders from the realm JSON
+# when Google IDP credentials are absent, avoiding placeholder-string imports.
+RUN wget -q "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-${TARGETARCH}" \
+    -O /jq && chmod +x /jq
+
 FROM quay.io/keycloak/keycloak:26.6
 
 # keycloak-config-cli reconciles the full realm on every boot — clients,
@@ -24,6 +31,7 @@ FROM quay.io/keycloak/keycloak:26.6
 # The Keycloak image already ships a JVM, so no extra runtime is needed.
 COPY --from=downloader /keycloak-config-cli.jar /keycloak-config-cli.jar
 COPY --from=downloader /bcrypt-provider.jar /opt/keycloak/providers/bcrypt-provider.jar
+COPY --from=downloader /jq /usr/local/bin/jq
 
 COPY realm-wodalytics.json /realm-template.json
 COPY themes/wodalytics /opt/keycloak/themes/wodalytics
