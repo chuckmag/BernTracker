@@ -1,6 +1,6 @@
 # Download stage: alpine has wget; the Keycloak base image (UBI Micro) does not.
-# Use the keycloak-config-cli JAR built against Keycloak 26.5.4. The JAR
-# version must be <= the Keycloak server version — using a newer JAR against
+# Use the keycloak-config-cli JAR built against Keycloak 26.5.4 (closest ≤ 26.6).
+# The JAR version must be <= the Keycloak server version — using a newer JAR against
 # an older KC server causes 400 errors because the Admin Client serializes
 # RealmRepresentation fields the older server doesn't recognise.
 # When upgrading Keycloak, pick the closest JAR version at or below the
@@ -16,7 +16,7 @@ RUN wget -q https://github.com/adorsys/keycloak-config-cli/releases/download/v6.
 RUN wget -q "https://github.com/inventage/keycloak-password-hashprovider-extension/releases/download/2.0.0/extension-password-hashprovider-2.0.0-202307200659-6-d59b2187.jar" \
     -O /bcrypt-provider.jar
 
-FROM quay.io/keycloak/keycloak:26.5
+FROM quay.io/keycloak/keycloak:26.6
 
 # keycloak-config-cli reconciles the full realm on every boot — clients,
 # roles, IDPs, clientScopes, authentication flows, and realm-level settings

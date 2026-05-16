@@ -221,6 +221,45 @@
       ]
     }
   ],
+  "clientProfiles": {
+    "profiles": [
+      {
+        "name": "mcp-cimd-profile",
+        "description": "Client ID Metadata Document profile — any MCP client with a valid CIMD document is accepted (dev: http allowed for local tooling)",
+        "executors": [
+          {
+            "executor": "client-id-metadata-document",
+            "configuration": {
+              "allow-http-scheme": ["true"],
+              "trusted-domains": [],
+              "restrict-same-domain": ["false"],
+              "required-properties": [],
+              "only-allow-confidential-client": ["false"]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "clientPolicies": {
+    "policies": [
+      {
+        "name": "mcp-cimd-policy",
+        "description": "Apply CIMD profile to any client whose client_id is a URL — no domain allowlist, any valid CIMD document is accepted (dev: http allowed)",
+        "enabled": true,
+        "conditions": [
+          {
+            "condition": "client-id-uri",
+            "configuration": {
+              "uri-scheme": ["https", "http"],
+              "trusted-domains": []
+            }
+          }
+        ],
+        "profiles": ["mcp-cimd-profile"]
+      }
+    ]
+  },
   "identityProviders": [
     {
       "alias": "google",
