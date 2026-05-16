@@ -232,6 +232,50 @@
         "wodalytics:programs:write",
         "offline_access"
       ]
+    },
+    {
+      "clientId": "https://chatgpt.com/oauth/OeoXtI1ZiAFo/client.json",
+      "name": "ChatGPT MCP",
+      "description": "ChatGPT MCP connector — pre-registered CIMD client. KC 26.6 CIMD does not support inline auth-time lookup for unregistered URL clients; this static entry acts as the workaround until KC gains that capability. client_id = the ChatGPT integration's CIMD document URL. Uses private_key_jwt auth (RFC 7523) — no shared secret; KC verifies tokens against ChatGPT's JWKS.",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-jwt",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "attributes": {
+        "use.jwks.url": "true",
+        "jwks.url": "https://chatgpt.com/oauth/jwks.json",
+        "token.endpoint.auth.signing.alg": "RS256"
+      },
+      "protocolMappers": [
+        {
+          "name": "mcp-server-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "https://mcp.qa.wodalytics.com",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ],
+      "redirectUris": [
+        "https://chatgpt.com/connector/oauth/OeoXtI1ZiAFo"
+      ],
+      "webOrigins": [
+        "https://chatgpt.com"
+      ],
+      "defaultClientScopes": [
+        "wodalytics-claims"
+      ],
+      "optionalClientScopes": [
+        "wodalytics:workouts:read",
+        "wodalytics:results:read",
+        "wodalytics:results:write",
+        "wodalytics:programs:write",
+        "offline_access"
+      ]
     }
   ],
   "clientProfiles": {
