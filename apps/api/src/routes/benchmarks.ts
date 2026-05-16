@@ -2,11 +2,9 @@ import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import {
-  findAllActiveNamedWorkouts,
   findNamedWorkoutById,
-  findAllBenchmarkResultsForUser,
-  findBenchmarkResultsForUser,
-  findResultsByUserForNamedWorkout,
+  findBenchmarkSummaryForUser,
+  findBenchmarkHistoryForUser,
   createBenchmarkResult,
   updateBenchmarkResult,
   deleteBenchmarkResult,
@@ -37,77 +35,14 @@ export default router
 // ─── Handler functions ────────────────────────────────────────────────────────
 
 async function listBenchmarks(req: Request, res: Response) {
-  const userId = req.user!.id
-
-  const [namedWorkouts, allResults] = await Promise.all([
-    findAllActiveNamedWorkouts(),
-    findAllBenchmarkResultsForUser(userId),
-  ])
-
-  // Group manual results by namedWorkoutName for O(1) lookup per workout
-  const resultsByName = new Map<string, typeof allResults>()
-  for (const r of allResults) {
-    const bucket = resultsByName.get(r.namedWorkoutName) ?? []
-    bucket.push(r)
-    resultsByName.set(r.namedWorkoutName, bucket)
-  }
-
-  const response = namedWorkouts.map((nw) => {
-    const results = resultsByName.get(nw.name) ?? []
-    return {
-      ...nw,
-      manualResultCount: results.length,
-      // results are already ordered achievedAt desc — first is the latest
-      latestResult: results[0] ?? null,
-    }
-  })
-
-  res.json(response)
+  const summary = await findBenchmarkSummaryForUser(req.user!.id)
+  res.json(summary)
 }
 
 async function getBenchmarkDetail(req: Request, res: Response) {
-  const userId = req.user!.id
-  const namedWorkoutId = req.params.namedWorkoutId as string
-
-  const namedWorkout = await findNamedWorkoutById(namedWorkoutId)
-  if (!namedWorkout) return res.status(404).json({ error: 'Named workout not found' })
-
-  const [manualResults, programmedResults] = await Promise.all([
-    findBenchmarkResultsForUser(userId, namedWorkout.name),
-    findResultsByUserForNamedWorkout(userId, namedWorkoutId),
-  ])
-
-  const history = [
-    ...manualResults.map((r) => ({
-      source: 'manual' as const,
-      id: r.id,
-      achievedAt: r.achievedAt,
-      level: r.level,
-      workoutGender: r.workoutGender,
-      value: r.value,
-      notes: r.notes,
-      primaryScoreKind: r.primaryScoreKind,
-      primaryScoreValue: r.primaryScoreValue,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
-    })),
-    ...programmedResults.map((r) => ({
-      source: 'programmed' as const,
-      id: r.id,
-      achievedAt: r.workout.scheduledAt,
-      level: r.level,
-      workoutGender: r.workoutGender,
-      value: r.value,
-      notes: r.notes,
-      primaryScoreKind: r.primaryScoreKind,
-      primaryScoreValue: r.primaryScoreValue,
-      workoutId: r.workoutId,
-      workoutScheduledAt: r.workout.scheduledAt,
-      createdAt: r.createdAt,
-    })),
-  ].sort((a, b) => new Date(b.achievedAt).getTime() - new Date(a.achievedAt).getTime())
-
-  res.json({ namedWorkout, history })
+  const result = await findBenchmarkHistoryForUser(req.user!.id, req.params.namedWorkoutId as string)
+  if (!result) return res.status(404).json({ error: 'Named workout not found' })
+  res.json(result)
 }
 
 async function createBenchmarkResultHandler(req: Request, res: Response) {
