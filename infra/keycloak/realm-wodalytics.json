@@ -243,11 +243,11 @@
           {
             "executor": "client-id-metadata-document",
             "configuration": {
-              "allow-http-scheme": ["false"],
+              "allow-http-scheme": false,
               "trusted-domains": [],
-              "restrict-same-domain": ["false"],
+              "restrict-same-domain": false,
               "required-properties": [],
-              "only-allow-confidential-client": ["false"]
+              "only-allow-confidential-client": false
             }
           }
         ]

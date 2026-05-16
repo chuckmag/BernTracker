@@ -39,8 +39,13 @@ if [[ -n "${GOOGLE_IDP_CLIENT_ID:-}" && -n "${GOOGLE_IDP_CLIENT_SECRET:-}" ]]; t
   content="${content//__GOOGLE_IDP_CLIENT_SECRET__/${GOOGLE_IDP_CLIENT_SECRET}}"
   log "Google IDP credentials substituted"
 else
-  IDP_MANAGED_FLAG="--import.managed.identity-provider=IGNORE"
-  log "GOOGLE_IDP_CLIENT_ID/SECRET not set — identity provider import skipped (existing KC config preserved)"
+  # Strip identityProviders and identityProviderMappers so config-cli never
+  # imports placeholder strings into Keycloak. NO_DELETE tells config-cli not
+  # to remove any IDP that is already present in Keycloak but absent from JSON.
+  # (IGNORE was removed in keycloak-config-cli v6.x; valid values: FULL, NO_DELETE)
+  content="$(printf '%s' "$content" | /usr/local/bin/jq 'del(.identityProviders, .identityProviderMappers)')"
+  IDP_MANAGED_FLAG="--import.managed.identity-provider=NO_DELETE"
+  log "GOOGLE_IDP_CLIENT_ID/SECRET not set — identity providers stripped from import (existing KC config preserved)"
 fi
 printf '%s\n' "$content" > "${REALM_FILE}"
 
@@ -48,6 +53,13 @@ printf '%s\n' "$content" > "${REALM_FILE}"
 # KC_START_COMMAND defaults to "start" (production). Override to "start-dev"
 # for local testing without a production database.
 KC_START_COMMAND="${KC_START_COMMAND:-start}"
+
+# cimd (Client ID Metadata Document) is an opt-in feature in KC 26.6+.
+# Without it the client-id-metadata-document executor is unregistered and
+# realm import fails with "no executor provider found". Append to whatever
+# KC_FEATURES is already set to (e.g. token-exchange from Railway env).
+KC_FEATURES="${KC_FEATURES:+${KC_FEATURES},}cimd"
+export KC_FEATURES
 
 log "Starting Keycloak (${KC_START_COMMAND})..."
 /opt/keycloak/bin/kc.sh ${KC_START_COMMAND} &

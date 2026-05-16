@@ -230,11 +230,11 @@
           {
             "executor": "client-id-metadata-document",
             "configuration": {
-              "allow-http-scheme": ["true"],
+              "allow-http-scheme": true,
               "trusted-domains": [],
-              "restrict-same-domain": ["false"],
+              "restrict-same-domain": false,
               "required-properties": [],
-              "only-allow-confidential-client": ["false"]
+              "only-allow-confidential-client": false
             }
           }
         ]
