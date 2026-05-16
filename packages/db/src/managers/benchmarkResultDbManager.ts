@@ -30,14 +30,48 @@ export async function updateBenchmarkResult(
     level?: WorkoutLevel
     workoutGender?: WorkoutGender
     value?: object
-    notes?: string
-    primaryScoreKind?: string
-    primaryScoreValue?: number
+    notes?: string | null
+    primaryScoreKind?: string | null
+    primaryScoreValue?: number | null
   },
 ) {
   return prisma.benchmarkResult.update({
     where: { id, userId },
     data,
+  })
+}
+
+// Looks up the NamedWorkout by ID, then creates a BenchmarkResult against its name.
+// Returns null when the NamedWorkout doesn't exist so callers can map to 404.
+// Throws Prisma P2002 on unique-constraint violation (same user+workout+timestamp).
+export async function logBenchmarkResult(
+  userId: string,
+  namedWorkoutId: string,
+  input: {
+    achievedAt: Date
+    level: WorkoutLevel
+    workoutGender: WorkoutGender
+    value: object
+    notes?: string
+    primaryScoreKind?: string | null
+    primaryScoreValue?: number | null
+  },
+) {
+  const namedWorkout = await prisma.namedWorkout.findUnique({ where: { id: namedWorkoutId } })
+  if (!namedWorkout) return null
+
+  return prisma.benchmarkResult.create({
+    data: {
+      userId,
+      namedWorkoutName: namedWorkout.name,
+      achievedAt: input.achievedAt,
+      level: input.level,
+      workoutGender: input.workoutGender,
+      value: input.value,
+      notes: input.notes,
+      primaryScoreKind: input.primaryScoreKind ?? null,
+      primaryScoreValue: input.primaryScoreValue ?? null,
+    },
   })
 }
 

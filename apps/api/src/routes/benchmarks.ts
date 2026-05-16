@@ -2,10 +2,9 @@ import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import {
-  findNamedWorkoutById,
   findBenchmarkSummaryForUser,
   findBenchmarkHistoryForUser,
-  createBenchmarkResult,
+  logBenchmarkResult,
   updateBenchmarkResult,
   deleteBenchmarkResult,
 } from '@wodalytics/db'
@@ -46,12 +45,6 @@ async function getBenchmarkDetail(req: Request, res: Response) {
 }
 
 async function createBenchmarkResultHandler(req: Request, res: Response) {
-  const userId = req.user!.id
-  const namedWorkoutId = req.params.namedWorkoutId as string
-
-  const namedWorkout = await findNamedWorkoutById(namedWorkoutId)
-  if (!namedWorkout) return res.status(404).json({ error: 'Named workout not found' })
-
   const parsed = CreateBenchmarkResultSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
@@ -59,17 +52,16 @@ async function createBenchmarkResultHandler(req: Request, res: Response) {
   const score = derivePrimaryScore(value)
 
   try {
-    const result = await createBenchmarkResult({
-      userId,
-      namedWorkoutName: namedWorkout.name,
+    const result = await logBenchmarkResult(req.user!.id, req.params.namedWorkoutId as string, {
       achievedAt: new Date(achievedAt),
       level,
       workoutGender,
       value,
       notes,
-      primaryScoreKind: score?.kind ?? undefined,
-      primaryScoreValue: score?.value ?? undefined,
+      primaryScoreKind: score?.kind ?? null,
+      primaryScoreValue: score?.value ?? null,
     })
+    if (!result) return res.status(404).json({ error: 'Named workout not found' })
     res.status(201).json(result)
   } catch (err: unknown) {
     if (err instanceof Error && (err as Error & { code?: string }).code === 'P2002') {
@@ -80,31 +72,21 @@ async function createBenchmarkResultHandler(req: Request, res: Response) {
 }
 
 async function updateBenchmarkResultHandler(req: Request, res: Response) {
-  const userId = req.user!.id
-  const id = req.params.id as string
-
   const parsed = UpdateBenchmarkResultSchema.safeParse(req.body)
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
   const { achievedAt, level, workoutGender, value, notes } = parsed.data
-
-  let primaryScoreKind: string | undefined
-  let primaryScoreValue: number | undefined
-  if (value !== undefined) {
-    const score = derivePrimaryScore(value)
-    primaryScoreKind = score?.kind ?? undefined
-    primaryScoreValue = score?.value ?? undefined
-  }
+  const score = value !== undefined ? derivePrimaryScore(value) : undefined
 
   try {
-    const result = await updateBenchmarkResult(id, userId, {
+    const result = await updateBenchmarkResult(req.params.id as string, req.user!.id, {
       achievedAt: achievedAt !== undefined ? new Date(achievedAt) : undefined,
       level,
       workoutGender,
       value,
-      notes: notes === null ? undefined : notes,
-      primaryScoreKind,
-      primaryScoreValue,
+      notes,
+      primaryScoreKind: score !== undefined ? (score?.kind ?? null) : undefined,
+      primaryScoreValue: score !== undefined ? (score?.value ?? null) : undefined,
     })
     res.json(result)
   } catch (err: unknown) {
@@ -119,11 +101,8 @@ async function updateBenchmarkResultHandler(req: Request, res: Response) {
 }
 
 async function deleteBenchmarkResultHandler(req: Request, res: Response) {
-  const userId = req.user!.id
-  const id = req.params.id as string
-
   try {
-    await deleteBenchmarkResult(id, userId)
+    await deleteBenchmarkResult(req.params.id as string, req.user!.id)
     res.status(204).send()
   } catch (err: unknown) {
     if (err instanceof Error && (err as Error & { code?: string }).code === 'P2025') {
