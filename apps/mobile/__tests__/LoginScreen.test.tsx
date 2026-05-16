@@ -78,6 +78,14 @@ describe('LoginScreen', () => {
     expect(getByText('Sign in with Google')).toBeTruthy()
   })
 
+  test('useAuthRequest is called with offline_access scope for long-lived mobile sessions', () => {
+    setupHooks()
+    render(<LoginScreen />)
+    const calls = (AuthSession.useAuthRequest as jest.Mock).mock.calls
+    expect(calls.length).toBeGreaterThanOrEqual(1)
+    expect(calls[0][0].scopes).toContain('offline_access')
+  })
+
   test('Sign In button calls promptStandard (no kc_idp_hint)', async () => {
     setupHooks()
     const { getByText } = render(<LoginScreen />)

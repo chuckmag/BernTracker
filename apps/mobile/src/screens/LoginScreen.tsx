@@ -17,7 +17,7 @@ const redirectUri = AuthSession.makeRedirectUri({ scheme: 'com.wodalytics.app' }
 
 const BASE_CONFIG = {
   clientId: CLIENT_ID,
-  scopes: ['openid'],
+  scopes: ['openid', 'offline_access'],
   redirectUri,
   usePKCE: true,
 }
