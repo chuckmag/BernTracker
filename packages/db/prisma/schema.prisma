@@ -248,6 +248,7 @@ model User {
   comments              Comment[]
   workoutPlans          UserWorkoutPlan[]
   createdWorkoutPlans   UserWorkoutPlan[]      @relation("UserWorkoutPlanCreatedBy")
+  benchmarkResults      BenchmarkResult[]
 }
 
 model OAuthAccount {
@@ -425,17 +426,43 @@ model Invitation {
 }
 
 model NamedWorkout {
-  id        String          @id @default(cuid())
-  name      String          @unique
-  category  WorkoutCategory
-  aliases   String[]
-  isActive  Boolean         @default(true)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id          String          @id @default(cuid())
+  name        String          @unique
+  category    WorkoutCategory
+  aliases     String[]
+  isActive    Boolean         @default(true)
+  description String?
+  sourceUrl   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   templateWorkoutId String?   @unique
   templateWorkout   Workout?  @relation("NamedWorkoutTemplate", fields: [templateWorkoutId], references: [id])
   workouts          Workout[] @relation("NamedWorkoutInstances")
+}
+
+model BenchmarkResult {
+  id                String        @id @default(cuid())
+  userId            String
+  // Stores the NamedWorkout name as a plain string — no FK so the record
+  // persists as a historical audit even if the NamedWorkout is later renamed
+  // or deleted. Query via namedWorkout.name (unique on NamedWorkout).
+  namedWorkoutName  String
+  achievedAt        DateTime
+  level             WorkoutLevel
+  workoutGender     WorkoutGender
+  value             Json
+  notes             String?
+  primaryScoreKind  String?
+  primaryScoreValue Float?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, namedWorkoutName, achievedAt])
+  @@index([userId, namedWorkoutName])
+  @@index([namedWorkoutName, primaryScoreKind, primaryScoreValue])
 }
 
 model Workout {
@@ -471,10 +498,10 @@ model Workout {
   // nullable: members can log personal workouts outside any program
   program          Program?          @relation(fields: [programId], references: [id], onDelete: SetNull)
   results          Result[]
-  userPlans        UserWorkoutPlan[]
   namedWorkout     NamedWorkout?     @relation("NamedWorkoutInstances", fields: [namedWorkoutId], references: [id])
   templateFor      NamedWorkout?     @relation("NamedWorkoutTemplate") // required by Prisma parser — not used in queries
   workoutMovements WorkoutMovement[]
+  userPlans        UserWorkoutPlan[]
   import           WorkoutImport?    @relation(fields: [importId], references: [id], onDelete: SetNull)
 
   @@index([importId])

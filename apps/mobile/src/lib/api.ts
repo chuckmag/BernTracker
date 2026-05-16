@@ -282,6 +282,23 @@ export interface MovementHistoryPage {
   pages: number
 }
 
+// ── Benchmark types ──────────────────────────────────────────────────────────
+
+export interface BenchmarkResult {
+  id: string
+  userId: string
+  namedWorkoutName: string
+  achievedAt: string
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  value: object
+  notes: string | null
+  primaryScoreKind: string | null
+  primaryScoreValue: number | null
+  createdAt: string
+  updatedAt: string
+}
+
 // ── Social types ─────────────────────────────────────────────────────────────
 
 export interface ReactionSummary {
