@@ -44,3 +44,18 @@ export async function updateBenchmarkResult(
 export async function deleteBenchmarkResult(id: string, userId: string) {
   return prisma.benchmarkResult.delete({ where: { id, userId } })
 }
+
+export async function findAllBenchmarkResultsForUser(userId: string) {
+  return prisma.benchmarkResult.findMany({
+    where: { userId },
+    orderBy: { achievedAt: 'desc' },
+  })
+}
+
+export async function findResultsByUserForNamedWorkout(userId: string, namedWorkoutId: string) {
+  return prisma.result.findMany({
+    where: { userId, workout: { namedWorkoutId } },
+    include: { workout: { select: { id: true, scheduledAt: true } } },
+    orderBy: { createdAt: 'desc' },
+  })
+}
