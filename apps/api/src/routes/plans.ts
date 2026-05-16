@@ -54,7 +54,7 @@ async function listWorkoutPlans(req: Request, res: Response) {
 }
 
 async function getWorkoutPlanForUser(req: Request, res: Response) {
-  const { workoutId, userId: targetUserId } = req.params
+  const { workoutId, userId: targetUserId } = req.params as Record<string, string>
   const requesterId = req.user!.id
 
   if (requesterId !== targetUserId) {
@@ -72,7 +72,7 @@ async function getWorkoutPlanForUser(req: Request, res: Response) {
 }
 
 async function upsertWorkoutPlan(req: Request, res: Response) {
-  const { workoutId, userId: targetUserId } = req.params
+  const { workoutId, userId: targetUserId } = req.params as Record<string, string>
   const requesterId = req.user!.id
 
   const parsed = UpsertWorkoutPlanSchema.safeParse(req.body)
@@ -102,7 +102,7 @@ async function upsertWorkoutPlan(req: Request, res: Response) {
 }
 
 async function deleteWorkoutPlan(req: Request, res: Response) {
-  const { workoutId, userId: targetUserId } = req.params
+  const { workoutId, userId: targetUserId } = req.params as Record<string, string>
   const requesterId = req.user!.id
 
   if (requesterId !== targetUserId) {
