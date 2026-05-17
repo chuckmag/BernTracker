@@ -257,12 +257,35 @@ launchctl unload ~/Library/LaunchAgents/com.wodalytics.db-backup.plist
 ## Architecture pointers
 
 - **Source of truth for the data model:** `packages/db/prisma/schema.prisma`.
-- **Shared result value types:** `packages/types/src/result.ts`.
+- **Shared types:** `packages/types/src/` — enums, API response shapes, and any type used by more than one of web/mobile/api belong here. See *Shared types rule* below.
 - **Auth verification:** `apps/api/src/middleware/auth.ts` — single point for all routes.
 - **Shared business logic layer:** `packages/db/src/managers/` — all Prisma access lives here; API routes, MCP tools, and background jobs call managers, never `prisma.*` directly. See `packages/db/CLAUDE.md`.
 - **API REST conventions, DB managers, route handlers, jobs:** see `apps/api/CLAUDE.md`.
 - **MCP tool handlers:** see `apps/mcp/CLAUDE.md`.
 - **Web design system, primitives, a11y:** see `apps/web/CLAUDE.md`.
+
+## Shared types rule
+
+**Before defining a type in `apps/web/src/lib/api.ts` or `apps/mobile/src/lib/api.ts`, check `packages/types/src/` first.**
+
+A type belongs in `packages/types` if it is:
+- An enum value (role, status, category, PR type, etc.)
+- A read-only API response shape used by web, mobile, or the API itself
+- Anything referenced by more than one app
+
+**Where to put it:**
+
+| What | File |
+|---|---|
+| Auth / role enums | `auth.ts` |
+| Workout enums / input schemas | `workout.ts` |
+| Movement enums / input schemas | `movement.ts` |
+| Read-only API response shapes (PR entries, history pages, benchmark results, named workouts) | `apiTypes.ts` |
+| Result value shapes | `result.ts` |
+
+After adding to the domain file, export from `index.ts`. The app-level `api.ts` files re-export from `@wodalytics/types` so existing import paths stay stable — add a `export type { ... }` line there rather than duplicating the definition.
+
+**What stays app-local:** fetch wrappers (`api.xxx()` methods), response shapes that genuinely differ between surfaces (e.g. web's `WorkoutResult` vs mobile's `LeaderboardEntry`), and UI-only types with no cross-app consumer.
 
 ## Key enums
 

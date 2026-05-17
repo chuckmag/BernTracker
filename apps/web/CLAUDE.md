@@ -4,6 +4,8 @@ Web admin portal (Vite + React + Tailwind). See the repo-root `CLAUDE.md` for cr
 
 > **Convention:** any new pattern, primitive, or rule that applies only to the web app belongs here, not in the root.
 
+> **Adding a new type to `src/lib/api.ts`?** Check `packages/types/src/` first — enums, API response shapes, and anything mobile also needs belong there, not here. See root `CLAUDE.md` → *Shared types rule*.
+
 ## Design system
 
 Established by #81. **Always use existing primitives before writing custom Tailwind for the same pattern.** Look here first; only inline styles when the primitive genuinely doesn't fit.

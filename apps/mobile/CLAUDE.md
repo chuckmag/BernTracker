@@ -4,6 +4,8 @@ React Native (Expo) member app. See the repo-root `CLAUDE.md` for cross-cutting 
 
 > **Convention:** any new pattern, primitive, or rule that applies only to the mobile app belongs here, not in the root.
 
+> **Adding a new type to `src/lib/api.ts`?** Check `packages/types/src/` first — enums, API response shapes, and anything web also needs belong there, not here. See root `CLAUDE.md` → *Shared types rule*.
+
 ## Layout
 
 ```
