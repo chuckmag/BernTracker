@@ -24,6 +24,9 @@ export const WorkoutTypeSchema = z.enum([
 
 export const WorkoutCategorySchema = z.enum(['GIRL_WOD', 'HERO_WOD', 'OPEN_WOD', 'GAMES_WOD', 'BENCHMARK'])
 
+export const WorkoutStatusSchema = z.enum(['DRAFT', 'PUBLISHED'])
+export type WorkoutStatus = z.infer<typeof WorkoutStatusSchema>
+
 // Per-movement prescription. `movementId` is the only required field — every
 // other field is optional and only filled in for the columns the programmer
 // wants to track. `displayOrder` defaults to the position in the array on the
@@ -136,6 +139,8 @@ export const UpdateBenchmarkResultSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, { message: 'At least one field is required' })
 
+export type WorkoutType = z.infer<typeof WorkoutTypeSchema>
+export type WorkoutCategory = z.infer<typeof WorkoutCategorySchema>
 export type CreateWorkoutInput = z.infer<typeof CreateWorkoutSchema>
 export type UpdateWorkoutInput = z.infer<typeof UpdateWorkoutSchema>
 export type CreateNamedWorkoutInput = z.infer<typeof CreateNamedWorkoutSchema>

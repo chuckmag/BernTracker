@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+export const RoleSchema = z.enum(['OWNER', 'PROGRAMMER', 'COACH', 'MEMBER'])
+export type Role = z.infer<typeof RoleSchema>
+
 export const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
