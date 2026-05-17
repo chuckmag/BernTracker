@@ -37,13 +37,16 @@ Each job is its own Railway service, all sharing the `Dockerfile` image. The Doc
 ## Local invocation
 
 ```bash
-# from repo root — argv path
+# from repo root — runs via tsx (no build required, recommended for local dev)
 npm run dev:jobs -- <name>
 
-# or, mirroring prod via the env var
+# mirroring prod via env var (also tsx / no build required)
+JOB_NAME=<name> npm run dev --workspace=@wodalytics/jobs
+
+# runs compiled dist — requires a prior `turbo build --filter=@wodalytics/jobs`
 JOB_NAME=<name> npm run job --workspace=@wodalytics/jobs
 
-# or, full Docker-image repro of the Railway service
+# full Docker-image repro of the Railway service
 docker compose --profile jobs run --rm -e JOB_NAME=<name> jobs
 ```
 
