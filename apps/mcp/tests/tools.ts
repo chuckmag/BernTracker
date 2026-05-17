@@ -1,5 +1,5 @@
 /**
- * Integration tests for all 8 MCP tools (#315).
+ * Integration tests for all MCP tools.
  *
  * Spins up an in-process JWKS mock and MCP Express app (same pattern as
  * scaffold.ts). Seeds minimal DB fixtures via Prisma, invokes each tool
@@ -25,6 +25,12 @@
  *   T16: log_result — inaccessible workout returns error
  *   T17: log_result — valid FOR_TIME result logged successfully
  *   T18: log_result — second call updates existing result (idempotent)
+ *   T19: get_my_workout_plan — returns null when no plan exists
+ *   T20: set_workout_plan — member sets own plan successfully
+ *   T21: set_workout_plan — second call updates plan (idempotent)
+ *   T22: set_workout_plan with userId — coach can set plan for member
+ *   T23: set_workout_plan with userId — member cannot set plan for another user
+ *   T24: delete_workout_plan — deletes own plan; plan no longer returned
  *
  * Run: cd apps/mcp && npx dotenv-cli -e ../../.env -- npx tsx tests/tools.ts
  */
@@ -175,6 +181,7 @@ const SUFFIX = `mcptools${Date.now()}`
 
 interface Fixtures {
   gymUserId: string
+  coachUserId: string
   outsiderUserId: string
   gymId: string
   gymProgramId: string
@@ -192,6 +199,9 @@ async function seedFixtures(): Promise<Fixtures> {
   const gymUser = await prisma.user.create({
     data: { email: `gymuser.${SUFFIX}@test.invalid`, name: `Gym User ${SUFFIX}` },
   })
+  const coachUser = await prisma.user.create({
+    data: { email: `coach.${SUFFIX}@test.invalid`, name: `Coach User ${SUFFIX}` },
+  })
   const outsider = await prisma.user.create({
     data: { email: `outsider.${SUFFIX}@test.invalid`, name: `Outsider ${SUFFIX}` },
   })
@@ -201,9 +211,12 @@ async function seedFixtures(): Promise<Fixtures> {
     data: { name: `Test Gym ${SUFFIX}`, slug: `test-gym-${SUFFIX}` },
   })
 
-  // Gym membership
+  // Gym memberships
   await prisma.userGym.create({
     data: { userId: gymUser.id, gymId: gym.id, role: 'MEMBER' },
+  })
+  await prisma.userGym.create({
+    data: { userId: coachUser.id, gymId: gym.id, role: 'COACH' },
   })
 
   // Gym program (default for the gym)
@@ -302,6 +315,7 @@ async function seedFixtures(): Promise<Fixtures> {
 
   return {
     gymUserId: gymUser.id,
+    coachUserId: coachUser.id,
     outsiderUserId: outsider.id,
     gymId: gym.id,
     gymProgramId: gymProgram.id,
@@ -316,6 +330,11 @@ async function seedFixtures(): Promise<Fixtures> {
 }
 
 async function cleanupFixtures(f: Fixtures): Promise<void> {
+  // UserWorkoutPlans (before workouts)
+  await prisma.userWorkoutPlan.deleteMany({
+    where: { workoutId: { in: [f.pastWorkoutId, f.todayWorkoutId, f.personalWorkoutId] } },
+  })
+
   // Results (before workouts)
   await prisma.result.deleteMany({
     where: { workoutId: { in: [f.pastWorkoutId, f.todayWorkoutId, f.personalWorkoutId] } },
@@ -357,7 +376,7 @@ async function cleanupFixtures(f: Fixtures): Promise<void> {
 
   // Users (cascades remaining UserGym, UserProgram, Result rows)
   await prisma.user.deleteMany({
-    where: { id: { in: [f.gymUserId, f.outsiderUserId] } },
+    where: { id: { in: [f.gymUserId, f.coachUserId, f.outsiderUserId] } },
   })
 }
 
@@ -376,6 +395,7 @@ async function run(): Promise<void> {
 
   const f = await seedFixtures()
   const gymToken = await mintToken(f.gymUserId, mockUrl)
+  const coachToken = await mintToken(f.coachUserId, mockUrl)
   const outsiderToken = await mintToken(f.outsiderUserId, mockUrl)
 
   try {
@@ -621,6 +641,92 @@ async function run(): Promise<void> {
       check('level updated to SCALED', 'SCALED', result?.level)
       // primaryScoreValue encodes the TIME score — should reflect the new 999s
       check('primaryScoreValue updated', 999, result?.primaryScoreValue)
+    }
+
+    // ── get_my_workout_plan / set_workout_plan / delete_workout_plan ───────────
+
+    console.log('\n=== T19: get_my_workout_plan — returns null when no plan exists ===')
+    {
+      const r = await callTool(BASE, gymToken, 'get_my_workout_plan', {
+        workoutId: f.pastWorkoutId,
+      })
+      check('not error', false, r.isError)
+      check('result is null', 'null', JSON.stringify(r.parsed))
+    }
+
+    console.log('\n=== T20: set_workout_plan — member sets own plan ===')
+    {
+      const r = await callTool(BASE, gymToken, 'set_workout_plan', {
+        workoutId: f.pastWorkoutId,
+        level: 'SCALED',
+        notes: 'Going light today',
+      })
+      check('not error', false, r.isError)
+      const plan = r.parsed as Record<string, unknown> | null
+      check('level is SCALED', 'SCALED', plan?.level)
+      check('notes match', 'Going light today', plan?.notes)
+      check('userId matches gymUser', f.gymUserId, plan?.userId)
+    }
+
+    console.log('\n=== T21: set_workout_plan — second call updates plan (idempotent) ===')
+    {
+      const r = await callTool(BASE, gymToken, 'set_workout_plan', {
+        workoutId: f.pastWorkoutId,
+        level: 'RX',
+        notes: 'Feeling strong',
+      })
+      check('not error', false, r.isError)
+      const plan = r.parsed as Record<string, unknown> | null
+      check('level updated to RX', 'RX', plan?.level)
+      check('notes updated', 'Feeling strong', plan?.notes)
+    }
+
+    console.log('\n=== T22: set_workout_plan with userId — coach can set plan for member ===')
+    {
+      const r = await callTool(BASE, coachToken, 'set_workout_plan', {
+        workoutId: f.pastWorkoutId,
+        userId: f.gymUserId,
+        level: 'MODIFIED',
+        notes: 'Coach prescribed: go easy',
+      })
+      check('not error', false, r.isError)
+      const plan = r.parsed as Record<string, unknown> | null
+      check('level is MODIFIED', 'MODIFIED', plan?.level)
+      check('createdById is coachUser', f.coachUserId, plan?.createdById)
+    }
+
+    console.log('\n=== T23: set_workout_plan with userId — member cannot set plan for another user ===')
+    {
+      const r = await callTool(BASE, gymToken, 'set_workout_plan', {
+        workoutId: f.pastWorkoutId,
+        userId: f.coachUserId,
+        level: 'RX',
+      })
+      check('isError', true, r.isError)
+      checkTrue('text mentions forbidden', r.text.toLowerCase().includes('forbidden') || r.text.toLowerCase().includes('coaches'))
+    }
+
+    console.log('\n=== T24: delete_workout_plan — deletes own plan; plan no longer returned ===')
+    {
+      // gymUser currently has a plan on pastWorkoutId (set by coach in T22)
+      // First verify it exists
+      const before = await callTool(BASE, gymToken, 'get_my_workout_plan', {
+        workoutId: f.pastWorkoutId,
+      })
+      checkTrue('plan exists before delete', before.parsed !== null)
+
+      const del = await callTool(BASE, gymToken, 'delete_workout_plan', {
+        workoutId: f.pastWorkoutId,
+      })
+      check('delete not error', false, del.isError)
+      const delResult = del.parsed as Record<string, unknown> | null
+      check('deleted true', true, delResult?.deleted)
+
+      // Plan should now be null
+      const after = await callTool(BASE, gymToken, 'get_my_workout_plan', {
+        workoutId: f.pastWorkoutId,
+      })
+      check('plan is null after delete', 'null', JSON.stringify(after.parsed))
     }
   } finally {
     await cleanupFixtures(f).catch((err) => console.error('Cleanup error:', err))
