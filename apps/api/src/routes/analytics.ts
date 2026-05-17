@@ -5,7 +5,12 @@ import {
   getConsistencyDataForUser,
   getTopStrengthMovementsForUser,
   getStrengthPRTrajectoryForUser,
+  getLoggedMovementsForUser,
+  getMovementPrsByTypeForUser,
+  getMovementTrajectoryByTypeForUser,
 } from '@wodalytics/db'
+import { MovementPrTypeSchema, TrajectoryRangeSchema } from '@wodalytics/types'
+import type { MovementPrType, TrajectoryRange } from '@wodalytics/types'
 
 const router = Router()
 
@@ -15,6 +20,13 @@ router.get('/me/analytics/consistency', requireAuth, getMyConsistency)
 router.get('/me/analytics/tracked-movements', requireAuth, getMyTrackedMovements)
 // GET /api/me/analytics/strength-trajectory?movementId=...&range=1M
 router.get('/me/analytics/strength-trajectory', requireAuth, getMyStrengthTrajectory)
+// GET /api/me/analytics/movements
+router.get('/me/analytics/movements', requireAuth, getMyMovements)
+// GET /api/me/analytics/movements/:movementId/trajectory?prType=...&range=1M
+// (registered before /:movementId so "trajectory" literal isn't captured as an id)
+router.get('/me/analytics/movements/:movementId/trajectory', requireAuth, getMyMovementTrajectory)
+// GET /api/me/analytics/movements/:movementId
+router.get('/me/analytics/movements/:movementId', requireAuth, getMyMovementPrs)
 
 export default router
 
@@ -46,9 +58,50 @@ async function getMyStrengthTrajectory(req: Request, res: Response) {
     return
   }
   const rangeRaw = String(req.query.range ?? '3M')
-  const range = ['1M', '3M', '6M', '1Y'].includes(rangeRaw)
-    ? (rangeRaw as '1M' | '3M' | '6M' | '1Y')
+  const range = TrajectoryRangeSchema.options.includes(rangeRaw as TrajectoryRange)
+    ? (rangeRaw as TrajectoryRange)
     : '3M'
   const data = await getStrengthPRTrajectoryForUser(userId, movementId, range)
   res.json(data)
+}
+
+async function getMyMovements(req: Request, res: Response) {
+  const userId = req.user!.id
+  const data = await getLoggedMovementsForUser(userId)
+  res.json(data)
+}
+
+async function getMyMovementPrs(req: Request, res: Response) {
+  const userId = req.user!.id
+  const { movementId } = req.params
+  try {
+    const data = await getMovementPrsByTypeForUser(userId, movementId)
+    res.json(data)
+  } catch (err) {
+    const statusCode = (err as { statusCode?: number }).statusCode
+    if (statusCode) return res.status(statusCode).json({ error: err instanceof Error ? err.message : 'Error' })
+    throw err
+  }
+}
+
+async function getMyMovementTrajectory(req: Request, res: Response) {
+  const userId = req.user!.id
+  const { movementId } = req.params
+  const prTypeRaw = String(req.query.prType ?? '')
+  if (!MovementPrTypeSchema.options.includes(prTypeRaw as MovementPrType)) {
+    res.status(400).json({ error: `prType must be one of: ${MovementPrTypeSchema.options.join(', ')}` })
+    return
+  }
+  const rangeRaw = String(req.query.range ?? '3M')
+  const range = TrajectoryRangeSchema.options.includes(rangeRaw as TrajectoryRange)
+    ? (rangeRaw as TrajectoryRange)
+    : '3M'
+  try {
+    const data = await getMovementTrajectoryByTypeForUser(userId, movementId, prTypeRaw as MovementPrType, range)
+    res.json(data)
+  } catch (err) {
+    const statusCode = (err as { statusCode?: number }).statusCode
+    if (statusCode) return res.status(statusCode).json({ error: err instanceof Error ? err.message : 'Error' })
+    throw err
+  }
 }

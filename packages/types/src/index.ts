@@ -1,3 +1,4 @@
+export * from './analytics.js'
 export * from './result.js'
 export * from './primaryScore.js'
 export * from './auth.js'

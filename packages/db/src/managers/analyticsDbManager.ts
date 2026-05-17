@@ -1,5 +1,6 @@
 import { prisma } from '../client.js'
-import { extractMovementSets } from './resultDbManager.js'
+import type { MovementCategory, MovementPrType, Prisma } from '../client.js'
+import { extractMovementSets, parseRepsToInt } from './resultDbManager.js'
 
 export interface ConsistencyData {
   currentStreak: number
@@ -265,4 +266,408 @@ export async function getStrengthPRTrajectoryForUser(
     .map(([date, { maxLoad, loadUnit, sets, workoutId, resultId }]) => ({ date, maxLoad, loadUnit, sets, workoutId, resultId }))
 
   return { movementId, name: movement.name, currentPr, loadUnit: latestUnit, points }
+}
+
+// ─── Movements analytics (issue #366) ────────────────────────────────────────
+
+type ResultForPr = {
+  id: string
+  value: Prisma.JsonValue
+  workout: { id: string; title: string; scheduledAt: Date }
+}
+
+type MovementDisplayGroup = 'strength' | 'monostructural' | 'gymnastics'
+
+function toDisplayGroup(category: MovementCategory): MovementDisplayGroup | null {
+  if (category === 'STRENGTH') return 'strength'
+  if (category === 'GYMNASTICS') return 'gymnastics'
+  if (category === 'MONOSTRUCTURAL' || category === 'ENDURANCE' || category === 'MACHINE') return 'monostructural'
+  return null
+}
+
+type PrimaryPR =
+  | { type: 'LOAD'; reps: number; load: number; loadUnit: string; achievedAt: string }
+  | { type: 'MAX_REPS'; maxReps: number; achievedAt: string }
+  | { type: 'TIME'; distance: number; distanceUnit: string; seconds: number; achievedAt: string }
+  | { type: 'DISTANCE'; seconds: number; distance: number; distanceUnit: string; achievedAt: string }
+  | { type: 'CALORIES'; seconds: number; calories: number; achievedAt: string }
+
+function computePrimaryPr(prType: MovementPrType, movementId: string, results: ResultForPr[]): PrimaryPR | null {
+  switch (prType) {
+    case 'LOAD': {
+      let bestLoad: number | null = null
+      let bestReps = 0
+      let bestLoadUnit = 'LB'
+      let bestAchievedAt = ''
+      for (const r of results) {
+        const { sets, loadUnit } = extractMovementSets(r.value, movementId)
+        for (const set of sets) {
+          if (!set.reps || set.load === undefined || set.load <= 0) continue
+          const repCount = parseRepsToInt(set.reps)
+          if (repCount <= 0) continue
+          if (bestLoad === null || set.load > bestLoad || (set.load === bestLoad && repCount < bestReps)) {
+            bestLoad = set.load
+            bestReps = repCount
+            bestLoadUnit = loadUnit ?? 'LB'
+            bestAchievedAt = r.workout.scheduledAt.toISOString()
+          }
+        }
+      }
+      return bestLoad !== null ? { type: 'LOAD', reps: bestReps, load: bestLoad, loadUnit: bestLoadUnit, achievedAt: bestAchievedAt } : null
+    }
+    case 'MAX_REPS': {
+      let best: { maxReps: number; achievedAt: string } | null = null
+      for (const r of results) {
+        const { sets } = extractMovementSets(r.value, movementId)
+        for (const set of sets) {
+          if (!set.reps) continue
+          const reps = parseRepsToInt(set.reps)
+          if (reps <= 0) continue
+          if (!best || reps > best.maxReps) {
+            best = { maxReps: reps, achievedAt: r.workout.scheduledAt.toISOString() }
+          }
+        }
+      }
+      return best ? { type: 'MAX_REPS', ...best } : null
+    }
+    case 'TIME': {
+      let best: { distance: number; distanceUnit: string; seconds: number; achievedAt: string } | null = null
+      for (const r of results) {
+        const { sets, distanceUnit } = extractMovementSets(r.value, movementId)
+        const unit = distanceUnit ?? 'M'
+        for (const set of sets) {
+          if (set.distance === undefined || !set.seconds) continue
+          if (!best || set.seconds < best.seconds) {
+            best = { distance: set.distance, distanceUnit: unit, seconds: set.seconds, achievedAt: r.workout.scheduledAt.toISOString() }
+          }
+        }
+      }
+      return best ? { type: 'TIME', ...best } : null
+    }
+    case 'DISTANCE': {
+      let best: { seconds: number; distance: number; distanceUnit: string; achievedAt: string } | null = null
+      for (const r of results) {
+        const { sets, distanceUnit } = extractMovementSets(r.value, movementId)
+        const unit = distanceUnit ?? 'M'
+        for (const set of sets) {
+          if (set.distance === undefined || !set.seconds) continue
+          if (!best || set.distance > best.distance) {
+            best = { seconds: set.seconds, distance: set.distance, distanceUnit: unit, achievedAt: r.workout.scheduledAt.toISOString() }
+          }
+        }
+      }
+      return best ? { type: 'DISTANCE', ...best } : null
+    }
+    case 'CALORIES': {
+      let best: { seconds: number; calories: number; achievedAt: string } | null = null
+      for (const r of results) {
+        const { sets } = extractMovementSets(r.value, movementId)
+        for (const set of sets) {
+          if (set.calories === undefined || !set.seconds) continue
+          if (!best || set.calories > best.calories) {
+            best = { seconds: set.seconds, calories: set.calories, achievedAt: r.workout.scheduledAt.toISOString() }
+          }
+        }
+      }
+      return best ? { type: 'CALORIES', ...best } : null
+    }
+  }
+}
+
+function computePrEntries(prType: MovementPrType, movementId: string, results: ResultForPr[]) {
+  switch (prType) {
+    case 'LOAD': {
+      const byReps = new Map<number, { load: number; loadUnit: string; achievedAt: string; resultId: string; workoutId: string }>()
+      for (const r of results) {
+        const { sets, loadUnit } = extractMovementSets(r.value, movementId)
+        for (const set of sets) {
+          if (!set.reps || set.load === undefined || set.load <= 0) continue
+          const repCount = parseRepsToInt(set.reps)
+          if (repCount <= 0 || repCount > 10) continue
+          const existing = byReps.get(repCount)
+          if (!existing || set.load > existing.load) {
+            byReps.set(repCount, { load: set.load, loadUnit: loadUnit ?? 'LB', achievedAt: r.workout.scheduledAt.toISOString(), resultId: r.id, workoutId: r.workout.id })
+          }
+        }
+      }
+      return [...byReps.entries()].map(([repCount, d]) => ({ repCount, ...d })).sort((a, b) => a.repCount - b.repCount)
+    }
+    case 'MAX_REPS': {
+      let best: { maxReps: number; achievedAt: string; resultId: string; workoutId: string } | null = null
+      for (const r of results) {
+        const { sets } = extractMovementSets(r.value, movementId)
+        for (const set of sets) {
+          if (!set.reps) continue
+          const reps = parseRepsToInt(set.reps)
+          if (reps <= 0) continue
+          if (!best || reps > best.maxReps) {
+            best = { maxReps: reps, achievedAt: r.workout.scheduledAt.toISOString(), resultId: r.id, workoutId: r.workout.id }
+          }
+        }
+      }
+      return best ? [best] : []
+    }
+    case 'TIME': {
+      const byDist = new Map<string, { distance: number; distanceUnit: string; seconds: number; achievedAt: string; resultId: string; workoutId: string }>()
+      for (const r of results) {
+        const { sets, distanceUnit } = extractMovementSets(r.value, movementId)
+        const unit = distanceUnit ?? 'M'
+        for (const set of sets) {
+          if (set.distance === undefined || !set.seconds) continue
+          const key = `${set.distance}::${unit}`
+          const existing = byDist.get(key)
+          if (!existing || set.seconds < existing.seconds) {
+            byDist.set(key, { distance: set.distance, distanceUnit: unit, seconds: set.seconds, achievedAt: r.workout.scheduledAt.toISOString(), resultId: r.id, workoutId: r.workout.id })
+          }
+        }
+      }
+      return [...byDist.values()].sort((a, b) => a.distance - b.distance)
+    }
+    case 'DISTANCE': {
+      const bySeconds = new Map<number, { seconds: number; distance: number; distanceUnit: string; achievedAt: string; resultId: string; workoutId: string }>()
+      for (const r of results) {
+        const { sets, distanceUnit } = extractMovementSets(r.value, movementId)
+        const unit = distanceUnit ?? 'M'
+        for (const set of sets) {
+          if (set.distance === undefined || !set.seconds) continue
+          const existing = bySeconds.get(set.seconds)
+          if (!existing || set.distance > existing.distance) {
+            bySeconds.set(set.seconds, { seconds: set.seconds, distance: set.distance, distanceUnit: unit, achievedAt: r.workout.scheduledAt.toISOString(), resultId: r.id, workoutId: r.workout.id })
+          }
+        }
+      }
+      return [...bySeconds.values()].sort((a, b) => a.seconds - b.seconds)
+    }
+    case 'CALORIES': {
+      const bySeconds = new Map<number, { seconds: number; calories: number; achievedAt: string; resultId: string; workoutId: string }>()
+      for (const r of results) {
+        const { sets } = extractMovementSets(r.value, movementId)
+        for (const set of sets) {
+          if (set.calories === undefined || !set.seconds) continue
+          const existing = bySeconds.get(set.seconds)
+          if (!existing || set.calories > existing.calories) {
+            bySeconds.set(set.seconds, { seconds: set.seconds, calories: set.calories, achievedAt: r.workout.scheduledAt.toISOString(), resultId: r.id, workoutId: r.workout.id })
+          }
+        }
+      }
+      return [...bySeconds.values()].sort((a, b) => a.seconds - b.seconds)
+    }
+  }
+}
+
+export interface MovementSummaryEntry {
+  movementId: string
+  name: string
+  prTypes: MovementPrType[]
+  primaryPR: PrimaryPR | null
+  lastLoggedAt: string
+}
+
+export async function getLoggedMovementsForUser(userId: string): Promise<Record<MovementDisplayGroup, MovementSummaryEntry[]>> {
+  const results = await prisma.result.findMany({
+    where: { userId },
+    select: {
+      id: true,
+      value: true,
+      workout: {
+        select: {
+          id: true,
+          title: true,
+          scheduledAt: true,
+          workoutMovements: {
+            select: { movement: { select: { id: true, name: true, category: true, prTypes: true } } },
+          },
+        },
+      },
+    },
+    orderBy: { workout: { scheduledAt: 'desc' } },
+  })
+
+  type MovementAccum = {
+    meta: { id: string; name: string; category: MovementCategory; prTypes: MovementPrType[] }
+    results: ResultForPr[]
+    lastLoggedAt: string
+  }
+  const byMovement = new Map<string, MovementAccum>()
+
+  for (const result of results) {
+    for (const wm of result.workout.workoutMovements) {
+      const { sets } = extractMovementSets(result.value, wm.movement.id)
+      if (!sets.length) continue
+      const movId = wm.movement.id
+      if (!byMovement.has(movId)) {
+        byMovement.set(movId, {
+          meta: wm.movement,
+          results: [],
+          lastLoggedAt: result.workout.scheduledAt.toISOString(),
+        })
+      }
+      byMovement.get(movId)!.results.push({
+        id: result.id,
+        value: result.value,
+        workout: { id: result.workout.id, title: result.workout.title, scheduledAt: result.workout.scheduledAt },
+      })
+    }
+  }
+
+  const groups: Record<MovementDisplayGroup, MovementSummaryEntry[]> = { strength: [], monostructural: [], gymnastics: [] }
+
+  for (const { meta, results: movResults, lastLoggedAt } of byMovement.values()) {
+    const group = toDisplayGroup(meta.category)
+    if (!group) continue
+    const primaryPR = meta.prTypes.length > 0 ? computePrimaryPr(meta.prTypes[0], meta.id, movResults) : null
+    groups[group].push({ movementId: meta.id, name: meta.name, prTypes: meta.prTypes, primaryPR, lastLoggedAt })
+  }
+
+  for (const group of Object.values(groups)) {
+    group.sort((a, b) => b.lastLoggedAt.localeCompare(a.lastLoggedAt))
+  }
+
+  return groups
+}
+
+export async function getMovementPrsByTypeForUser(userId: string, movementId: string) {
+  const movement = await prisma.movement.findUnique({
+    where: { id: movementId },
+    select: { id: true, name: true, category: true, prTypes: true },
+  })
+  if (!movement) throw Object.assign(new Error('Movement not found'), { statusCode: 404 })
+
+  const allResults = await prisma.result.findMany({
+    where: { userId, workout: { workoutMovements: { some: { movementId } } } },
+    select: {
+      id: true,
+      value: true,
+      workout: { select: { id: true, title: true, scheduledAt: true } },
+    },
+    orderBy: { workout: { scheduledAt: 'desc' } },
+  })
+
+  const byType: Record<string, { entries: ReturnType<typeof computePrEntries> }> = {}
+  for (const prType of movement.prTypes) {
+    byType[prType] = { entries: computePrEntries(prType, movementId, allResults) }
+  }
+
+  const seenWorkouts = new Set<string>()
+  const recentAppearances: { workoutId: string; workoutName: string; scheduledAt: string; yourSets: unknown[] }[] = []
+  for (const r of allResults) {
+    if (seenWorkouts.has(r.workout.id)) continue
+    const { sets } = extractMovementSets(r.value, movementId)
+    if (!sets.length) continue
+    seenWorkouts.add(r.workout.id)
+    recentAppearances.push({
+      workoutId: r.workout.id,
+      workoutName: r.workout.title,
+      scheduledAt: r.workout.scheduledAt.toISOString(),
+      yourSets: sets,
+    })
+    if (recentAppearances.length >= 10) break
+  }
+
+  return { movement, byType, recentAppearances }
+}
+
+function formatSeconds(secs: number): string {
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+export async function getMovementTrajectoryByTypeForUser(
+  userId: string,
+  movementId: string,
+  prType: MovementPrType,
+  range: TrajectoryRange,
+): Promise<{ prType: MovementPrType; points: { achievedAt: string; value: number; label: string }[] }> {
+  const movement = await prisma.movement.findUnique({
+    where: { id: movementId },
+    select: { prTypes: true },
+  })
+  if (!movement) throw Object.assign(new Error('Movement not found'), { statusCode: 404 })
+  if (!movement.prTypes.includes(prType)) {
+    throw Object.assign(new Error(`prType ${prType} is not tracked for this movement`), { statusCode: 400 })
+  }
+
+  const startDate = new Date()
+  startDate.setUTCDate(startDate.getUTCDate() - rangeToDays(range))
+  startDate.setUTCHours(0, 0, 0, 0)
+
+  const results = await prisma.result.findMany({
+    where: { userId, createdAt: { gte: startDate }, workout: { workoutMovements: { some: { movementId } } } },
+    select: {
+      id: true,
+      value: true,
+      workout: { select: { id: true, title: true, scheduledAt: true } },
+    },
+  })
+
+  const byDate = new Map<string, { value: number; label: string }>()
+
+  for (const result of results) {
+    const dateKey = toUtcDateKey(result.workout.scheduledAt)
+    const { sets, loadUnit, distanceUnit } = extractMovementSets(result.value, movementId)
+
+    switch (prType) {
+      case 'LOAD': {
+        for (const set of sets) {
+          if (set.load === undefined || set.load <= 0) continue
+          const existing = byDate.get(dateKey)
+          if (!existing || set.load > existing.value) {
+            byDate.set(dateKey, { value: set.load, label: `${set.load} ${loadUnit ?? 'LB'}` })
+          }
+        }
+        break
+      }
+      case 'MAX_REPS': {
+        for (const set of sets) {
+          if (!set.reps) continue
+          const reps = parseRepsToInt(set.reps)
+          if (reps <= 0) continue
+          const existing = byDate.get(dateKey)
+          if (!existing || reps > existing.value) {
+            byDate.set(dateKey, { value: reps, label: `${reps} reps` })
+          }
+        }
+        break
+      }
+      case 'TIME': {
+        for (const set of sets) {
+          if (!set.seconds || set.distance === undefined) continue
+          const existing = byDate.get(dateKey)
+          if (!existing || set.seconds < existing.value) {
+            const unit = distanceUnit ?? 'M'
+            byDate.set(dateKey, { value: set.seconds, label: `${set.distance}${unit} in ${formatSeconds(set.seconds)}` })
+          }
+        }
+        break
+      }
+      case 'DISTANCE': {
+        for (const set of sets) {
+          if (set.distance === undefined || !set.seconds) continue
+          const existing = byDate.get(dateKey)
+          if (!existing || set.distance > existing.value) {
+            const unit = distanceUnit ?? 'M'
+            byDate.set(dateKey, { value: set.distance, label: `${set.distance}${unit}` })
+          }
+        }
+        break
+      }
+      case 'CALORIES': {
+        for (const set of sets) {
+          if (set.calories === undefined || !set.seconds) continue
+          const existing = byDate.get(dateKey)
+          if (!existing || set.calories > existing.value) {
+            byDate.set(dateKey, { value: set.calories, label: `${set.calories} cal` })
+          }
+        }
+        break
+      }
+    }
+  }
+
+  const points = [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([achievedAt, { value, label }]) => ({ achievedAt, value, label }))
+
+  return { prType, points }
 }
