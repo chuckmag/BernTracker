@@ -1,6 +1,7 @@
 import { WorkoutCategory, findNamedWorkoutByName, createNamedWorkoutFromExternalSource } from '@wodalytics/db'
 import { createLogger } from '@wodalytics/server'
 import { parse } from 'node-html-parser'
+import { classifyWorkoutType } from './lib/crossfitWodClassifier.js'
 
 const log = createLogger('jobs.named-workouts')
 
@@ -87,11 +88,16 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
       const detail = await fetchCrossfitHeroDetail(hero, fetchImpl)
       await sleep(DETAIL_FETCH_DELAY_MS)
 
+      const prescriptionText = detail.prescription ?? ''
       await createNamedWorkoutFromExternalSource({
         name: detail.name,
         category: WorkoutCategory.HERO_WOD,
-        description: detail.prescription,
+        description: prescriptionText || null,
         sourceUrl: `${CROSSFIT_BENCHMARK_BASE}/benchmark/${detail.slug}`,
+        template: {
+          type: classifyWorkoutType(prescriptionText),
+          description: prescriptionText,
+        },
       })
       log.info(`saved HERO_WOD: "${detail.name}"`)
       savedCount++
@@ -122,6 +128,7 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
         name,
         category: WorkoutCategory.GIRL_WOD,
         sourceUrl: entry.link,
+        template: { type: classifyWorkoutType(''), description: '' },
       })
       savedCount++
     }
@@ -151,6 +158,7 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
         name,
         category: WorkoutCategory.BENCHMARK,
         sourceUrl: entry.link,
+        template: { type: classifyWorkoutType(''), description: '' },
       })
       savedCount++
     }

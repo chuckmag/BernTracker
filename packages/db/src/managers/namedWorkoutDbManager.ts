@@ -77,7 +77,19 @@ export async function createNamedWorkoutFromExternalSource(data: {
   description?: string | null
   sourceUrl?: string | null
   aliases?: string[]
+  template: { type: WorkoutType; description: string }
 }) {
+  // Sentinel scheduledAt (year 2000) keeps the non-nullable column satisfied
+  // while ensuring template rows never appear in any gym-scoped date-range query.
+  const tw = await prisma.workout.create({
+    data: {
+      title: data.name,
+      description: data.template.description,
+      type: data.template.type,
+      scheduledAt: new Date('2000-01-01T00:00:00Z'),
+    },
+  })
+
   return prisma.namedWorkout.create({
     data: {
       name: data.name,
@@ -85,6 +97,7 @@ export async function createNamedWorkoutFromExternalSource(data: {
       aliases: data.aliases ?? [],
       description: data.description ?? null,
       sourceUrl: data.sourceUrl ?? null,
+      templateWorkoutId: tw.id,
     },
   })
 }
