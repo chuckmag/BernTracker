@@ -1,5 +1,46 @@
+import type {
+  Role,
+  WorkoutStatus,
+  MovementCategory,
+  MovementPrType,
+  MovementHistorySet,
+  MovementHistoryResult,
+  StrengthPrEntry,
+  MaxRepsPrEntry,
+  EndurancePrEntry,
+  MachinePrCalEntry,
+  MachinePrDistEntry,
+  MachineTimeCapCalEntry,
+  MachineTimeCapDistEntry,
+  MovementPrTable,
+  MovementHistoryPage,
+  BenchmarkResult,
+  NamedWorkout,
+  NamedWorkoutMovement,
+} from '@wodalytics/types'
 import { WORKOUT_TYPE_STYLES } from './workoutTypeStyles'
 import keycloak from './keycloak'
+
+export type {
+  Role,
+  WorkoutStatus,
+  MovementCategory,
+  MovementPrType,
+  MovementHistorySet,
+  MovementHistoryResult,
+  StrengthPrEntry,
+  MaxRepsPrEntry,
+  EndurancePrEntry,
+  MachinePrCalEntry,
+  MachinePrDistEntry,
+  MachineTimeCapCalEntry,
+  MachineTimeCapDistEntry,
+  MovementPrTable,
+  MovementHistoryPage,
+  BenchmarkResult,
+  NamedWorkout,
+  NamedWorkoutMovement,
+}
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 const REQUEST_TIMEOUT_MS = 10_000
@@ -47,8 +88,6 @@ async function req<T>(path: string, { token: _token, ...opts }: RequestInit & { 
   return data as T
 }
 
-export type Role = 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER'
-
 export interface Movement {
   id: string
   name: string
@@ -57,107 +96,6 @@ export interface Movement {
   // client-side matcher uses for exact-token detection (#330). Always
   // populated on the GET /api/movements response.
   aliases: string[]
-}
-
-export type MovementCategory = 'STRENGTH' | 'MONOSTRUCTURAL' | 'GYMNASTICS' | 'SKILL' | 'ENDURANCE' | 'MACHINE'
-export type MovementPrType = 'LOAD' | 'MAX_REPS' | 'TIME' | 'DISTANCE' | 'CALORIES' | 'NONE'
-
-export interface MovementHistorySet {
-  reps?: string
-  load?: number
-  seconds?: number
-  distance?: number
-  calories?: number
-  tempo?: string
-}
-
-export interface MovementHistoryResult {
-  id: string
-  createdAt: string
-  level: string
-  notes: string | null
-  workout: { id: string; title: string; type: string; scheduledAt: string }
-  movementSets: MovementHistorySet[]
-  loadUnit?: string
-  distanceUnit?: string
-}
-
-export interface StrengthPrEntry {
-  reps: number
-  maxLoad: number
-  unit: string
-  workoutId: string
-  resultId: string
-  workoutScheduledAt: string
-}
-
-export interface MaxRepsPrEntry {
-  maxReps: number
-  workoutId: string
-  resultId: string
-  workoutScheduledAt: string
-}
-
-export interface EndurancePrEntry {
-  distance: number
-  distanceUnit: string
-  bestSeconds: number
-  workoutId: string
-  resultId: string
-  workoutScheduledAt: string
-}
-
-export interface MachinePrCalEntry {
-  calories: number
-  bestSeconds: number
-  workoutId: string
-  resultId: string
-  workoutScheduledAt: string
-}
-
-export interface MachinePrDistEntry {
-  distance: number
-  distanceUnit: string
-  bestSeconds: number
-  workoutId: string
-  resultId: string
-  workoutScheduledAt: string
-}
-
-export interface MachineTimeCapCalEntry {
-  seconds: number
-  bestCalories: number
-  workoutId: string
-  resultId: string
-  workoutScheduledAt: string
-}
-
-export interface MachineTimeCapDistEntry {
-  seconds: number
-  bestDistance: number
-  distanceUnit: string
-  workoutId: string
-  resultId: string
-  workoutScheduledAt: string
-}
-
-export type MovementPrTable =
-  | { category: 'STRENGTH'; entries: StrengthPrEntry[] }
-  | { category: 'ENDURANCE' | 'MONOSTRUCTURAL'; entries: EndurancePrEntry[] }
-  | { category: 'GYMNASTICS' | 'SKILL'; entries: MaxRepsPrEntry[] | never[] }
-  | { category: 'MACHINE'; outputCapped: { calories: MachinePrCalEntry[]; distance: MachinePrDistEntry[] }; timeCapped: { calories: MachineTimeCapCalEntry[]; distance: MachineTimeCapDistEntry[] } }
-
-export interface MovementHistoryPage {
-  movementId: string
-  movementName: string
-  category: MovementCategory
-  prTypes: MovementPrType[]
-  prTable: MovementPrTable
-  results: MovementHistoryResult[]
-  total: number
-  page: number
-  limit: number
-  pages: number
 }
 
 export interface PendingMovement {
@@ -187,34 +125,6 @@ export type WorkoutCategory = 'GIRL_WOD' | 'HERO_WOD' | 'OPEN_WOD' | 'GAMES_WOD'
 export const TYPE_ABBR = Object.fromEntries(
   Object.entries(WORKOUT_TYPE_STYLES).map(([k, v]) => [k, v.abbr]),
 ) as Record<WorkoutType, string>
-export type WorkoutStatus = 'DRAFT' | 'PUBLISHED'
-
-export interface NamedWorkout {
-  id: string
-  name: string
-  category: WorkoutCategory
-  aliases: string[]
-  isActive: boolean
-  description: string | null
-  sourceUrl: string | null
-  templateWorkout: { id: string; type: WorkoutType; description: string; workoutMovements: { movement: Movement }[] } | null
-}
-
-export interface BenchmarkResult {
-  id: string
-  userId: string
-  namedWorkoutName: string
-  achievedAt: string
-  level: WorkoutLevel
-  workoutGender: WorkoutGender
-  value: object
-  notes: string | null
-  primaryScoreKind: string | null
-  primaryScoreValue: number | null
-  createdAt: string
-  updatedAt: string
-}
-
 export type LoadUnit = 'LB' | 'KG'
 export type DistanceUnit = 'M' | 'KM' | 'MI' | 'FT' | 'YD'
 

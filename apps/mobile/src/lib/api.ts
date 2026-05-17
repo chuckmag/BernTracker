@@ -5,10 +5,48 @@ import type {
   ResultValue,
   WorkoutGender,
   WorkoutLevel,
+  Role,
+  WorkoutStatus,
+  MovementCategory,
+  MovementPrType,
+  MovementHistorySet,
+  MovementHistoryResult,
+  StrengthPrEntry,
+  MaxRepsPrEntry,
+  EndurancePrEntry,
+  MachinePrCalEntry,
+  MachinePrDistEntry,
+  MachineTimeCapCalEntry,
+  MachineTimeCapDistEntry,
+  MovementPrTable,
+  MovementHistoryPage,
+  BenchmarkResult,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
-export type { AgeDivision, IdentifiedGender, ResultValue, WorkoutGender, WorkoutLevel }
+export type {
+  AgeDivision,
+  IdentifiedGender,
+  ResultValue,
+  WorkoutGender,
+  WorkoutLevel,
+  Role,
+  WorkoutStatus,
+  MovementCategory,
+  MovementPrType,
+  MovementHistorySet,
+  MovementHistoryResult,
+  StrengthPrEntry,
+  MaxRepsPrEntry,
+  EndurancePrEntry,
+  MachinePrCalEntry,
+  MachinePrDistEntry,
+  MachineTimeCapCalEntry,
+  MachineTimeCapDistEntry,
+  MovementPrTable,
+  MovementHistoryPage,
+  BenchmarkResult,
+}
 export { AGE_DIVISIONS, deriveWorkoutGender, getAgeDivision } from '@wodalytics/types'
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://qa.wodalytics.com'
@@ -28,8 +66,6 @@ export type WorkoutType =
   | 'GYMNASTICS' | 'WEIGHTLIFTING_TECHNIQUE'
   // Warmup / Recovery
   | 'WARMUP' | 'MOBILITY' | 'COOLDOWN'
-export type WorkoutStatus = 'DRAFT' | 'PUBLISHED'
-
 // Per-movement prescription on a workout. All prescription fields are
 // nullable — programmer fills only the columns relevant to the workout.
 // Mirrors the web's `WorkoutMovementWithPrescription`.
@@ -84,8 +120,6 @@ export interface WorkoutMovementPrescriptionPayload {
   calories?:     number
   seconds?:      number
 }
-
-export type Role = 'OWNER' | 'PROGRAMMER' | 'COACH' | 'MEMBER'
 
 export interface AuthUser {
   id: string
@@ -221,86 +255,6 @@ export interface ResultHistoryItem {
   value: ResultValue
   notes: string | null
   createdAt: string
-}
-
-export type MovementCategory = 'STRENGTH' | 'MONOSTRUCTURAL' | 'GYMNASTICS' | 'SKILL' | 'ENDURANCE' | 'MACHINE'
-export type MovementPrType = 'LOAD' | 'MAX_REPS' | 'TIME' | 'DISTANCE' | 'CALORIES' | 'NONE'
-
-export interface MovementHistorySet {
-  reps?: string
-  load?: number
-  distance?: number
-  distanceUnit?: string
-  calories?: number
-  seconds?: number
-}
-
-export interface MovementHistoryResult {
-  id: string
-  workout: { id: string; title: string; type: WorkoutType; scheduledAt: string }
-  level: WorkoutLevel
-  loadUnit?: string
-  distanceUnit?: string
-  movementSets: MovementHistorySet[]
-}
-
-export interface StrengthPrEntry {
-  reps: number
-  maxLoad: number
-  unit: string
-  workoutId: string
-  resultId: string
-  workoutScheduledAt: string
-}
-
-export interface MaxRepsPrEntry {
-  maxReps: number
-  workoutId: string
-  resultId: string
-  workoutScheduledAt: string
-}
-
-export interface EndurancePrEntry {
-  distance: number
-  distanceUnit: string
-  bestSeconds: number
-  workoutId: string
-  resultId: string
-  workoutScheduledAt: string
-}
-
-export interface MovementHistoryPage {
-  movementId: string
-  movementName: string
-  category: MovementCategory
-  prTypes: MovementPrType[]
-  prTable:
-    | { category: 'STRENGTH'; entries: StrengthPrEntry[] }
-    | { category: 'ENDURANCE' | 'MONOSTRUCTURAL'; entries: EndurancePrEntry[] }
-    | { category: 'GYMNASTICS' | 'SKILL'; entries: MaxRepsPrEntry[] | never[] }
-    | { category: 'MACHINE'; outputCapped: { calories: unknown[]; distance: unknown[] }; timeCapped: { calories: unknown[]; distance: unknown[] } }
-  results: MovementHistoryResult[]
-  total: number
-  page: number
-  limit: number
-  pages: number
-}
-
-// ── Benchmark types ──────────────────────────────────────────────────────────
-
-export interface BenchmarkResult {
-  id: string
-  userId: string
-  namedWorkoutName: string
-  achievedAt: string
-  level: WorkoutLevel
-  workoutGender: WorkoutGender
-  value: object
-  notes: string | null
-  primaryScoreKind: string | null
-  primaryScoreValue: number | null
-  createdAt: string
-  updatedAt: string
 }
 
 // ── Social types ─────────────────────────────────────────────────────────────
