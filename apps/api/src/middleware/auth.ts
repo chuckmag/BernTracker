@@ -112,6 +112,13 @@ export function isAdminEmail(email: string | null | undefined): boolean {
   return allowed.has(email.toLowerCase())
 }
 
+export async function isWodalyticsAdminById(userId: string): Promise<boolean> {
+  const allowed = parseAdminEmails(process.env.WODALYTICS_ADMIN_EMAILS)
+  if (allowed.size === 0) return false
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
+  return Boolean(user?.email && allowed.has(user.email.toLowerCase()))
+}
+
 export async function requireWodalyticsAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const allowed = parseAdminEmails(process.env.WODALYTICS_ADMIN_EMAILS)
   if (allowed.size === 0) {

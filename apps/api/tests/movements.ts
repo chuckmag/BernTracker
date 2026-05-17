@@ -336,9 +336,10 @@ async function runTests() {
   }
 
   {
-    // pendingMovementId was approved (ACTIVE) in T8 — editing it must fail
-    const r = await api('PATCH', `/movements/${pendingMovementId}`, reviewerToken, { name: `Should-Fail-${TS}` })
-    check('T18: edit ACTIVE movement → 400', 400, r.status)
+    // pendingMovementId was approved (ACTIVE) in T8 — admins can now edit ACTIVE movements
+    const r = await api('PATCH', `/movements/${pendingMovementId}`, reviewerToken, { name: `Active-Renamed-${TS}` })
+    check('T18: edit ACTIVE movement → 200', 200, r.status)
+    check('T18: name updated', `Active-Renamed-${TS}`, r.body.name)
   }
 
   {
