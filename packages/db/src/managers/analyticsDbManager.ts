@@ -371,6 +371,8 @@ function computePrimaryPr(prType: MovementPrType, movementId: string, results: R
       }
       return best ? { type: 'CALORIES', ...best } : null
     }
+    case 'NONE':
+      return null
   }
 }
 
@@ -452,6 +454,8 @@ function computePrEntries(prType: MovementPrType, movementId: string, results: R
       }
       return [...bySeconds.values()].sort((a, b) => a.seconds - b.seconds)
     }
+    case 'NONE':
+      return []
   }
 }
 
