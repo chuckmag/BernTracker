@@ -3,9 +3,9 @@ import { createLogger } from '@wodalytics/server'
 import {
   fetchCrossfitWod,
   type NormalizedCrossfitWod,
-} from '../lib/crossfitWodClient.js'
-import { classifyWorkoutType } from '../lib/crossfitWodClassifier.js'
-import { todayInPacific } from '../lib/pacificDate.js'
+} from './lib/crossfitWodClient.js'
+import { classifyWorkoutType } from './lib/crossfitWodClassifier.js'
+import { todayInPacific } from './lib/pacificDate.js'
 import {
   createProgramByName,
   ensureProgramIsPublic,

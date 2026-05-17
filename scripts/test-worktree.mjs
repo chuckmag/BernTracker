@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * Runs API integration tests or Playwright E2E against the dev stack started
- * by `npm run dev:worktree`. Reads .dev-ports.local for the live URLs and
- * propagates them as env vars (API_URL / WEB_URL) into the existing test
- * commands — no changes needed to apps/api or apps/web's own test scripts.
+ * Runs API integration tests, job tests, or Playwright E2E against the dev
+ * stack started by `npm run dev:worktree`. Reads .dev-ports.local for the
+ * live URLs and propagates them as env vars (API_URL / WEB_URL) into the
+ * existing test commands — no changes needed to individual workspace scripts.
  *
  * Usage:
  *   npm run test:worktree -- api                  # apps/api integration tests
+ *   npm run test:worktree -- jobs                 # apps/jobs integration tests (DB-only, no server needed)
  *   npm run test:worktree -- e2e [extra args...]  # apps/web Playwright E2E
  */
 import { spawn } from 'node:child_process'
@@ -28,8 +29,8 @@ const ports = JSON.parse(readFileSync(portsFile, 'utf8'))
 const target = process.argv[2]
 const extraArgs = process.argv.slice(3)
 
-if (target !== 'api' && target !== 'e2e') {
-  console.error('Usage: npm run test:worktree -- {api | e2e} [extra args]')
+if (target !== 'api' && target !== 'jobs' && target !== 'e2e') {
+  console.error('Usage: npm run test:worktree -- {api | jobs | e2e} [extra args]')
   process.exit(1)
 }
 
@@ -44,7 +45,9 @@ const env = {
 const cmd = 'npm'
 const args = target === 'api'
   ? ['run', 'test', '--workspace=@wodalytics/api']
-  : ['run', 'test:e2e', '--workspace=@wodalytics/web', '--', ...extraArgs]
+  : target === 'jobs'
+    ? ['run', 'test', '--workspace=@wodalytics/jobs']
+    : ['run', 'test:e2e', '--workspace=@wodalytics/web', '--', ...extraArgs]
 
 console.log(`[test:worktree] target=${target} API_URL=${env.API_URL} WEB_URL=${env.WEB_URL}`)
 const child = spawn(cmd, args, { cwd: root, env, stdio: 'inherit' })

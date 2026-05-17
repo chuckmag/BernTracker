@@ -6,16 +6,17 @@ WORKDIR /app
 
 COPY package.json package-lock.json turbo.json tsconfig.json ./
 COPY packages/db/package.json ./packages/db/
+COPY packages/server/package.json ./packages/server/
 COPY packages/types/package.json ./packages/types/
-COPY apps/api/package.json ./apps/api/
+COPY apps/jobs/package.json ./apps/jobs/
 
 RUN npm ci
 
 COPY packages/ ./packages/
-COPY apps/api/ ./apps/api/
+COPY apps/jobs/ ./apps/jobs/
 
 RUN npx prisma generate --schema=packages/db/prisma/schema.prisma
-RUN npx turbo build --filter=@wodalytics/api
+RUN npx turbo build --filter=@wodalytics/jobs
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
 FROM node:22-alpine AS runtime
@@ -28,18 +29,10 @@ ENV NODE_ENV=production
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps/api/package.json ./apps/api/
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/jobs/package.json ./apps/jobs/
+COPY --from=builder /app/apps/jobs/dist ./apps/jobs/dist
 
-# This is a one-shot job runner, not a server — no EXPOSE.
-# Migrations are owned by the API service; jobs assume the schema is already migrated.
-#
 # One image, many jobs: each Railway service sets `JOB_NAME` to the registry
-# key it wants to run (see `src/jobs/index.ts`). The `sh -c` form expands the
-# env var into argv before exec'ing node. Driving the dispatcher via Railway
-# `startCommand` proved unreliable on QA — the cron container produced no
-# logs at all — so we read the name from the environment instead.
-#
-# Defaults to `noop` if `JOB_NAME` is unset so a misconfigured service runs
-# the smoke-test handler rather than silently doing nothing.
-CMD ["sh", "-c", "exec node apps/api/dist/jobs/index.js \"${JOB_NAME:-noop}\""]
+# key it wants to run (see `src/index.ts`). The `sh -c` form expands the
+# env var into argv before exec'ing node.
+CMD ["sh", "-c", "exec node apps/jobs/dist/index.js \"${JOB_NAME:-noop}\""]
