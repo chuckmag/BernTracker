@@ -102,6 +102,59 @@ export async function createNamedWorkoutFromExternalSource(data: {
   })
 }
 
+export async function upsertNamedWorkoutFromExternalSource(data: {
+  name: string
+  category: WorkoutCategory
+  description?: string | null
+  sourceUrl?: string | null
+  aliases?: string[]
+  template: { type: WorkoutType; description: string }
+}) {
+  // Determine whether a template workout already exists so we update in place
+  // rather than orphaning the old row.
+  const existing = await prisma.namedWorkout.findUnique({
+    where: { name: data.name },
+    select: { templateWorkoutId: true },
+  })
+
+  let templateWorkoutId: string
+
+  if (existing?.templateWorkoutId) {
+    await prisma.workout.update({
+      where: { id: existing.templateWorkoutId },
+      data: { description: data.template.description, type: data.template.type },
+    })
+    templateWorkoutId = existing.templateWorkoutId
+  } else {
+    const tw = await prisma.workout.create({
+      data: {
+        title: data.name,
+        description: data.template.description,
+        type: data.template.type,
+        scheduledAt: new Date('2000-01-01T00:00:00Z'),
+      },
+    })
+    templateWorkoutId = tw.id
+  }
+
+  return prisma.namedWorkout.upsert({
+    where: { name: data.name },
+    update: {
+      description: data.description ?? null,
+      sourceUrl: data.sourceUrl ?? null,
+      templateWorkoutId,
+    },
+    create: {
+      name: data.name,
+      category: data.category,
+      aliases: data.aliases ?? [],
+      description: data.description ?? null,
+      sourceUrl: data.sourceUrl ?? null,
+      templateWorkoutId,
+    },
+  })
+}
+
 export async function updateNamedWorkoutById(
   id: string,
   data: {

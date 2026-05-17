@@ -1,4 +1,4 @@
-import { WorkoutCategory, findNamedWorkoutByName, createNamedWorkoutFromExternalSource } from '@wodalytics/db'
+import { WorkoutCategory, upsertNamedWorkoutFromExternalSource } from '@wodalytics/db'
 import { createLogger } from '@wodalytics/server'
 import { parse } from 'node-html-parser'
 import { classifyWorkoutType } from './lib/crossfitWodClassifier.js'
@@ -81,20 +81,11 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
     for (const hero of rawHeroes) {
       heroNameSet.add(hero.name.toLowerCase())
 
-      const existing = await findNamedWorkoutByName(hero.name)
-      if (existing) {
-        log.info(`skip: "${hero.name}" already exists`)
-        skippedCount++
-        continue
-      }
-
-      // Only fetch detail page for heroes not yet in the DB — avoids ~200
-      // requests on every subsequent weekly cron run.
       const detail = await fetchCrossfitHeroDetail(hero, fetchImpl)
       await sleep(DETAIL_FETCH_DELAY_MS)
 
       const prescriptionText = detail.prescription ?? ''
-      await createNamedWorkoutFromExternalSource({
+      await upsertNamedWorkoutFromExternalSource({
         name: detail.name,
         category: WorkoutCategory.HERO_WOD,
         description: prescriptionText || null,
@@ -104,7 +95,7 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
           description: prescriptionText,
         },
       })
-      log.info(`saved HERO_WOD: "${detail.name}"`)
+      log.info(`upserted HERO_WOD: "${detail.name}"`)
       savedCount++
     }
   } catch (err) {
@@ -124,24 +115,19 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
         skippedCount++
         continue
       }
-      const existing = await findNamedWorkoutByName(name)
-      if (existing) {
-        skippedCount++
-        continue
-      }
       const detail = await fetchWodwellDetail(entry.link, fetchImpl)
       await sleep(DETAIL_FETCH_DELAY_MS)
       const description = detail.notes
         ? `${detail.prescription}\n\n${detail.notes}`
         : detail.prescription
-      await createNamedWorkoutFromExternalSource({
+      await upsertNamedWorkoutFromExternalSource({
         name,
         category: WorkoutCategory.GIRL_WOD,
         description: description || null,
         sourceUrl: entry.link,
         template: { type: classifyWorkoutType(detail.prescription), description },
       })
-      log.info(`saved GIRL_WOD: "${name}"`)
+      log.info(`upserted GIRL_WOD: "${name}"`)
       savedCount++
     }
     log.info('step: WODwell Girls WODs complete')
@@ -161,24 +147,19 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
         skippedCount++
         continue
       }
-      const existing = await findNamedWorkoutByName(name)
-      if (existing) {
-        skippedCount++
-        continue
-      }
       const detail = await fetchWodwellDetail(entry.link, fetchImpl)
       await sleep(DETAIL_FETCH_DELAY_MS)
       const description = detail.notes
         ? `${detail.prescription}\n\n${detail.notes}`
         : detail.prescription
-      await createNamedWorkoutFromExternalSource({
+      await upsertNamedWorkoutFromExternalSource({
         name,
         category: WorkoutCategory.BENCHMARK,
         description: description || null,
         sourceUrl: entry.link,
         template: { type: classifyWorkoutType(detail.prescription), description },
       })
-      log.info(`saved BENCHMARK: "${name}"`)
+      log.info(`upserted BENCHMARK: "${name}"`)
       savedCount++
     }
     log.info('step: WODwell Benchmarks complete')
@@ -186,7 +167,7 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
     log.warning(`WODwell Benchmarks source failed (soft-fail) — ${err instanceof Error ? err.message : err}`)
   }
 
-  log.info(`summary: ${savedCount} named workouts saved, ${skippedCount} skipped (already exist or hero-deduplicated)`)
+  log.info(`summary: ${savedCount} named workouts upserted, ${skippedCount} skipped (hero-deduplicated WODwell entries)`)
 }
 
 // --- CrossFit HTML parsing ---
