@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
 export const MovementStatusSchema = z.enum(['ACTIVE', 'PENDING', 'REJECTED'])
+export const MovementCategorySchema = z.enum(['STRENGTH', 'MONOSTRUCTURAL', 'GYMNASTICS', 'SKILL', 'ENDURANCE', 'MACHINE'])
+export const MovementPrTypeSchema = z.enum(['LOAD', 'MAX_REPS', 'TIME', 'DISTANCE', 'CALORIES', 'NONE'])
 
 export const MovementSchema = z.object({
   id: z.string(),
@@ -22,6 +24,8 @@ export const SuggestMovementSchema = z.object({
 
 export const ReviewMovementSchema = z.object({
   status: z.enum(['ACTIVE', 'REJECTED']),
+  category: MovementCategorySchema.optional(),
+  prTypes: z.array(MovementPrTypeSchema).min(1).optional(),
 })
 
 export const UpdatePendingMovementSchema = z.object({
@@ -29,8 +33,12 @@ export const UpdatePendingMovementSchema = z.object({
   parentId: z.string().nullable().optional(),
 })
 
-export const MovementCategorySchema = z.enum(['STRENGTH', 'MONOSTRUCTURAL', 'GYMNASTICS', 'SKILL', 'ENDURANCE', 'MACHINE'])
-export const MovementPrTypeSchema = z.enum(['LOAD', 'MAX_REPS', 'TIME', 'DISTANCE', 'CALORIES', 'NONE'])
+export const UpdateMovementSchema = z.object({
+  name: z.string().min(1).optional(),
+  parentId: z.string().nullable().optional(),
+  category: MovementCategorySchema.optional(),
+  prTypes: z.array(MovementPrTypeSchema).min(1).optional(),
+})
 
 export type MovementStatus = z.infer<typeof MovementStatusSchema>
 export type Movement = z.infer<typeof MovementSchema>
@@ -39,3 +47,4 @@ export type MovementPrType = z.infer<typeof MovementPrTypeSchema>
 export type SuggestMovementInput = z.infer<typeof SuggestMovementSchema>
 export type ReviewMovementInput = z.infer<typeof ReviewMovementSchema>
 export type UpdatePendingMovementInput = z.infer<typeof UpdatePendingMovementSchema>
+export type UpdateMovementInput = z.infer<typeof UpdateMovementSchema>
