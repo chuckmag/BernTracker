@@ -1,4 +1,4 @@
-import { WorkoutCategory, findNamedWorkoutByName, createNamedWorkoutFromExternalSource } from '@wodalytics/db'
+import { WorkoutCategory, upsertNamedWorkoutFromExternalSource } from '@wodalytics/db'
 import { createLogger } from '@wodalytics/server'
 import { parse } from 'node-html-parser'
 import { classifyWorkoutType } from './lib/crossfitWodClassifier.js'
@@ -36,6 +36,11 @@ interface WodwellEntry {
   id: number
   title: { rendered: string }
   link: string
+}
+
+interface WodwellDetail {
+  prescription: string
+  notes: string | null
 }
 
 /**
@@ -76,20 +81,11 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
     for (const hero of rawHeroes) {
       heroNameSet.add(hero.name.toLowerCase())
 
-      const existing = await findNamedWorkoutByName(hero.name)
-      if (existing) {
-        log.info(`skip: "${hero.name}" already exists`)
-        skippedCount++
-        continue
-      }
-
-      // Only fetch detail page for heroes not yet in the DB — avoids ~200
-      // requests on every subsequent weekly cron run.
       const detail = await fetchCrossfitHeroDetail(hero, fetchImpl)
       await sleep(DETAIL_FETCH_DELAY_MS)
 
       const prescriptionText = detail.prescription ?? ''
-      await createNamedWorkoutFromExternalSource({
+      await upsertNamedWorkoutFromExternalSource({
         name: detail.name,
         category: WorkoutCategory.HERO_WOD,
         description: prescriptionText || null,
@@ -99,7 +95,7 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
           description: prescriptionText,
         },
       })
-      log.info(`saved HERO_WOD: "${detail.name}"`)
+      log.info(`upserted HERO_WOD: "${detail.name}"`)
       savedCount++
     }
   } catch (err) {
@@ -119,17 +115,19 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
         skippedCount++
         continue
       }
-      const existing = await findNamedWorkoutByName(name)
-      if (existing) {
-        skippedCount++
-        continue
-      }
-      await createNamedWorkoutFromExternalSource({
+      const detail = await fetchWodwellDetail(entry.link, fetchImpl)
+      await sleep(DETAIL_FETCH_DELAY_MS)
+      const description = detail.notes
+        ? `${detail.prescription}\n\n${detail.notes}`
+        : detail.prescription
+      await upsertNamedWorkoutFromExternalSource({
         name,
         category: WorkoutCategory.GIRL_WOD,
+        description: description || null,
         sourceUrl: entry.link,
-        template: { type: classifyWorkoutType(''), description: '' },
+        template: { type: classifyWorkoutType(detail.prescription), description },
       })
+      log.info(`upserted GIRL_WOD: "${name}"`)
       savedCount++
     }
     log.info('step: WODwell Girls WODs complete')
@@ -149,17 +147,19 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
         skippedCount++
         continue
       }
-      const existing = await findNamedWorkoutByName(name)
-      if (existing) {
-        skippedCount++
-        continue
-      }
-      await createNamedWorkoutFromExternalSource({
+      const detail = await fetchWodwellDetail(entry.link, fetchImpl)
+      await sleep(DETAIL_FETCH_DELAY_MS)
+      const description = detail.notes
+        ? `${detail.prescription}\n\n${detail.notes}`
+        : detail.prescription
+      await upsertNamedWorkoutFromExternalSource({
         name,
         category: WorkoutCategory.BENCHMARK,
+        description: description || null,
         sourceUrl: entry.link,
-        template: { type: classifyWorkoutType(''), description: '' },
+        template: { type: classifyWorkoutType(detail.prescription), description },
       })
+      log.info(`upserted BENCHMARK: "${name}"`)
       savedCount++
     }
     log.info('step: WODwell Benchmarks complete')
@@ -167,7 +167,7 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
     log.warning(`WODwell Benchmarks source failed (soft-fail) — ${err instanceof Error ? err.message : err}`)
   }
 
-  log.info(`summary: ${savedCount} named workouts saved, ${skippedCount} skipped (already exist or hero-deduplicated)`)
+  log.info(`summary: ${savedCount} named workouts upserted, ${skippedCount} skipped (hero-deduplicated WODwell entries)`)
 }
 
 // --- CrossFit HTML parsing ---
@@ -254,6 +254,40 @@ async function fetchCrossfitHeroDetail(
   } catch (err) {
     log.warning(`detail fetch failed for "${hero.slug}" — ${err instanceof Error ? err.message : err}`)
     return { name: hero.name, slug: hero.slug, prescription: hero.prescriptionFromList }
+  }
+}
+
+// --- WODwell HTML detail parsing ---
+
+async function fetchWodwellDetail(url: string, fetchImpl: FetchImpl): Promise<WodwellDetail> {
+  try {
+    const res = await fetchImpl(url, {
+      headers: {
+        Accept: 'text/html,application/xhtml+xml',
+        'User-Agent': 'WODalytics/1.0 (+https://github.com/chuckmag/WODalytics)',
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    })
+    if (!res.ok) {
+      log.warning(`WODwell detail "${url}" returned HTTP ${res.status} — no description`)
+      return { prescription: '', notes: null }
+    }
+
+    const html = await res.text()
+    const doc = parse(html)
+
+    // .workout-list li items contain the workout prescription (e.g. "For Time", "21-15-9 Deadlifts")
+    const listItems = doc.querySelectorAll('.workout-list li')
+    const prescription = listItems.map((li) => li.text.trim()).filter(Boolean).join('\n')
+
+    // .wod-notes contains the detailed description/coaching notes
+    const notesEl = doc.querySelector('.wod-notes')
+    const notes = notesEl?.text?.trim() || null
+
+    return { prescription, notes }
+  } catch (err) {
+    log.warning(`WODwell detail fetch failed for "${url}" — ${err instanceof Error ? err.message : err}`)
+    return { prescription: '', notes: null }
   }
 }
 
