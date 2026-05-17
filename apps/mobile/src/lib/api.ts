@@ -315,6 +315,35 @@ export interface LogResultResponse {
   newPrs: NewPr[]
 }
 
+export interface UserWorkoutPlanSet {
+  reps?: string
+  load?: string
+  distance?: number
+  calories?: number
+  seconds?: number
+}
+
+export interface UserWorkoutPlanMovementResult {
+  workoutMovementId: string
+  loadUnit?: string
+  distanceUnit?: string
+  sets: UserWorkoutPlanSet[]
+}
+
+export interface UserWorkoutPlan {
+  id: string
+  userId: string
+  workoutId: string
+  level: WorkoutLevel | null
+  value: { movementResults: UserWorkoutPlanMovementResult[] } | null
+  notes: string | null
+  createdById: string
+  createdAt: string
+  updatedAt: string
+  createdBy: { id: string; name: string | null; firstName: string | null; lastName: string | null }
+  user?: { id: string; name: string | null; firstName: string | null; lastName: string | null; email: string; avatarUrl: string | null }
+}
+
 export interface ConsistencyData {
   currentStreak: number
   longestStreak: number
@@ -631,6 +660,27 @@ export const api = {
       remove: (commentId: string) =>
         request<void>(`/api/comments/${commentId}`, { method: 'DELETE' }),
     },
+  },
+
+  plans: {
+    getForUser: (workoutId: string, userId: string) =>
+      request<UserWorkoutPlan>(`/api/workouts/${workoutId}/plans/${userId}`),
+
+    listForWorkout: (workoutId: string) =>
+      request<UserWorkoutPlan[]>(`/api/workouts/${workoutId}/plans`),
+
+    upsert: (workoutId: string, userId: string, data: {
+      level?: WorkoutLevel | null
+      value?: { movementResults: UserWorkoutPlanMovementResult[] } | null
+      notes?: string | null
+    }) =>
+      request<UserWorkoutPlan>(`/api/workouts/${workoutId}/plans/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    delete: (workoutId: string, userId: string) =>
+      request<void>(`/api/workouts/${workoutId}/plans/${userId}`, { method: 'DELETE' }),
   },
 
   analytics: {
