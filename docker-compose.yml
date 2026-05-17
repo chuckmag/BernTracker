@@ -95,7 +95,7 @@ services:
     image: wodalytics-jobs:local
     build:
       context: .
-      dockerfile: apps/api/Dockerfile.jobs
+      dockerfile: apps/jobs/Dockerfile
     container_name: wodalytics-jobs
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/wodalytics

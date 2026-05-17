@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '@wodalytics/db'
-import { runCrossfitWodJob } from '../src/jobs/crossfitWod.js'
+import { runCrossfitWodJob } from '../src/crossfitWod.js'
 import type { NormalizedCrossfitWod } from '../src/lib/crossfitWodClient.js'
 
 const PROGRAM_NAME = 'CrossFit Mainsite WOD'

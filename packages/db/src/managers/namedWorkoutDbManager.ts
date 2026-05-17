@@ -67,6 +67,28 @@ export async function createNamedWorkoutWithOptionalTemplate(data: {
   })
 }
 
+export async function findNamedWorkoutByName(name: string) {
+  return prisma.namedWorkout.findUnique({ where: { name } })
+}
+
+export async function createNamedWorkoutFromExternalSource(data: {
+  name: string
+  category: WorkoutCategory
+  description?: string | null
+  sourceUrl?: string | null
+  aliases?: string[]
+}) {
+  return prisma.namedWorkout.create({
+    data: {
+      name: data.name,
+      category: data.category,
+      aliases: data.aliases ?? [],
+      description: data.description ?? null,
+      sourceUrl: data.sourceUrl ?? null,
+    },
+  })
+}
+
 export async function updateNamedWorkoutById(
   id: string,
   data: {

@@ -14,7 +14,7 @@ import { prisma } from '@wodalytics/db'
 import {
   CROSSFIT_MOVEMENT_CATALOG,
   runSeedCrossfitMovementsJob,
-} from '../src/jobs/seedCrossfitMovements.js'
+} from '../src/seedCrossfitMovements.js'
 
 let pass = 0
 let fail = 0

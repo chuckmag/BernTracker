@@ -70,28 +70,7 @@ The global error-handling middleware in `src/index.ts` automatically logs and re
 
 ## Background jobs
 
-One-shot scripts triggered on a schedule live under `src/jobs/`. The dispatcher at `src/jobs/index.ts` is the CLI entrypoint — it reads the job name from `argv[2]` (or `process.env.JOB_NAME` as fallback), looks it up in the `JOBS` map, runs the matching handler, disconnects Prisma, and exits (`0` on success, `1` on handler error, `2` on unknown / missing job name).
-
-Each job is its own Railway service, all sharing the `Dockerfile.jobs` image. The Dockerfile's CMD is `sh -c "exec node apps/api/dist/jobs/index.js \"${JOB_NAME:-noop}\""`, so the only per-service difference is the `JOB_NAME` service variable (set in the Railway dashboard). Cron cadence is also configured per-service in the dashboard. Do **not** use Railway's `startCommand` to pick the job — that path was unreliable on QA (the cron container produced no logs at all).
-
-**Adding a new job:**
-1. Create `src/jobs/<name>.ts` exporting an async handler.
-2. Register it in the dispatcher's `JOBS` map in `src/jobs/index.ts`.
-3. In Railway: create a new cron service from this repo, point its build at `apps/api/railway.jobs.toml`, set `JOB_NAME=<name>` and the desired cron schedule.
-
-**Local invocation:**
-```bash
-# from repo root — argv path
-npm run dev:jobs -- <name>
-
-# or, mirroring prod via the env var
-JOB_NAME=<name> npm run job --workspace=@wodalytics/api
-
-# or, full Docker-image repro of the Railway service
-docker compose --profile jobs run --rm -e JOB_NAME=<name> jobs
-```
-
-The Express API service does **not** import job code at runtime — the two services share modules under `src/lib/` and `src/db/`, but have separate entrypoints and separate Railway deployments. A job failure cannot affect the user-facing API.
+Jobs have their own workspace at `apps/jobs/`. See `apps/jobs/CLAUDE.md` for all job conventions, Railway setup, and how to add new jobs. This service does not import job code at runtime — jobs are a fully separate build and Railway deployment.
 
 ## Integration tests
 

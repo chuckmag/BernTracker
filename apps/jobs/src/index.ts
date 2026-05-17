@@ -3,6 +3,7 @@ import { createLogger } from '@wodalytics/server'
 import { runCrossfitWodJob } from './crossfitWod.js'
 import { runSeedCrossfitMovementsJob } from './seedCrossfitMovements.js'
 import { runDedupeLegacyMovementsJob } from './dedupeLegacyMovements.js'
+import { runNamedWorkoutsJob } from './namedWorkouts.js'
 
 const log = createLogger('jobs')
 
@@ -24,6 +25,10 @@ const JOBS: Record<string, JobHandler> = {
   // legacy Movement rows onto their canonical entries. Run once after
   // seed-crossfit-movements has populated the catalog. Idempotent.
   'dedupe-legacy-movements': async () => { await runDedupeLegacyMovementsJob() },
+  // Weekly cron — ingests Hero WODs from crossfit.com/heroes (HTML) and
+  // Girls WODs + Benchmarks from the WODwell REST API. Idempotent: skips
+  // any name already in the NamedWorkout catalog.
+  'named-workouts': () => runNamedWorkoutsJob(),
 }
 
 // Returns the host (and db name) from a postgres URL without exposing
@@ -50,7 +55,7 @@ async function main(): Promise<number> {
   // The container Dockerfile expands $JOB_NAME into argv before exec'ing
   // node, so argv[2] is the canonical path in prod. Falling back to the
   // env var directly keeps the dispatcher convenient to invoke ad-hoc
-  // (`JOB_NAME=foo node dist/jobs/index.js`) without changing the wrapper.
+  // (`JOB_NAME=foo node dist/index.js`) without changing the wrapper.
   const jobName = process.argv[2] ?? process.env.JOB_NAME
 
   if (!jobName) {

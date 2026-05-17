@@ -15,7 +15,7 @@ import { prisma } from '@wodalytics/db'
 import {
   DEDUPE_MAP,
   runDedupeLegacyMovementsJob,
-} from '../src/jobs/dedupeLegacyMovements.js'
+} from '../src/dedupeLegacyMovements.js'
 
 let pass = 0
 let fail = 0
