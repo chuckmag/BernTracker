@@ -73,7 +73,7 @@ async function getMyMovements(req: Request, res: Response) {
 
 async function getMyMovementPrs(req: Request, res: Response) {
   const userId = req.user!.id
-  const { movementId } = req.params
+  const movementId = req.params.movementId as string
   try {
     const data = await getMovementPrsByTypeForUser(userId, movementId)
     res.json(data)
@@ -86,7 +86,7 @@ async function getMyMovementPrs(req: Request, res: Response) {
 
 async function getMyMovementTrajectory(req: Request, res: Response) {
   const userId = req.user!.id
-  const { movementId } = req.params
+  const movementId = req.params.movementId as string
   const prTypeRaw = String(req.query.prType ?? '')
   if (!MovementPrTypeSchema.options.includes(prTypeRaw as MovementPrType)) {
     res.status(400).json({ error: `prType must be one of: ${MovementPrTypeSchema.options.join(', ')}` })
