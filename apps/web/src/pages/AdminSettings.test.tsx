@@ -20,7 +20,7 @@ vi.mock('../lib/api', () => ({
       workouts: { update: vi.fn(), publish: vi.fn(), delete: vi.fn() },
     },
     movements: {
-      pending: vi.fn(),
+      library: vi.fn(),
       update: vi.fn(),
       review: vi.fn(),
     },
@@ -32,6 +32,23 @@ vi.mock('../context/MovementsContext.tsx', () => ({
 }))
 
 import { api } from '../lib/api'
+import type { LibraryMovement } from '../lib/api'
+
+function makeLibraryMovement(overrides: Partial<LibraryMovement> = {}): LibraryMovement {
+  return {
+    id: overrides.id ?? 'm-1',
+    name: overrides.name ?? 'Back Squat',
+    status: overrides.status ?? 'ACTIVE',
+    category: overrides.category ?? 'STRENGTH',
+    prTypes: overrides.prTypes ?? ['LOAD'],
+    aliases: overrides.aliases ?? [],
+    sourceUrl: overrides.sourceUrl ?? null,
+    parentId: overrides.parentId ?? null,
+    parentName: overrides.parentName ?? null,
+    variationCount: overrides.variationCount ?? 0,
+    ...overrides,
+  }
+}
 
 function makeProgram(overrides: Partial<Program> = {}): Program {
   return {
@@ -60,7 +77,7 @@ function renderPage(initialEntry = '/admin/settings') {
 describe('AdminSettings', () => {
   beforeEach(() => {
     vi.mocked(api.admin.programs.list).mockResolvedValue([])
-    vi.mocked(api.movements.pending).mockResolvedValue([])
+    vi.mocked(api.movements.library).mockResolvedValue([])
   })
 
   it('renders the WODalytics Settings heading and both tabs', async () => {
@@ -77,19 +94,20 @@ describe('AdminSettings', () => {
     renderPage()
     expect(await screen.findByText('CrossFit Mainsite')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '+ New Program' })).toBeInTheDocument()
-    // Movements list should not have rendered yet — pending() is only called when the tab activates.
-    expect(api.movements.pending).not.toHaveBeenCalled()
+    // library() is only called when the Movements tab activates — not on default Programs tab.
+    expect(api.movements.library).not.toHaveBeenCalled()
   })
 
   it('switches to the Movements tab and loads pending movements', async () => {
     const user = userEvent.setup()
-    vi.mocked(api.movements.pending).mockResolvedValue([
-      { id: 'm-1', name: 'Kipping HSPU', status: 'PENDING', parentId: null },
+    vi.mocked(api.movements.library).mockResolvedValue([
+      makeLibraryMovement({ id: 'm-1', name: 'Kipping HSPU', status: 'PENDING', category: 'GYMNASTICS' }),
     ])
     renderPage()
     await user.click(screen.getByRole('tab', { name: 'Movements' }))
     expect(await screen.findByRole('heading', { name: 'Pending Movements' })).toBeInTheDocument()
-    expect(await screen.findByText('Kipping HSPU')).toBeInTheDocument()
+    // Movement appears in both the pending review list and the library table.
+    expect(await screen.findAllByText('Kipping HSPU')).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
   })
 })
