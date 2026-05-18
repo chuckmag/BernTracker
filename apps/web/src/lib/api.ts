@@ -105,6 +105,19 @@ export interface PendingMovement {
   parentId: string | null
 }
 
+export interface LibraryMovement {
+  id: string
+  name: string
+  status: 'ACTIVE' | 'PENDING'
+  category: MovementCategory
+  prTypes: MovementPrType[]
+  aliases: string[]
+  sourceUrl: string | null
+  parentId: string | null
+  parentName: string | null
+  variationCount: number
+}
+
 export type WorkoutType =
   // Strength
   | 'STRENGTH' | 'POWER_LIFTING' | 'WEIGHT_LIFTING' | 'BODY_BUILDING' | 'MAX_EFFORT'
@@ -1024,19 +1037,30 @@ export const api = {
     pending: (token?: string) =>
       req<PendingMovement[]>('/api/movements/pending', { token }),
 
-    update: (id: string, data: { name?: string; parentId?: string | null }, token?: string) =>
-      req<PendingMovement>(`/api/movements/${id}`, {
+    update: (
+      id: string,
+      data: { name?: string; parentId?: string | null; category?: MovementCategory; prTypes?: MovementPrType[] },
+      token?: string,
+    ) =>
+      req<LibraryMovement>(`/api/movements/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
         token,
       }),
 
-    review: (id: string, status: 'ACTIVE' | 'REJECTED', token?: string) =>
-      req<Movement>(`/api/movements/${id}/review`, {
+    review: (
+      id: string,
+      data: { status: 'ACTIVE' | 'REJECTED'; category?: MovementCategory; prTypes?: MovementPrType[] },
+      token?: string,
+    ) =>
+      req<LibraryMovement>(`/api/movements/${id}/review`, {
         method: 'PATCH',
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(data),
         token,
       }),
+
+    library: (token?: string) =>
+      req<LibraryMovement[]>('/api/movements?view=library', { token }),
 
     myHistory: (id: string, page = 1, limit = 10, token?: string) =>
       req<MovementHistoryPage>(`/api/movements/${id}/my-history?page=${page}&limit=${limit}`, { token }),

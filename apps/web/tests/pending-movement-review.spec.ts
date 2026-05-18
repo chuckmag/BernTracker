@@ -152,7 +152,7 @@ test.describe('Pending movement reviewer E2E (#72)', () => {
     }
   })
 
-  test('approving a pending movement removes it from the list', async ({ page }) => {
+  test('approving a pending movement removes it from the pending list', async ({ page }) => {
     const ts = randomUUID().slice(0, 8)
     const name = `Pending-Approve-${ts}`
     const m = await prisma.movement.create({ data: { name, status: 'PENDING' } })
@@ -161,9 +161,11 @@ test.describe('Pending movement reviewer E2E (#72)', () => {
       await gotoSettings(page, f)
       const row = displayRow(page, name)
       await expect(row).toBeVisible()
+      // Approve now shows a category+prTypes form — click Confirm Approve to complete.
       await row.getByRole('button', { name: 'Approve' }).click()
+      await page.getByRole('button', { name: 'Confirm Approve' }).click()
 
-      await expect(page.locator(`text=${name}`)).not.toBeVisible()
+      await expect(displayRow(page, name)).not.toBeVisible()
     } finally {
       await prisma.movement.delete({ where: { id: m.id } }).catch(() => {})
     }
