@@ -240,6 +240,7 @@ async function run(): Promise<void> {
       'list_workouts', 'get_workout', 'get_today_workout',
       'get_programs', 'create_workout',
       'get_workout_results', 'get_my_results', 'log_result',
+      'get_my_workout_plan', 'set_workout_plan', 'delete_workout_plan',
     ]
     if (toolNames.length > 0) {
       for (const name of expectedTools) {

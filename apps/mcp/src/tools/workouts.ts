@@ -1,6 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
-import { prisma, WorkoutStatus, findWorkoutById, findDefaultProgramIdForGym } from '@wodalytics/db'
+import { prisma, WorkoutStatus, findWorkoutById, findDefaultProgramIdForGym, checkWorkoutAccessForUser } from '@wodalytics/db'
 import { mcpUnauthorized, resolveUserId, userGymIds, userProgramIds } from './shared.js'
 
 const workoutMovementsInclude = {
@@ -63,34 +63,6 @@ function serializeWorkout(w: WorkoutWithMovements | null) {
       seconds: wm.seconds,
     })),
   }
-}
-
-async function hasWorkoutAccess(workoutId: string, userId: string): Promise<boolean> {
-  const workout = await prisma.workout.findUnique({
-    where: { id: workoutId },
-    select: {
-      programId: true,
-      program: {
-        select: {
-          ownerUserId: true,
-          gyms: { select: { gymId: true } },
-        },
-      },
-    },
-  })
-  if (!workout) return false
-
-  // Personal program owner always has access
-  if (workout.program?.ownerUserId === userId) return true
-
-  const gymIds = await userGymIds(userId)
-  const programGymIds = workout.program?.gyms.map((g) => g.gymId) ?? []
-  if (programGymIds.some((gid) => gymIds.includes(gid))) return true
-
-  const programIds = await userProgramIds(userId)
-  if (workout.programId && programIds.includes(workout.programId)) return true
-
-  return false
 }
 
 export function registerWorkoutTools(server: McpServer, ctxUserId?: string): void {
@@ -172,7 +144,7 @@ export function registerWorkoutTools(server: McpServer, ctxUserId?: string): voi
       const userId = resolveUserId(ctxUserId, 'get_workout')
       if (!userId) return mcpUnauthorized()
 
-      const accessible = await hasWorkoutAccess(args.workoutId, userId)
+      const accessible = await checkWorkoutAccessForUser(userId, args.workoutId)
       if (!accessible) {
         return { content: [{ type: 'text' as const, text: 'Workout not found or access denied' }], isError: true }
       }

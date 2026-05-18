@@ -1,8 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
-import { prisma, findWorkoutTypeById, detectAndUpsertStrengthPrs } from '@wodalytics/db'
+import { prisma, findWorkoutTypeById, detectAndUpsertStrengthPrs, checkWorkoutAccessForUser } from '@wodalytics/db'
 import { ResultValueSchema, derivePrimaryScore } from '@wodalytics/types'
-import { mcpUnauthorized, resolveUserId, userGymIds, userProgramIds } from './shared.js'
+import { mcpUnauthorized, resolveUserId } from './shared.js'
 import type { WorkoutLevel, WorkoutGender } from '@wodalytics/db'
 
 async function canReadPublicResults(workoutId: string): Promise<boolean> {
@@ -16,22 +16,6 @@ async function canReadPublicResults(workoutId: string): Promise<boolean> {
   if (gyms.length > 0) return true
   // Unaffiliated programs must be PUBLIC
   return visibility === 'PUBLIC'
-}
-
-async function hasWorkoutAccess(workoutId: string, userId: string): Promise<boolean> {
-  const workout = await prisma.workout.findUnique({
-    where: { id: workoutId },
-    select: {
-      programId: true,
-      program: { select: { ownerUserId: true, gyms: { select: { gymId: true } } } },
-    },
-  })
-  if (!workout) return false
-  if (workout.program?.ownerUserId === userId) return true
-  const gymIds = await userGymIds(userId)
-  if (workout.program?.gyms.some((g) => gymIds.includes(g.gymId))) return true
-  const pids = await userProgramIds(userId)
-  return workout.programId != null && pids.includes(workout.programId)
 }
 
 export function registerResultTools(server: McpServer, ctxUserId?: string): void {
@@ -146,7 +130,7 @@ export function registerResultTools(server: McpServer, ctxUserId?: string): void
       const userId = resolveUserId(ctxUserId, 'log_result')
       if (!userId) return mcpUnauthorized()
 
-      const accessible = await hasWorkoutAccess(args.workoutId, userId)
+      const accessible = await checkWorkoutAccessForUser(userId, args.workoutId)
       if (!accessible) {
         return {
           content: [{ type: 'text' as const, text: 'Workout not found or access denied' }],
