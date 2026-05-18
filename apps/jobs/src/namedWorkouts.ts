@@ -175,8 +175,9 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
 async function fetchCrossfitHeroList(fetchImpl: FetchImpl): Promise<CrossfitHeroRaw[]> {
   const res = await fetchImpl(CROSSFIT_HEROES_URL, {
     headers: {
-      Accept: 'text/html,application/xhtml+xml',
-      'User-Agent': 'WODalytics/1.0 (+https://github.com/chuckmag/WODalytics)',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'User-Agent': 'Mozilla/5.0 (compatible; WODalytics/1.0; +https://github.com/chuckmag/WODalytics)',
     },
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   })
@@ -185,7 +186,10 @@ async function fetchCrossfitHeroList(fetchImpl: FetchImpl): Promise<CrossfitHero
   const html = await res.text()
   const heroes = parseCrossfitHeroList(html)
   if (heroes.length === 0) {
-    throw new Error('crossfit.com/heroes: no benchmark anchors found — markup may have changed')
+    // Log a response snippet so we can tell whether this is a Cloudflare
+    // challenge page (common from datacenter IPs) vs an actual markup change.
+    const snippet = html.slice(0, 400).replace(/\s+/g, ' ').trim()
+    throw new Error(`crossfit.com/heroes: no benchmark anchors found. Response preview: ${snippet}`)
   }
   return heroes
 }
@@ -223,8 +227,9 @@ async function fetchCrossfitHeroDetail(
   try {
     const res = await fetchImpl(url, {
       headers: {
-        Accept: 'text/html,application/xhtml+xml',
-        'User-Agent': 'WODalytics/1.0 (+https://github.com/chuckmag/WODalytics)',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (compatible; WODalytics/1.0; +https://github.com/chuckmag/WODalytics)',
       },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
