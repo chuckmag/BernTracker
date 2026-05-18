@@ -16,8 +16,12 @@ const DETAIL_FETCH_DELAY_MS = 300
 
 type FetchImpl = (url: string, init?: RequestInit) => Promise<Response>
 
+export type NamedWorkoutsPhase = 'crossfit-heroes' | 'wodwell-girls' | 'wodwell-benchmarks'
+
 export interface RunNamedWorkoutsJobDeps {
   fetchImpl?: FetchImpl
+  /** Subset of phases to run. Defaults to all three when omitted. */
+  phases?: NamedWorkoutsPhase[]
 }
 
 interface CrossfitHeroRaw {
@@ -67,104 +71,119 @@ interface WodwellDetail {
  */
 export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): Promise<void> {
   const fetchImpl: FetchImpl = deps.fetchImpl ?? ((url, init) => fetch(url, init))
+  const activePhases: Set<NamedWorkoutsPhase> = deps.phases
+    ? new Set(deps.phases)
+    : new Set(['crossfit-heroes', 'wodwell-girls', 'wodwell-benchmarks'])
 
   let savedCount = 0
   let skippedCount = 0
   const heroNameSet = new Set<string>()
 
   // --- Phase 1: CrossFit Hero WODs (HTML — no JSON API) ---
-  log.info('step: fetching CrossFit heroes list page')
-  try {
-    const rawHeroes = await fetchCrossfitHeroList(fetchImpl)
-    log.info(`step: found ${rawHeroes.length} entries on crossfit.com/heroes`)
+  if (activePhases.has('crossfit-heroes')) {
+    log.info('step: fetching CrossFit heroes list page')
+    try {
+      const rawHeroes = await fetchCrossfitHeroList(fetchImpl)
+      log.info(`step: found ${rawHeroes.length} entries on crossfit.com/heroes`)
 
-    for (const hero of rawHeroes) {
-      heroNameSet.add(hero.name.toLowerCase())
+      for (const hero of rawHeroes) {
+        heroNameSet.add(hero.name.toLowerCase())
 
-      const detail = await fetchCrossfitHeroDetail(hero, fetchImpl)
-      await sleep(DETAIL_FETCH_DELAY_MS)
+        const detail = await fetchCrossfitHeroDetail(hero, fetchImpl)
+        await sleep(DETAIL_FETCH_DELAY_MS)
 
-      const prescriptionText = detail.prescription ?? ''
-      await upsertNamedWorkoutFromExternalSource({
-        name: detail.name,
-        category: WorkoutCategory.HERO_WOD,
-        description: prescriptionText || null,
-        sourceUrl: `${CROSSFIT_BENCHMARK_BASE}/benchmark/${detail.slug}`,
-        template: {
-          type: classifyWorkoutType(prescriptionText),
-          description: prescriptionText,
-        },
-      })
-      log.info(`upserted HERO_WOD: "${detail.name}"`)
-      savedCount++
+        const prescriptionText = detail.prescription ?? ''
+        await upsertNamedWorkoutFromExternalSource({
+          name: detail.name,
+          category: WorkoutCategory.HERO_WOD,
+          description: prescriptionText || null,
+          sourceUrl: `${CROSSFIT_BENCHMARK_BASE}/benchmark/${detail.slug}`,
+          template: {
+            type: classifyWorkoutType(prescriptionText),
+            description: prescriptionText,
+          },
+        })
+        log.info(`upserted HERO_WOD: "${detail.name}"`)
+        savedCount++
+      }
+    } catch (err) {
+      log.warning(`CrossFit heroes source failed (soft-fail) — ${err instanceof Error ? err.message : err}`)
     }
-  } catch (err) {
-    log.warning(`CrossFit heroes source failed (soft-fail) — ${err instanceof Error ? err.message : err}`)
+  } else {
+    log.info('step: skipping CrossFit heroes (not in active phases)')
   }
 
   // --- Phase 2: WODwell Girls WODs ---
-  log.info('step: fetching WODwell Girls WODs')
-  try {
-    const entries = await fetchAllWodwellPages(fetchImpl, { tags: WODWELL_GIRLS_TAG })
-    log.info(`step: got ${entries.length} WODwell Girls entries`)
+  if (activePhases.has('wodwell-girls')) {
+    log.info('step: fetching WODwell Girls WODs')
+    try {
+      const entries = await fetchAllWodwellPages(fetchImpl, { tags: WODWELL_GIRLS_TAG })
+      log.info(`step: got ${entries.length} WODwell Girls entries`)
 
-    for (const entry of entries) {
-      const name = decodeHtmlEntities(entry.title.rendered).trim()
-      if (heroNameSet.has(name.toLowerCase())) {
-        log.info(`skip: "${name}" is a CrossFit hero — not re-ingesting as GIRL_WOD`)
-        skippedCount++
-        continue
+      for (const entry of entries) {
+        const name = decodeHtmlEntities(entry.title.rendered).trim()
+        if (heroNameSet.has(name.toLowerCase())) {
+          log.info(`skip: "${name}" is a CrossFit hero — not re-ingesting as GIRL_WOD`)
+          skippedCount++
+          continue
+        }
+        const detail = await fetchWodwellDetail(entry.link, fetchImpl)
+        await sleep(DETAIL_FETCH_DELAY_MS)
+        const description = detail.notes
+          ? `${detail.prescription}\n\n${detail.notes}`
+          : detail.prescription
+        await upsertNamedWorkoutFromExternalSource({
+          name,
+          category: WorkoutCategory.GIRL_WOD,
+          description: description || null,
+          sourceUrl: entry.link,
+          template: { type: classifyWorkoutType(detail.prescription), description },
+        })
+        log.info(`upserted GIRL_WOD: "${name}"`)
+        savedCount++
       }
-      const detail = await fetchWodwellDetail(entry.link, fetchImpl)
-      await sleep(DETAIL_FETCH_DELAY_MS)
-      const description = detail.notes
-        ? `${detail.prescription}\n\n${detail.notes}`
-        : detail.prescription
-      await upsertNamedWorkoutFromExternalSource({
-        name,
-        category: WorkoutCategory.GIRL_WOD,
-        description: description || null,
-        sourceUrl: entry.link,
-        template: { type: classifyWorkoutType(detail.prescription), description },
-      })
-      log.info(`upserted GIRL_WOD: "${name}"`)
-      savedCount++
+      log.info('step: WODwell Girls WODs complete')
+    } catch (err) {
+      log.warning(`WODwell Girls WODs source failed (soft-fail) — ${err instanceof Error ? err.message : err}`)
     }
-    log.info('step: WODwell Girls WODs complete')
-  } catch (err) {
-    log.warning(`WODwell Girls WODs source failed (soft-fail) — ${err instanceof Error ? err.message : err}`)
+  } else {
+    log.info('step: skipping WODwell Girls WODs (not in active phases)')
   }
 
   // --- Phase 3: WODwell Benchmarks ---
-  log.info('step: fetching WODwell Classic Benchmarks')
-  try {
-    const entries = await fetchAllWodwellPages(fetchImpl, { categories: WODWELL_BENCHMARKS_CATEGORY })
-    log.info(`step: got ${entries.length} WODwell Benchmark entries`)
+  if (activePhases.has('wodwell-benchmarks')) {
+    log.info('step: fetching WODwell Classic Benchmarks')
+    try {
+      const entries = await fetchAllWodwellPages(fetchImpl, { categories: WODWELL_BENCHMARKS_CATEGORY })
+      log.info(`step: got ${entries.length} WODwell Benchmark entries`)
 
-    for (const entry of entries) {
-      const name = decodeHtmlEntities(entry.title.rendered).trim()
-      if (heroNameSet.has(name.toLowerCase())) {
-        skippedCount++
-        continue
+      for (const entry of entries) {
+        const name = decodeHtmlEntities(entry.title.rendered).trim()
+        if (heroNameSet.has(name.toLowerCase())) {
+          skippedCount++
+          continue
+        }
+        const detail = await fetchWodwellDetail(entry.link, fetchImpl)
+        await sleep(DETAIL_FETCH_DELAY_MS)
+        const description = detail.notes
+          ? `${detail.prescription}\n\n${detail.notes}`
+          : detail.prescription
+        await upsertNamedWorkoutFromExternalSource({
+          name,
+          category: WorkoutCategory.BENCHMARK,
+          description: description || null,
+          sourceUrl: entry.link,
+          template: { type: classifyWorkoutType(detail.prescription), description },
+        })
+        log.info(`upserted BENCHMARK: "${name}"`)
+        savedCount++
       }
-      const detail = await fetchWodwellDetail(entry.link, fetchImpl)
-      await sleep(DETAIL_FETCH_DELAY_MS)
-      const description = detail.notes
-        ? `${detail.prescription}\n\n${detail.notes}`
-        : detail.prescription
-      await upsertNamedWorkoutFromExternalSource({
-        name,
-        category: WorkoutCategory.BENCHMARK,
-        description: description || null,
-        sourceUrl: entry.link,
-        template: { type: classifyWorkoutType(detail.prescription), description },
-      })
-      log.info(`upserted BENCHMARK: "${name}"`)
-      savedCount++
+      log.info('step: WODwell Benchmarks complete')
+    } catch (err) {
+      log.warning(`WODwell Benchmarks source failed (soft-fail) — ${err instanceof Error ? err.message : err}`)
     }
-    log.info('step: WODwell Benchmarks complete')
-  } catch (err) {
-    log.warning(`WODwell Benchmarks source failed (soft-fail) — ${err instanceof Error ? err.message : err}`)
+  } else {
+    log.info('step: skipping WODwell Benchmarks (not in active phases)')
   }
 
   log.info(`summary: ${savedCount} named workouts upserted, ${skippedCount} skipped (hero-deduplicated WODwell entries)`)
@@ -268,8 +287,9 @@ async function fetchWodwellDetail(url: string, fetchImpl: FetchImpl): Promise<Wo
   try {
     const res = await fetchImpl(url, {
       headers: {
-        Accept: 'text/html,application/xhtml+xml',
-        'User-Agent': 'WODalytics/1.0 (+https://github.com/chuckmag/WODalytics)',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (compatible; WODalytics/1.0; +https://github.com/chuckmag/WODalytics)',
       },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
@@ -281,11 +301,20 @@ async function fetchWodwellDetail(url: string, fetchImpl: FetchImpl): Promise<Wo
     const html = await res.text()
     const doc = parse(html)
 
-    // .workout-list li items contain the workout prescription (e.g. "For Time", "21-15-9 Deadlifts")
-    const listItems = doc.querySelectorAll('.workout-list li')
+    // Two-step querySelector is more reliable with node-html-parser than the
+    // compound selector '.workout-list li'. The list is inside the WODwell
+    // custom page structure: .wod-workout > ul.workout-list > li.
+    const workoutList = doc.querySelector('.workout-list')
+    const listItems = workoutList ? workoutList.querySelectorAll('li') : []
     const prescription = listItems.map((li) => li.text.trim()).filter(Boolean).join('\n')
 
-    // .wod-notes contains the detailed description/coaching notes
+    if (!prescription) {
+      // Log a snippet so we can see whether this is a bot-challenge page,
+      // a redirect, or a genuine markup change.
+      const snippet = html.slice(0, 400).replace(/\s+/g, ' ').trim()
+      log.warning(`WODwell detail "${url}": no .workout-list items found. Response preview: ${snippet}`)
+    }
+
     const notesEl = doc.querySelector('.wod-notes')
     const notes = notesEl?.text?.trim() || null
 
