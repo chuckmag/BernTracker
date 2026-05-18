@@ -1,15 +1,16 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
-import { requireAuth, requireWodalyticsAdmin } from '../middleware/auth.js'
+import { requireAuth, requireWodalyticsAdmin, isWodalyticsAdminById } from '../middleware/auth.js'
 import {
   findAllActiveMovements,
+  findLibraryMovementsForAdmin,
   createPendingMovement,
   findPendingMovements,
   reviewMovementById,
-  updatePendingMovementById,
+  updateMovementById,
   findMovementPrAndHistoryForUser,
 } from '@wodalytics/db'
-import { SuggestMovementSchema, ReviewMovementSchema, UpdatePendingMovementSchema } from '@wodalytics/types'
+import { SuggestMovementSchema, ReviewMovementSchema, UpdateMovementSchema } from '@wodalytics/types'
 
 const router = Router()
 
@@ -23,13 +24,19 @@ router.post('/movements/suggest', requireAuth, suggestMovement)
 router.get('/movements/pending', requireAuth, requireWodalyticsAdmin, getPendingMovements)
 router.get('/movements/:id/my-history', requireAuth, getMyMovementHistory)
 router.patch('/movements/:id/review', requireAuth, requireWodalyticsAdmin, reviewMovement)
-router.patch('/movements/:id', requireAuth, requireWodalyticsAdmin, updatePendingMovement)
+router.patch('/movements/:id', requireAuth, requireWodalyticsAdmin, updateMovement)
 
 export default router
 
 // ─── Handler functions ────────────────────────────────────────────────────────
 
-async function getMovements(_req: Request, res: Response) {
+async function getMovements(req: Request, res: Response) {
+  if (req.query.view === 'library') {
+    const isAdmin = await isWodalyticsAdminById(req.user!.id)
+    if (!isAdmin) return res.status(403).json({ error: 'Forbidden' })
+    const movements = await findLibraryMovementsForAdmin()
+    return res.json(movements)
+  }
   const movements = await findAllActiveMovements()
   res.json(movements)
 }
@@ -69,7 +76,8 @@ async function reviewMovement(req: Request, res: Response) {
   }
 
   try {
-    const movement = await reviewMovementById(id, parsed.data.status)
+    const { status, category, prTypes } = parsed.data
+    const movement = await reviewMovementById(id, status, { category, prTypes })
     res.json(movement)
   } catch (err) {
     const statusCode = (err as { statusCode?: number }).statusCode
@@ -78,9 +86,9 @@ async function reviewMovement(req: Request, res: Response) {
   }
 }
 
-async function updatePendingMovement(req: Request, res: Response) {
+async function updateMovement(req: Request, res: Response) {
   const id = req.params.id as string
-  const parsed = UpdatePendingMovementSchema.safeParse(req.body)
+  const parsed = UpdateMovementSchema.safeParse(req.body)
   if (!parsed.success) {
     const issue = parsed.error.issues[0]
     const field = issue?.path[0] ?? 'request'
@@ -89,7 +97,7 @@ async function updatePendingMovement(req: Request, res: Response) {
   }
 
   try {
-    const movement = await updatePendingMovementById(id, parsed.data)
+    const movement = await updateMovementById(id, parsed.data)
     res.json(movement)
   } catch (err) {
     const statusCode = (err as { statusCode?: number }).statusCode
