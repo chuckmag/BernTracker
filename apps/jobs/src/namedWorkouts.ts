@@ -1,4 +1,4 @@
-import { WorkoutCategory, upsertNamedWorkoutFromExternalSource } from '@wodalytics/db'
+import { WorkoutCategory, WorkoutType, upsertNamedWorkoutFromExternalSource } from '@wodalytics/db'
 import { createLogger } from '@wodalytics/server'
 import { parse } from 'node-html-parser'
 import { classifyWorkoutType } from './lib/crossfitWodClassifier.js'
@@ -40,11 +40,11 @@ interface WodwellEntry {
   id: number
   title: { rendered: string }
   link: string
-}
-
-interface WodwellDetail {
-  prescription: string
-  notes: string | null
+  // class_list is a WP REST field WODwell exposes; it embeds taxonomy slugs as
+  // CSS-style tokens, e.g. "score_type-amrap", "movement-pull-up",
+  // "equipment-pull-up-bar". We extract type + movements from here since
+  // WODwell's pages are JS-rendered and content.rendered is not exposed.
+  class_list: string[]
 }
 
 /**
@@ -127,19 +127,15 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
           skippedCount++
           continue
         }
-        const detail = await fetchWodwellDetail(entry.link, fetchImpl)
-        await sleep(DETAIL_FETCH_DELAY_MS)
-        const description = detail.notes
-          ? `${detail.prescription}\n\n${detail.notes}`
-          : detail.prescription
+        const { type, description } = extractWodwellTemplate(entry.class_list)
         await upsertNamedWorkoutFromExternalSource({
           name,
           category: WorkoutCategory.GIRL_WOD,
           description: description || null,
           sourceUrl: entry.link,
-          template: { type: classifyWorkoutType(detail.prescription), description },
+          template: { type, description },
         })
-        log.info(`upserted GIRL_WOD: "${name}"`)
+        log.info(`upserted GIRL_WOD: "${name}" (${type}${description ? '' : ', no movements'})`)
         savedCount++
       }
       log.info('step: WODwell Girls WODs complete')
@@ -163,19 +159,15 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
           skippedCount++
           continue
         }
-        const detail = await fetchWodwellDetail(entry.link, fetchImpl)
-        await sleep(DETAIL_FETCH_DELAY_MS)
-        const description = detail.notes
-          ? `${detail.prescription}\n\n${detail.notes}`
-          : detail.prescription
+        const { type, description } = extractWodwellTemplate(entry.class_list)
         await upsertNamedWorkoutFromExternalSource({
           name,
           category: WorkoutCategory.BENCHMARK,
           description: description || null,
           sourceUrl: entry.link,
-          template: { type: classifyWorkoutType(detail.prescription), description },
+          template: { type, description },
         })
-        log.info(`upserted BENCHMARK: "${name}"`)
+        log.info(`upserted BENCHMARK: "${name}" (${type}${description ? '' : ', no movements'})`)
         savedCount++
       }
       log.info('step: WODwell Benchmarks complete')
@@ -281,48 +273,42 @@ async function fetchCrossfitHeroDetail(
   }
 }
 
-// --- WODwell HTML detail parsing ---
+// --- WODwell class_list extraction ---
+// WODwell detail pages are JS-rendered; the content field is not exposed by
+// their REST API. Instead, the WP REST API returns class_list — an array of
+// CSS-style tokens that embed taxonomy slugs for score type, movements, and
+// equipment. We derive the workout type and a movement-list description from
+// these without any additional HTTP requests.
 
-async function fetchWodwellDetail(url: string, fetchImpl: FetchImpl): Promise<WodwellDetail> {
-  try {
-    const res = await fetchImpl(url, {
-      headers: {
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'User-Agent': 'Mozilla/5.0 (compatible; WODalytics/1.0; +https://github.com/chuckmag/WODalytics)',
-      },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    })
-    if (!res.ok) {
-      log.warning(`WODwell detail "${url}" returned HTTP ${res.status} — no description`)
-      return { prescription: '', notes: null }
-    }
+const SCORE_TYPE_MAP: Record<string, WorkoutType> = {
+  'amrap':           WorkoutType.AMRAP,
+  'for-time':        WorkoutType.FOR_TIME,
+  'for-time-weight': WorkoutType.FOR_TIME,
+  'rounds-reps':     WorkoutType.AMRAP,
+  'emom':            WorkoutType.EMOM,
+  'strength':        WorkoutType.STRENGTH,
+  'reps':            WorkoutType.STRENGTH,
+  'max-weight':      WorkoutType.STRENGTH,
+  'distance':        WorkoutType.CARDIO,
+  'calories':        WorkoutType.CARDIO,
+}
 
-    const html = await res.text()
-    const doc = parse(html)
+function extractWodwellTemplate(classList: string[]): { type: WorkoutType; description: string } {
+  const scoreToken = classList.find((c) => c.startsWith('score_type-'))
+  const scoreKey = scoreToken?.replace('score_type-', '') ?? ''
+  const type = SCORE_TYPE_MAP[scoreKey] ?? WorkoutType.METCON
 
-    // Two-step querySelector is more reliable with node-html-parser than the
-    // compound selector '.workout-list li'. The list is inside the WODwell
-    // custom page structure: .wod-workout > ul.workout-list > li.
-    const workoutList = doc.querySelector('.workout-list')
-    const listItems = workoutList ? workoutList.querySelectorAll('li') : []
-    const prescription = listItems.map((li) => li.text.trim()).filter(Boolean).join('\n')
+  const movements = classList
+    .filter((c) => c.startsWith('movement-'))
+    .map((c) =>
+      c.replace('movement-', '')
+        .split('-')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' '),
+    )
 
-    if (!prescription) {
-      // Log a snippet so we can see whether this is a bot-challenge page,
-      // a redirect, or a genuine markup change.
-      const snippet = html.slice(0, 400).replace(/\s+/g, ' ').trim()
-      log.warning(`WODwell detail "${url}": no .workout-list items found. Response preview: ${snippet}`)
-    }
-
-    const notesEl = doc.querySelector('.wod-notes')
-    const notes = notesEl?.text?.trim() || null
-
-    return { prescription, notes }
-  } catch (err) {
-    log.warning(`WODwell detail fetch failed for "${url}" — ${err instanceof Error ? err.message : err}`)
-    return { prescription: '', notes: null }
-  }
+  const description = movements.join('\n')
+  return { type, description }
 }
 
 // --- WODwell JSON API ---
@@ -339,7 +325,7 @@ async function fetchAllWodwellPages(
     const params = new URLSearchParams({
       per_page: String(WODWELL_PAGE_SIZE),
       page: String(page),
-      _fields: 'id,title,link',
+      _fields: 'id,title,link,class_list',
     })
     if (filter.tags !== undefined) params.set('tags', String(filter.tags))
     if (filter.categories !== undefined) params.set('categories', String(filter.categories))
