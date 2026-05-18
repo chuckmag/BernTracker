@@ -392,3 +392,42 @@ export async function publishWorkoutsByGymAndDateRange(gymId: string, from: Date
 export async function deleteWorkout(id: string) {
   return prisma.workout.delete({ where: { id } })
 }
+
+// ─── Access-control helpers ────────────────────────────────────────────────────
+// Reusable across API routes, MCP tools, and background jobs.
+
+export async function checkWorkoutAccessForUser(userId: string, workoutId: string): Promise<boolean> {
+  const workout = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    select: {
+      programId: true,
+      program: { select: { ownerUserId: true, gyms: { select: { gymId: true } } } },
+    },
+  })
+  if (!workout) return false
+  if (workout.program?.ownerUserId === userId) return true
+  const gymIds = workout.program?.gyms.map((g) => g.gymId) ?? []
+  if (gymIds.length > 0) {
+    const gymMembership = await prisma.userGym.findFirst({ where: { userId, gymId: { in: gymIds } } })
+    if (gymMembership) return true
+  }
+  if (workout.programId) {
+    const programMembership = await prisma.userProgram.findFirst({ where: { userId, programId: workout.programId } })
+    if (programMembership) return true
+  }
+  return false
+}
+
+export async function checkGymStaffAccessForWorkout(userId: string, workoutId: string): Promise<boolean> {
+  const workout = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    select: { program: { select: { gyms: { select: { gymId: true } } } } },
+  })
+  const gymIds = workout?.program?.gyms.map((g) => g.gymId) ?? []
+  if (gymIds.length === 0) return false
+  const membership = await prisma.userGym.findFirst({
+    where: { userId, gymId: { in: gymIds }, role: { in: ['OWNER', 'PROGRAMMER', 'COACH'] } },
+    select: { role: true },
+  })
+  return membership != null
+}
