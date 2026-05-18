@@ -321,7 +321,9 @@ export default function WodDetail() {
                 )
               })}
               {myPlan.notes && (
-                <p className="text-xs text-slate-500 dark:text-gray-400 italic mt-1">{myPlan.notes}</p>
+                <div className="mt-1">
+                  <MarkdownDescription source={myPlan.notes} />
+                </div>
               )}
             </div>
           ) : (
