@@ -4,6 +4,7 @@ import {
   type LibraryMovement,
   type MovementCategory,
   type MovementPrType,
+  type PendingMovement,
   type Program,
 } from '../lib/api'
 import { adminProgramScope } from '../lib/adminProgramScope'
@@ -220,42 +221,62 @@ function ProgramsTab() {
 // ─── Movements tab ────────────────────────────────────────────────────────────
 
 function MovementsTab() {
+  // Pending section: uses the existing /movements/pending endpoint — works with current + new API.
+  const [pendingMovements, setPendingMovements] = useState<PendingMovement[]>([])
+  const [pendingLoading, setPendingLoading] = useState(true)
+
+  // Library section: uses /movements?view=library — requires the new API (PR #411).
+  // Fails gracefully if the endpoint doesn't exist yet.
   const [library, setLibrary] = useState<LibraryMovement[]>([])
-  const [loading, setLoading] = useState(true)
+  const [libraryLoading, setLibraryLoading] = useState(true)
 
   useEffect(() => {
+    api.movements
+      .pending()
+      .then(setPendingMovements)
+      .catch(() => {})
+      .finally(() => setPendingLoading(false))
+
     api.movements
       .library()
       .then(setLibrary)
       .catch(() => {})
-      .finally(() => setLoading(false))
+      .finally(() => setLibraryLoading(false))
   }, [])
 
-  const pending = useMemo(() => library.filter(m => m.status === 'PENDING'), [library])
-
-  function handleApproved(updated: LibraryMovement) {
-    setLibrary(prev => prev.map(m => (m.id === updated.id ? updated : m)))
+  function handlePendingApproved(id: string) {
+    setPendingMovements(prev => prev.filter(m => m.id !== id))
+    setLibrary(prev => prev.map(m => (m.id === id ? { ...m, status: 'ACTIVE' } : m)))
   }
 
-  function handleRejected(id: string) {
+  function handlePendingRejected(id: string) {
+    setPendingMovements(prev => prev.filter(m => m.id !== id))
     setLibrary(prev => prev.filter(m => m.id !== id))
   }
 
-  function handleUpdated(updated: LibraryMovement) {
-    setLibrary(prev => prev.map(m => (m.id === updated.id ? updated : m)))
+  function handlePendingUpdated(id: string, name: string, parentId: string | null) {
+    setPendingMovements(prev => prev.map(m => (m.id === id ? { ...m, name, parentId } : m)))
+    setLibrary(prev => prev.map(m => (m.id === id ? { ...m, name, parentId } : m)))
   }
 
-  if (loading) return <Skeleton variant="feed-row" count={4} />
+  function handleLibraryUpdated(updated: LibraryMovement) {
+    setLibrary(prev => prev.map(m => (m.id === updated.id ? updated : m)))
+  }
 
   return (
     <div className="space-y-10">
       <PendingMovementsSection
-        pendingMovements={pending}
-        onApproved={handleApproved}
-        onRejected={handleRejected}
-        onUpdated={handleUpdated}
+        pendingMovements={pendingMovements}
+        loading={pendingLoading}
+        onApproved={handlePendingApproved}
+        onRejected={handlePendingRejected}
+        onUpdated={handlePendingUpdated}
       />
-      <MovementLibrarySection library={library} onUpdated={handleUpdated} />
+      <MovementLibrarySection
+        library={library}
+        loading={libraryLoading}
+        onUpdated={handleLibraryUpdated}
+      />
     </div>
   )
 }
@@ -263,14 +284,16 @@ function MovementsTab() {
 // ─── Pending Movements section ────────────────────────────────────────────────
 
 interface PendingMovementsSectionProps {
-  pendingMovements: LibraryMovement[]
-  onApproved: (updated: LibraryMovement) => void
+  pendingMovements: PendingMovement[]
+  loading: boolean
+  onApproved: (id: string) => void
   onRejected: (id: string) => void
-  onUpdated: (updated: LibraryMovement) => void
+  onUpdated: (id: string, name: string, parentId: string | null) => void
 }
 
 function PendingMovementsSection({
   pendingMovements,
+  loading,
   onApproved,
   onRejected,
   onUpdated,
@@ -292,7 +315,7 @@ function PendingMovementsSection({
   const [savingApprove, setSavingApprove] = useState(false)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
 
-  function startEditing(m: LibraryMovement) {
+  function startEditing(m: PendingMovement) {
     setEditingId(m.id)
     setMvEditName(m.name)
     setEditParentId(m.parentId)
@@ -312,7 +335,7 @@ function PendingMovementsSection({
     setSavingEdit(true)
     try {
       const updated = await api.movements.update(id, { name: mvEditName, parentId: editParentId })
-      onUpdated(updated)
+      onUpdated(updated.id, updated.name, updated.parentId)
       cancelEditing()
     } catch {
       // leave form open so user can retry
@@ -321,10 +344,10 @@ function PendingMovementsSection({
     }
   }
 
-  function startApproving(m: LibraryMovement) {
+  function startApproving(m: PendingMovement) {
     setApprovingId(m.id)
-    setApproveCategory(m.category)
-    setApprovePrTypes(DEFAULT_PR_TYPES[m.category] ?? ['LOAD'])
+    setApproveCategory('STRENGTH')
+    setApprovePrTypes(DEFAULT_PR_TYPES['STRENGTH'])
   }
 
   function cancelApproving() {
@@ -334,12 +357,12 @@ function PendingMovementsSection({
   async function handleConfirmApprove(id: string) {
     setSavingApprove(true)
     try {
-      const updated = await api.movements.review(id, {
+      await api.movements.review(id, {
         status: 'ACTIVE',
         category: approveCategory,
         prTypes: approvePrTypes,
       })
-      onApproved(updated)
+      onApproved(id)
       setApprovingId(null)
     } catch {
       // leave form open
@@ -376,14 +399,16 @@ function PendingMovementsSection({
         </p>
       </div>
 
-      {pendingMovements.length === 0 && (
+      {loading && <Skeleton variant="feed-row" count={3} />}
+
+      {!loading && pendingMovements.length === 0 && (
         <EmptyState
           title="No pending movements"
           body="Member-suggested movements that need review will appear here."
         />
       )}
 
-      {pendingMovements.length > 0 && (
+      {!loading && pendingMovements.length > 0 && (
         <div className="space-y-2">
           {pendingMovements.map(m => {
             const isEditing = editingId === m.id
@@ -405,6 +430,7 @@ function PendingMovementsSection({
               return (
                 <div
                   key={m.id}
+                  data-testid="pending-movement-editing-row"
                   className="px-4 py-3 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 space-y-3"
                 >
                   <div>
@@ -490,6 +516,7 @@ function PendingMovementsSection({
               return (
                 <div
                   key={m.id}
+                  data-testid="pending-movement-approve-row"
                   className="px-4 py-3 rounded-lg bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-900/50 space-y-3"
                 >
                   <div className="font-medium text-sm text-slate-950 dark:text-white">{m.name}</div>
@@ -546,6 +573,7 @@ function PendingMovementsSection({
             return (
               <div
                 key={m.id}
+                data-testid="pending-movement-row"
                 className="flex items-center justify-between px-4 py-3 rounded-lg bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800"
               >
                 <div>
@@ -553,7 +581,7 @@ function PendingMovementsSection({
                   {m.parentId && (
                     <span className="ml-2 text-xs text-slate-500 dark:text-gray-400">
                       variation of{' '}
-                      {m.parentName ?? allMovements.find(a => a.id === m.parentId)?.name ?? 'unknown'}
+                      {allMovements.find(a => a.id === m.parentId)?.name ?? 'unknown'}
                     </span>
                   )}
                 </div>
@@ -593,9 +621,11 @@ function PendingMovementsSection({
 
 function MovementLibrarySection({
   library,
+  loading,
   onUpdated,
 }: {
   library: LibraryMovement[]
+  loading: boolean
   onUpdated: (m: LibraryMovement) => void
 }) {
   const [search, setSearch] = useState('')
@@ -616,8 +646,8 @@ function MovementLibrarySection({
 
   function startEditing(m: LibraryMovement) {
     setEditingId(m.id)
-    setEditCategory(m.category)
-    setEditPrTypes(m.prTypes)
+    setEditCategory(m.category ?? 'STRENGTH')
+    setEditPrTypes(m.prTypes?.length ? m.prTypes : ['LOAD'])
   }
 
   function cancelEditing() {
@@ -646,7 +676,9 @@ function MovementLibrarySection({
             All active and pending movements. Set category and PR types for each.
           </p>
         </div>
-        <span className="text-sm text-slate-500 dark:text-gray-400 mt-1">{library.length} movements</span>
+        {!loading && (
+          <span className="text-sm text-slate-500 dark:text-gray-400 mt-1">{library.length} movements</span>
+        )}
       </div>
 
       <div className="mb-4 flex gap-2 flex-wrap">
@@ -671,11 +703,13 @@ function MovementLibrarySection({
         </select>
       </div>
 
-      {filtered.length === 0 && (
+      {loading && <Skeleton variant="feed-row" count={4} />}
+
+      {!loading && filtered.length === 0 && (
         <EmptyState title="No movements found" body="Try adjusting the search or category filter." />
       )}
 
-      {filtered.length > 0 && (
+      {!loading && filtered.length > 0 && (
         <div className="rounded-lg border border-slate-200 dark:border-gray-800 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 dark:bg-gray-900">
@@ -703,10 +737,7 @@ function MovementLibrarySection({
                 if (editingId === m.id) {
                   return (
                     <tr key={m.id} className="bg-slate-50 dark:bg-gray-900/50">
-                      <td
-                        className="px-4 py-3 text-slate-950 dark:text-white"
-                        colSpan={4}
-                      >
+                      <td className="px-4 py-3 text-slate-950 dark:text-white" colSpan={4}>
                         <div className="font-medium mb-2">{m.name}</div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -784,10 +815,10 @@ function MovementLibrarySection({
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-slate-700 dark:text-gray-300">
-                      {CATEGORY_LABELS[m.category]}
+                      {m.category ? CATEGORY_LABELS[m.category] : '—'}
                     </td>
                     <td className="px-4 py-2.5 text-slate-700 dark:text-gray-300 text-xs">
-                      {m.prTypes.map((pt, i) => (
+                      {(m.prTypes ?? []).map((pt, i) => (
                         <span key={pt}>
                           {i > 0 && (
                             <span className="text-slate-300 dark:text-gray-600 mx-1" aria-hidden="true">
@@ -801,7 +832,7 @@ function MovementLibrarySection({
                       ))}
                     </td>
                     <td className="px-4 py-2.5 text-slate-500 dark:text-gray-400 text-xs">
-                      {m.variationCount > 0 ? m.variationCount : '—'}
+                      {(m.variationCount ?? 0) > 0 ? m.variationCount : '—'}
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <button
