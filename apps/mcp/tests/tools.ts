@@ -26,11 +26,14 @@
  *   T17: log_result — valid FOR_TIME result logged successfully
  *   T18: log_result — second call updates existing result (idempotent)
  *   T19: get_my_workout_plan — returns null when no plan exists
- *   T20: set_workout_plan — member sets own plan successfully
+ *   T20: set_workout_plan — member sets own plan (skipPrescription: true)
  *   T21: set_workout_plan — second call updates plan (idempotent)
  *   T22: set_workout_plan with userId — coach can set plan for member
  *   T23: set_workout_plan with userId — member cannot set plan for another user
  *   T24: delete_workout_plan — deletes own plan; plan no longer returned
+ *   T25: set_workout_plan — tracksLoad workout + no value → error with movementTemplate
+ *   T26: set_workout_plan — tracksLoad workout + valid value.movementResults → saves
+ *   T27: get_workout — movements include workoutMovementId
  *
  * Run: cd apps/mcp && npx dotenv-cli -e ../../.env -- npx tsx tests/tools.ts
  */
@@ -190,6 +193,7 @@ interface Fixtures {
   testMovementName: string
   todayWorkoutId: string
   pastWorkoutId: string
+  pastWorkoutMovementId: string
   personalWorkoutId: string
   existingResultId: string
 }
@@ -286,7 +290,9 @@ async function seedFixtures(): Promise<Fixtures> {
         }],
       },
     },
+    include: { workoutMovements: { select: { movementId: true } } },
   })
+  const pastWorkoutMovementId = pastWorkout.workoutMovements[0]!.movementId
 
   // Personal program workout (for private-program results test)
   const personalWorkout = await prisma.workout.create({
@@ -324,6 +330,7 @@ async function seedFixtures(): Promise<Fixtures> {
     testMovementName: movement.name,
     todayWorkoutId: todayWorkout.id,
     pastWorkoutId: pastWorkout.id,
+    pastWorkoutMovementId,
     personalWorkoutId: personalWorkout.id,
     existingResultId: existingResult.id,
   }
@@ -654,12 +661,13 @@ async function run(): Promise<void> {
       check('result is null', 'null', JSON.stringify(r.parsed))
     }
 
-    console.log('\n=== T20: set_workout_plan — member sets own plan ===')
+    console.log('\n=== T20: set_workout_plan — member sets own plan (skipPrescription: true) ===')
     {
       const r = await callTool(BASE, gymToken, 'set_workout_plan', {
         workoutId: f.pastWorkoutId,
         level: 'SCALED',
         notes: 'Going light today',
+        skipPrescription: true,
       })
       check('not error', false, r.isError)
       const plan = r.parsed as Record<string, unknown> | null
@@ -674,6 +682,7 @@ async function run(): Promise<void> {
         workoutId: f.pastWorkoutId,
         level: 'RX',
         notes: 'Feeling strong',
+        skipPrescription: true,
       })
       check('not error', false, r.isError)
       const plan = r.parsed as Record<string, unknown> | null
@@ -688,6 +697,7 @@ async function run(): Promise<void> {
         userId: f.gymUserId,
         level: 'MODIFIED',
         notes: 'Coach prescribed: go easy',
+        skipPrescription: true,
       })
       check('not error', false, r.isError)
       const plan = r.parsed as Record<string, unknown> | null
@@ -727,6 +737,63 @@ async function run(): Promise<void> {
         workoutId: f.pastWorkoutId,
       })
       check('plan is null after delete', 'null', JSON.stringify(after.parsed))
+    }
+
+    // ── prescription validation ────────────────────────────────────────────────
+
+    console.log('\n=== T25: set_workout_plan — tracksLoad workout + no value → error with template ===')
+    {
+      const r = await callTool(BASE, gymToken, 'set_workout_plan', {
+        workoutId: f.pastWorkoutId,
+        level: 'RX',
+        notes: 'Heavy day',
+        // no value, no skipPrescription
+      })
+      check('isError', true, r.isError)
+      const body = r.parsed as Record<string, unknown> | null
+      checkTrue('error mentions movementResults', r.text.includes('movementResults'))
+      checkTrue('movementTemplate present', Array.isArray(body?.movementTemplate))
+      const template = body?.movementTemplate as Array<Record<string, unknown>> | undefined
+      check('template has one entry', 1, template?.length)
+      check('template workoutMovementId matches', f.pastWorkoutMovementId, template?.[0]?.workoutMovementId)
+      checkTrue('template sets is array', Array.isArray(template?.[0]?.sets))
+    }
+
+    console.log('\n=== T26: set_workout_plan — tracksLoad workout + valid movementResults → saves ===')
+    {
+      const r = await callTool(BASE, gymToken, 'set_workout_plan', {
+        workoutId: f.pastWorkoutId,
+        level: 'RX',
+        notes: 'Heavy day',
+        value: {
+          movementResults: [{
+            workoutMovementId: f.pastWorkoutMovementId,
+            loadUnit: 'LB',
+            sets: [
+              { reps: '5', load: '225' },
+              { reps: '5', load: '245' },
+              { reps: '5', load: '265' },
+              { reps: '5', load: '285' },
+              { reps: '5', load: '305' },
+            ],
+          }],
+        },
+      })
+      check('not error', false, r.isError)
+      const plan = r.parsed as Record<string, unknown> | null
+      check('level is RX', 'RX', plan?.level)
+      checkTrue('value is present', plan?.value != null)
+    }
+
+    console.log('\n=== T27: get_workout — movements include workoutMovementId ===')
+    {
+      const r = await callTool(BASE, gymToken, 'get_workout', { workoutId: f.pastWorkoutId })
+      check('not error', false, r.isError)
+      const workout = r.parsed as Record<string, unknown> | null
+      const movements = workout?.movements as Array<Record<string, unknown>> | undefined
+      checkTrue('has movements', Array.isArray(movements) && movements.length > 0)
+      checkTrue('movement has workoutMovementId', typeof movements?.[0]?.workoutMovementId === 'string')
+      check('workoutMovementId matches fixture', f.pastWorkoutMovementId, movements?.[0]?.workoutMovementId)
     }
   } finally {
     await cleanupFixtures(f).catch((err) => console.error('Cleanup error:', err))

@@ -393,6 +393,35 @@ export async function deleteWorkout(id: string) {
   return prisma.workout.delete({ where: { id } })
 }
 
+export async function findWorkoutMovementsForPrescription(workoutId: string) {
+  const workout = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    select: {
+      workoutMovements: {
+        orderBy: { displayOrder: 'asc' },
+        select: {
+          movementId: true,
+          tracksLoad: true,
+          loadUnit: true,
+          sets: true,
+          reps: true,
+          load: true,
+          movement: { select: { name: true } },
+        },
+      },
+    },
+  })
+  return (workout?.workoutMovements ?? []).map((wm) => ({
+    workoutMovementId: wm.movementId,
+    movementName: wm.movement.name,
+    tracksLoad: wm.tracksLoad,
+    loadUnit: wm.loadUnit,
+    prescribedSets: wm.sets,
+    prescribedReps: wm.reps,
+    prescribedLoad: wm.load,
+  }))
+}
+
 // ─── Access-control helpers ────────────────────────────────────────────────────
 // Reusable across API routes, MCP tools, and background jobs.
 

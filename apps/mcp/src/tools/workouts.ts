@@ -48,6 +48,7 @@ function serializeWorkout(w: WorkoutWithMovements | null) {
     programId: w.programId,
     programName: w.program?.name ?? null,
     movements: w.workoutMovements.map((wm) => ({
+      workoutMovementId: wm.movementId,
       movementId: wm.movementId,
       movementName: wm.movement.name,
       displayOrder: wm.displayOrder,
