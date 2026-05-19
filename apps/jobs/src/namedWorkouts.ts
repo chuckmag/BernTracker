@@ -8,6 +8,7 @@ const log = createLogger('jobs.named-workouts')
 const CROSSFIT_HEROES_URL = 'https://www.crossfit.com/heroes'
 const CROSSFIT_BENCHMARK_BASE = 'https://www.crossfit.com'
 const WODWELL_API_BASE = 'https://wodwell.com/wp-json/wp/v2/wods'
+const WODWELL_DETAIL_BASE = 'https://wodwell.com/wp-json/wodwell/v2/wods'
 const WODWELL_GIRLS_TAG = 2681
 const WODWELL_BENCHMARKS_CATEGORY = 2415
 const FETCH_TIMEOUT_MS = 15_000
@@ -42,9 +43,13 @@ interface WodwellEntry {
   link: string
   // class_list is a WP REST field WODwell exposes; it embeds taxonomy slugs as
   // CSS-style tokens, e.g. "score_type-amrap", "movement-pull-up",
-  // "equipment-pull-up-bar". We extract type + movements from here since
-  // WODwell's pages are JS-rendered and content.rendered is not exposed.
+  // "equipment-pull-up-bar". We extract type from here.
   class_list: string[]
+}
+
+interface WodwellDetail {
+  // Full structured prescription: ["AMRAP in 20 minutes", "5 Pull-Ups", "10 Push-Ups", ...]
+  workout?: string[]
 }
 
 /**
@@ -127,7 +132,10 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
           skippedCount++
           continue
         }
-        const { type, description } = extractWodwellTemplate(entry.class_list)
+        const { type, description: movementFallback } = extractWodwellTemplate(entry.class_list)
+        const prescription = await fetchWodwellDetail(entry, fetchImpl)
+        await sleep(DETAIL_FETCH_DELAY_MS)
+        const description = prescription ?? movementFallback
         await upsertNamedWorkoutFromExternalSource({
           name,
           category: WorkoutCategory.GIRL_WOD,
@@ -135,7 +143,7 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
           sourceUrl: entry.link,
           template: { type, description },
         })
-        log.info(`upserted GIRL_WOD: "${name}" (${type}${description ? '' : ', no movements'})`)
+        log.info(`upserted GIRL_WOD: "${name}" (${type}${prescription ? '' : ', movement-list fallback'})`)
         savedCount++
       }
       log.info('step: WODwell Girls WODs complete')
@@ -159,7 +167,10 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
           skippedCount++
           continue
         }
-        const { type, description } = extractWodwellTemplate(entry.class_list)
+        const { type, description: movementFallback } = extractWodwellTemplate(entry.class_list)
+        const prescription = await fetchWodwellDetail(entry, fetchImpl)
+        await sleep(DETAIL_FETCH_DELAY_MS)
+        const description = prescription ?? movementFallback
         await upsertNamedWorkoutFromExternalSource({
           name,
           category: WorkoutCategory.BENCHMARK,
@@ -167,7 +178,7 @@ export async function runNamedWorkoutsJob(deps: RunNamedWorkoutsJobDeps = {}): P
           sourceUrl: entry.link,
           template: { type, description },
         })
-        log.info(`upserted BENCHMARK: "${name}" (${type}${description ? '' : ', no movements'})`)
+        log.info(`upserted BENCHMARK: "${name}" (${type}${prescription ? '' : ', movement-list fallback'})`)
         savedCount++
       }
       log.info('step: WODwell Benchmarks complete')
@@ -309,6 +320,30 @@ function extractWodwellTemplate(classList: string[]): { type: WorkoutType; descr
 
   const description = movements.join('\n')
   return { type, description }
+}
+
+// --- WODwell detail fetch ---
+
+async function fetchWodwellDetail(entry: WodwellEntry, fetchImpl: FetchImpl): Promise<string | null> {
+  const url = `${WODWELL_DETAIL_BASE}/${entry.id}`
+  try {
+    const res = await fetchImpl(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    })
+    if (!res.ok) {
+      log.warning(`WODwell detail ${entry.id} returned HTTP ${res.status} — using movement-list fallback`)
+      return null
+    }
+    const data = (await res.json()) as WodwellDetail
+    if (Array.isArray(data.workout) && data.workout.length > 0) {
+      return data.workout.join('\n')
+    }
+    return null
+  } catch (err) {
+    log.warning(`WODwell detail fetch failed for ${entry.id} — ${err instanceof Error ? err.message : err}`)
+    return null
+  }
 }
 
 // --- WODwell JSON API ---
