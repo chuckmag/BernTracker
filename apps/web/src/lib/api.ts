@@ -424,6 +424,45 @@ export interface MovementTrajectoryData {
   points: { achievedAt: string; value: number; label: string }[]
 }
 
+export interface BenchmarkSummaryEntry extends NamedWorkout {
+  manualResultCount: number
+  latestResult: BenchmarkResult | null
+}
+
+export interface BenchmarkHistoryEntry {
+  source: 'manual' | 'programmed'
+  id: string
+  achievedAt: string
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  value: object
+  notes: string | null
+  primaryScoreKind: string | null
+  primaryScoreValue: number | null
+  createdAt: string
+  updatedAt?: string
+  workoutId?: string
+}
+
+export interface BenchmarkHistoryData {
+  namedWorkout: NamedWorkout
+  history: BenchmarkHistoryEntry[]
+}
+
+export interface BenchmarkResultInput {
+  achievedAt: string
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  value: {
+    score: { kind: 'TIME'; seconds: number; cappedOut: boolean }
+      | { kind: 'ROUNDS_REPS'; rounds: number; reps: number; cappedOut: boolean }
+      | { kind: 'LOAD'; load: number; unit: LoadUnit }
+      | { kind: 'REPS'; reps: number }
+    movementResults: never[]
+  }
+  notes?: string
+}
+
 export interface Gym {
   id: string
   name: string
@@ -777,6 +816,21 @@ export const api = {
         req<MovementPrsData>(`/api/me/analytics/movements/${encodeURIComponent(movementId)}`),
       movementTrajectory: (movementId: string, prType: MovementPrType, range: '1M' | '3M' | '6M' | '1Y') =>
         req<MovementTrajectoryData>(`/api/me/analytics/movements/${encodeURIComponent(movementId)}/trajectory?prType=${prType}&range=${range}`),
+    },
+
+    benchmarks: {
+      list: () => req<BenchmarkSummaryEntry[]>('/api/me/benchmarks'),
+      history: (namedWorkoutId: string) =>
+        req<BenchmarkHistoryData>(`/api/me/benchmarks/${encodeURIComponent(namedWorkoutId)}`),
+      logResult: (namedWorkoutId: string, input: BenchmarkResultInput) =>
+        req<BenchmarkResult>(`/api/me/benchmarks/${encodeURIComponent(namedWorkoutId)}/results`, {
+          method: 'POST',
+          body: JSON.stringify(input),
+        }),
+      deleteResult: (namedWorkoutId: string, resultId: string) =>
+        req<void>(`/api/me/benchmarks/${encodeURIComponent(namedWorkoutId)}/results/${resultId}`, {
+          method: 'DELETE',
+        }),
     },
   },
 
