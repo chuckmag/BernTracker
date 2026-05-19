@@ -33,6 +33,8 @@ import AdminSettings from './pages/AdminSettings.tsx'
 import AdminProgramDetail from './pages/AdminProgramDetail.tsx'
 import JoinInvitation from './pages/JoinInvitation.tsx'
 import Analytics from './pages/Analytics.tsx'
+import MovementsPage from './pages/MovementsPage.tsx'
+import BenchmarksPage from './pages/BenchmarksPage.tsx'
 import PublicProfile from './pages/PublicProfile.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
@@ -79,7 +81,10 @@ function AppLayout() {
               <Route path="/history" element={<History />} />
               <Route path="/personal-program" element={<Navigate to="/calendar" replace />} />
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/wodalytics" element={<Analytics />} />
+              <Route path="/wodalytics" element={<Analytics />}>
+                <Route path="movements" element={<MovementsPage />} />
+                <Route path="benchmarks" element={<BenchmarksPage />} />
+              </Route>
               <Route path="/calendar" element={<UnifiedCalendar />} />
               <Route path="/programs" element={<ProgramsIndex />} />
               <Route path="/programs/:id" element={<ProgramDetail />} />

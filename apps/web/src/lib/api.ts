@@ -387,6 +387,43 @@ export interface StrengthTrajectoryData {
   points: StrengthTrajectoryPoint[]
 }
 
+export type MovementDisplayGroup = 'strength' | 'monostructural' | 'gymnastics'
+
+export type MovementPrimaryPR =
+  | { type: 'LOAD'; reps: number; load: number; loadUnit: string; achievedAt: string }
+  | { type: 'MAX_REPS'; maxReps: number; achievedAt: string }
+  | { type: 'TIME'; distance: number; distanceUnit: string; seconds: number; achievedAt: string }
+  | { type: 'DISTANCE'; seconds: number; distance: number; distanceUnit: string; achievedAt: string }
+  | { type: 'CALORIES'; seconds: number; calories: number; achievedAt: string }
+
+export interface MovementSummaryEntry {
+  movementId: string
+  name: string
+  prTypes: MovementPrType[]
+  primaryPR: MovementPrimaryPR | null
+  lastLoggedAt: string
+}
+
+export type MovementsAnalyticsData = Record<MovementDisplayGroup, MovementSummaryEntry[]>
+
+export type MovementLoadEntry = { repCount: number; load: number; loadUnit: string; achievedAt: string; resultId: string; workoutId: string }
+export type MovementMaxRepsEntry = { maxReps: number; achievedAt: string; resultId: string; workoutId: string }
+export type MovementTimeEntry = { distance: number; distanceUnit: string; seconds: number; achievedAt: string; resultId: string; workoutId: string }
+export type MovementDistanceEntry = { seconds: number; distance: number; distanceUnit: string; achievedAt: string; resultId: string; workoutId: string }
+export type MovementCaloriesEntry = { seconds: number; calories: number; achievedAt: string; resultId: string; workoutId: string }
+export type MovementPrEntry = MovementLoadEntry | MovementMaxRepsEntry | MovementTimeEntry | MovementDistanceEntry | MovementCaloriesEntry
+
+export interface MovementPrsData {
+  movement: { id: string; name: string; category: string; prTypes: MovementPrType[] }
+  byType: Record<string, { entries: MovementPrEntry[] }>
+  recentAppearances: { workoutId: string; workoutName: string; scheduledAt: string; yourSets: unknown[] }[]
+}
+
+export interface MovementTrajectoryData {
+  prType: MovementPrType
+  points: { achievedAt: string; value: number; label: string }[]
+}
+
 export interface Gym {
   id: string
   name: string
@@ -734,6 +771,12 @@ export const api = {
         req<TrackedMovement[]>(`/api/me/analytics/tracked-movements?days=${days}&limit=${limit}`),
       strengthTrajectory: (movementId: string, range: '1M' | '3M' | '6M' | '1Y') =>
         req<StrengthTrajectoryData>(`/api/me/analytics/strength-trajectory?movementId=${encodeURIComponent(movementId)}&range=${range}`),
+      movements: () =>
+        req<MovementsAnalyticsData>('/api/me/analytics/movements'),
+      movementPrs: (movementId: string) =>
+        req<MovementPrsData>(`/api/me/analytics/movements/${encodeURIComponent(movementId)}`),
+      movementTrajectory: (movementId: string, prType: MovementPrType, range: '1M' | '3M' | '6M' | '1Y') =>
+        req<MovementTrajectoryData>(`/api/me/analytics/movements/${encodeURIComponent(movementId)}/trajectory?prType=${prType}&range=${range}`),
     },
   },
 

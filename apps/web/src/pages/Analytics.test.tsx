@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from '../context/ThemeContext'
 import Analytics from './Analytics'
+import MovementsPage from './MovementsPage'
+import BenchmarksPage from './BenchmarksPage'
 import type { ConsistencyData, TrackedMovement, StrengthTrajectoryData } from '../lib/api'
 
 const mockConsistency: ConsistencyData = {
@@ -43,6 +45,9 @@ vi.mock('../lib/api', async (importOriginal) => {
           consistency: vi.fn(),
           trackedMovements: vi.fn(),
           strengthTrajectory: vi.fn(),
+          movements: vi.fn(),
+          movementPrs: vi.fn(),
+          movementTrajectory: vi.fn(),
         },
       },
     },
@@ -53,12 +58,15 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1', name: 'Alex', firstName: 'Alex' } }),
 }))
 
-function renderAnalytics() {
+function renderAnalytics(path = '/wodalytics') {
   return render(
     <ThemeProvider>
-      <MemoryRouter initialEntries={['/wodalytics']}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route path="/wodalytics" element={<Analytics />} />
+          <Route path="/wodalytics" element={<Analytics />}>
+            <Route path="movements" element={<MovementsPage />} />
+            <Route path="benchmarks" element={<BenchmarksPage />} />
+          </Route>
         </Routes>
       </MemoryRouter>
     </ThemeProvider>,
@@ -68,6 +76,33 @@ function renderAnalytics() {
 describe('Analytics', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('renders Summary, Movements, and Benchmarks tabs', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.me.analytics.consistency).mockResolvedValue(mockConsistency)
+    vi.mocked(api.me.analytics.trackedMovements).mockResolvedValue([])
+    renderAnalytics()
+    expect(screen.getByRole('tab', { name: 'Summary' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Movements' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Benchmarks' })).toBeInTheDocument()
+  })
+
+  it('Summary tab is selected by default at /wodalytics', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.me.analytics.consistency).mockResolvedValue(mockConsistency)
+    vi.mocked(api.me.analytics.trackedMovements).mockResolvedValue([])
+    renderAnalytics()
+    expect(screen.getByRole('tab', { name: 'Summary' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Movements' })).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('Movements tab is active when path is /wodalytics/movements', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.me.analytics.movements).mockResolvedValue({ strength: [], monostructural: [], gymnastics: [] })
+    renderAnalytics('/wodalytics/movements')
+    expect(screen.getByRole('tab', { name: 'Movements' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Summary' })).toHaveAttribute('aria-selected', 'false')
   })
 
   it('renders the page heading', async () => {
