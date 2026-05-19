@@ -37,14 +37,15 @@ COPY realm-wodalytics.json /realm-template.json
 COPY themes/wodalytics /opt/keycloak/themes/wodalytics
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
-# The health check hits the wodalytics realm's OIDC discovery endpoint rather
-# than Keycloak's generic /health/ready. This matters because the entrypoint
-# starts KC in the background and then runs keycloak-config-cli to reconcile
-# the realm — KC is HTTP-ready before the realm sync completes. The realm
-# endpoint returns 404 until keycloak-config-cli creates/updates the realm,
-# so Railway won't mark the deployment healthy until realm sync is done.
+# The health check hits the realm endpoint rather than Keycloak's generic
+# /health/ready. This matters because the entrypoint starts KC in the
+# background and then runs keycloak-config-cli to reconcile the realm — KC is
+# HTTP-ready before the realm sync completes. /auth/realms/wodalytics returns
+# 404 until keycloak-config-cli creates the realm and 200 after, so Railway
+# won't mark the deployment healthy until realm sync is done.
 # start-period covers the ~30s KC startup + ~10s config-cli sync with margin.
+# Mirror this path in Railway → WODalytics-Auth → Settings → Health Check Path.
 HEALTHCHECK --interval=10s --timeout=5s --start-period=90s --retries=12 \
-  CMD curl -sf "http://localhost:8080${KC_HTTP_RELATIVE_PATH:-/auth}/realms/wodalytics/.well-known/openid-configuration" > /dev/null
+  CMD curl -sf "http://localhost:8080${KC_HTTP_RELATIVE_PATH:-/auth}/realms/wodalytics" > /dev/null
 
 ENTRYPOINT ["/bin/bash", "/docker-entrypoint.sh"]
