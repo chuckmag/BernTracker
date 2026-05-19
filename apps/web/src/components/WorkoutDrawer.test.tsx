@@ -588,6 +588,92 @@ describe('WorkoutDrawer coach notes', () => {
   })
 })
 
+describe('WorkoutDrawer named workout layout', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    seedApi()
+  })
+
+  it('Named Workout selector appears before the Title input in the DOM', async () => {
+    render(<WorkoutDrawer {...defaultProps()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'General' })).toBeInTheDocument())
+
+    const namedLabel = screen.getByText(/Named Workout/)
+    const titleLabel = screen.getByText('Title')
+
+    // DOCUMENT_POSITION_FOLLOWING (4) on titleLabel means it comes after namedLabel
+    const position = namedLabel.compareDocumentPosition(titleLabel)
+    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
+  it('Apply Template button is not shown when no named workout is selected', async () => {
+    vi.mocked(api.namedWorkouts.list).mockResolvedValue([
+      { id: 'nw-1', name: 'Fran', category: 'GIRL_WOD', templateWorkout: { type: 'FOR_TIME', description: '21-15-9', workoutMovements: [] } },
+    ] as never)
+
+    render(<WorkoutDrawer {...defaultProps()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Fran' })).toBeInTheDocument())
+
+    expect(screen.queryByRole('button', { name: 'Apply Template' })).not.toBeInTheDocument()
+  })
+
+  it('Apply Template button appears when a named workout with a template is selected', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.namedWorkouts.list).mockResolvedValue([
+      { id: 'nw-1', name: 'Fran', category: 'GIRL_WOD', templateWorkout: { type: 'FOR_TIME', description: '21-15-9', workoutMovements: [] } },
+    ] as never)
+
+    render(<WorkoutDrawer {...defaultProps()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Fran' })).toBeInTheDocument())
+
+    await user.selectOptions(screen.getByLabelText(/Named Workout/), screen.getByRole('option', { name: 'Fran' }))
+
+    expect(screen.getByRole('button', { name: 'Apply Template' })).toBeInTheDocument()
+  })
+
+  it('Apply Template button is not shown when the selected named workout has no template', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.namedWorkouts.list).mockResolvedValue([
+      { id: 'nw-2', name: 'Custom WOD', category: 'BENCHMARK', templateWorkout: null },
+    ] as never)
+
+    render(<WorkoutDrawer {...defaultProps()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Custom WOD' })).toBeInTheDocument())
+
+    await user.selectOptions(screen.getByLabelText(/Named Workout/), screen.getByRole('option', { name: 'Custom WOD' }))
+
+    expect(screen.queryByRole('button', { name: 'Apply Template' })).not.toBeInTheDocument()
+  })
+
+  it('Apply Template fills title, type, and description from the named workout template', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.namedWorkouts.list).mockResolvedValue([
+      {
+        id: 'nw-fran',
+        name: 'Fran',
+        category: 'GIRL_WOD',
+        templateWorkout: {
+          type: 'FOR_TIME',
+          description: '21-15-9 Reps For Time\nThrusters (95/65 lb)\nPull-Ups',
+          workoutMovements: [],
+        },
+      },
+    ] as never)
+
+    render(<WorkoutDrawer {...defaultProps()} />)
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Fran' })).toBeInTheDocument())
+
+    await user.selectOptions(screen.getByLabelText(/Named Workout/), screen.getByRole('option', { name: 'Fran' }))
+    await user.click(screen.getByRole('button', { name: 'Apply Template' }))
+
+    expect((screen.getByPlaceholderText('e.g. Fran') as HTMLInputElement).value).toBe('Fran')
+    expect((screen.getByLabelText('Type') as HTMLSelectElement).value).toBe('FOR_TIME')
+    expect((screen.getByPlaceholderText(/Workout details/) as HTMLTextAreaElement).value).toBe(
+      '21-15-9 Reps For Time\nThrusters (95/65 lb)\nPull-Ups',
+    )
+  })
+})
+
 describe('WorkoutDrawer markdown paste', () => {
   beforeEach(() => {
     vi.clearAllMocks()

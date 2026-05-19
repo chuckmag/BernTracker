@@ -860,6 +860,31 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
           )}
 
           <div>
+            <label htmlFor="wd-named" className="block text-xs text-slate-600 dark:text-gray-400 mb-1">Named Workout <span className="text-slate-500 dark:text-gray-400">(optional)</span></label>
+            <select
+              id="wd-named"
+              value={namedWorkoutId ?? ''}
+              onChange={(e) => setNamedWorkoutId(e.target.value || null)}
+              className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-primary"
+            >
+              <option value="">None</option>
+              {namedWorkouts.map((nw) => (
+                <option key={nw.id} value={nw.id}>{nw.name}</option>
+              ))}
+            </select>
+            {namedWorkoutId && namedWorkouts.find((n) => n.id === namedWorkoutId)?.templateWorkout && (
+              <button
+                type="button"
+                onClick={handleApplyTemplate}
+                className="mt-1.5 w-full px-3 py-2 text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 hover:text-slate-950 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300 dark:hover:text-white rounded transition-colors"
+                title="Copy type, description, and movements from template"
+              >
+                Apply Template
+              </button>
+            )}
+          </div>
+
+          <div>
             <label className="block text-xs text-slate-600 dark:text-gray-400 mb-1">Title</label>
             <input
               type="text"
@@ -906,33 +931,6 @@ export default function WorkoutDrawer({ scope, dateKey, workout, workoutsOnDay =
               rows={4}
               className="w-full bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary resize-none font-mono"
             />
-          </div>
-
-          <div>
-            <label htmlFor="wd-named" className="block text-xs text-slate-600 dark:text-gray-400 mb-1">Named Workout <span className="text-slate-500 dark:text-gray-400">(optional)</span></label>
-            <div className="flex gap-2">
-              <select
-                id="wd-named"
-                value={namedWorkoutId ?? ''}
-                onChange={(e) => setNamedWorkoutId(e.target.value || null)}
-                className="flex-1 bg-white dark:bg-gray-800 border border-slate-300 dark:border-gray-700 rounded px-3 py-2 text-sm text-slate-950 dark:text-white focus:outline-none focus:border-primary"
-              >
-                <option value="">None</option>
-                {namedWorkouts.map((nw) => (
-                  <option key={nw.id} value={nw.id}>{nw.name}</option>
-                ))}
-              </select>
-              {namedWorkoutId && namedWorkouts.find((n) => n.id === namedWorkoutId)?.templateWorkout && (
-                <button
-                  type="button"
-                  onClick={handleApplyTemplate}
-                  className="shrink-0 px-3 py-2 text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 hover:text-slate-950 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300 dark:hover:text-white rounded transition-colors"
-                  title="Copy type, description, and movements from template"
-                >
-                  Apply Template
-                </button>
-              )}
-            </div>
           </div>
 
           {(() => {
@@ -1294,7 +1292,7 @@ function PrescriptionInput({
     null
 
   return (
-    <div>
+    <div className="min-w-0">
       <label htmlFor={id} className="block text-[10px] uppercase tracking-wide text-slate-500 dark:text-gray-400 mb-0.5">{label}</label>
       <div className={unitField ? 'flex gap-1' : ''}>
         <input
@@ -1304,7 +1302,7 @@ function PrescriptionInput({
           value={prescription[field] as string}
           onChange={(e) => onUpdate(field, e.target.value as PrescriptionForm[typeof field])}
           placeholder={placeholder}
-          className="flex-1 min-w-0 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded px-2 py-1 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary"
+          className="w-full min-w-0 flex-1 bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded px-2 py-1 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-600 focus:outline-none focus:border-primary"
         />
         {unitField === 'loadUnit' && (
           <select
