@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from '../context/ThemeContext'
 import MovementsPage from './MovementsPage'
@@ -27,10 +28,10 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1', name: 'Alex' } }),
 }))
 
-vi.mock('../components/MovementDetailDrawer', () => ({
+vi.mock('../components/MovementDetailPanel', () => ({
   default: ({ name, onClose }: { name: string; onClose: () => void }) => (
-    <div data-testid="movement-detail-drawer" aria-label={name}>
-      <button onClick={onClose}>Close</button>
+    <div data-testid="movement-detail-panel" aria-label={name}>
+      <button onClick={onClose}>← Back</button>
     </div>
   ),
 }))
@@ -127,5 +128,64 @@ describe('MovementsPage', () => {
     vi.mocked(api.me.analytics.movements).mockRejectedValue(new Error('Network failure'))
     renderPage()
     expect(await screen.findByText('Network failure')).toBeInTheDocument()
+  })
+
+  it('renders the search input', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.me.analytics.movements).mockResolvedValue(sampleData)
+    renderPage()
+    await screen.findByText('Strength')
+    expect(screen.getByRole('searchbox', { name: 'Search movements' })).toBeInTheDocument()
+  })
+
+  it('filters movement cards when a search query is typed', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.me.analytics.movements).mockResolvedValue(sampleData)
+    renderPage()
+    await screen.findByText('Back Squat')
+
+    await userEvent.type(screen.getByRole('searchbox'), 'squat')
+
+    expect(screen.getByText('Back Squat')).toBeInTheDocument()
+    expect(screen.queryByText('Deadlift')).not.toBeInTheDocument()
+    expect(screen.queryByText('Row')).not.toBeInTheDocument()
+  })
+
+  it('shows a no-results message when the query matches nothing', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.me.analytics.movements).mockResolvedValue(sampleData)
+    renderPage()
+    await screen.findByText('Back Squat')
+
+    await userEvent.type(screen.getByRole('searchbox'), 'zzznomatch')
+
+    expect(screen.getByText(/No movements match/)).toBeInTheDocument()
+    expect(screen.queryByText('Back Squat')).not.toBeInTheDocument()
+  })
+
+  it('shows the detail panel when a movement card is clicked', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.me.analytics.movements).mockResolvedValue(sampleData)
+    renderPage()
+    await screen.findByText('Back Squat')
+
+    await userEvent.click(screen.getByText('Back Squat'))
+
+    expect(screen.getByTestId('movement-detail-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('movement-detail-panel')).toHaveAttribute('aria-label', 'Back Squat')
+  })
+
+  it('returns to the movement list when the panel back button is clicked', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.me.analytics.movements).mockResolvedValue(sampleData)
+    renderPage()
+    await screen.findByText('Back Squat')
+
+    await userEvent.click(screen.getByText('Back Squat'))
+    expect(screen.getByTestId('movement-detail-panel')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByText('← Back'))
+    expect(screen.queryByTestId('movement-detail-panel')).not.toBeInTheDocument()
+    expect(screen.getByText('Back Squat')).toBeInTheDocument()
   })
 })

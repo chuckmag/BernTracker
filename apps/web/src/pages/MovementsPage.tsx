@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   api,
   type MovementsAnalyticsData,
@@ -9,7 +9,7 @@ import {
 } from '../lib/api.ts'
 import Skeleton from '../components/ui/Skeleton.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
-import MovementDetailDrawer from '../components/MovementDetailDrawer.tsx'
+import MovementDetailPanel from '../components/MovementDetailPanel.tsx'
 
 const GROUP_LABELS: Record<MovementDisplayGroup, string> = {
   strength: 'Strength',
@@ -116,6 +116,7 @@ export default function MovementsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<MovementSummaryEntry | null>(null)
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     api.me.analytics
@@ -124,6 +125,18 @@ export default function MovementsPage() {
       .catch((e: Error) => setError(e.message ?? 'Failed to load movements'))
       .finally(() => setLoading(false))
   }, [])
+
+  const filtered = useMemo<MovementsAnalyticsData | null>(() => {
+    if (!data) return null
+    const q = query.trim().toLowerCase()
+    if (!q) return data
+    const match = (e: MovementSummaryEntry) => e.name.toLowerCase().includes(q)
+    return {
+      strength: data.strength.filter(match),
+      monostructural: data.monostructural.filter(match),
+      gymnastics: data.gymnastics.filter(match),
+    }
+  }, [data, query])
 
   if (loading) return <Skeleton variant="feed-row" count={5} />
 
@@ -140,22 +153,42 @@ export default function MovementsPage() {
     )
   }
 
-  return (
-    <>
-      <div className="space-y-8">
-        {(['strength', 'monostructural', 'gymnastics'] as MovementDisplayGroup[]).map((g) => (
-          <GroupSection key={g} group={g} entries={data![g]} onSelect={setSelected} />
-        ))}
-      </div>
+  if (selected) {
+    return (
+      <MovementDetailPanel
+        movementId={selected.movementId}
+        name={selected.name}
+        prTypes={selected.prTypes}
+        onClose={() => setSelected(null)}
+      />
+    )
+  }
 
-      {selected && (
-        <MovementDetailDrawer
-          movementId={selected.movementId}
-          name={selected.name}
-          prTypes={selected.prTypes}
-          onClose={() => setSelected(null)}
-        />
+  const hasFilteredResults =
+    filtered && (filtered.strength.length > 0 || filtered.monostructural.length > 0 || filtered.gymnastics.length > 0)
+
+  return (
+    <div className="space-y-6">
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search movements…"
+        aria-label="Search movements"
+        className="w-full rounded-lg border border-slate-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 dark:focus-visible:ring-offset-gray-950"
+      />
+
+      {!hasFilteredResults ? (
+        <p className="text-sm text-slate-500 dark:text-gray-400">
+          No movements match &ldquo;{query}&rdquo;
+        </p>
+      ) : (
+        <div className="space-y-8">
+          {(['strength', 'monostructural', 'gymnastics'] as MovementDisplayGroup[]).map((g) => (
+            <GroupSection key={g} group={g} entries={filtered![g]} onSelect={setSelected} />
+          ))}
+        </div>
       )}
-    </>
+    </div>
   )
 }
