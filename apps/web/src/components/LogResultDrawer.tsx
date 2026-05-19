@@ -213,7 +213,8 @@ export default function LogResultDrawer({ workout, existingResult, plan, onClose
         if (res.status === 409) { setAlreadyLogged(true); return }
         if (!res.ok) {
           const data = await res.json().catch(() => ({}))
-          setError((data as { error?: string }).error ?? 'Failed to log result.')
+          const rawError = (data as { error?: unknown }).error
+          setError(typeof rawError === 'string' ? rawError : 'Failed to log result.')
           return
         }
         const { newPrs } = (await res.json()) as { newPrs: NewPr[] }

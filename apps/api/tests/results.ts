@@ -56,6 +56,7 @@ let userBToken = ''
 let forTimeWorkoutId = ''
 let amrapWorkoutId = ''
 let strengthWorkoutId = ''
+let warmupWorkoutId = ''
 let strengthMovementWmIdA = ''
 let strengthMovementWmIdB = ''
 let resultId = ''
@@ -101,6 +102,16 @@ async function setup() {
   ])
   forTimeWorkoutId = forTimeWorkout.id
   amrapWorkoutId = amrapWorkout.id
+
+  const warmupWorkout = await prisma.workout.create({
+    data: {
+      title: `AT WARMUP ${TS}`,
+      description: 'Integration test WARMUP workout',
+      type: 'WARMUP',
+      scheduledAt: new Date('2026-03-15T10:00:00Z'),
+    },
+  })
+  warmupWorkoutId = warmupWorkout.id
 
   // Strength fixture: a workout with two prescribed movements (Back Squat,
   // RDL). The unique-name nonce dodges collisions with parallel test workers
@@ -197,13 +208,17 @@ async function runTests() {
   }
 
   {
-    // Empty value (no score, no movementResults) → 400 via the refine
-    const r = await api('POST', `/workouts/${amrapWorkoutId}/results`, userAToken, {
+    // Notes-only (no score, no movementResults) is valid for warmup/mobility
+    // workouts — the schema refine was removed in #423 to allow this.
+    const r = await api('POST', `/workouts/${warmupWorkoutId}/results`, userAToken, {
       level: 'RX',
       workoutGender: 'OPEN',
       value: { movementResults: [] },
+      notes: 'Did a 10-min mobility session',
     })
-    check('POST empty value → 400', 400, r.status)
+    check('POST WARMUP notes-only result → 201', 201, r.status)
+    const body = r.body as { result?: Record<string, unknown> }
+    check('POST WARMUP notes-only → result has notes', 'Did a 10-min mobility session', body.result?.notes)
   }
 
   {
@@ -405,7 +420,7 @@ async function teardown() {
   console.log('\n=== Teardown ===')
   await prisma.result.deleteMany({ where: { userId: { in: [userAId, userBId] } } })
   // workoutMovement rows cascade-delete with the workout
-  await prisma.workout.deleteMany({ where: { id: { in: [forTimeWorkoutId, amrapWorkoutId, strengthWorkoutId] } } })
+  await prisma.workout.deleteMany({ where: { id: { in: [forTimeWorkoutId, amrapWorkoutId, strengthWorkoutId, warmupWorkoutId] } } })
   await prisma.user.deleteMany({ where: { id: { in: [userAId, userBId] } } })
   console.log('  cleaned up')
 }

@@ -286,3 +286,83 @@ describe('LogResultDrawer — edit mode', () => {
     expect(FETCH_MOCK).not.toHaveBeenCalled()
   })
 })
+
+describe('LogResultDrawer — notes-only (WARMUP / MOBILITY / COOLDOWN)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  test('WARMUP workout shows notes hint and hides score + sets sections', () => {
+    const w = makeWorkout({ type: 'WARMUP', workoutMovements: [] })
+    render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.getByText(/This workout type doesn't have a structured score/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Reps$/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Min$/i)).not.toBeInTheDocument()
+  })
+
+  test('saving a WARMUP result with notes POSTs with empty movementResults and no score', async () => {
+    const w = makeWorkout({ type: 'WARMUP', workoutMovements: [] })
+    render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)
+
+    fireEvent.change(screen.getByPlaceholderText(/How'd it go/i), { target: { value: 'Did a 10-min mobility session' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Result' }))
+
+    await waitFor(() => expect(FETCH_MOCK).toHaveBeenCalledTimes(1))
+    const body = JSON.parse(FETCH_MOCK.mock.calls[0][1].body)
+    expect(body.value).toEqual({ movementResults: [] })
+    expect(body.notes).toBe('Did a 10-min mobility session')
+  })
+
+  test('saving a WARMUP result without notes also succeeds (empty-value result)', async () => {
+    const w = makeWorkout({ type: 'WARMUP', workoutMovements: [] })
+    render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Result' }))
+
+    await waitFor(() => expect(FETCH_MOCK).toHaveBeenCalledTimes(1))
+    const body = JSON.parse(FETCH_MOCK.mock.calls[0][1].body)
+    expect(body.value).toEqual({ movementResults: [] })
+    expect(body.notes).toBeUndefined()
+  })
+
+  test('FOR_TIME result still POSTs a TIME score', async () => {
+    const w = makeWorkout({ type: 'FOR_TIME' })
+    render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)
+
+    fireEvent.change(screen.getByLabelText(/^Min$/i), { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText(/^Sec$/i), { target: { value: '30' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Result' }))
+
+    await waitFor(() => expect(FETCH_MOCK).toHaveBeenCalledTimes(1))
+    const body = JSON.parse(FETCH_MOCK.mock.calls[0][1].body)
+    expect(body.value.score).toEqual({ kind: 'TIME', seconds: 630, cappedOut: false })
+  })
+
+  test('STRENGTH result with sets POSTs movementResults', async () => {
+    const w = makeWorkout({
+      type: 'POWER_LIFTING',
+      workoutMovements: [makeMovement('m-1', 'Back Squat', { sets: 1, reps: '5', load: 225, loadUnit: 'LB' })],
+    })
+    render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)
+
+    fireEvent.change(screen.getByLabelText(/Set 1 Load/i), { target: { value: '235' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Result' }))
+
+    await waitFor(() => expect(FETCH_MOCK).toHaveBeenCalledTimes(1))
+    const body = JSON.parse(FETCH_MOCK.mock.calls[0][1].body)
+    expect(body.value.movementResults[0].sets[0].load).toBe(235)
+    expect(body.value.score).toBeUndefined()
+  })
+
+  test('API error object does not crash React — shows fallback message', async () => {
+    FETCH_MOCK.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ error: { formErrors: [], fieldErrors: { value: ['some zod error'] } } }),
+    })
+
+    const w = makeWorkout({ type: 'FOR_TIME' })
+    render(<LogResultDrawer workout={w} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Save Result' }))
+
+    await waitFor(() => expect(screen.getByText('Failed to log result.')).toBeInTheDocument())
+  })
+})
