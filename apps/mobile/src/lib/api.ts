@@ -21,6 +21,10 @@ import type {
   MovementPrTable,
   MovementHistoryPage,
   BenchmarkResult,
+  BenchmarkSummaryEntry,
+  BenchmarkHistoryEntry,
+  BenchmarkHistoryData,
+  NamedWorkout,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -46,6 +50,10 @@ export type {
   MovementPrTable,
   MovementHistoryPage,
   BenchmarkResult,
+  BenchmarkSummaryEntry,
+  BenchmarkHistoryEntry,
+  BenchmarkHistoryData,
+  NamedWorkout,
 }
 export { AGE_DIVISIONS, deriveWorkoutGender, getAgeDivision } from '@wodalytics/types'
 
@@ -728,5 +736,30 @@ export const api = {
       request<MovementPrsData>(`/api/me/analytics/movements/${encodeURIComponent(movementId)}`),
     movementTrajectory: (movementId: string, prType: MovementPrType, range: '1M' | '3M' | '6M' | '1Y') =>
       request<MovementTrajectoryData>(`/api/me/analytics/movements/${encodeURIComponent(movementId)}/trajectory?prType=${prType}&range=${range}`),
+  },
+
+  benchmarks: {
+    list: () =>
+      request<BenchmarkSummaryEntry[]>('/api/me/benchmarks'),
+
+    history: (namedWorkoutId: string) =>
+      request<BenchmarkHistoryData>(`/api/me/benchmarks/${encodeURIComponent(namedWorkoutId)}`),
+
+    logResult: (namedWorkoutId: string, data: {
+      achievedAt: string
+      level: WorkoutLevel
+      workoutGender: WorkoutGender
+      value: object
+      notes?: string
+    }) =>
+      request<BenchmarkResult>(`/api/me/benchmarks/${encodeURIComponent(namedWorkoutId)}/results`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    deleteResult: (namedWorkoutId: string, resultId: string) =>
+      request<void>(`/api/me/benchmarks/${encodeURIComponent(namedWorkoutId)}/results/${resultId}`, {
+        method: 'DELETE',
+      }),
   },
 }
