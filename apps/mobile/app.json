@@ -8,6 +8,10 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,7 +19,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.wodalytics.app"
+      "bundleIdentifier": "com.wodalytics.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.wodalytics.app",
@@ -29,6 +36,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/PROJECT_ID_PLACEHOLDER"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "PROJECT_ID_PLACEHOLDER"
+      }
     }
   }
 }

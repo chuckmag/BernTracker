@@ -1,0 +1,54 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://qa.wodalytics.com"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://wodalytics.com"
+      }
+    }
+  },
+  "submit": {
+    "preview": {
+      "ios": {
+        "ascApiKeyIssuerId": "FILL_AFTER_SETUP",
+        "ascApiKeyId": "FILL_AFTER_SETUP",
+        "ascApiKeyPath": "./keys/AuthKey.p8"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./keys/google-play-service-account.json",
+        "track": "internal"
+      }
+    },
+    "production": {
+      "ios": {
+        "ascApiKeyIssuerId": "FILL_AFTER_SETUP",
+        "ascApiKeyId": "FILL_AFTER_SETUP",
+        "ascApiKeyPath": "./keys/AuthKey.p8"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./keys/google-play-service-account.json",
+        "track": "production"
+      }
+    }
+  }
+}
