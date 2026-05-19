@@ -77,6 +77,29 @@ Verify that a tracked issue or open PR exists for every surface this feature tou
 | Monorepo | npm workspaces + Turborepo |
 | Hosting | Railway |
 
+## Railway QA environment
+
+**Project:** WODalytics (`c218e9bc-d755-43de-a2b8-1f3e21b6c7e5`)
+**Environment:** qa (`4f09cfd1-d6a9-4061-a0fa-f2eab81e46fe`)
+
+| Service name | Service ID | What it is |
+|---|---|---|
+| WODalytics-API | `ffc25291-3c23-444a-b279-37f420f7638c` | Express API (apps/api) |
+| WODalytics-web | `8bb8eecf-cb41-4d71-b9f7-7a6c088dca25` | Vite web app + nginx reverse proxy (apps/web) |
+| WODalytics-DB | `a56c9848-42df-4b72-896f-1f147e82f91d` | Primary Postgres (app data) |
+| WODalytics-Auth | `bfe642c5-1cd9-4369-853b-c01e50ec6d4a` | Keycloak auth server (infra/keycloak) |
+| WODalytics-Auth-DB | `f79a42d3-35d2-47d6-93b3-0ecb561ab914` | Postgres for Keycloak only |
+| WODalytics-MCP | `b9e68a94-b6cc-47a3-9df3-7404ee7adc39` | MCP server (apps/mcp) |
+| Cron-CrossFit-Mainsite-WOD | `46549419-1ccc-4611-b68f-87824ddaf594` | CrossFit mainsite WOD ingestion job |
+| CRON-Named-Workout | `b53196bc-8833-4b13-8079-61c1ff120b56` | Named workout import job |
+
+**IDs to pass to Railway CLI/MCP tools:**
+```bash
+# Example: list variables on the API service
+railway variable list --project c218e9bc-d755-43de-a2b8-1f3e21b6c7e5 \
+  --environment qa --service ffc25291-3c23-444a-b279-37f420f7638c
+```
+
 ## Monorepo structure
 
 ```

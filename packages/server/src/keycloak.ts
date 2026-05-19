@@ -31,10 +31,15 @@ export function resetKeycloakJwksCache(): void {
  * Claude.ai) may not request the email scope. Services that need email to
  * provision a user (the API) must guard against null and return an appropriate
  * error; services that only need identity (the MCP server) can fall back to sub.
+ *
+ * `isWodalyticsAdmin` is true when the Keycloak `admin` realm role is present
+ * in the `realm_roles` claim (emitted by the `wodalytics:admin` scope mapper).
+ * It is always false for lightweight tokens (DCR clients) since realm roles are
+ * not surfaced via the UserInfo endpoint.
  */
 export type KeycloakClaims =
-  | { provisioned: true; userId: string; role: Role }
-  | { provisioned: false; sub: string; email: string | null; name: string | null }
+  | { provisioned: true; userId: string; role: Role; isWodalyticsAdmin: boolean }
+  | { provisioned: false; sub: string; email: string | null; name: string | null; isWodalyticsAdmin: boolean }
 
 // Keycloak 21+ creates DCR-registered clients with lightweight access tokens
 // enabled by default. Lightweight tokens omit sub (and custom claims) from the
@@ -91,11 +96,16 @@ export async function verifyKeycloakToken(token: string): Promise<KeycloakClaims
     clockTolerance: 60, // 60-second tolerance for clock skew between Railway and Keycloak
   })
 
+  // realm_roles is emitted by the wodalytics:admin scope's realm-roles mapper.
+  // Only users with the Keycloak 'admin' realm role will have it in the array.
+  const realmRoles = Array.isArray(payload['realm_roles']) ? (payload['realm_roles'] as string[]) : []
+  const isWodalyticsAdmin = realmRoles.includes('admin')
+
   // Fast path: provisioned token carries custom claims in the access token.
   const userId = payload['wodalytics_user_id']
   const role = payload['wodalytics_role']
   if (typeof userId === 'string' && typeof role === 'string') {
-    return { provisioned: true, userId, role: role as Role }
+    return { provisioned: true, userId, role: role as Role, isWodalyticsAdmin }
   }
 
   // Standard path: sub is present in the access token.
@@ -106,10 +116,12 @@ export async function verifyKeycloakToken(token: string): Promise<KeycloakClaims
       sub,
       email: typeof payload['email'] === 'string' ? payload['email'] : null,
       name: typeof payload['name'] === 'string' ? payload['name'] : null,
+      isWodalyticsAdmin,
     }
   }
 
   // Lightweight access token path: sub absent, fall back to UserInfo endpoint.
+  // realm_roles is not surfaced via UserInfo, so admin is always false on this path.
   const scopeStr = typeof payload['scope'] === 'string' ? payload['scope'] : ''
   const jti = payload.jti
   const exp = payload.exp
@@ -117,13 +129,14 @@ export async function verifyKeycloakToken(token: string): Promise<KeycloakClaims
     const info = await _fetchUserInfo(token, jti, exp)
     if (info) {
       if (typeof info.wodalyticsUserId === 'string' && typeof info.wodalyticsRole === 'string') {
-        return { provisioned: true, userId: info.wodalyticsUserId, role: info.wodalyticsRole as Role }
+        return { provisioned: true, userId: info.wodalyticsUserId, role: info.wodalyticsRole as Role, isWodalyticsAdmin: false }
       }
       return {
         provisioned: false,
         sub: info.sub,
         email: info.email ?? null,
         name: info.name ?? null,
+        isWodalyticsAdmin: false,
       }
     }
   }

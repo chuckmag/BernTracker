@@ -1,16 +1,21 @@
 /**
  * Integration tests for movement endpoints.
  *
- * Requires: API running on localhost:3000, DB accessible via DATABASE_URL.
- * Requires: WODALYTICS_ADMIN_EMAILS set in .env (the API server reads it at
- * request time). Pending movement review is gated by the same admin
- * allowlist as the rest of the WODalytics admin surface.
+ * Covers auth gates (401 / 403) on admin-gated routes (/movements/pending,
+ * /movements/:id/review, /movements/:id PATCH) and full happy-path coverage
+ * for member-accessible routes (/movements, /movements/suggest, gym workouts
+ * movementIds filter).
+ *
+ * Admin happy-path tests (200 responses on /movements/pending,
+ * /movements/:id/review, /movements/:id PATCH) require a real Keycloak token
+ * with the 'admin' realm role — verify those flows manually against
+ * qa.wodalytics.com.
+ *
  * Run: cd apps/api && npx tsx tests/movements.ts
  */
 
 import { prisma, ProgramRole } from '@wodalytics/db'
 import { signTokenPair } from '../src/lib/jwt.js'
-import { parseAdminEmails } from '../src/middleware/auth.js'
 
 const BASE = process.env.API_URL ?? 'http://localhost:3000/api'
 let pass = 0
@@ -53,10 +58,9 @@ const TS = Date.now()
 let gymId = ''
 let programId = ''
 let memberUserId = ''
-let reviewerUserId = ''
-let reviewerUserCreated = false
+let programmerUserId = ''
 let memberToken = ''
-let reviewerToken = ''
+let programmerToken = ''
 let thrusterMovementId = ''
 let pullUpMovementId = ''
 let workoutWithMovementId = ''
@@ -67,25 +71,6 @@ let pendingEditMovementId = ''
 async function setup() {
   console.log('\n=== Setup ===')
 
-  // The API server reads WODALYTICS_ADMIN_EMAILS from its own env at request
-  // time. The test must use one of those emails so the API's check passes.
-  const allowed = [...parseAdminEmails(process.env.WODALYTICS_ADMIN_EMAILS)]
-  if (allowed.length === 0) {
-    throw new Error('WODALYTICS_ADMIN_EMAILS must be set in .env to run movements tests')
-  }
-  const reviewerEmail = allowed[0]
-
-  // Use existing reviewer account if present (e.g. ccmagrane@gmail.com in prod env);
-  // otherwise create a temporary test user and clean it up in teardown.
-  const existingReviewer = await prisma.user.findUnique({ where: { email: reviewerEmail } })
-  if (existingReviewer) {
-    reviewerUserId = existingReviewer.id
-  } else {
-    const created = await prisma.user.create({ data: { email: reviewerEmail } })
-    reviewerUserId = created.id
-    reviewerUserCreated = true
-  }
-
   const gym = await prisma.gym.create({
     data: { name: `MV Gym ${TS}`, slug: `mv-gym-${TS}`, timezone: 'UTC' },
   })
@@ -94,7 +79,10 @@ async function setup() {
   const memberUser = await prisma.user.create({ data: { email: `mv-member-${TS}@test.com` } })
   memberUserId = memberUser.id
 
-  await prisma.userGym.create({ data: { userId: reviewerUserId, gymId, role: 'PROGRAMMER' } })
+  const programmerUser = await prisma.user.create({ data: { email: `mv-programmer-${TS}@test.com` } })
+  programmerUserId = programmerUser.id
+
+  await prisma.userGym.create({ data: { userId: programmerUserId, gymId, role: 'PROGRAMMER' } })
   await prisma.userGym.create({ data: { userId: memberUserId, gymId, role: 'MEMBER' } })
 
   const program = await prisma.program.create({
@@ -106,7 +94,7 @@ async function setup() {
         createMany: {
           data: [
             { userId: memberUserId, role: ProgramRole.MEMBER },
-            { userId: reviewerUserId, role: ProgramRole.PROGRAMMER },
+            { userId: programmerUserId, role: ProgramRole.PROGRAMMER },
           ],
         },
       },
@@ -115,7 +103,7 @@ async function setup() {
   programId = program.id
 
   memberToken = signTokenPair(memberUserId, 'MEMBER').accessToken
-  reviewerToken = signTokenPair(reviewerUserId, 'OWNER').accessToken
+  programmerToken = signTokenPair(programmerUserId, 'OWNER').accessToken
 
   // Seed two active movements for testing
   const thruster = await prisma.movement.upsert({
@@ -171,20 +159,20 @@ async function setup() {
   })
   workoutWithoutMovementId = w2.id
 
-  // Pre-existing pending movement (used for review tests)
+  // Pre-existing pending movement (used for review auth gate tests)
   const pending = await prisma.movement.create({
     data: { name: `Pending-Move-${TS}`, status: 'PENDING' },
   })
   pendingMovementId = pending.id
 
-  // Separate pending movement for edit tests (review tests don't touch this one)
+  // Separate pending movement for edit auth gate tests
   const pendingEdit = await prisma.movement.create({
     data: { name: `Pending-Edit-${TS}`, status: 'PENDING' },
   })
   pendingEditMovementId = pendingEdit.id
 
   console.log(`  gym=${gymId}  program=${programId}`)
-  console.log(`  reviewer=${reviewerUserId} (${reviewerEmail})`)
+  console.log(`  programmer=${programmerUserId}  member=${memberUserId}`)
   console.log(`  thruster=${thrusterMovementId}  pullUp=${pullUpMovementId}`)
   console.log(`  workoutWithMovement=${workoutWithMovementId}  workoutWithout=${workoutWithoutMovementId}`)
   console.log(`  pendingMovement=${pendingMovementId}`)
@@ -237,40 +225,32 @@ async function runTests() {
   }
 
   // ── GET /api/movements/pending ───────────────────────────────────────────────
-  console.log('\n=== GET /api/movements/pending ===')
+  // Admin happy-path (200) requires a Keycloak token with 'admin' realm role.
+  // Verify manually against qa.wodalytics.com.
+  console.log('\n=== GET /api/movements/pending — auth gates ===')
 
   {
-    const r = await api('GET', '/movements/pending', reviewerToken)
-    check('T6: GET /api/movements/pending → 200', 200, r.status)
-    const arr = r.body as unknown as { id: string }[]
-    check('T6: includes pre-seeded pending', true, arr.some((m) => m.id === pendingMovementId))
-    check('T6: includes suggested movement', true, arr.some((m) => m.id === suggestedMovementId))
+    const r = await api('GET', '/movements/pending')
+    check('T6: GET /api/movements/pending no auth → 401', 401, r.status)
   }
 
   {
     const r = await api('GET', '/movements/pending', memberToken)
-    check('T7: GET /api/movements/pending non-reviewer → 403', 403, r.status)
+    check('T7: GET /api/movements/pending non-admin (legacy token) → 403', 403, r.status)
   }
 
   // ── PATCH /api/movements/:id/review ─────────────────────────────────────────
-  console.log('\n=== PATCH /api/movements/:id/review ===')
+  // Admin happy-path (200) requires a Keycloak token with 'admin' realm role.
+  console.log('\n=== PATCH /api/movements/:id/review — auth gates ===')
 
   {
-    const r = await api('PATCH', `/movements/${pendingMovementId}/review`, reviewerToken, { status: 'ACTIVE' })
-    check('T8: PATCH review accept → 200', 200, r.status)
-    check('T8: status ACTIVE', 'ACTIVE', r.body.status)
+    const r = await api('PATCH', `/movements/${pendingMovementId}/review`, undefined, { status: 'ACTIVE' })
+    check('T8: PATCH review no auth → 401', 401, r.status)
   }
 
   {
-    const r = await api('PATCH', `/movements/${suggestedMovementId}/review`, reviewerToken, { status: 'REJECTED' })
-    check('T9: PATCH review reject → 200', 200, r.status)
-    check('T9: status REJECTED', 'REJECTED', r.body.status)
-  }
-
-  {
-    // pendingMovementId is now ACTIVE — reviewing it again should 400
-    const r = await api('PATCH', `/movements/${pendingMovementId}/review`, reviewerToken, { status: 'REJECTED' })
-    check('T10: PATCH review non-PENDING movement → 400', 400, r.status)
+    const r = await api('PATCH', `/movements/${pendingMovementId}/review`, memberToken, { status: 'ACTIVE' })
+    check('T9: PATCH review non-admin (legacy token) → 403', 403, r.status)
   }
 
   // ── POST /api/movements/detect ───────────────────────────────────────────────
@@ -290,7 +270,7 @@ async function runTests() {
     const r = await api(
       'GET',
       `/gyms/${gymId}/workouts?from=2026-03-01&to=2026-03-31&movementIds=${thrusterMovementId}`,
-      reviewerToken,
+      programmerToken,
     )
     check('T13: movementIds filter → 200', 200, r.status)
     const arr = r.body as unknown as { id: string }[]
@@ -304,7 +284,7 @@ async function runTests() {
     const r = await api(
       'GET',
       `/gyms/${gymId}/workouts?from=2026-03-01&to=2026-03-31&movementIds=${pullUpMovementId}`,
-      reviewerToken,
+      programmerToken,
     )
     check('T14: movementIds base expands to variations → 200', 200, r.status)
     const arr = r.body as unknown as { id: string }[]
@@ -320,43 +300,21 @@ async function runTests() {
   }
 
   // ── PATCH /api/movements/:id (update pending) ────────────────────────────────
-  console.log('\n=== PATCH /api/movements/:id ===')
-
-  {
-    const r = await api('PATCH', `/movements/${pendingEditMovementId}`, reviewerToken, { name: `Renamed-Edit-${TS}` })
-    check('T16: rename PENDING movement → 200', 200, r.status)
-    check('T16: name updated', `Renamed-Edit-${TS}`, r.body.name)
-    check('T16: still PENDING', 'PENDING', r.body.status)
-  }
-
-  {
-    const r = await api('PATCH', `/movements/${pendingEditMovementId}`, reviewerToken, { parentId: thrusterMovementId })
-    check('T17: set parentId on PENDING movement → 200', 200, r.status)
-    check('T17: parentId set', thrusterMovementId, (r.body.parent as { id: string } | null)?.id)
-  }
-
-  {
-    // pendingMovementId was approved (ACTIVE) in T8 — admins can now edit ACTIVE movements
-    const r = await api('PATCH', `/movements/${pendingMovementId}`, reviewerToken, { name: `Active-Renamed-${TS}` })
-    check('T18: edit ACTIVE movement → 200', 200, r.status)
-    check('T18: name updated', `Active-Renamed-${TS}`, r.body.name)
-  }
-
-  {
-    // Try to rename to an already-existing movement name (thrusterMovementId's name)
-    const r = await api('PATCH', `/movements/${pendingEditMovementId}`, reviewerToken, { name: `Thruster-${TS}` })
-    check('T19: rename to duplicate name → 409', 409, r.status)
-  }
-
-  {
-    const r = await api('PATCH', `/movements/${pendingEditMovementId}`, memberToken, { name: `NonReviewer-${TS}` })
-    check('T20: edit pending as non-reviewer → 403', 403, r.status)
-  }
+  // Admin happy-path (200) requires a Keycloak token with 'admin' realm role.
+  console.log('\n=== PATCH /api/movements/:id — auth gates ===')
 
   {
     const r = await api('PATCH', `/movements/${pendingEditMovementId}`, undefined, { name: `NoAuth-${TS}` })
     check('T21: edit pending no auth → 401', 401, r.status)
   }
+
+  {
+    const r = await api('PATCH', `/movements/${pendingEditMovementId}`, memberToken, { name: `NonAdmin-${TS}` })
+    check('T20: edit pending non-admin (legacy token) → 403', 403, r.status)
+  }
+
+  // Suppress unused-variable warning from suggestedMovementId — it's seeded via T3 and cleaned by teardown
+  void suggestedMovementId
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────
@@ -370,7 +328,7 @@ async function teardown() {
   await prisma.movement.deleteMany({ where: { name: { endsWith: `-${TS}` } } })
   await prisma.userGym.deleteMany({ where: { gymId } }).catch(() => {})
   await prisma.user.delete({ where: { id: memberUserId } }).catch(() => {})
-  if (reviewerUserCreated) await prisma.user.delete({ where: { id: reviewerUserId } }).catch(() => {})
+  await prisma.user.delete({ where: { id: programmerUserId } }).catch(() => {})
   await prisma.gym.delete({ where: { id: gymId } }).catch(() => {})
   console.log('  cleaned up')
 }

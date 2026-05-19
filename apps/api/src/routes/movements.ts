@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
-import { requireAuth, requireWodalyticsAdmin, isWodalyticsAdminById } from '../middleware/auth.js'
+import { requireAuth, requireWodalyticsAdmin } from '../middleware/auth.js'
 import {
   findAllActiveMovements,
   findLibraryMovementsForAdmin,
@@ -32,7 +32,7 @@ export default router
 
 async function getMovements(req: Request, res: Response) {
   if (req.query.view === 'library') {
-    const isAdmin = await isWodalyticsAdminById(req.user!.id)
+    const isAdmin = req.user?.isWodalyticsAdmin ?? false
     if (!isAdmin) return res.status(403).json({ error: 'Forbidden' })
     const movements = await findLibraryMovementsForAdmin()
     return res.json(movements)

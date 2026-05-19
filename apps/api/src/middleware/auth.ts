@@ -66,14 +66,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     if (iss === process.env.KEYCLOAK_ISSUER_URL) {
       const claims = await verifyKeycloakToken(token)
       if (claims.provisioned) {
-        req.user = { id: claims.userId, role: claims.role }
+        req.user = { id: claims.userId, role: claims.role, isWodalyticsAdmin: claims.isWodalyticsAdmin }
       } else {
         const user = await findOrCreateKeycloakUser(claims)
-        req.user = { id: user.id, role: user.role }
+        req.user = { id: user.id, role: user.role, isWodalyticsAdmin: claims.isWodalyticsAdmin }
       }
     } else {
       const { sub, role } = verifyAccessToken(token)
-      req.user = { id: sub, role }
+      req.user = { id: sub, role, isWodalyticsAdmin: false }
     }
     next()
   } catch (err) {
@@ -93,41 +93,11 @@ export function requireRole(...roles: Role[]) {
   }
 }
 
-// Parses WODALYTICS_ADMIN_EMAILS (comma-separated) into a Set of trimmed,
-// lower-cased emails. Empty / unset env → empty Set, which makes every
-// requireWodalyticsAdmin call deny by default (intended).
-export function parseAdminEmails(raw: string | undefined): Set<string> {
-  if (!raw) return new Set()
-  return new Set(
-    raw
-      .split(',')
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean),
-  )
-}
-
-export function isAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false
-  const allowed = parseAdminEmails(process.env.WODALYTICS_ADMIN_EMAILS)
-  return allowed.has(email.toLowerCase())
-}
-
-export async function isWodalyticsAdminById(userId: string): Promise<boolean> {
-  const allowed = parseAdminEmails(process.env.WODALYTICS_ADMIN_EMAILS)
-  if (allowed.size === 0) return false
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
-  return Boolean(user?.email && allowed.has(user.email.toLowerCase()))
-}
-
-export async function requireWodalyticsAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const allowed = parseAdminEmails(process.env.WODALYTICS_ADMIN_EMAILS)
-  if (allowed.size === 0) {
-    log.warning(req, `requireWodalyticsAdmin: WODALYTICS_ADMIN_EMAILS not set — ${req.method} ${req.path}`)
-    res.status(403).json({ error: 'Forbidden' })
-    return
-  }
-  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { email: true } })
-  if (!user?.email || !allowed.has(user.email.toLowerCase())) {
+// Admin status comes from the Keycloak 'admin' realm role surfaced via the
+// wodalytics:admin scope's realm-roles protocol mapper. Legacy JWT tokens are
+// always non-admin (isWodalyticsAdmin: false).
+export function requireWodalyticsAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user?.isWodalyticsAdmin) {
     log.warning(req, `requireWodalyticsAdmin: access denied — ${req.method} ${req.path} — userId=${req.user?.id}`)
     res.status(403).json({ error: 'Forbidden' })
     return

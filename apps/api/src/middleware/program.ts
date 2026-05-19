@@ -1,8 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import type { Role } from '@wodalytics/db'
-import { prisma } from '@wodalytics/db'
 import { findProgramWithGymIds, findGymMembershipByUserAndGym } from '@wodalytics/db'
-import { isAdminEmail } from './auth.js'
 import { createLogger } from '@wodalytics/server'
 
 const log = createLogger('program')
@@ -20,19 +18,14 @@ async function loadProgramAndUserRoles(
     return null
   }
 
-  // Fetch program and user email in parallel. The email is needed to check
-  // admin status before we decide whether to enforce the gym-membership gate.
-  const [program, userRow] = await Promise.all([
-    findProgramWithGymIds(programId),
-    prisma.user.findUnique({ where: { id: userId }, select: { email: true } }),
-  ])
+  const isAdmin = req.user?.isWodalyticsAdmin ?? false
+  const program = await findProgramWithGymIds(programId)
 
   if (!program) {
     res.status(404).json({ error: 'Program not found' })
     return null
   }
 
-  const isAdmin = isAdminEmail(userRow?.email)
   const gymIds = program.gyms.map((g) => g.gymId)
 
   // Unaffiliated programs (gymIds empty) are only accessible to WODalytics
