@@ -15,10 +15,11 @@ import HistoryScreen from './src/screens/HistoryScreen'
 import LogResultScreen from './src/screens/LogResultScreen'
 import WorkoutEditorScreen from './src/screens/WorkoutEditorScreen'
 import AnalyticsScreen from './src/screens/AnalyticsScreen'
+import MovementDetailScreen from './src/screens/MovementDetailScreen'
 import ResultDetailScreen from './src/screens/ResultDetailScreen'
 import UserProfileScreen from './src/screens/UserProfileScreen'
 import WodResultDetailScreen from './src/screens/WodResultDetailScreen'
-import type { LeaderboardEntry } from './src/lib/api'
+import type { LeaderboardEntry, MovementPrType } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ export type MainTabParamList = {
 
 export type AnalyticsStackParamList = {
   Analytics: undefined
+  MovementDetail: { movementId: string; name: string; prTypes: MovementPrType[] }
 }
 
 export type HomeStackParamList = {
@@ -123,6 +125,11 @@ function AnalyticsStackNavigator() {
             </View>
           ),
         }}
+      />
+      <AnalyticsStack.Screen
+        name="MovementDetail"
+        component={MovementDetailScreen}
+        options={({ route }) => ({ title: route.params.name })}
       />
     </AnalyticsStack.Navigator>
   )

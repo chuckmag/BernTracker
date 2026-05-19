@@ -373,6 +373,36 @@ export interface StrengthTrajectoryData {
   points: StrengthTrajectoryPoint[]
 }
 
+export type MovementDisplayGroup = 'strength' | 'monostructural' | 'gymnastics'
+
+export type MovementPrimaryPR =
+  | { type: 'LOAD'; reps: number; load: number; loadUnit: string; achievedAt: string }
+  | { type: 'MAX_REPS'; maxReps: number; achievedAt: string }
+  | { type: 'TIME'; distance: number; distanceUnit: string; seconds: number; achievedAt: string }
+  | { type: 'DISTANCE'; seconds: number; distance: number; distanceUnit: string; achievedAt: string }
+  | { type: 'CALORIES'; seconds: number; calories: number; achievedAt: string }
+
+export interface MovementSummaryEntry {
+  movementId: string
+  name: string
+  prTypes: MovementPrType[]
+  primaryPR: MovementPrimaryPR | null
+  lastLoggedAt: string
+}
+
+export type MovementsAnalyticsData = Record<MovementDisplayGroup, MovementSummaryEntry[]>
+
+export interface MovementPrsData {
+  movement: { id: string; name: string; category: string; prTypes: MovementPrType[] }
+  byType: Record<string, { entries: unknown[] }>
+  recentAppearances: { workoutId: string; workoutName: string; scheduledAt: string }[]
+}
+
+export interface MovementTrajectoryData {
+  prType: MovementPrType
+  points: { achievedAt: string; value: number; label: string }[]
+}
+
 // ── Token storage ────────────────────────────────────────────────────────────
 
 export async function storeTokens(accessToken: string, refreshToken: string) {
@@ -692,5 +722,11 @@ export const api = {
       request<TrackedMovement[]>(`/api/me/analytics/tracked-movements?days=${days}&limit=${limit}`),
     strengthTrajectory: (movementId: string, range: '1M' | '3M' | '6M' | '1Y') =>
       request<StrengthTrajectoryData>(`/api/me/analytics/strength-trajectory?movementId=${encodeURIComponent(movementId)}&range=${range}`),
+    movements: () =>
+      request<MovementsAnalyticsData>('/api/me/analytics/movements'),
+    movementPrs: (movementId: string) =>
+      request<MovementPrsData>(`/api/me/analytics/movements/${encodeURIComponent(movementId)}`),
+    movementTrajectory: (movementId: string, prType: MovementPrType, range: '1M' | '3M' | '6M' | '1Y') =>
+      request<MovementTrajectoryData>(`/api/me/analytics/movements/${encodeURIComponent(movementId)}/trajectory?prType=${prType}&range=${range}`),
   },
 }
