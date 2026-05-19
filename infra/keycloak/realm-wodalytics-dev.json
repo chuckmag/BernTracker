@@ -9,7 +9,18 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
+  "verifyEmail": false,
   "bruteForceProtected": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "WODalytics admin. Should be reserved for @wodalytics.com people.",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
   "accessTokenLifespan": 900,
   "ssoSessionIdleTimeout": 604800,
   "ssoSessionMaxLifespan": 604800,
@@ -132,6 +143,32 @@
         "display.on.consent.screen": "true",
         "consent.screen.text": "Create workouts in your personal program"
       }
+    },
+    {
+      "name": "wodalytics:admin",
+      "description": "Admin access to WODalytics settings",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "This allows access to modifying settings for all users and gyms in WODalytics."
+      },
+      "protocolMappers": [
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "realm_roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
     }
   ],
   "clients": [
@@ -160,7 +197,8 @@
         "*"
       ],
       "defaultClientScopes": [
-        "wodalytics-claims"
+        "wodalytics-claims",
+        "wodalytics:admin"
       ],
       "optionalClientScopes": [
         "offline_access"
@@ -184,11 +222,11 @@
       ],
       "webOrigins": [],
       "defaultClientScopes": [
-        "wodalytics-claims"
-      ],
-      "optionalClientScopes": [
+        "wodalytics-claims",
+        "wodalytics:admin",
         "offline_access"
-      ]
+      ],
+      "optionalClientScopes": []
     },
     {
       "clientId": "wodalytics-mcp",
