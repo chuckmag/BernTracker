@@ -181,15 +181,6 @@ export default function LogResultDrawer({ workout, existingResult, plan, onClose
       if (!built.ok) return built
       score = built.score
     }
-    if (mode === 'notes-only' && !notes.trim()) {
-      // Notes-only types need at least *something* to record, but the
-      // schema's refine rejects an empty value. Synthesize a zero-rep score
-      // so the row is queryable.
-      score = { kind: 'REPS', reps: 0 }
-    }
-    if (!score && movementResults.length === 0) {
-      return { ok: false, error: 'Enter a score or at least one set.' }
-    }
     return {
       ok: true,
       value: {

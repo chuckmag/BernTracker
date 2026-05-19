@@ -84,18 +84,13 @@ export const ScoreSchema = z.discriminatedUnion('kind', [
 
 // ─── Top-level value ──────────────────────────────────────────────────────────
 
-// Stored as JSON in `Result.value`. Both fields are optional so callers can
-// log Strength-only (movementResults only), Metcon-only (score only), or
-// mixed. The API rejects rows with neither field populated.
-export const ResultValueSchema = z
-  .object({
-    score:           ScoreSchema.optional(),
-    movementResults: z.array(MovementResultSchema).default([]),
-  })
-  .refine(
-    (v) => v.score !== undefined || (v.movementResults && v.movementResults.length > 0),
-    { message: 'Result must include either a score or at least one movement result' },
-  )
+// Stored as JSON in `Result.value`. All fields are optional — callers can
+// log Strength-only (movementResults only), Metcon-only (score only), mixed,
+// or notes-only (neither field populated, e.g. warmup/mobility workouts).
+export const ResultValueSchema = z.object({
+  score:           ScoreSchema.optional(),
+  movementResults: z.array(MovementResultSchema).default([]),
+})
 
 export type SetEntry       = z.infer<typeof SetEntrySchema>
 export type MovementResult = z.infer<typeof MovementResultSchema>
