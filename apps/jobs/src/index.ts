@@ -26,9 +26,11 @@ const JOBS: Record<string, JobHandler> = {
   // seed-crossfit-movements has populated the catalog. Idempotent.
   'dedupe-legacy-movements': async () => { await runDedupeLegacyMovementsJob() },
   // Weekly cron — ingests Hero WODs from crossfit.com/heroes (HTML) and
-  // Girls WODs + Benchmarks from the WODwell REST API. Idempotent: skips
-  // any name already in the NamedWorkout catalog.
+  // Girls WODs + Benchmarks from the WODwell REST API. Upserts every entry.
   'named-workouts': () => runNamedWorkoutsJob(),
+  // Isolated phase variants — useful for local testing and one-off re-runs.
+  'named-workouts-wodwell': () => runNamedWorkoutsJob({ phases: ['wodwell-girls', 'wodwell-benchmarks'] }),
+  'named-workouts-crossfit': () => runNamedWorkoutsJob({ phases: ['crossfit-heroes'] }),
 }
 
 // Returns the host (and db name) from a postgres URL without exposing
