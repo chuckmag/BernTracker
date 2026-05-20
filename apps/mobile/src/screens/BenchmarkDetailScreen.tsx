@@ -78,12 +78,14 @@ function formatDate(iso: string): string {
   })
 }
 
+// Benchmarks span years, so the chart x-axis needs the year. Use ISO-ish
+// YYYY/MM/DD so a 2018 attempt is unambiguously distinguishable from 2026.
 function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  })
+  const d = new Date(iso)
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}/${m}/${day}`
 }
 
 // ── Trend chart ───────────────────────────────────────────────────────────────
@@ -139,19 +141,25 @@ function TrendChart({ entries, scoreKind }: TrendChartProps) {
           return <Line key={t} x1={PAD.left} y1={y} x2={CHART_W - PAD.right} y2={y} stroke={gridColor} strokeWidth={1} />
         })}
 
-        {/* x-axis labels */}
-        {scored.map((e, i) => (
-          <SvgText
-            key={i}
-            x={xOf(i)}
-            y={CHART_H - 4}
-            fontSize={9}
-            fill={tickColor}
-            textAnchor="middle"
-          >
-            {shortDate(e.achievedAt)}
-          </SvgText>
-        ))}
+        {/* x-axis labels — anchor edge labels so YYYY/MM/DD stays inside the canvas */}
+        {scored.map((e, i) => {
+          const anchor =
+            i === 0 ? 'start'
+            : i === scored.length - 1 ? 'end'
+            : 'middle'
+          return (
+            <SvgText
+              key={i}
+              x={xOf(i)}
+              y={CHART_H - 4}
+              fontSize={9}
+              fill={tickColor}
+              textAnchor={anchor}
+            >
+              {shortDate(e.achievedAt)}
+            </SvgText>
+          )
+        })}
 
         {/* line */}
         <Polyline points={points} fill="none" stroke={lineColor} strokeWidth={2} />
