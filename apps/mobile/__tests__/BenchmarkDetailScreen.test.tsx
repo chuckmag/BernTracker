@@ -175,6 +175,49 @@ describe('BenchmarkDetailScreen', () => {
     expect(await findByText('First attempt')).toBeTruthy()
   })
 
+  test('Best score is the fastest TIME, not the most recent (regression — was showing latest)', async () => {
+    // Latest result (by date) is the SLOWEST time. The Best label must surface the fastest time.
+    const heroHistory = {
+      namedWorkout: { ...sampleEntry, templateWorkout: null },
+      history: [
+        // Most recent — slowest (52:00 = 3120 sec)
+        { source: 'manual' as const, id: 'h-3', achievedAt: '2026-05-10T00:00:00Z', level: 'RX' as const, workoutGender: 'MALE' as const, value: {}, notes: null, primaryScoreKind: 'TIME', primaryScoreValue: 3120, createdAt: '2026-05-10T00:00:00Z' },
+        // Middle — fastest (44:00 = 2640 sec)
+        { source: 'manual' as const, id: 'h-2', achievedAt: '2026-03-15T00:00:00Z', level: 'RX' as const, workoutGender: 'MALE' as const, value: {}, notes: null, primaryScoreKind: 'TIME', primaryScoreValue: 2640, createdAt: '2026-03-15T00:00:00Z' },
+        // Oldest — middle (48:00 = 2880 sec)
+        { source: 'manual' as const, id: 'h-1', achievedAt: '2026-01-15T00:00:00Z', level: 'SCALED' as const, workoutGender: 'MALE' as const, value: {}, notes: null, primaryScoreKind: 'TIME', primaryScoreValue: 2880, createdAt: '2026-01-15T00:00:00Z' },
+      ],
+    }
+    ;(api.benchmarks.history as jest.Mock).mockResolvedValue(heroHistory)
+    const heroEntry = { ...sampleEntry, name: 'Murph', category: 'HERO_WOD' as const, templateWorkout: null }
+
+    const { findByText, queryByText } = render(
+      <BenchmarkDetailScreen route={makeRoute(heroEntry as any)} navigation={makeNavigation()} />,
+    )
+
+    expect(await findByText('Best: 44:00')).toBeTruthy()
+    expect(queryByText('Best: 52:00')).toBeNull()
+  })
+
+  test('History rows render TIME scores even when templateWorkout is null (regression — was rendering "—")', async () => {
+    const heroHistory = {
+      namedWorkout: { ...sampleEntry, templateWorkout: null },
+      history: [
+        { source: 'manual' as const, id: 'h-1', achievedAt: '2026-03-15T00:00:00Z', level: 'RX' as const, workoutGender: 'MALE' as const, value: {}, notes: null, primaryScoreKind: 'TIME', primaryScoreValue: 2640, createdAt: '2026-03-15T00:00:00Z' },
+        { source: 'manual' as const, id: 'h-2', achievedAt: '2026-01-15T00:00:00Z', level: 'RX' as const, workoutGender: 'MALE' as const, value: {}, notes: null, primaryScoreKind: 'TIME', primaryScoreValue: 3120, createdAt: '2026-01-15T00:00:00Z' },
+      ],
+    }
+    ;(api.benchmarks.history as jest.Mock).mockResolvedValue(heroHistory)
+    const heroEntry = { ...sampleEntry, name: 'Murph', category: 'HERO_WOD' as const, templateWorkout: null }
+
+    const { findByText } = render(
+      <BenchmarkDetailScreen route={makeRoute(heroEntry as any)} navigation={makeNavigation()} />,
+    )
+
+    expect(await findByText('44:00')).toBeTruthy()
+    expect(await findByText('52:00')).toBeTruthy()
+  })
+
   test('shows empty state when history is empty', async () => {
     ;(api.benchmarks.history as jest.Mock).mockResolvedValue({ namedWorkout: sampleEntry, history: [] })
     const { findByText } = render(

@@ -455,7 +455,9 @@ interface HistoryRowProps {
 }
 
 function HistoryRow({ item, scoreKind, colors, onDelete }: HistoryRowProps) {
-  const scoreText = formatScore(scoreKind, item.primaryScoreValue)
+  // Always prefer the result's own primaryScoreKind — the server sets it per result.
+  // Fall back to the parent's derived kind only if the result has none.
+  const scoreText = formatScore(item.primaryScoreKind ?? scoreKind, item.primaryScoreValue)
   const levelColor = item.level === 'RX' ? '#818cf8' : item.level === 'RX_PLUS' ? '#a78bfa' : '#6b7280'
 
   function confirmDelete() {
@@ -497,10 +499,6 @@ export default function BenchmarkDetailScreen({ route }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [modalVisible, setModalVisible] = useState(false)
 
-  const scoreKind = entry.templateWorkout
-    ? deriveScoreKind(entry.templateWorkout.type)
-    : null
-
   async function loadHistory() {
     setError(null)
     try {
@@ -537,8 +535,18 @@ export default function BenchmarkDetailScreen({ route }: Props) {
   }
 
   const history = historyData?.history ?? []
-  const latestScore = history[0]
-    ? formatScore(history[0].primaryScoreKind, history[0].primaryScoreValue)
+
+  // Score kind comes from the actual logged results (server-set, per-result).
+  // Fall back to the template workout's mapped kind only if no history exists yet —
+  // many benchmarks have a null templateWorkout, so we cannot rely on it alone.
+  const scoreKind =
+    history.find((h) => h.primaryScoreKind != null)?.primaryScoreKind
+    ?? (entry.templateWorkout ? deriveScoreKind(entry.templateWorkout.type) : null)
+
+  // "Best" depends on the score kind: TIME is lower-is-better; everything else is higher-is-better.
+  const bestEntry = pickBest(history, scoreKind)
+  const bestScoreText = bestEntry
+    ? formatScore(bestEntry.primaryScoreKind ?? scoreKind, bestEntry.primaryScoreValue)
     : null
 
   return (
@@ -558,8 +566,8 @@ export default function BenchmarkDetailScreen({ route }: Props) {
             {entry.templateWorkout.type.replace(/_/g, ' ')}
           </Text>
         ) : null}
-        {latestScore && (
-          <Text style={[s.bestScore, { color: colors.accent }]}>Best: {latestScore}</Text>
+        {bestScoreText && (
+          <Text style={[s.bestScore, { color: colors.accent }]}>Best: {bestScoreText}</Text>
         )}
       </View>
 
@@ -646,6 +654,26 @@ export default function BenchmarkDetailScreen({ route }: Props) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Returns the "best" history entry per scoreKind:
+//   TIME → lowest seconds (fastest); everything else → highest value.
+// Entries with no primaryScoreValue are skipped. Ties are broken in favor of the
+// most recent achievedAt so the header reflects the user's latest PR achievement.
+function pickBest(
+  history: BenchmarkHistoryEntry[],
+  scoreKind: string | null,
+): BenchmarkHistoryEntry | null {
+  const scored = history.filter((h) => h.primaryScoreValue != null)
+  if (scored.length === 0) return null
+  const lowerIsBetter = scoreKind === 'TIME'
+  return scored.reduce((best, cur) => {
+    const a = cur.primaryScoreValue as number
+    const b = best.primaryScoreValue as number
+    if (a === b) return new Date(cur.achievedAt) > new Date(best.achievedAt) ? cur : best
+    if (lowerIsBetter) return a < b ? cur : best
+    return a > b ? cur : best
+  })
+}
 
 function deriveScoreKind(workoutType: string): string | null {
   if (['AMRAP', 'EMOM', 'METCON', 'TABATA', 'INTERVALS', 'LADDER', 'DEATH_BY'].includes(workoutType)) {
