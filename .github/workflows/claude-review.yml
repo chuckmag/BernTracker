@@ -47,10 +47,18 @@ jobs:
           set -euo pipefail
           lines=$(gh pr diff "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" | wc -l | tr -d ' ')
           echo "lines=$lines" >> "$GITHUB_OUTPUT"
+          # Compare as integers in bash — GitHub Actions `if:` expressions compare
+          # outputs/env as strings (e.g. "313" > "2000" is true lexically), so the
+          # over/under decision must be made here and exposed as a boolean output.
+          if [ "$lines" -gt "$SIZE_LIMIT_LINES" ]; then
+            echo "over_limit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "over_limit=false" >> "$GITHUB_OUTPUT"
+          fi
           echo "PR diff is $lines lines (limit: $SIZE_LIMIT_LINES)"
 
       - name: Skip + comment if PR exceeds size limit
-        if: steps.size.outputs.lines > env.SIZE_LIMIT_LINES
+        if: steps.size.outputs.over_limit == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -75,7 +83,7 @@ jobs:
           fi
 
       - name: Run Claude review
-        if: steps.size.outputs.lines <= env.SIZE_LIMIT_LINES
+        if: steps.size.outputs.over_limit == 'false'
         uses: anthropics/claude-code-action@1dc994ee7a008f0ecc866d9ac23ef036b7229f84  # v1 (resolved 2026-05-20)
         with:
           # Auth: uses the repo owner's Claude Max/Pro subscription via OAuth.
