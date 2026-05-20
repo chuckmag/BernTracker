@@ -206,13 +206,19 @@ enum WorkoutImportStatus {
   FAILED
 }
 
-// Personal goals set by a member. Two shapes are supported in v1:
+// Personal goals set by a member. Three shapes:
 //   PR_TARGET — hit a target PR on a Movement or a NamedWorkout (benchmark).
 //   FREQUENCY — log N workouts per week for M weeks (rolling window).
-// v2 adds HABIT for open-ended goals with manual check-ins.
+//   HABIT     — open-ended habit (e.g. "avoid added sugars"). v1 supports
+//               creating habit goals so the goal feels real on the
+//               dashboard, but check-in recording (the manual tap that
+//               registers progress) lands in v2 alongside the GoalCheckIn
+//               table. Until then a habit goal is title + optional target
+//               date with no progress affordance.
 enum GoalType {
   PR_TARGET
   FREQUENCY
+  HABIT
 }
 
 // Lifecycle of a Goal.
@@ -768,7 +774,7 @@ model UserWorkoutPlan {
 
 // ─── Goals ────────────────────────────────────────────────────────────────────
 
-// A member's personal goal. Two shapes in v1:
+// A member's personal goal. Three shapes:
 //
 // PR_TARGET — chase a target PR on a Movement (e.g. "Back Squat 1RM 315 lb")
 //   OR a NamedWorkout benchmark (e.g. "Fran sub-4:00"). Exactly one of
@@ -785,11 +791,17 @@ model UserWorkoutPlan {
 //   if null. Progress is derived at read time from Result row counts in
 //   the rolling window; no separate progress table.
 //
+// HABIT — open-ended habit (e.g. "avoid added sugars"). In v1 the row
+//   stores only `title` + optional `targetDate`; every PR_TARGET and
+//   FREQUENCY column stays null. The goal renders on the dashboard but
+//   has no progress affordance until v2 adds a GoalCheckIn sibling table
+//   for the manual tap that registers a check-in. Completion is manual
+//   (user marks status=COMPLETED) — there is no auto-detection.
+//
 // Cross-type invariants (enforced at the API layer via Zod, not in the DB):
 //   - PR_TARGET ⇒ XOR(movementId, namedWorkoutId), targetPrType + targetValue set.
 //   - FREQUENCY ⇒ frequencyPerWeek + frequencyWeeks set.
-//
-// v2 will add HABIT (open-ended, manual check-in via a sibling table).
+//   - HABIT     ⇒ all PR_TARGET / FREQUENCY columns null.
 model Goal {
   id         String     @id @default(cuid())
   userId     String
