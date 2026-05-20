@@ -88,30 +88,6 @@ function BenchmarkCard({ entry, onSelect }: CardProps) {
   )
 }
 
-// ─── Category section ─────────────────────────────────────────────────────────
-
-interface SectionProps {
-  category: WorkoutCategory
-  entries: BenchmarkSummaryEntry[]
-  onSelect: (entry: BenchmarkSummaryEntry) => void
-}
-
-function CategorySection({ category, entries, onSelect }: SectionProps) {
-  if (entries.length === 0) return null
-  return (
-    <section>
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400 mb-3">
-        {CATEGORY_LABELS[category]}
-      </h2>
-      <div className="space-y-2">
-        {entries.map((e) => (
-          <BenchmarkCard key={e.id} entry={e} onSelect={onSelect} />
-        ))}
-      </div>
-    </section>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BenchmarksPage() {
@@ -120,6 +96,7 @@ export default function BenchmarksPage() {
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<BenchmarkSummaryEntry | null>(null)
   const [query, setQuery] = useState('')
+  const [activeCategory, setActiveCategory] = useState<WorkoutCategory>('GIRL_WOD')
 
   useEffect(() => {
     api.me.benchmarks
@@ -179,6 +156,7 @@ export default function BenchmarksPage() {
     )
   }
 
+  const activeEntries = grouped ? grouped[activeCategory] : []
   const totalFiltered = grouped
     ? CATEGORY_ORDER.reduce((sum, cat) => sum + grouped[cat].length, 0)
     : 0
@@ -194,19 +172,49 @@ export default function BenchmarksPage() {
         className="w-full rounded-lg border border-slate-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 dark:focus-visible:ring-offset-gray-950"
       />
 
+      <div className="border-b border-slate-200 dark:border-gray-800">
+        <nav className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Benchmark category">
+          {CATEGORY_ORDER.map((cat) => {
+            const count = grouped ? grouped[cat].length : 0
+            const isActive = cat === activeCategory
+            return (
+              <button
+                key={cat}
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveCategory(cat)}
+                className={[
+                  'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2 whitespace-nowrap',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950',
+                  isActive
+                    ? 'border-primary text-slate-950 dark:text-white'
+                    : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-950 dark:hover:text-white',
+                ].join(' ')}
+              >
+                <span>{CATEGORY_LABELS[cat]}</span>
+                {count > 0 && (
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-500 dark:text-gray-400">
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </nav>
+      </div>
+
       {query && totalFiltered === 0 ? (
         <p className="text-sm text-slate-500 dark:text-gray-400">
           No benchmarks match &ldquo;{query}&rdquo;
         </p>
+      ) : activeEntries.length === 0 ? (
+        <p className="text-sm text-slate-500 dark:text-gray-400">
+          No benchmarks in {CATEGORY_LABELS[activeCategory]}{query ? ` match "${query}"` : ''}.
+        </p>
       ) : (
-        <div className="space-y-8">
-          {CATEGORY_ORDER.map((cat) => (
-            <CategorySection
-              key={cat}
-              category={cat}
-              entries={grouped![cat]}
-              onSelect={setSelected}
-            />
+        <div className="space-y-2">
+          {activeEntries.map((e) => (
+            <BenchmarkCard key={e.id} entry={e} onSelect={setSelected} />
           ))}
         </div>
       )}
