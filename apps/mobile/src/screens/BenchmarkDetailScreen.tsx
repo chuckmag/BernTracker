@@ -23,7 +23,16 @@ import {
   type WorkoutLevel,
   type WorkoutGender,
 } from '../lib/api'
+import type { WorkoutCategory } from '@wodalytics/types'
 import { useTheme } from '../lib/theme'
+
+const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
+  GIRL_WOD: 'Girl WOD',
+  HERO_WOD: 'Hero WOD',
+  OPEN_WOD: 'Open WOD',
+  GAMES_WOD: 'Games WOD',
+  BENCHMARK: 'Benchmark',
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -534,16 +543,52 @@ export default function BenchmarkDetailScreen({ route }: Props) {
 
   return (
     <ScrollView style={[s.container, { backgroundColor: colors.screenBg }]} contentContainerStyle={s.content}>
-      {/* Header card */}
+      {/* Header card — name + category + best score */}
       <View style={[s.card, { backgroundColor: colors.cardBg, borderColor: colors.borderSubtle }]}>
-        <Text style={[s.whodName, { color: colors.textPrimary }]}>{entry.name}</Text>
-        {entry.templateWorkout?.description ? (
-          <Text style={[s.whodDesc, { color: colors.textSecondary }]}>{entry.templateWorkout.description}</Text>
+        <View style={s.headerRow}>
+          <Text style={[s.whodName, { color: colors.textPrimary }]}>{entry.name}</Text>
+          <View style={[s.categoryPill, { borderColor: colors.primary }]}>
+            <Text style={[s.categoryPillText, { color: colors.primary }]}>
+              {CATEGORY_LABELS[entry.category]}
+            </Text>
+          </View>
+        </View>
+        {entry.templateWorkout?.type ? (
+          <Text style={[s.workoutType, { color: colors.textTertiary }]}>
+            {entry.templateWorkout.type.replace(/_/g, ' ')}
+          </Text>
         ) : null}
         {latestScore && (
           <Text style={[s.bestScore, { color: colors.accent }]}>Best: {latestScore}</Text>
         )}
       </View>
+
+      {/* Description card — full WOD prescription */}
+      {(entry.templateWorkout?.description || entry.description) ? (
+        <View style={[s.card, { backgroundColor: colors.cardBg, borderColor: colors.borderSubtle }]}>
+          <Text style={[s.sectionTitle, { color: colors.textSecondary }]}>Description</Text>
+          <Text style={[s.descText, { color: colors.textPrimary }]}>
+            {entry.templateWorkout?.description || entry.description}
+          </Text>
+        </View>
+      ) : null}
+
+      {/* Movements card — chip list */}
+      {entry.templateWorkout?.workoutMovements && entry.templateWorkout.workoutMovements.length > 0 ? (
+        <View style={[s.card, { backgroundColor: colors.cardBg, borderColor: colors.borderSubtle }]}>
+          <Text style={[s.sectionTitle, { color: colors.textSecondary }]}>Movements</Text>
+          <View style={s.movementChips}>
+            {entry.templateWorkout.workoutMovements.map((wm) => (
+              <View
+                key={wm.movement.id}
+                style={[s.movementChip, { backgroundColor: colors.inputBg, borderColor: colors.borderSubtle }]}
+              >
+                <Text style={[s.movementChipText, { color: colors.textSecondary }]}>{wm.movement.name}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       {/* Trend chart */}
       {!loading && !error && history.length >= 2 && (
@@ -628,9 +673,42 @@ const s = StyleSheet.create({
     gap: 8,
   },
 
-  whodName: { fontSize: 20, fontWeight: '700' },
+  whodName: { fontSize: 20, fontWeight: '700', flex: 1 },
   whodDesc: { fontSize: 14, lineHeight: 20 },
   bestScore: { fontSize: 16, fontWeight: '600', marginTop: 4 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  categoryPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  categoryPillText: { fontSize: 11, fontWeight: '600' },
+  workoutType: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  descText: { fontSize: 14, lineHeight: 20 },
+  movementChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  movementChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  movementChipText: { fontSize: 12 },
 
   sectionTitle: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
 

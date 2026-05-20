@@ -130,6 +130,34 @@ describe('BenchmarkDetailScreen', () => {
     expect(await findByText('21-15-9 Thrusters (95/65lb), Pull-ups')).toBeTruthy()
   })
 
+  test('renders category pill and workout type label in the header', async () => {
+    const { findByText } = render(
+      <BenchmarkDetailScreen route={makeRoute()} navigation={makeNavigation()} />,
+    )
+    expect(await findByText('Girl WOD')).toBeTruthy()
+    expect(await findByText(/FOR TIME/)).toBeTruthy()
+  })
+
+  test('renders the Description and Movements section labels with chips', async () => {
+    const entryWithMovements = {
+      ...sampleEntry,
+      templateWorkout: {
+        ...sampleEntry.templateWorkout,
+        workoutMovements: [
+          { movement: { id: 'mv-1', name: 'Thruster', parentId: null, aliases: [] } },
+          { movement: { id: 'mv-2', name: 'Pull-up', parentId: null, aliases: [] } },
+        ],
+      },
+    }
+    const { findByText } = render(
+      <BenchmarkDetailScreen route={makeRoute(entryWithMovements as any)} navigation={makeNavigation()} />,
+    )
+    expect(await findByText('Description')).toBeTruthy()
+    expect(await findByText('Movements')).toBeTruthy()
+    expect(await findByText('Thruster')).toBeTruthy()
+    expect(await findByText('Pull-up')).toBeTruthy()
+  })
+
   test('shows best score from history', async () => {
     const { findByText } = render(
       <BenchmarkDetailScreen route={makeRoute()} navigation={makeNavigation()} />,
