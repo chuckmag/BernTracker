@@ -4,6 +4,8 @@ import { requireAuth } from '../middleware/auth.js'
 import {
   createResult,
   detectAndUpsertStrengthPrs,
+  detectAndCompleteMovementPRGoals,
+  detectAndCompleteFrequencyGoals,
   findLeaderboardByWorkout,
   findResultHistoryByUser,
   updateResultByOwner,
@@ -65,6 +67,13 @@ async function logResult(req: Request, res: Response) {
       workoutType ?? '',
       req.user!.id,
     )
+
+    // Goal auto-completion: any matching LOAD goal for a new PR, plus a
+    // frequency-goal sweep that just counted this fresh Result.
+    for (const pr of newPrs) {
+      await detectAndCompleteMovementPRGoals(req.user!.id, pr.movementId, pr.load, pr.repCount)
+    }
+    await detectAndCompleteFrequencyGoals(req.user!.id)
 
     res.status(201).json({ result, newPrs })
   } catch (err: unknown) {
