@@ -221,3 +221,4 @@ See the comment on #1 for the full navigation hub.
 | #12 | Slice 3 — Gyms + users |
 | #13 | Slice 4 — Workout publishing |
 | #14 | Slice 5 — Member mobile |
+<!-- claude-review paths-ignore test marker — see #444 verification list. Throwaway PR, will be closed. -->
