@@ -47,6 +47,18 @@ else
   IDP_MANAGED_FLAG="--import.managed.identity-provider=NO_DELETE"
   log "GOOGLE_IDP_CLIENT_ID/SECRET not set — identity providers stripped from import (existing KC config preserved)"
 fi
+
+# Substitute SMTP password (Google Workspace app password) into the realm
+# template. When SMTP_PASSWORD is absent, strip the smtpServer block entirely
+# so config-cli doesn't push the placeholder string to Keycloak — the realm
+# will simply have no SMTP configured and password-reset emails won't send.
+if [[ -n "${SMTP_PASSWORD:-}" ]]; then
+  content="${content//__SMTP_PASSWORD__/${SMTP_PASSWORD}}"
+  log "SMTP password substituted"
+else
+  content="$(printf '%s' "$content" | /usr/local/bin/jq 'del(.smtpServer)')"
+  log "SMTP_PASSWORD not set — smtpServer stripped from import (email sending disabled)"
+fi
 printf '%s\n' "$content" > "${REALM_FILE}"
 
 # ── 2. Start Keycloak in the background ──────────────────────────────────────
