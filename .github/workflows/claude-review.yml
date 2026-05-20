@@ -78,7 +78,12 @@ jobs:
         if: steps.size.outputs.lines <= env.SIZE_LIMIT_LINES
         uses: anthropics/claude-code-action@1dc994ee7a008f0ecc866d9ac23ef036b7229f84  # v1 (resolved 2026-05-20)
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Auth: uses the repo owner's Claude Max/Pro subscription via OAuth.
+          # Generate locally with `claude setup-token` and store as repo secret
+          # CLAUDE_CODE_OAUTH_TOKEN. To switch to a standalone Anthropic API key
+          # instead, replace this line with:
+          #   anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           use_sticky_comment: true
           claude_args: |
