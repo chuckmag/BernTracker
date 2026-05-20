@@ -1,3 +1,4 @@
+// surface-coverage-check test marker — see #444 verification list. Throwaway PR, will be closed.
 interface AvatarProps {
   /** Resolved avatar URL. Falls through to initials when null/empty. */
   avatarUrl?: string | null
