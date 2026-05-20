@@ -241,6 +241,9 @@ async function run(): Promise<void> {
       'get_programs', 'create_workout',
       'get_workout_results', 'get_my_results', 'log_result',
       'get_my_workout_plan', 'set_workout_plan', 'delete_workout_plan',
+      'list_my_goals', 'get_my_goal',
+      'create_pr_target_goal', 'create_frequency_goal', 'create_habit_goal',
+      'update_my_goal', 'delete_my_goal',
     ]
     if (toolNames.length > 0) {
       for (const name of expectedTools) {
