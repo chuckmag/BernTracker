@@ -18,6 +18,7 @@ export default function MovementTabStrip({ movements, active, onChange }: Moveme
       {movements.map((m, i) => (
         <TouchableOpacity
           key={m.workoutMovementId}
+          testID={`movement-tab-${i}`}
           accessibilityRole="tab"
           accessibilityState={{ selected: i === active }}
           onPress={() => onChange(i)}
