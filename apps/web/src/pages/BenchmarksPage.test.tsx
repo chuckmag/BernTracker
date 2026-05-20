@@ -134,32 +134,68 @@ describe('BenchmarksPage', () => {
     expect(await screen.findByText('No benchmarks available')).toBeInTheDocument()
   })
 
-  it('renders benchmark cards grouped under their category heading', async () => {
+  it('renders category tabs and shows the default Girls tab entries', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.me.benchmarks.list).mockResolvedValue(sampleData)
     renderPage()
-    expect(await screen.findByText('Girls')).toBeInTheDocument()
-    expect(await screen.findByText('Heroes')).toBeInTheDocument()
+    // Tabs for every category are always rendered
+    expect(await screen.findByRole('tab', { name: /Girls/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Heroes/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Open/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Games/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Benchmarks/ })).toBeInTheDocument()
+
+    // Default tab is Girls — Fran/Grace visible, Murph (Heroes) hidden
     expect(screen.getByText('Fran')).toBeInTheDocument()
     expect(screen.getByText('Grace')).toBeInTheDocument()
-    expect(screen.getByText('Murph')).toBeInTheDocument()
+    expect(screen.queryByText('Murph')).not.toBeInTheDocument()
   })
 
-  it('hides category sections that have no entries', async () => {
+  it('switches active tab to Heroes when clicked, showing only Heroes entries', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.me.benchmarks.list).mockResolvedValue(sampleData)
     renderPage()
-    await screen.findByText('Girls')
-    expect(screen.queryByText('Open')).not.toBeInTheDocument()
-    expect(screen.queryByText('Games')).not.toBeInTheDocument()
-    expect(screen.queryByText('Benchmarks')).not.toBeInTheDocument()
+    await screen.findByText('Fran')
+
+    await userEvent.click(screen.getByRole('tab', { name: /Heroes/ }))
+
+    expect(screen.getByText('Murph')).toBeInTheDocument()
+    expect(screen.queryByText('Fran')).not.toBeInTheDocument()
+    expect(screen.queryByText('Grace')).not.toBeInTheDocument()
+  })
+
+  it('marks the active tab with aria-selected', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.me.benchmarks.list).mockResolvedValue(sampleData)
+    renderPage()
+    const girlsTab = await screen.findByRole('tab', { name: /Girls/ })
+    const heroesTab = screen.getByRole('tab', { name: /Heroes/ })
+
+    expect(girlsTab).toHaveAttribute('aria-selected', 'true')
+    expect(heroesTab).toHaveAttribute('aria-selected', 'false')
+
+    await userEvent.click(heroesTab)
+
+    expect(heroesTab).toHaveAttribute('aria-selected', 'true')
+    expect(girlsTab).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it('shows an empty-tab message for categories with no entries', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.me.benchmarks.list).mockResolvedValue(sampleData)
+    renderPage()
+    await screen.findByText('Fran')
+
+    await userEvent.click(screen.getByRole('tab', { name: /^Open/ }))
+
+    expect(screen.getByText(/No benchmarks in Open/)).toBeInTheDocument()
   })
 
   it('shows formatted TIME score for attempted benchmarks', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.me.benchmarks.list).mockResolvedValue(sampleData)
     renderPage()
-    // Fran: 183s = 3:03
+    // Fran: 183s = 3:03 (default Girls tab)
     expect(await screen.findByText('3:03')).toBeInTheDocument()
   })
 
@@ -182,11 +218,11 @@ describe('BenchmarksPage', () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.me.benchmarks.list).mockResolvedValue(sampleData)
     renderPage()
-    await screen.findByText('Girls')
+    await screen.findByText('Fran')
     expect(screen.getByRole('searchbox', { name: 'Search benchmarks' })).toBeInTheDocument()
   })
 
-  it('filters benchmark cards when a search query is typed', async () => {
+  it('updates tab counts as the search query filters entries', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.me.benchmarks.list).mockResolvedValue(sampleData)
     renderPage()
@@ -194,12 +230,18 @@ describe('BenchmarksPage', () => {
 
     await userEvent.type(screen.getByRole('searchbox'), 'murph')
 
+    // Heroes tab now shows count 1, Girls tab has no entries
+    const heroesTab = screen.getByRole('tab', { name: /Heroes/ })
+    expect(heroesTab.textContent).toMatch(/1/)
+    // Active (Girls) tab now shows the empty-tab message
+    expect(screen.getByText(/No benchmarks in Girls/)).toBeInTheDocument()
+
+    // Switching to Heroes reveals Murph
+    await userEvent.click(heroesTab)
     expect(screen.getByText('Murph')).toBeInTheDocument()
-    expect(screen.queryByText('Fran')).not.toBeInTheDocument()
-    expect(screen.queryByText('Grace')).not.toBeInTheDocument()
   })
 
-  it('shows a no-results message when the query matches nothing', async () => {
+  it('shows the global no-results message when the query matches nothing across any category', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.me.benchmarks.list).mockResolvedValue(sampleData)
     renderPage()
@@ -240,7 +282,7 @@ describe('BenchmarksPage', () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.me.benchmarks.list).mockResolvedValue(sampleData)
     renderPage()
-    await screen.findByText('Girls')
+    await screen.findByText('Fran')
 
     const cards = screen.getAllByRole('button').filter((b) => b.textContent?.match(/Fran|Grace/))
     // Fran has results, Grace does not — Fran should come first

@@ -14,14 +14,25 @@ import {
   type BenchmarkHistoryEntry,
   type BenchmarkResult,
   type BenchmarkSummaryEntry,
+  type WorkoutCategory,
 } from '../lib/api.ts'
 import Skeleton from './ui/Skeleton.tsx'
 import Button from './ui/Button.tsx'
 import ChartTooltip from './ui/ChartTooltip.tsx'
+import MarkdownDescription from './MarkdownDescription.tsx'
 import AddBenchmarkResultModal from './AddBenchmarkResultModal.tsx'
 import { useTheme } from '../context/ThemeContext.tsx'
 import { resolveTheme } from '../lib/useTheme.ts'
 import { BRAND_TOKENS } from '../lib/designTokens.ts'
+import { WORKOUT_TYPE_STYLES } from '../lib/workoutTypeStyles.ts'
+
+const CATEGORY_LABELS: Record<WorkoutCategory, string> = {
+  GIRL_WOD: 'Girl WOD',
+  HERO_WOD: 'Hero WOD',
+  OPEN_WOD: 'Open WOD',
+  GAMES_WOD: 'Games WOD',
+  BENCHMARK: 'Benchmark',
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -241,6 +252,9 @@ export default function BenchmarkDetailPanel({ entry, onClose }: Props) {
   }
 
   const tw = entry.templateWorkout
+  const description = tw?.description?.trim() || entry.description?.trim() || ''
+  const movements = tw?.workoutMovements ?? []
+  const typeStyle = tw ? WORKOUT_TYPE_STYLES[tw.type] : null
 
   return (
     <>
@@ -253,34 +267,62 @@ export default function BenchmarkDetailPanel({ entry, onClose }: Props) {
       )}
 
       <div>
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        {/* Back nav */}
+        <div className="mb-4">
           <Button variant="tertiary" onClick={onClose} aria-label="Back to benchmarks">
-            ← Back
+            ← Back to Benchmarks
           </Button>
-          <h2 className="font-semibold text-slate-950 dark:text-white truncate">{entry.name}</h2>
+        </div>
+
+        {/* Header — mirrors WodDetail title row */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 flex-wrap">
+            {typeStyle && (
+              <span
+                className={`w-8 h-8 flex items-center justify-center rounded text-sm font-bold ${typeStyle.bg} ${typeStyle.tint}`}
+              >
+                {typeStyle.abbr}
+              </span>
+            )}
+            <h1 className="text-2xl font-bold text-slate-950 dark:text-white">{entry.name}</h1>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+              {CATEGORY_LABELS[entry.category]}
+            </span>
+          </div>
         </div>
 
         <div className="space-y-6">
-          {/* WOD description */}
-          {tw && (
-            <div className="rounded-lg bg-slate-50 dark:bg-gray-800 border border-slate-200 dark:border-gray-700 p-4 space-y-2">
-              {tw.description && (
-                <p className="text-sm text-slate-700 dark:text-gray-300 whitespace-pre-line">{tw.description}</p>
-              )}
-              {tw.workoutMovements.length > 0 && (
-                <ul className="flex flex-wrap gap-1">
-                  {tw.workoutMovements.map((wm) => (
-                    <li
-                      key={wm.movement.id}
-                      className="text-xs px-2 py-0.5 rounded-full bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 text-slate-600 dark:text-gray-400"
-                    >
-                      {wm.movement.name}
-                    </li>
-                  ))}
-                </ul>
-              )}
+          {/* Description */}
+          {description && (
+            <div className="bg-white dark:bg-gray-900 rounded-lg px-4 py-3 border border-slate-200 dark:border-gray-800">
+              <MarkdownDescription source={description} />
             </div>
+          )}
+
+          {/* Movements */}
+          {movements.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {movements.map((wm) => (
+                <span
+                  key={wm.movement.id}
+                  className="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-gray-800 text-slate-700 dark:text-gray-300 border border-slate-200 dark:border-gray-700"
+                >
+                  {wm.movement.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Source link */}
+          {entry.sourceUrl && (
+            <a
+              href={entry.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950"
+            >
+              View source →
+            </a>
           )}
 
           {loading && <Skeleton variant="feed-row" count={4} />}
