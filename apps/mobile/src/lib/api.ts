@@ -25,6 +25,13 @@ import type {
   BenchmarkHistoryEntry,
   BenchmarkHistoryData,
   NamedWorkout,
+  GoalType,
+  GoalStatus,
+  TargetPrType,
+  GoalProgress,
+  GoalResponse,
+  CreateGoalInput,
+  UpdateGoalInput,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -54,6 +61,13 @@ export type {
   BenchmarkHistoryEntry,
   BenchmarkHistoryData,
   NamedWorkout,
+  GoalType,
+  GoalStatus,
+  TargetPrType,
+  GoalProgress,
+  GoalResponse,
+  CreateGoalInput,
+  UpdateGoalInput,
 }
 export { AGE_DIVISIONS, deriveWorkoutGender, getAgeDivision } from '@wodalytics/types'
 
@@ -652,6 +666,31 @@ export const api = {
   users: {
     public: (userId: string) =>
       request<PublicUserProfile>(`/api/users/${userId}/public`),
+
+    // Per-user "me" namespace — currently only goals (#434). Other "me"
+    // endpoints still live under api.me.* (legacy `/api/me/...` shape); these
+    // newer goals endpoints live under `/api/users/me/...` to match the API
+    // route file.
+    me: {
+      goals: {
+        list: (opts?: { status?: GoalStatus }) => {
+          const qs = opts?.status ? `?status=${opts.status}` : ''
+          return request<GoalResponse[]>(`/api/users/me/goals${qs}`)
+        },
+        create: (input: CreateGoalInput) =>
+          request<GoalResponse>('/api/users/me/goals', {
+            method: 'POST',
+            body: JSON.stringify(input),
+          }),
+        update: (goalId: string, patch: UpdateGoalInput) =>
+          request<GoalResponse>(`/api/goals/${encodeURIComponent(goalId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch),
+          }),
+        remove: (goalId: string) =>
+          request<void>(`/api/goals/${encodeURIComponent(goalId)}`, { method: 'DELETE' }),
+      },
+    },
   },
 
   social: {
@@ -761,5 +800,27 @@ export const api = {
       request<void>(`/api/me/benchmarks/${encodeURIComponent(namedWorkoutId)}/results/${resultId}`, {
         method: 'DELETE',
       }),
+  },
+
+  // ── Named workouts ───────────────────────────────────────────────────────────
+
+  namedWorkouts: {
+    // Lite catalog — used by the goal-create flow's named-workout picker. The
+    // API returns the full NamedWorkout with templateWorkout/category etc;
+    // we only need id+name+category here, so we type it loosely.
+    list: () =>
+      request<Array<{ id: string; name: string; category?: string }>>('/api/named-workouts'),
+  },
+
+  // ── Goals ────────────────────────────────────────────────────────────────────
+  //
+  // Per-goal read by id. Member-scoped writes / list live under
+  // `api.users.me.goals.*` above. Server contract: `apps/api/src/routes/goals.ts`;
+  // shared types: `packages/types/src/goal.ts`. Auto-detection of PR_TARGET /
+  // FREQUENCY completion happens server-side after each Result is logged —
+  // UIs just need to refetch to see the status flip.
+
+  goals: {
+    get: (goalId: string) => request<GoalResponse>(`/api/goals/${encodeURIComponent(goalId)}`),
   },
 }
