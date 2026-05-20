@@ -23,6 +23,8 @@ import UserProfileScreen from './src/screens/UserProfileScreen'
 import WodResultDetailScreen from './src/screens/WodResultDetailScreen'
 import SettingsScreen from './src/screens/SettingsScreen'
 import AvatarHeaderButton from './src/components/AvatarHeaderButton'
+import GoalsScreen from './src/screens/GoalsScreen'
+import GoalDetailScreen from './src/screens/GoalDetailScreen'
 import type { LeaderboardEntry, MovementPrType, BenchmarkSummaryEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -46,6 +48,12 @@ export type RootStackParamList = {
     | { mode: 'edit'; workoutId: string; scheduledAt?: never }
   WodResultDetail: { entry: LeaderboardEntry; workoutTitle?: string }
   Settings: undefined
+  // Goals (#434) — list + detail. The home card and Goals screen both push
+  // GoalDetail with the goal id; the screen fetches the goal via
+  // api.goals.get so any external mutation (auto-complete, archive) is
+  // reflected on revisit.
+  Goals: undefined
+  GoalDetail: { goalId: string }
 }
 
 export type MainTabParamList = {
@@ -226,6 +234,8 @@ function RootStackNavigator() {
         component={SettingsScreen}
         options={{ title: 'Profile', presentation: 'modal' }}
       />
+      <RootStack.Screen name="Goals" component={GoalsScreen} options={{ title: 'Goals' }} />
+      <RootStack.Screen name="GoalDetail" component={GoalDetailScreen} options={{ title: 'Goal' }} />
     </RootStack.Navigator>
   )
 }
