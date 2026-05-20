@@ -1,0 +1,123 @@
+# Auto-review every PR with Claude. First-pass uses Sonnet 4.6.
+#
+# Action pinned to v1 tag SHA (resolve fresh tip with: gh api repos/anthropics/claude-code-action/commits/v1).
+# To upgrade: bump the SHA below and update the comment with the new resolve date.
+#
+# Model fallback: if session usage gets tight, swap MODEL_ID below to
+#   claude-haiku-4-5-20251001
+# without touching anything else. Opus is reserved for `@claude deep-review`
+# in claude-respond.yml — do not switch this workflow to Opus.
+
+name: claude-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - '**/*.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - '.github/CODEOWNERS'
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    env:
+      MODEL_ID: claude-sonnet-4-6
+      SIZE_LIMIT_LINES: 2000
+    steps:
+      - name: Check out PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Measure PR size
+        id: size
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          lines=$(gh pr diff "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" | wc -l | tr -d ' ')
+          echo "lines=$lines" >> "$GITHUB_OUTPUT"
+          echo "PR diff is $lines lines (limit: $SIZE_LIMIT_LINES)"
+
+      - name: Skip + comment if PR exceeds size limit
+        if: steps.size.outputs.lines > env.SIZE_LIMIT_LINES
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          LINES: ${{ steps.size.outputs.lines }}
+        run: |
+          set -euo pipefail
+          marker="<!-- claude-review -->"
+          body="$marker
+          ⚠️ This PR is **$LINES lines** of diff, over the auto-review limit of **$SIZE_LIMIT_LINES**.
+
+          The reviewer didn't run automatically. Options:
+          - Split the PR into smaller sub-PRs (recommended — see CLAUDE.md *Issue sizing and breakdown strategy*).
+          - Or comment \`@claude review this PR file-by-file starting with X\` to get a targeted review.
+          - Or comment \`@claude deep-review\` to run Opus over the whole thing (slow + costly).
+          "
+          # Update the sticky comment if it exists, otherwise create it.
+          existing=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1 || true)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" --body "$body"
+          fi
+
+      - name: Run Claude review
+        if: steps.size.outputs.lines <= env.SIZE_LIMIT_LINES
+        uses: anthropics/claude-code-action@1dc994ee7a008f0ecc866d9ac23ef036b7229f84  # v1 (resolved 2026-05-20)
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          use_sticky_comment: true
+          claude_args: |
+            --model ${{ env.MODEL_ID }}
+            --max-turns 15
+          prompt: |
+            You are reviewing PR #${{ github.event.pull_request.number }} in the WODalytics monorepo.
+
+            **Before you write a single comment, read these files** — they are the house style this repo is held to, and your review should reflect them:
+
+            1. `CLAUDE.md` (root) — worktree workflow, parity-first feature design, schema migrations, expand-contract for API response shapes, PR Tests section format.
+            2. Any per-app `CLAUDE.md` whose subtree this PR touches:
+               - `apps/api/CLAUDE.md` — DB manager pattern, thin-wrapper route handlers, error logging, background jobs.
+               - `apps/web/CLAUDE.md` — design system primitives, a11y/ARIA rules, unit + E2E patterns.
+               - `apps/mobile/CLAUDE.md` — mobile-only conventions.
+               - `apps/mcp/CLAUDE.md` — tool handlers as thin wrappers over DB managers.
+               - `packages/db/CLAUDE.md` — manager pattern, naming rules, what belongs in a manager vs. the caller.
+
+            **Review priorities (in order — call out the highest-priority issue first):**
+
+            1. **Correctness bugs** — wrong logic, broken auth/role checks, missing null guards, race conditions, data loss.
+            2. **Security** — injection, missing auth middleware, secrets in code, overly broad permissions.
+            3. **CLAUDE.md violations** — direct `prisma.*` calls outside `packages/db/src/managers/`, route handlers that aren't thin wrappers, schema changes without a committed migration file, breaking API response shape changes without expand-contract, phone-suitable features missing the `**Surface coverage:**` line in the PR body, missing or malformed Tests section.
+            4. **Type safety** — shared types defined in `apps/web/src/lib/api.ts` or `apps/mobile/src/lib/api.ts` that should be in `packages/types/src/` per the *Shared types rule*.
+            5. **Tests** — does the PR include the unit / integration / E2E coverage the Tests section claims? Is the manual checklist short (≤3-4 items)?
+            6. **Readability** — only flag if it actually impedes review. Do not nitpick style the formatter handles.
+
+            **What NOT to comment on:**
+            - Don't repeat what other reviewers (human or another bot) already said in this thread.
+            - Don't suggest adding comments to code just for documentation's sake — root CLAUDE.md says "Default to writing no comments."
+            - Don't suggest backwards-compatibility shims for internal code (also per CLAUDE.md).
+            - Don't ask for tests for trivial one-line fixes.
+            - Don't propose architectural rewrites in a small PR.
+
+            **Output format:**
+            - Open with a one-line verdict: ✅ LGTM / 🟡 Minor suggestions / 🔴 Blocking issues.
+            - Then a short prose summary (2-4 sentences) of what this PR does and your overall read.
+            - Then a bulleted list of specific issues, each with `path/to/file.ts:line` and a concrete suggested change.
+            - Group by severity: **Blocking**, **Should fix**, **Nit**.
+            - End with "Reply with `@claude <question>` to dig in, or `@claude deep-review` to escalate to Opus."
+
+            Be concise. Engineers read these comments in pull-request time — a 3-paragraph wall of text gets skipped.
