@@ -10,15 +10,21 @@ const path = require('path')
 //   `test` script sets NODE_PATH=node_modules:../../node_modules so the
 //   preset's `require()` calls can find them at preset-load time.
 const ROOT_NODE_MODULES = path.resolve(__dirname, '../../node_modules')
+const PACKAGES_DIR = path.resolve(__dirname, '../../packages')
 
 module.exports = {
   preset: path.dirname(require.resolve('jest-expo/jest-preset.js')),
+  setupFiles: ['<rootDir>/jest.setup.js'],
   // react@19.1.0 is hoisted to root node_modules; pin so all consumers
   // resolve the same instance (jest-expo, RN, our test files).
-  // @wodalytics/* packages are workspace symlinks in root node_modules.
+  // @wodalytics/* packages are resolved to their TypeScript source so a
+  // stale (or missing) dist/ build never breaks the suite — babel-preset-expo
+  // compiles the .ts files on the fly. The `.js` strip mapper handles the
+  // ESM-style `import './foo.js'` internal references in the source files.
   moduleNameMapper: {
     '^react$': path.resolve(ROOT_NODE_MODULES, 'react'),
     '^react/(.*)$': path.resolve(ROOT_NODE_MODULES, 'react/$1'),
-    '^@wodalytics/(.*)$': path.resolve(ROOT_NODE_MODULES, '@wodalytics/$1/dist/index.js'),
+    '^@wodalytics/(.*)$': path.join(PACKAGES_DIR, '$1/src/index.ts'),
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
 }
