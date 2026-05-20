@@ -7,6 +7,7 @@ import {
   logBenchmarkResult,
   updateBenchmarkResult,
   deleteBenchmarkResult,
+  detectAndCompleteBenchmarkGoals,
 } from '@wodalytics/db'
 import { CreateBenchmarkResultSchema, UpdateBenchmarkResultSchema, derivePrimaryScore } from '@wodalytics/types'
 
@@ -62,6 +63,15 @@ async function createBenchmarkResultHandler(req: Request, res: Response) {
       primaryScoreValue: score?.value ?? null,
     })
     if (!result) return res.status(404).json({ error: 'Named workout not found' })
+
+    // Goal auto-completion for benchmark goals on this NamedWorkout.
+    await detectAndCompleteBenchmarkGoals(
+      req.user!.id,
+      req.params.namedWorkoutId as string,
+      score?.kind ?? null,
+      score?.value ?? null,
+    )
+
     res.status(201).json(result)
   } catch (err: unknown) {
     if (err instanceof Error && (err as Error & { code?: string }).code === 'P2002') {
