@@ -206,6 +206,27 @@ enum WorkoutImportStatus {
   FAILED
 }
 
+// Personal goals set by a member. Two shapes are supported in v1:
+//   PR_TARGET — hit a target PR on a Movement or a NamedWorkout (benchmark).
+//   FREQUENCY — log N workouts per week for M weeks (rolling window).
+// v2 adds HABIT for open-ended goals with manual check-ins.
+enum GoalType {
+  PR_TARGET
+  FREQUENCY
+}
+
+// Lifecycle of a Goal.
+//   ACTIVE    — being chased; surfaces on the dashboard card.
+//   COMPLETED — auto-flipped by detect* hooks when the target is met (or
+//               manually marked complete by the user).
+//   ARCHIVED  — user-dismissed without completion; hidden from the active
+//               list but kept for history.
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -249,6 +270,7 @@ model User {
   workoutPlans          UserWorkoutPlan[]
   createdWorkoutPlans   UserWorkoutPlan[]      @relation("UserWorkoutPlanCreatedBy")
   benchmarkResults      BenchmarkResult[]
+  goals                 Goal[]
 }
 
 model OAuthAccount {
@@ -439,6 +461,7 @@ model NamedWorkout {
   templateWorkoutId String?   @unique
   templateWorkout   Workout?  @relation("NamedWorkoutTemplate", fields: [templateWorkoutId], references: [id])
   workouts          Workout[] @relation("NamedWorkoutInstances")
+  goals             Goal[]
 }
 
 model BenchmarkResult {
@@ -587,6 +610,7 @@ model Movement {
   variations Movement[]        @relation("MovementVariations")
   workouts   WorkoutMovement[]
   prs        MovementPR[]
+  goals      Goal[]
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
@@ -740,4 +764,75 @@ model UserWorkoutPlan {
 
   @@unique([userId, workoutId])
   @@index([workoutId])
+}
+
+// ─── Goals ────────────────────────────────────────────────────────────────────
+
+// A member's personal goal. Two shapes in v1:
+//
+// PR_TARGET — chase a target PR on a Movement (e.g. "Back Squat 1RM 315 lb")
+//   OR a NamedWorkout benchmark (e.g. "Fran sub-4:00"). Exactly one of
+//   movementId / namedWorkoutId is set. `targetPrType` picks the dimension
+//   (LOAD vs MAX_REPS vs TIME vs DISTANCE vs CALORIES). The numeric target
+//   lives in `targetValue`; the unit (when needed) lives in `targetLoadUnit`
+//   or `targetDistanceUnit`. For LOAD goals, `targetRepCount` says which
+//   rep PR is being chased (1RM, 3RM, …). Auto-completion is driven by the
+//   existing `detectAndUpsertStrengthPrs` hook (movements) and the
+//   BenchmarkResult write path (benchmarks).
+//
+// FREQUENCY — log `frequencyPerWeek` workouts per week for
+//   `frequencyWeeks` weeks. `frequencyStartDate` defaults to `createdAt`
+//   if null. Progress is derived at read time from Result row counts in
+//   the rolling window; no separate progress table.
+//
+// Cross-type invariants (enforced at the API layer via Zod, not in the DB):
+//   - PR_TARGET ⇒ XOR(movementId, namedWorkoutId), targetPrType + targetValue set.
+//   - FREQUENCY ⇒ frequencyPerWeek + frequencyWeeks set.
+//
+// v2 will add HABIT (open-ended, manual check-in via a sibling table).
+model Goal {
+  id         String     @id @default(cuid())
+  userId     String
+  type       GoalType
+  status     GoalStatus @default(ACTIVE)
+  title      String
+  // Optional target date — encouraged via a SMART-goal hint in the UI but
+  // never required. Date-only since "by Friday" is the granularity users
+  // think in.
+  targetDate DateTime?  @db.Date
+
+  // ─── PR Target fields ────────────────────────────────────────────────
+  movementId         String?
+  namedWorkoutId     String?
+  targetPrType       MovementPrType?
+  // The numeric target. Interpretation depends on `targetPrType`:
+  //   LOAD     → weight (paired with targetLoadUnit + targetRepCount)
+  //   TIME     → seconds
+  //   MAX_REPS → reps
+  //   DISTANCE → distance value (paired with targetDistanceUnit)
+  //   CALORIES → calories
+  targetValue        Float?
+  targetLoadUnit     LoadUnit?
+  targetDistanceUnit DistanceUnit?
+  // For LOAD goals only: 1, 3, 5, … — matches MovementPR.repCount.
+  targetRepCount     Int?
+
+  // ─── Frequency fields ────────────────────────────────────────────────
+  frequencyPerWeek   Int?
+  frequencyWeeks     Int?
+  // Null = compute weeks-elapsed from createdAt.
+  frequencyStartDate DateTime? @db.Date
+
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movement     Movement?     @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  namedWorkout NamedWorkout? @relation(fields: [namedWorkoutId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([userId, type])
+  @@index([movementId])
+  @@index([namedWorkoutId])
 }
