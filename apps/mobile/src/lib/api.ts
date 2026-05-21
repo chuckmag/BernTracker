@@ -135,6 +135,7 @@ export interface AuthUser {
   name: string
   firstName: string | null
   lastName: string | null
+  birthday: string | null
   identifiedGender: IdentifiedGender | null
 }
 

@@ -7,7 +7,7 @@ import { makeGymProgramScope } from '../lib/gymProgramScope'
 vi.mock('../lib/api', () => ({
   api: {
     namedWorkouts: { list: vi.fn() },
-    movements: { list: vi.fn(), detect: vi.fn() },
+    movements: { list: vi.fn() },
     gyms: { programs: { list: vi.fn() } },
     workouts: {
       create: vi.fn(),
@@ -59,7 +59,6 @@ function defaultProps(overrides: Partial<Parameters<typeof WorkoutDrawer>[0]> = 
 function seedApi() {
   vi.mocked(api.namedWorkouts.list).mockResolvedValue([])
   vi.mocked(api.movements.list).mockResolvedValue([])
-  vi.mocked(api.movements.detect).mockResolvedValue([])
   // Gym scope's `list()` calls api.gyms.programs.list and maps each row's
   // `.program` into a Program — the test's mock still uses the GymProgram
   // shape so the mapping has something to project from.
@@ -361,7 +360,6 @@ describe('WorkoutDrawer movement suggestions', () => {
     seedApi()
     movementsCatalog.length = 0
     movementsCatalog.push(...SNATCH_VARIANTS)
-    vi.mocked(api.movements.detect).mockResolvedValue(SNATCH_VARIANTS as never)
   })
 
   async function typeSnatchAndAwaitSuggestions(user: ReturnType<typeof userEvent.setup>) {

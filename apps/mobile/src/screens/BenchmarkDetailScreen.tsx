@@ -14,7 +14,7 @@ import {
 import type { RouteProp } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg'
-import type { AnalyticsStackParamList } from '../../../App'
+import type { AnalyticsStackParamList } from '../../App'
 import {
   api,
   type BenchmarkHistoryData,

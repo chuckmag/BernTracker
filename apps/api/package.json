@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "../../node_modules/.bin/nodemon",
     "build": "tsc",
+    "lint": "tsc --noEmit",
     "start": "node --env-file=../../.env dist/index.js",
     "test": "NODE_OPTIONS='--conditions=source' npx dotenv-cli -e ../../.env -- sh -c 'for f in tests/*.ts; do npx tsx \"$f\" || exit 1; done'"
   },

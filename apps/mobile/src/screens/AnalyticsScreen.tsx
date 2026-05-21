@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
-import type { AnalyticsStackParamList } from '../../../App'
+import type { AnalyticsStackParamList } from '../../App'
 import {
   api,
   type ConsistencyData,

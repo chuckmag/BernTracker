@@ -15,14 +15,14 @@ const baseWorkout: Workout = {
   dayOrder: 0,
   workoutMovements: [
     {
-      movement: { id: 'm1', name: 'Run', parentId: null },
+      movement: { id: 'm1', name: 'Run', parentId: null, aliases: [] },
       displayOrder: 0,
       sets: null, reps: null, load: null, loadUnit: null,
       tracksLoad: false, tempo: null, distance: 400, distanceUnit: 'M',
       calories: null, seconds: null,
     },
     {
-      movement: { id: 'm2', name: 'Kettlebell Swing', parentId: null },
+      movement: { id: 'm2', name: 'Kettlebell Swing', parentId: null, aliases: [] },
       displayOrder: 1,
       sets: 3, reps: '21', load: 24, loadUnit: 'KG',
       tracksLoad: true, tempo: null, distance: null, distanceUnit: null,

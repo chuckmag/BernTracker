@@ -19,7 +19,6 @@ vi.mock('../lib/api', () => ({
       },
     },
     namedWorkouts: { list: vi.fn() },
-    movements: { detect: vi.fn() },
   },
   TYPE_ABBR: {
     AMRAP: 'A', FOR_TIME: 'F', METCON: 'M', WARMUP: 'W',
@@ -378,7 +377,6 @@ describe('Feed — personal program', () => {
       _count: { workouts: 1 },
     })
     vi.mocked(api.namedWorkouts.list).mockResolvedValue([] as never)
-    vi.mocked(api.movements.detect).mockResolvedValue([] as never)
   })
 
   it('shows the "+" add-personal-workout button on each day-header row', async () => {
