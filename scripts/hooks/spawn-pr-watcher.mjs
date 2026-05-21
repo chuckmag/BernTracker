@@ -21,6 +21,11 @@ import { existsSync, lstatSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+// In GitHub Actions the project hooks are loaded from origin/main into the
+// review action's runner. Spawning a teardown watcher there makes no sense —
+// the runner is ephemeral, there's no worktree to tear down.
+if (process.env.GITHUB_ACTIONS === 'true') process.exit(0)
+
 const here = dirname(fileURLToPath(import.meta.url))
 
 function reply(additionalContext) {

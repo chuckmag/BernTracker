@@ -96,7 +96,7 @@ jobs:
           use_sticky_comment: true
           claude_args: |
             --model ${{ env.MODEL_ID }}
-            --max-turns 15
+            --max-turns 30
           prompt: |
             You are reviewing PR #${{ github.event.pull_request.number }} in the WODalytics monorepo.
 
