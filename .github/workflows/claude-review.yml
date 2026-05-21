@@ -97,6 +97,26 @@ jobs:
           claude_args: |
             --model ${{ env.MODEL_ID }}
             --max-turns 30
+            --permission-mode bypassPermissions
+
+      # Defense in depth: the SDK exits with subtype:"success" even when
+      # every tool call was denied (we've seen 18/18 denials silently produce
+      # an empty review). Fail loudly so green-but-broken can't hide.
+      - name: Fail if the review had any permission denials
+        if: steps.size.outputs.over_limit == 'false'
+        run: |
+          set -euo pipefail
+          OUT="/home/runner/work/_temp/claude-execution-output.json"
+          if [ ! -f "$OUT" ]; then
+            echo "::warning::No SDK execution output at $OUT — skipping denial check."
+            exit 0
+          fi
+          DENIALS=$(jq -s 'map(select(.type=="result"))[0].permission_denials_count // 0' "$OUT")
+          echo "permission_denials_count=$DENIALS"
+          if [ "$DENIALS" -gt 0 ]; then
+            echo "::error::Claude review recorded $DENIALS permission denial(s) — the reviewer almost certainly produced no useful output. Check claude_args / .claude/settings.json permissions."
+            exit 1
+          fi
           prompt: |
             You are reviewing PR #${{ github.event.pull_request.number }} in the WODalytics monorepo.
 
