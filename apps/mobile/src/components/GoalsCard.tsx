@@ -16,6 +16,11 @@ const RING_CIRC = 2 * Math.PI * RING_RADIUS
 
 // ─── Progress ring ─────────────────────────────────────────────────────────────
 
+// v2 habit goals derive their ring percent from current streak vs a
+// 7-day reference (mirrors apps/web HABIT_STREAK_GOAL_DAYS). Mobile and
+// web share the constant so the ring fills the same way on both surfaces.
+export const HABIT_STREAK_GOAL_DAYS = 7
+
 interface ProgressRingProps {
   percent: number   // 0–100
   isHabit: boolean
@@ -23,13 +28,10 @@ interface ProgressRingProps {
 }
 
 function ProgressRing({ percent, isHabit, isComplete }: ProgressRingProps) {
-  if (isHabit) {
-    // HABIT has no numeric progress in v1 — show a hollow ring or a check.
+  if (isHabit && isComplete) {
     return (
       <View style={[styles.ring, { width: RING_SIZE, height: RING_SIZE }]}>
-        <Text style={[styles.ringText, isComplete && styles.ringTextComplete]}>
-          {isComplete ? '✓' : '·'}
-        </Text>
+        <Text style={[styles.ringText, styles.ringTextComplete]}>✓</Text>
       </View>
     )
   }
@@ -80,7 +82,11 @@ export function formatProgressLabel(goal: GoalResponse): string {
     return `${p.workoutsLogged} / ${p.workoutsRequired} workouts`
   }
   // HABIT
-  return goal.status === 'COMPLETED' ? 'Completed' : 'In progress'
+  if (goal.status === 'COMPLETED') return 'Completed'
+  if (p.currentStreak > 0) {
+    return p.currentStreak === 1 ? '1-day streak' : `${p.currentStreak}-day streak`
+  }
+  return p.checkedInToday ? 'Checked in today' : 'Tap to start a streak'
 }
 
 // ─── Row ───────────────────────────────────────────────────────────────────────
@@ -97,7 +103,7 @@ function GoalRow({ goal, onPress }: GoalRowProps) {
   const percent =
     goal.progress.type === 'PR_TARGET' || goal.progress.type === 'FREQUENCY'
       ? goal.progress.percent
-      : 0
+      : Math.max(0, Math.min(100, Math.round((goal.progress.currentStreak / HABIT_STREAK_GOAL_DAYS) * 100)))
   return (
     <TouchableOpacity
       style={styles.row}

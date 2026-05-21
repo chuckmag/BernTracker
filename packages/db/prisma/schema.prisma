@@ -277,6 +277,7 @@ model User {
   createdWorkoutPlans   UserWorkoutPlan[]      @relation("UserWorkoutPlanCreatedBy")
   benchmarkResults      BenchmarkResult[]
   goals                 Goal[]
+  goalCheckIns          GoalCheckIn[]
 }
 
 model OAuthAccount {
@@ -842,9 +843,45 @@ model Goal {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   movement     Movement?     @relation(fields: [movementId], references: [id], onDelete: Cascade)
   namedWorkout NamedWorkout? @relation(fields: [namedWorkoutId], references: [id], onDelete: Cascade)
+  checkIns     GoalCheckIn[]
 
   @@index([userId, status])
   @@index([userId, type])
   @@index([movementId])
   @@index([namedWorkoutId])
+}
+
+// One per-day confirmation that a HABIT-type Goal was honored. Progress
+// for habit goals is derived at read time from these rows (current streak,
+// longest streak, per-week counts), matching how PR-Target / Frequency
+// progress are derived from MovementPR / BenchmarkResult / Result rows.
+//
+// Only meaningful for Goal.type == HABIT. The schema does NOT enforce
+// that — the API layer rejects check-ins on PR_TARGET / FREQUENCY goals,
+// same pattern as the existing Goal cross-type invariants (enforced in
+// Zod, not the DB).
+//
+// One row per (goalId, date). Re-tapping today is a no-op upsert at the
+// manager layer, not a duplicate row — `note` may be edited via that
+// upsert.
+model GoalCheckIn {
+  id        String   @id @default(cuid())
+  goalId    String
+  userId    String
+  // Date-only — the habit was honored on this calendar day.
+  date      DateTime @db.Date
+  // Optional free-text note. Most check-ins are a single tap with no
+  // commentary; the API layer caps length (≤ 280 chars) to match other
+  // free-text fields in the codebase.
+  note      String?
+  createdAt DateTime @default(now())
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, date])
+  // Streak walk reads the most recent rows first per goal.
+  @@index([goalId, date(sort: Desc)])
+  // Cross-goal per-user reads (future use: profile streak summary).
+  @@index([userId, date(sort: Desc)])
 }
