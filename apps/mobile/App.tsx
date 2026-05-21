@@ -22,6 +22,7 @@ import ResultDetailScreen from './src/screens/ResultDetailScreen'
 import UserProfileScreen from './src/screens/UserProfileScreen'
 import WodResultDetailScreen from './src/screens/WodResultDetailScreen'
 import SettingsScreen from './src/screens/SettingsScreen'
+import OnboardingScreen from './src/screens/OnboardingScreen'
 import AvatarHeaderButton from './src/components/AvatarHeaderButton'
 import GoalsScreen from './src/screens/GoalsScreen'
 import GoalDetailScreen from './src/screens/GoalDetailScreen'
@@ -254,7 +255,13 @@ function RootNavigator() {
     )
   }
 
-  return user ? <RootStackNavigator /> : <LoginScreen />
+  if (!user) return <LoginScreen />
+  // Onboarding gate: a user with `onboardedAt === null` hasn't filled in the
+  // four required profile fields yet. Show OnboardingScreen until they do.
+  // Once `maybeMarkOnboarded` flips the column and `refreshUser()` picks it up,
+  // this branch falls through to the main app.
+  if (user.onboardedAt === null) return <OnboardingScreen />
+  return <RootStackNavigator />
 }
 
 // ── App root ─────────────────────────────────────────────────────────────────

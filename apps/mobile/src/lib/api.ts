@@ -159,7 +159,14 @@ export interface AuthUser {
   lastName: string | null
   birthday: string | null
   avatarUrl: string | null
+  // Set by `maybeMarkOnboarded` (packages/db/src/managers/userProfileDbManager.ts)
+  // once the four required profile fields are populated. `null` means the user
+  // is mid-onboarding — RootNavigator routes them to OnboardingScreen instead
+  // of MainTabs.
+  onboardedAt: string | null
+  role: Role
   identifiedGender: IdentifiedGender | null
+  isWodalyticsAdmin?: boolean
 }
 
 export interface Gym {
@@ -274,6 +281,59 @@ export interface PublicUserProfile {
   avatarUrl: string | null
 }
 
+
+// ── Invitation types ────────────────────────────────────────────────────────
+// Two parallel models per #204:
+//  - `GymInvitation` is a GymMembershipRequest row (staff invited an existing user)
+//  - `Invitation` is a pre-signup invite delivered via email/SMS by code
+// Both surface on `GET /api/users/me/pending-invitations` as a discriminated union.
+
+export type MembershipRequestStatus = 'PENDING' | 'APPROVED' | 'DECLINED' | 'REVOKED' | 'EXPIRED'
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED' | 'EXPIRED'
+export type InvitationChannel = 'EMAIL' | 'SMS'
+
+export interface GymInvitation {
+  id: string
+  gymId: string
+  direction: 'STAFF_INVITED' | 'USER_REQUESTED'
+  status: MembershipRequestStatus
+  email: string | null
+  userId: string | null
+  roleToGrant: Role
+  invitedById: string | null
+  decidedById: string | null
+  decidedAt: string | null
+  expiresAt: string | null
+  createdAt: string
+  updatedAt: string
+  gym: { id: string; name: string; slug: string }
+  invitedBy: { id: string; name: string | null; firstName: string | null; lastName: string | null; email: string } | null
+}
+
+export interface Invitation {
+  id: string
+  code: string
+  channel: InvitationChannel
+  email: string | null
+  phone: string | null
+  gymId: string | null
+  roleToGrant: Role
+  invitedById: string
+  status: InvitationStatus
+  expiresAt: string
+  acceptedById: string | null
+  createdAt: string
+  updatedAt: string
+  gym: { id: string; name: string; slug: string } | null
+  invitedBy: { id: string; firstName: string | null; lastName: string | null }
+}
+
+// Discriminated union returned by GET /api/users/me/pending-invitations.
+// Same shape as the web `PendingInvitation` type — keeps the OnboardingScreen
+// and (future) MyInvitationsSection in lockstep with the web equivalent.
+export type PendingInvitation =
+  | { kind: 'invitation'; data: Invitation }
+  | { kind: 'membershipRequest'; data: GymInvitation }
 
 export interface ResultHistoryItem {
   id: string
@@ -717,6 +777,27 @@ export const api = {
           }),
         remove: (goalId: string) =>
           request<void>(`/api/goals/${encodeURIComponent(goalId)}`, { method: 'DELETE' }),
+      },
+
+      // GymMembershipRequest-backed invitations (staff invited the existing user).
+      // Used during onboarding + future settings memberships UI.
+      invitations: {
+        accept: (id: string) =>
+          request<GymInvitation>(`/api/invitations/${id}/accept`, { method: 'POST' }),
+        decline: (id: string) =>
+          request<GymInvitation>(`/api/invitations/${id}/decline`, { method: 'POST' }),
+        // Merged feed of pending Invitation (pre-signup) + GymMembershipRequest
+        // (existing user). Same union shape the web Onboarding step 2 consumes.
+        pendingAll: () =>
+          request<PendingInvitation[]>('/api/users/me/pending-invitations'),
+      },
+
+      // Pre-signup invitations identified by short code (email/SMS link).
+      codeInvitations: {
+        accept: (code: string) =>
+          request<Invitation>(`/api/invitations/code/${code}/accept`, { method: 'POST' }),
+        decline: (code: string) =>
+          request<Invitation>(`/api/invitations/code/${code}/decline`, { method: 'POST' }),
       },
     },
   },

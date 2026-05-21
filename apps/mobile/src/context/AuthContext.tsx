@@ -14,6 +14,11 @@ interface AuthState {
   isLoading: boolean
   loginWithTokens: (accessToken: string, refreshToken: string) => Promise<void>
   logout: () => Promise<void>
+  // Re-fetches `/api/auth/me` and updates the cached user. Callers invoke this
+  // after a mutation that the server consumes to derive AuthUser state — most
+  // importantly the OnboardingScreen, which needs `user.onboardedAt` to flip
+  // from null to a timestamp so the RootNavigator routes to MainTabs.
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -67,8 +72,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
   }
 
+  async function refreshUser() {
+    const u = await api.auth.me().catch(() => null)
+    if (u) setUser(u)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, loginWithTokens, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, loginWithTokens, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
