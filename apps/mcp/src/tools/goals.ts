@@ -7,8 +7,11 @@ import {
   updateGoalByOwner,
   deleteGoalByOwner,
   computeGoalProgress,
+  recordCheckIn,
+  deleteCheckIn,
+  findCheckInsForGoal,
 } from '@wodalytics/db'
-import type { GoalWithRelations } from '@wodalytics/db'
+import type { GoalWithRelations, GoalCheckIn } from '@wodalytics/db'
 import { mcpUnauthorized, resolveUserId } from './shared.js'
 
 // ─── Shared response shaping ─────────────────────────────────────────────────
@@ -187,7 +190,7 @@ export function registerGoalTools(server: McpServer, ctxUserId?: string): void {
 
   server.tool(
     'create_habit_goal',
-    'Create an open-ended Habit goal (e.g. "avoid added sugars"). v1 has no per-day check-ins — completion is manual via update_my_goal { status: COMPLETED }. Daily tracking lands in v2.',
+    'Create an open-ended Habit goal (e.g. "avoid added sugars"). Record per-day check-ins via record_habit_check_in once the goal exists. Progress (currentStreak, longestStreak, weekCheckIns, last7Days) shows up automatically on list_my_goals / get_my_goal.',
     {
       title: z.string().min(1).describe('e.g. "Avoid added sugars"'),
       targetDate: z.string().datetime().optional().describe('Optional target date (ISO 8601).'),
@@ -270,4 +273,158 @@ export function registerGoalTools(server: McpServer, ctxUserId?: string): void {
       }
     },
   )
+
+  // ─── Habit check-ins ────────────────────────────────────────────────────────
+  //
+  // Per-day confirmation that a HABIT-type goal was honored. Only valid on
+  // HABIT goals — PR_TARGET / FREQUENCY reject with an error. The refreshed
+  // goal returned by record / undo carries the new HABIT progress shape
+  // (currentStreak, longestStreak, weekCheckIns, last7Days, etc.) so an
+  // LLM can act on the result without a second list_my_goals call.
+
+  server.tool(
+    'record_habit_check_in',
+    'Record a per-day check-in on a HABIT goal (e.g. "I avoided sugar today"). Idempotent — re-tapping the same day updates the note instead of duplicating. Date defaults to today (UTC) when omitted. Returns the new check-in plus the refreshed goal (with currentStreak, weekCheckIns, last7Days).',
+    {
+      goalId: z.string().describe('Goal ID — must be a HABIT goal owned by the caller.'),
+      date: z
+        .string()
+        .optional()
+        .describe('Optional ISO 8601 datetime or YYYY-MM-DD. Defaults to today (UTC).'),
+      note: z
+        .string()
+        .max(280)
+        .optional()
+        .describe('Optional free-text note (≤ 280 chars). Re-tapping with a new note replaces the previous one.'),
+    },
+    async (args) => {
+      const userId = resolveUserId(ctxUserId, 'record_habit_check_in')
+      if (!userId) return mcpUnauthorized()
+
+      const goal = await loadOwnedHabitGoal(args.goalId, userId)
+      if (typeof goal === 'string') return asError(goal)
+
+      const date = args.date ? parseDateArg(args.date) : new Date()
+      if (!date) return asError('Date must be a valid YYYY-MM-DD or ISO 8601 datetime')
+
+      const row = await recordCheckIn({ goalId: goal.id, userId, date, note: args.note })
+      return asJson({ checkIn: shapeCheckIn(row), goal: await shapeGoal(goal) })
+    },
+  )
+
+  server.tool(
+    'undo_my_habit_check_in',
+    'Remove a previously-recorded HABIT check-in by date. Returns an error if no check-in exists for that date. Use this if you accidentally tapped — the streak will recompute on the next list_my_goals / get_my_goal call.',
+    {
+      goalId: z.string().describe('Goal ID — must be a HABIT goal owned by the caller.'),
+      date: z
+        .string()
+        .describe('Date of the check-in to remove (YYYY-MM-DD or ISO 8601). Required.'),
+    },
+    async (args) => {
+      const userId = resolveUserId(ctxUserId, 'undo_my_habit_check_in')
+      if (!userId) return mcpUnauthorized()
+
+      const goal = await loadOwnedHabitGoal(args.goalId, userId)
+      if (typeof goal === 'string') return asError(goal)
+
+      const date = parseDateArg(args.date)
+      if (!date) return asError('Date must be a valid YYYY-MM-DD or ISO 8601 datetime')
+
+      const deleted = await deleteCheckIn(goal.id, date)
+      if (!deleted) return asError('No check-in for that date')
+      return asJson({ goal: await shapeGoal(goal) })
+    },
+  )
+
+  server.tool(
+    'list_my_habit_check_ins',
+    'List check-in rows for one of your HABIT goals, newest first. Use this to render a history view. For aggregate streak/week counts, prefer get_my_goal which includes them in the progress field.',
+    {
+      goalId: z.string().describe('Goal ID — must be a HABIT goal owned by the caller.'),
+      since: z
+        .string()
+        .optional()
+        .describe('Earliest date to include (YYYY-MM-DD or ISO 8601, inclusive).'),
+      until: z
+        .string()
+        .optional()
+        .describe('Latest date to include (YYYY-MM-DD or ISO 8601, inclusive).'),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(500)
+        .optional()
+        .describe('Maximum rows to return (1–500). Omit for all matching rows.'),
+    },
+    async (args) => {
+      const userId = resolveUserId(ctxUserId, 'list_my_habit_check_ins')
+      if (!userId) return mcpUnauthorized()
+
+      const goal = await loadOwnedHabitGoal(args.goalId, userId)
+      if (typeof goal === 'string') return asError(goal)
+
+      const since = args.since ? parseDateArg(args.since) : undefined
+      const until = args.until ? parseDateArg(args.until) : undefined
+      if (args.since !== undefined && !since) return asError('since must be a valid date')
+      if (args.until !== undefined && !until) return asError('until must be a valid date')
+
+      const rows = await findCheckInsForGoal(goal.id, {
+        since: since ?? undefined,
+        until: until ?? undefined,
+        limit: args.limit,
+      })
+      return asJson(rows.map(shapeCheckIn))
+    },
+  )
+}
+
+// ─── Habit-check-in helpers ───────────────────────────────────────────────────
+
+// Returns the goal on success, or a human-readable error string the caller
+// passes to asError. Mirrors the REST `loadOwnedHabitGoal` preflight.
+async function loadOwnedHabitGoal(
+  goalId: string,
+  userId: string,
+): Promise<GoalWithRelations | string> {
+  const goal = await findGoalById(goalId)
+  if (!goal) return 'Goal not found'
+  if (goal.userId !== userId) return 'You can only act on your own goals'
+  if (goal.type !== 'HABIT') return 'Check-ins are only valid for habit goals'
+  return goal
+}
+
+// Accepts YYYY-MM-DD or ISO 8601. Returns null on malformed input.
+function parseDateArg(raw: string): Date | null {
+  const ymdMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+  if (ymdMatch) {
+    const year = Number(ymdMatch[1])
+    const month = Number(ymdMatch[2])
+    const day = Number(ymdMatch[3])
+    const d = new Date(Date.UTC(year, month - 1, day))
+    if (
+      d.getUTCFullYear() !== year ||
+      d.getUTCMonth() !== month - 1 ||
+      d.getUTCDate() !== day
+    ) {
+      return null
+    }
+    return d
+  }
+  const d = new Date(raw)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function shapeCheckIn(row: GoalCheckIn) {
+  const d = row.date
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return {
+    id: row.id,
+    goalId: row.goalId,
+    date: `${d.getUTCFullYear()}-${m}-${day}`,
+    note: row.note,
+    createdAt: row.createdAt.toISOString(),
+  }
 }
