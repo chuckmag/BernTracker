@@ -101,7 +101,6 @@ jobs:
           claude_args: |
             --model ${{ env.MODEL_ID }}
             --max-turns 30
-            --permission-mode bypassPermissions
           prompt: |
             You are reviewing PR #${{ github.event.pull_request.number }} in the WODalytics monorepo.
 
