@@ -32,6 +32,14 @@ jest.mock('../src/components/GoalFormModal', () => () => {
   return <Text>GoalFormModal</Text>
 })
 
+// MovementHistorySection mounts its own data fetch on render; stubbing it
+// keeps GoalDetailScreen tests focused on the goal-detail layer. The
+// component has its own test suite.
+jest.mock('../src/components/MovementHistorySection', () => () => {
+  const { Text } = require('react-native')
+  return <Text>MovementHistorySection</Text>
+})
+
 import { api } from '../src/lib/api'
 
 function prGoal(overrides: Partial<GoalResponse> = {}): GoalResponse {

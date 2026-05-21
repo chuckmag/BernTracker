@@ -22,6 +22,7 @@ import {
   type MovementTrajectoryData,
 } from '../lib/api'
 import GoalFormModal from '../components/GoalFormModal'
+import MovementHistorySection from '../components/MovementHistorySection'
 
 type Nav = StackNavigationProp<RootStackParamList, 'GoalDetail'>
 type RouteP = RouteProp<RootStackParamList, 'GoalDetail'>
@@ -409,6 +410,18 @@ export default function GoalDetailScreen() {
         {/* PR Target detail */}
         {goal.type === 'PR_TARGET' && goal.progress.type === 'PR_TARGET' && (
           <View style={s.chartCard}>
+            {/* Movement attribution. MovementDetail lives in the nested
+                Analytics tab stack — cross-stack push from a root-stack
+                screen is non-trivial to type, and the inline
+                MovementHistorySection below already exposes the PR table +
+                backfill + past results that the standalone screen would
+                show. Leaving this as a label for now; if a clean cross-
+                stack hop is wanted later, file as a #130 follow-up. */}
+            {goal.movementId && goal.movement && (
+              <Text style={s.movementLabel}>
+                {goal.movement.name}
+              </Text>
+            )}
             <Text style={s.chartTitle}>Trajectory</Text>
             {trajectoryLoading ? (
               <View style={chartStyles.placeholder}>
@@ -442,6 +455,19 @@ export default function GoalDetailScreen() {
               </View>
             </View>
           </View>
+        )}
+
+        {/* Movement history + backfill modal. Reuses the existing component
+            from the WodDetail flow. Tapping an empty RM cell opens the
+            BackfillModal which auto-creates a personal-program workout
+            and logs the result — so "add previous lifts" works without
+            navigating away. Only shown for movement-PR goals. */}
+        {goal.type === 'PR_TARGET' && goal.movementId && goal.movement && (
+          <MovementHistorySection
+            movementId={goal.movementId}
+            movementName={goal.movement.name}
+            navigation={navigation}
+          />
         )}
 
         {/* Frequency detail */}
@@ -563,6 +589,7 @@ const s = StyleSheet.create({
     borderColor: '#1f2937',
   },
   chartTitle: { color: '#f3f4f6', fontSize: 14, fontWeight: '600' },
+  movementLabel: { color: '#9ca3af', fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
 
   statRow: { flexDirection: 'row', justifyContent: 'space-around' },
   stat: { alignItems: 'center' },
