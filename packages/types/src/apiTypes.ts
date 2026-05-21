@@ -150,3 +150,32 @@ export interface NamedWorkout {
     workoutMovements: { movement: NamedWorkoutMovement }[]
   } | null
 }
+
+// ── Benchmark summary / history ───────────────────────────────────────────────
+
+// One row in the /api/me/benchmarks list response.
+export interface BenchmarkSummaryEntry extends NamedWorkout {
+  manualResultCount: number
+  latestResult: BenchmarkResult | null
+}
+
+// One entry in the /api/me/benchmarks/:id history response.
+export interface BenchmarkHistoryEntry {
+  source: 'manual' | 'programmed'
+  id: string
+  achievedAt: string
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  value: object
+  notes: string | null
+  primaryScoreKind: string | null
+  primaryScoreValue: number | null
+  createdAt: string
+  updatedAt?: string
+  workoutId?: string
+}
+
+export interface BenchmarkHistoryData {
+  namedWorkout: NamedWorkout
+  history: BenchmarkHistoryEntry[]
+}
