@@ -1,5 +1,6 @@
 import { prisma } from '../client.js'
 import type { Goal, GoalType, GoalStatus, MovementPrType, LoadUnit, DistanceUnit } from '../client.js'
+import { computeGoalCheckInStats } from './goalCheckInDbManager.js'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,15 @@ export interface UpdateGoalData {
 export type GoalProgress =
   | { type: 'PR_TARGET'; current: number | null; target: number; unit: string | null; percent: number; isComplete: boolean }
   | { type: 'FREQUENCY'; workoutsLogged: number; workoutsRequired: number; percent: number; weeksRemaining: number; currentWeekCount: number; isComplete: boolean }
-  | { type: 'HABIT' }
+  | {
+      type: 'HABIT'
+      currentStreak: number
+      longestStreak: number
+      totalCheckIns: number
+      weekCheckIns: number
+      last7Days: Array<{ date: string; checkedIn: boolean }>
+      checkedInToday: boolean
+    }
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -252,12 +261,23 @@ async function computeFrequencyProgress(goal: Goal): Promise<GoalProgress> {
   }
 }
 
-export async function computeGoalProgress(goal: Goal): Promise<GoalProgress> {
-  if (goal.type === 'HABIT') return { type: 'HABIT' }
+export async function computeGoalProgress(goal: Goal, now: Date = new Date()): Promise<GoalProgress> {
+  if (goal.type === 'HABIT') {
+    const stats = await computeGoalCheckInStats(goal.id, now)
+    return { type: 'HABIT', ...stats }
+  }
   if (goal.type === 'PR_TARGET') return computePrTargetProgress(goal)
   if (goal.type === 'FREQUENCY') return computeFrequencyProgress(goal)
   // Exhaustive — TypeScript will flag unhandled enum members.
-  return { type: 'HABIT' }
+  return {
+    type: 'HABIT',
+    currentStreak: 0,
+    longestStreak: 0,
+    totalCheckIns: 0,
+    weekCheckIns: 0,
+    last7Days: [],
+    checkedInToday: false,
+  }
 }
 
 // ─── Auto-detection hooks ─────────────────────────────────────────────────────
