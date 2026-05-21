@@ -141,7 +141,7 @@ describe('GoalsCard', () => {
     expect(link).toHaveAttribute('href', '/goals')
   })
 
-  it('renders a HABIT row without a numeric progress and shows In progress', async () => {
+  it('renders a HABIT row with a streak label derived from currentStreak', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.users.me.goals.list).mockResolvedValue([
       makeGoal({
@@ -154,11 +154,47 @@ describe('GoalsCard', () => {
         targetRepCount: null,
         movementId: null,
         movement: null,
-        progress: { type: 'HABIT' },
+        progress: {
+          type: 'HABIT',
+          currentStreak: 4,
+          longestStreak: 4,
+          totalCheckIns: 4,
+          weekCheckIns: 4,
+          last7Days: [],
+          checkedInToday: true,
+        },
       }),
     ])
     renderCard()
     expect(await screen.findByText('Sign up for the Open')).toBeInTheDocument()
-    expect(screen.getByText('In progress')).toBeInTheDocument()
+    expect(screen.getByText(/4-day streak/i)).toBeInTheDocument()
+  })
+
+  it('renders a HABIT row with the start-a-streak prompt when streak=0', async () => {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.users.me.goals.list).mockResolvedValue([
+      makeGoal({
+        id: 'gh2',
+        type: 'HABIT',
+        title: 'Avoid sugar',
+        targetPrType: null,
+        targetValue: null,
+        targetLoadUnit: null,
+        targetRepCount: null,
+        movementId: null,
+        movement: null,
+        progress: {
+          type: 'HABIT',
+          currentStreak: 0,
+          longestStreak: 0,
+          totalCheckIns: 0,
+          weekCheckIns: 0,
+          last7Days: [],
+          checkedInToday: false,
+        },
+      }),
+    ])
+    renderCard()
+    expect(await screen.findByText(/Tap to start a streak/i)).toBeInTheDocument()
   })
 })

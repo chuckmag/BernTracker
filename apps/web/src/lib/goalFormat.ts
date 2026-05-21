@@ -29,7 +29,7 @@ const PR_TYPE_UNIT: Record<NonNullable<GoalResponse['targetPrType']>, string> = 
 }
 
 /**
- * "8 / 12 workouts", "295 / 315 lb", "—" for HABIT (no numeric progress).
+ * "8 / 12 workouts", "295 / 315 lb", "5-day streak" for HABIT.
  * Returns a string that's safe to drop into a numeric label row; never
  * returns null so callers don't need conditional rendering for the
  * unknown-progress case.
@@ -44,7 +44,12 @@ export function progressLabelFor(goal: GoalResponse): string {
   if (p.type === 'FREQUENCY') {
     return `${p.workoutsLogged} / ${p.workoutsRequired} workouts`
   }
-  return goal.completedAt ? 'Completed' : 'In progress'
+  // HABIT: show streak when present; fall back to manual status text.
+  if (goal.completedAt) return 'Completed'
+  if (p.currentStreak > 0) {
+    return p.currentStreak === 1 ? '1-day streak' : `${p.currentStreak}-day streak`
+  }
+  return p.checkedInToday ? 'Checked in today' : 'Tap to start a streak'
 }
 
 function unitLabelFor(goal: GoalResponse): string {
@@ -58,13 +63,19 @@ function unitLabelFor(goal: GoalResponse): string {
   return ''
 }
 
-/** 0–100, clamped — never NaN. Habit goals report 0 if active, 100 if completed. */
+/** 0–100, clamped — never NaN. Habit goals derive a percent from their
+ *  current streak, capped at HABIT_STREAK_GOAL_DAYS so the ring fills
+ *  meaningfully without requiring an explicit user-set goal length. */
+export const HABIT_STREAK_GOAL_DAYS = 7
+
 export function progressPercentFor(goal: GoalResponse): number {
   const p = goal.progress
   if (p.type === 'PR_TARGET' || p.type === 'FREQUENCY') {
     return Math.max(0, Math.min(100, Math.round(p.percent)))
   }
-  return goal.completedAt ? 100 : 0
+  if (goal.completedAt) return 100
+  const streakPercent = Math.round((p.currentStreak / HABIT_STREAK_GOAL_DAYS) * 100)
+  return Math.max(0, Math.min(100, streakPercent))
 }
 
 export function formatTargetDate(iso: string | null): string {

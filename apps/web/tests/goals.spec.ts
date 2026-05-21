@@ -180,4 +180,46 @@ test.describe('Goals web E2E', () => {
     await prisma.goal.delete({ where: { id: otherGoal.id } }).catch(() => {})
     await prisma.user.delete({ where: { id: other.id } }).catch(() => {})
   })
+
+  test('T8: Habit goal check-in — tap, streak increments, undo, persistence', async ({ page }) => {
+    // Seed a habit goal directly so the test is independent of the create
+    // flow exercised in T3.
+    const goal = await prisma.goal.create({
+      data: {
+        userId: f.userId,
+        type: 'HABIT',
+        status: 'ACTIVE',
+        title: 'Habit check-in E2E',
+      },
+    })
+
+    await loginGoalsUser(page, f)
+    await page.goto(`/goals/${goal.id}`)
+    await page.waitForSelector('h1')
+
+    // Initial state: streak=0 with the prompt copy.
+    await expect(page.getByText(/Tap below to start a streak/i)).toBeVisible()
+    const tapButton = page.getByRole('button', { name: /I did it today/i })
+    await expect(tapButton).toBeVisible()
+
+    await tapButton.click()
+
+    // After the tap the panel re-renders to a checked-in state with
+    // streak=1 and an undo affordance.
+    await expect(page.getByText(/Locked in for today/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Undo' })).toBeVisible()
+    // Streak hero shows 1.
+    const streakHero = page.locator('.text-4xl').first()
+    await expect(streakHero).toHaveText('1')
+
+    // Persistence — reload and confirm we're still locked in.
+    await page.reload()
+    await expect(page.getByText(/Locked in for today/i)).toBeVisible()
+    await expect(page.locator('.text-4xl').first()).toHaveText('1')
+
+    // Undo — streak returns to 0.
+    await page.getByRole('button', { name: 'Undo' }).click()
+    await expect(page.getByText(/Tap below to start a streak/i)).toBeVisible()
+    await expect(page.locator('.text-4xl').first()).toHaveText('0')
+  })
 })
