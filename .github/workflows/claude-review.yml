@@ -148,7 +148,11 @@ jobs:
             echo "::warning::No SDK execution output at $OUT — skipping denial check."
             exit 0
           fi
-          DENIALS=$(jq -s 'map(select(.type=="result"))[0].permission_denials_count // 0' "$OUT")
+          # Recursive descent — the execution log mixes top-level objects with
+          # nested arrays (tool_use/tool_result content), so a naive `map(.type)`
+          # crashes on the array entries. `.. | objects` walks the structure
+          # and yields every object regardless of nesting depth.
+          DENIALS=$(jq -s '[.. | objects | select(.type=="result")] | .[0].permission_denials_count // 0' "$OUT")
           echo "permission_denials_count=$DENIALS"
           if [ "$DENIALS" -gt 0 ]; then
             echo "::error::Claude review recorded $DENIALS permission denial(s) — the reviewer almost certainly produced no useful output. Check claude_args / .claude/settings.json permissions."
