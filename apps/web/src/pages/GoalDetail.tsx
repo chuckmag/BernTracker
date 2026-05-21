@@ -21,6 +21,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import WorkoutMovementHistory from '../components/WorkoutMovementHistory.tsx'
+import HabitCheckInPanel from '../components/HabitCheckInPanel'
 import {
   LineChart,
   Line,
@@ -210,7 +211,11 @@ export default function GoalDetail() {
       {goal.type === 'PR_TARGET' && <PrTargetBody goal={goal} bump={bump} />}
       {goal.type === 'FREQUENCY' && <FrequencyBody goal={goal} />}
       {goal.type === 'HABIT' && (
-        <HabitBody goal={goal} onToggleComplete={handleMarkComplete} />
+        <HabitBody
+          goal={goal}
+          onToggleComplete={handleMarkComplete}
+          onGoalChange={setGoal}
+        />
       )}
     </div>
   )
@@ -415,25 +420,31 @@ function FrequencyBody({ goal }: { goal: GoalResponse }) {
 
 // ─── Habit body ──────────────────────────────────────────────────────────────
 
-function HabitBody({ goal, onToggleComplete }: { goal: GoalResponse; onToggleComplete: () => void }) {
+// v2: replaces the v1 manual-complete card with the check-in panel
+// (streak hero + tap-to-check + last-7-days + history). The manual
+// complete toggle stays available as a secondary action — finishing a
+// habit goal is still distinct from "I'm done forever" archiving.
+
+function HabitBody({
+  goal,
+  onToggleComplete,
+  onGoalChange,
+}: {
+  goal: GoalResponse
+  onToggleComplete: () => void
+  onGoalChange: (next: GoalResponse) => void
+}) {
   const completed = goal.status === 'COMPLETED'
   return (
     <div className="space-y-4">
-      <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-5 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-slate-950 dark:text-gray-100">
-            {completed ? 'Goal completed' : 'Mark this goal complete when you finish it'}
-          </p>
-          <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">
-            {formatTargetDate(goal.targetDate)}
-          </p>
-        </div>
-        <Button variant={completed ? 'secondary' : 'accent'} onClick={onToggleComplete}>
+      <HabitCheckInPanel goal={goal} onGoalChange={onGoalChange} />
+      <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-4 flex items-center justify-between gap-4">
+        <p className="text-xs text-slate-500 dark:text-gray-400">
+          {completed ? 'Goal completed.' : 'Finished the habit for good?'}
+        </p>
+        <Button variant={completed ? 'secondary' : 'tertiary'} onClick={onToggleComplete}>
           {completed ? 'Mark active' : 'Mark complete'}
         </Button>
-      </div>
-      <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 border-dashed rounded-2xl p-4 text-xs text-slate-500 dark:text-gray-400">
-        Daily check-ins coming soon.
       </div>
     </div>
   )

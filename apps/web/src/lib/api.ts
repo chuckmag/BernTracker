@@ -22,8 +22,10 @@ import type {
   TargetPrType,
   GoalProgress,
   GoalResponse,
+  GoalCheckInResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  RecordGoalCheckInInput,
 } from '@wodalytics/types'
 import { WORKOUT_TYPE_STYLES } from './workoutTypeStyles'
 import keycloak from './keycloak'
@@ -52,8 +54,10 @@ export type {
   TargetPrType,
   GoalProgress,
   GoalResponse,
+  GoalCheckInResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  RecordGoalCheckInInput,
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
@@ -792,6 +796,32 @@ export const api = {
       }),
     remove: (id: string) =>
       req<void>(`/api/goals/${id}`, { method: 'DELETE' }),
+    /**
+     * Habit check-in routes. The check-in endpoints accept HABIT-type
+     * goals only — POST/DELETE/GET on a PR_TARGET or FREQUENCY goal
+     * returns 400. The record/delete responses include the refreshed
+     * goal so the caller can replace state without a second fetch.
+     */
+    checkIns: {
+      record: (goalId: string, data: RecordGoalCheckInInput = {}) =>
+        req<{ checkIn: GoalCheckInResponse; goal: GoalResponse }>(
+          `/api/goals/${goalId}/check-ins`,
+          { method: 'POST', body: JSON.stringify(data) },
+        ),
+      remove: (goalId: string, date: string) =>
+        req<{ goal: GoalResponse }>(
+          `/api/goals/${goalId}/check-ins/${encodeURIComponent(date)}`,
+          { method: 'DELETE' },
+        ),
+      list: (goalId: string, params?: { since?: string; until?: string; limit?: number }) => {
+        const qs = new URLSearchParams()
+        if (params?.since) qs.set('since', params.since)
+        if (params?.until) qs.set('until', params.until)
+        if (params?.limit) qs.set('limit', String(params.limit))
+        const suffix = qs.toString() ? `?${qs.toString()}` : ''
+        return req<GoalCheckInResponse[]>(`/api/goals/${goalId}/check-ins${suffix}`)
+      },
+    },
   },
 
   me: {

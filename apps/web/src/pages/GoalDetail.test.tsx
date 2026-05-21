@@ -38,6 +38,11 @@ vi.mock('../lib/api', async (importOriginal) => {
         get: vi.fn(),
         update: vi.fn(),
         remove: vi.fn(),
+        checkIns: {
+          record: vi.fn(),
+          remove: vi.fn(),
+          list: vi.fn().mockResolvedValue([]),
+        },
       },
       me: {
         ...actual.api.me,
@@ -146,7 +151,7 @@ describe('GoalDetail', () => {
     expect(ref).toHaveTextContent('Goal: 315 lb')
   })
 
-  it('renders the Habit body with a "Mark complete" button and v2 placeholder', async () => {
+  it('renders the Habit body with streak hero + check-in tap + 7-day strip', async () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.goals.get).mockResolvedValue(
       makeGoal({
@@ -158,12 +163,38 @@ describe('GoalDetail', () => {
         targetRepCount: 1,
         movementId: null,
         movement: null,
-        progress: { type: 'HABIT' },
+        progress: {
+          type: 'HABIT',
+          currentStreak: 3,
+          longestStreak: 5,
+          totalCheckIns: 3,
+          weekCheckIns: 3,
+          last7Days: [
+            { date: '2026-05-21', checkedIn: false },
+            { date: '2026-05-20', checkedIn: true },
+            { date: '2026-05-19', checkedIn: true },
+            { date: '2026-05-18', checkedIn: true },
+            { date: '2026-05-17', checkedIn: false },
+            { date: '2026-05-16', checkedIn: false },
+            { date: '2026-05-15', checkedIn: false },
+          ],
+          checkedInToday: false,
+        },
       }),
     )
     renderDetail()
-    expect(await screen.findByRole('button', { name: /Mark complete/i })).toBeInTheDocument()
-    expect(screen.getByText(/Daily check-ins coming soon/i)).toBeInTheDocument()
+    // Streak hero shows the count
+    expect(await screen.findByText(/Current streak/i)).toBeInTheDocument()
+    expect(screen.getByText('3', { selector: '.text-4xl' })).toBeInTheDocument()
+    // Longest streak rendered when > 0
+    expect(screen.getByText(/Longest streak: 5/i)).toBeInTheDocument()
+    // 7-day strip rendered as a list of 7 items
+    const days = screen.getByRole('list', { name: /last 7 days/i })
+    expect(days.querySelectorAll('[role="listitem"]').length).toBe(7)
+    // Tap CTA available when not checked in today
+    expect(screen.getByRole('button', { name: /I did it today/i })).toBeInTheDocument()
+    // The v1 placeholder is gone
+    expect(screen.queryByText(/Daily check-ins coming soon/i)).not.toBeInTheDocument()
   })
 
   it('renders the Frequency body with a bar chart and Logged/Required series', async () => {
