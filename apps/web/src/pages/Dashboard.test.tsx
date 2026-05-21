@@ -12,6 +12,10 @@ const localStorageMock = {
   removeItem: vi.fn((key: string) => { delete localStorageStore[key] }),
 }
 
+vi.mock('../context/MovementsContext', () => ({
+  useMovements: () => [],
+}))
+
 vi.mock('../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/api')>()
   return {
@@ -27,6 +31,20 @@ vi.mock('../lib/api', async (importOriginal) => {
       results: {
         ...actual.api.results,
         leaderboard: vi.fn().mockResolvedValue([]),
+      },
+      users: {
+        ...actual.api.users,
+        me: {
+          ...actual.api.users.me,
+          goals: {
+            list: vi.fn().mockResolvedValue([]),
+            create: vi.fn(),
+          },
+        },
+      },
+      namedWorkouts: {
+        ...actual.api.namedWorkouts,
+        list: vi.fn().mockResolvedValue([]),
       },
     },
   }

@@ -17,6 +17,13 @@ import type {
   BenchmarkResult,
   NamedWorkout,
   NamedWorkoutMovement,
+  GoalType,
+  GoalStatus,
+  TargetPrType,
+  GoalProgress,
+  GoalResponse,
+  CreateGoalInput,
+  UpdateGoalInput,
 } from '@wodalytics/types'
 import { WORKOUT_TYPE_STYLES } from './workoutTypeStyles'
 import keycloak from './keycloak'
@@ -40,6 +47,13 @@ export type {
   BenchmarkResult,
   NamedWorkout,
   NamedWorkoutMovement,
+  GoalType,
+  GoalStatus,
+  TargetPrType,
+  GoalProgress,
+  GoalResponse,
+  CreateGoalInput,
+  UpdateGoalInput,
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
@@ -749,8 +763,35 @@ export const api = {
         remove: () =>
           req<void>('/api/users/me/avatar', { method: 'DELETE' }),
       },
+      goals: {
+        /**
+         * List the caller's goals, optionally filtered by status.
+         * Returns each goal with its computed progress so the UI does
+         * not have to re-derive it.
+         */
+        list: (params?: { status?: GoalStatus }) => {
+          const qs = params?.status ? `?status=${encodeURIComponent(params.status)}` : ''
+          return req<GoalResponse[]>(`/api/users/me/goals${qs}`)
+        },
+        create: (data: CreateGoalInput) =>
+          req<GoalResponse>('/api/users/me/goals', {
+            method: 'POST',
+            body: JSON.stringify(data),
+          }),
+      },
     },
     public: (userId: string) => req<PublicUserProfile>(`/api/users/${userId}/public`),
+  },
+
+  goals: {
+    get: (id: string) => req<GoalResponse>(`/api/goals/${id}`),
+    update: (id: string, data: UpdateGoalInput) =>
+      req<GoalResponse>(`/api/goals/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    remove: (id: string) =>
+      req<void>(`/api/goals/${id}`, { method: 'DELETE' }),
   },
 
   me: {

@@ -36,6 +36,8 @@ import Analytics from './pages/Analytics.tsx'
 import MovementsPage from './pages/MovementsPage.tsx'
 import BenchmarksPage from './pages/BenchmarksPage.tsx'
 import PublicProfile from './pages/PublicProfile.tsx'
+import Goals from './pages/Goals.tsx'
+import GoalDetail from './pages/GoalDetail.tsx'
 
 export function PageErrorFallback({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: () => void }) {
   const navigate = useNavigate()
@@ -86,6 +88,8 @@ function AppLayout() {
                 <Route path="benchmarks" element={<BenchmarksPage />} />
               </Route>
               <Route path="/calendar" element={<UnifiedCalendar />} />
+              <Route path="/goals" element={<Goals />} />
+              <Route path="/goals/:id" element={<GoalDetail />} />
               <Route path="/programs" element={<ProgramsIndex />} />
               <Route path="/programs/:id" element={<ProgramDetail />} />
               <Route path="/browse-programs" element={<BrowsePrograms />} />
