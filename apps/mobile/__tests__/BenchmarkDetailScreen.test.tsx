@@ -253,4 +253,45 @@ describe('BenchmarkDetailScreen', () => {
     fireEvent.press(cancelBtn)
     await waitFor(() => expect(queryByText('Add Result')).toBeNull())
   })
+
+  test('Modal shows score-type picker when scoreKind cannot be auto-derived (no history + no templateWorkout)', async () => {
+    // Hero WOD with no templateWorkout and no history → kind unknown → picker must appear
+    ;(api.benchmarks.history as jest.Mock).mockResolvedValue({ namedWorkout: sampleEntry, history: [] })
+    const heroEntry = { ...sampleEntry, name: 'Murph', category: 'HERO_WOD' as const, templateWorkout: null }
+
+    const { findByText, getByRole, queryByPlaceholderText, getByPlaceholderText } = render(
+      <BenchmarkDetailScreen route={makeRoute(heroEntry as any)} navigation={makeNavigation()} />,
+    )
+    await findByText('Murph')
+    fireEvent.press(getByRole('button', { name: 'Add result' }))
+
+    expect(await findByText('Score type')).toBeTruthy()
+    // All four kind options should be rendered as radio buttons
+    expect(getByRole('radio', { name: 'Time' })).toBeTruthy()
+    expect(getByRole('radio', { name: 'Rounds + Reps' })).toBeTruthy()
+    expect(getByRole('radio', { name: 'Reps' })).toBeTruthy()
+    expect(getByRole('radio', { name: 'Load' })).toBeTruthy()
+    // Default kind is TIME → time inputs (MM/SS) are visible
+    expect(getByPlaceholderText('MM')).toBeTruthy()
+    expect(getByPlaceholderText('SS')).toBeTruthy()
+    // Switch to Rounds + Reps → time inputs go away, rounds/reps inputs appear
+    fireEvent.press(getByRole('radio', { name: 'Rounds + Reps' }))
+    await waitFor(() => expect(queryByPlaceholderText('MM')).toBeNull())
+    expect(getByPlaceholderText('Rounds')).toBeTruthy()
+    expect(getByPlaceholderText('Reps')).toBeTruthy()
+  })
+
+  test('Modal hides the score-type picker when scoreKind is known (history present)', async () => {
+    // sampleHistory has primaryScoreKind: 'TIME' → scoreKind derived → picker hidden
+    const { findByText, getByRole, queryByText, getByPlaceholderText } = render(
+      <BenchmarkDetailScreen route={makeRoute()} navigation={makeNavigation()} />,
+    )
+    await findByText('Fran')
+    fireEvent.press(getByRole('button', { name: 'Add result' }))
+    await findByText('Add Result')
+    expect(queryByText('Score type')).toBeNull()
+    // Time input rendered directly (MM/SS placeholders prove it)
+    expect(getByPlaceholderText('MM')).toBeTruthy()
+    expect(getByPlaceholderText('SS')).toBeTruthy()
+  })
 })

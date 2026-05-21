@@ -195,6 +195,16 @@ const LEVEL_LABELS: Record<WorkoutLevel, string> = {
   MODIFIED: 'Modified',
 }
 
+// Score-kind picker options shown when the benchmark has no templateWorkout AND
+// no prior history (so we can't auto-derive the kind). Keep this list aligned with
+// the kinds handled by buildScore below.
+const SCORE_KIND_OPTIONS: { value: string; label: string }[] = [
+  { value: 'TIME',        label: 'Time' },
+  { value: 'ROUNDS_REPS', label: 'Rounds + Reps' },
+  { value: 'REPS',        label: 'Reps' },
+  { value: 'LOAD',        label: 'Load' },
+]
+
 function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResultModalProps) {
   const { colors, isDark } = useTheme()
   const [date, setDate] = useState(todayStr())
@@ -209,17 +219,23 @@ function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResu
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // When the parent can't derive a kind, let the user pick. Defaults to TIME —
+  // the most common benchmark score format.
+  const [pickedKind, setPickedKind] = useState<string>('TIME')
+  const effectiveKind = scoreKind ?? pickedKind
+
   function reset() {
     setDate(todayStr())
     setTimeMin(''); setTimeSec('')
     setRoundsVal(''); setRepsVal('')
     setLoadVal(''); setGenericVal('')
     setLevel('RX'); setNotes('')
+    setPickedKind('TIME')
     setError(null)
   }
 
   function buildScore(): object | null {
-    switch (scoreKind) {
+    switch (effectiveKind) {
       case 'TIME': {
         const m = parseInt(timeMin || '0', 10)
         const s = parseInt(timeSec || '0', 10)
@@ -255,7 +271,7 @@ function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResu
   async function handleSave() {
     setError(null)
     const score = buildScore()
-    if (scoreKind && !score) {
+    if (effectiveKind && !score) {
       setError('Enter a valid score.')
       return
     }
@@ -317,8 +333,41 @@ function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResu
             maxLength={10}
           />
 
-          {/* Score inputs by kind */}
-          {scoreKind === 'TIME' && (
+          {/*
+            Score-type picker — only shown when the parent could not auto-derive
+            the kind (no templateWorkout AND no prior history). Lets the user
+            choose between Time / Rounds+Reps / Reps / Load so they can always
+            record SOMETHING. When the kind is known, the picker is hidden and
+            the matching input is rendered directly below.
+          */}
+          {!scoreKind && (
+            <>
+              <Text style={[s.fieldLabel, { color: colors.textLabel }]}>Score type</Text>
+              <View style={s.kindPickerRow}>
+                {SCORE_KIND_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      s.kindBtn,
+                      { borderColor: colors.borderInteractive },
+                      pickedKind === opt.value && { backgroundColor: colors.accent, borderColor: colors.accent },
+                    ]}
+                    onPress={() => setPickedKind(opt.value)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: pickedKind === opt.value }}
+                    accessibilityLabel={opt.label}
+                  >
+                    <Text style={[s.kindBtnText, { color: pickedKind === opt.value ? '#020617' : colors.textSecondary }]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* Score inputs by effective kind */}
+          {effectiveKind === 'TIME' && (
             <>
               <Text style={[s.fieldLabel, { color: colors.textLabel }]}>Time</Text>
               <View style={s.row}>
@@ -345,7 +394,7 @@ function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResu
             </>
           )}
 
-          {scoreKind === 'ROUNDS_REPS' && (
+          {effectiveKind === 'ROUNDS_REPS' && (
             <>
               <Text style={[s.fieldLabel, { color: colors.textLabel }]}>Rounds + Reps</Text>
               <View style={s.row}>
@@ -370,7 +419,7 @@ function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResu
             </>
           )}
 
-          {scoreKind === 'LOAD' && (
+          {effectiveKind === 'LOAD' && (
             <>
               <Text style={[s.fieldLabel, { color: colors.textLabel }]}>Load (lb)</Text>
               <TextInput
@@ -384,10 +433,10 @@ function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResu
             </>
           )}
 
-          {(scoreKind === 'REPS' || scoreKind === 'CALORIES' || scoreKind === 'DISTANCE') && (
+          {(effectiveKind === 'REPS' || effectiveKind === 'CALORIES' || effectiveKind === 'DISTANCE') && (
             <>
               <Text style={[s.fieldLabel, { color: colors.textLabel }]}>
-                {scoreKind === 'REPS' ? 'Reps' : scoreKind === 'CALORIES' ? 'Calories' : 'Distance (m)'}
+                {effectiveKind === 'REPS' ? 'Reps' : effectiveKind === 'CALORIES' ? 'Calories' : 'Distance (m)'}
               </Text>
               <TextInput
                 style={inputStyle}
@@ -815,6 +864,23 @@ const s = StyleSheet.create({
     borderWidth: 1,
   },
   levelBtnText: { fontSize: 12, fontWeight: '600' },
+
+  // Score-kind picker (shown only when kind can't be auto-derived).
+  // Wraps to a second row on narrow screens since "Rounds + Reps" is wide.
+  kindPickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 4,
+  },
+  kindBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  kindBtnText: { fontSize: 12, fontWeight: '600' },
 
   saveBtn: {
     backgroundColor: '#2BA8A4',
