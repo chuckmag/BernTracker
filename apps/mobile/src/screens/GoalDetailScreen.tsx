@@ -22,6 +22,7 @@ import {
   type MovementTrajectoryData,
 } from '../lib/api'
 import GoalFormModal from '../components/GoalFormModal'
+import HabitCheckInPanel from '../components/HabitCheckInPanel'
 import MovementHistorySection from '../components/MovementHistorySection'
 
 type Nav = StackNavigationProp<RootStackParamList, 'GoalDetail'>
@@ -498,39 +499,31 @@ export default function GoalDetailScreen() {
           </View>
         )}
 
-        {/* Habit detail */}
+        {/* Habit detail — v2 check-in panel + manual complete toggle */}
         {goal.type === 'HABIT' && (
-          <View style={s.chartCard}>
-            <Text style={s.chartTitle}>Habit</Text>
-            <Text style={s.habitMeta}>
-              Target date: <Text style={s.habitMetaBold}>{goal.targetDate ? formatDate(goal.targetDate) : 'none'}</Text>
-            </Text>
-            {goal.status === 'COMPLETED' ? (
-              <View style={s.habitDone}>
-                <Text style={s.habitDoneText}>Completed</Text>
-                {goal.completedAt && (
-                  <Text style={s.habitDoneDate}>on {formatDate(goal.completedAt)}</Text>
-                )}
-              </View>
-            ) : (
+          <>
+            <HabitCheckInPanel goal={goal} onGoalChange={setGoal} />
+            <View style={s.habitFooterCard}>
+              <Text style={s.habitFooterCopy}>
+                {goal.status === 'COMPLETED' ? 'Goal completed.' : 'Finished the habit for good?'}
+              </Text>
               <TouchableOpacity
-                style={[s.completeBtn, updating && s.completeBtnDisabled]}
+                style={[s.habitFooterBtn, updating && s.completeBtnDisabled]}
                 onPress={handleMarkComplete}
                 disabled={updating}
                 accessibilityRole="button"
-                accessibilityLabel="Mark goal complete"
+                accessibilityLabel={goal.status === 'COMPLETED' ? 'Mark goal active' : 'Mark goal complete'}
               >
                 {updating ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color="#cbd5e1" />
                 ) : (
-                  <Text style={s.completeBtnText}>Mark complete</Text>
+                  <Text style={s.habitFooterBtnText}>
+                    {goal.status === 'COMPLETED' ? 'Mark active' : 'Mark complete'}
+                  </Text>
                 )}
               </TouchableOpacity>
-            )}
-            <View style={s.habitPlaceholder}>
-              <Text style={s.habitPlaceholderText}>Daily check-ins coming soon</Text>
             </View>
-          </View>
+          </>
         )}
       </ScrollView>
 
@@ -620,6 +613,27 @@ const s = StyleSheet.create({
     padding: 12,
   },
   habitPlaceholderText: { color: '#6b7280', fontSize: 12, textAlign: 'center' },
+
+  habitFooterCard: {
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  habitFooterCopy: { color: '#9ca3af', fontSize: 12, flex: 1 },
+  habitFooterBtn: {
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  habitFooterBtnText: { color: '#cbd5e1', fontSize: 13 },
 
   menuBackdrop: {
     flex: 1,

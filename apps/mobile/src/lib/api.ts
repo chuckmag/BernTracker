@@ -30,8 +30,10 @@ import type {
   TargetPrType,
   GoalProgress,
   GoalResponse,
+  GoalCheckInResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  RecordGoalCheckInInput,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -66,8 +68,10 @@ export type {
   TargetPrType,
   GoalProgress,
   GoalResponse,
+  GoalCheckInResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  RecordGoalCheckInInput,
 }
 export { AGE_DIVISIONS, deriveWorkoutGender, getAgeDivision } from '@wodalytics/types'
 
@@ -822,5 +826,29 @@ export const api = {
 
   goals: {
     get: (goalId: string) => request<GoalResponse>(`/api/goals/${encodeURIComponent(goalId)}`),
+    // Habit check-in routes (#455). Only valid for HABIT-type goals;
+    // POST/DELETE/GET on a PR_TARGET / FREQUENCY goal returns 400.
+    // The record/delete responses include the refreshed goal so the
+    // caller can replace state without a second fetch.
+    checkIns: {
+      record: (goalId: string, input: RecordGoalCheckInInput = {}) =>
+        request<{ checkIn: GoalCheckInResponse; goal: GoalResponse }>(
+          `/api/goals/${encodeURIComponent(goalId)}/check-ins`,
+          { method: 'POST', body: JSON.stringify(input) },
+        ),
+      remove: (goalId: string, date: string) =>
+        request<{ goal: GoalResponse }>(
+          `/api/goals/${encodeURIComponent(goalId)}/check-ins/${encodeURIComponent(date)}`,
+          { method: 'DELETE' },
+        ),
+      list: (goalId: string, params?: { since?: string; until?: string; limit?: number }) => {
+        const qs = new URLSearchParams()
+        if (params?.since) qs.set('since', params.since)
+        if (params?.until) qs.set('until', params.until)
+        if (params?.limit) qs.set('limit', String(params.limit))
+        const suffix = qs.toString() ? `?${qs.toString()}` : ''
+        return request<GoalCheckInResponse[]>(`/api/goals/${encodeURIComponent(goalId)}/check-ins${suffix}`)
+      },
+    },
   },
 }

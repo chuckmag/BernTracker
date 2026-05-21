@@ -21,7 +21,14 @@ jest.mock('@react-navigation/native', () => {
 
 jest.mock('../src/lib/api', () => ({
   api: {
-    goals: { get: jest.fn() },
+    goals: {
+      get: jest.fn(),
+      checkIns: {
+        record: jest.fn(),
+        remove: jest.fn(),
+        list: jest.fn(() => Promise.resolve([])),
+      },
+    },
     users: { me: { goals: { update: jest.fn(), remove: jest.fn() } } },
     analytics: { movementTrajectory: jest.fn(() => Promise.resolve({ prType: 'LOAD', points: [] })) },
   },
@@ -70,12 +77,25 @@ function prGoal(overrides: Partial<GoalResponse> = {}): GoalResponse {
   }
 }
 
-function habitGoal(): GoalResponse {
+function habitGoal(overrides: { currentStreak?: number; checkedInToday?: boolean } = {}): GoalResponse {
+  const currentStreak = overrides.currentStreak ?? 0
+  const checkedInToday = overrides.checkedInToday ?? false
   return {
     ...prGoal(),
     type: 'HABIT',
     title: 'Stretch daily',
-    progress: { type: 'HABIT' } as any,
+    progress: {
+      type: 'HABIT',
+      currentStreak,
+      longestStreak: currentStreak,
+      totalCheckIns: currentStreak,
+      weekCheckIns: currentStreak,
+      last7Days: Array.from({ length: 7 }, (_, i) => ({
+        date: `2026-05-${21 - i}`,
+        checkedIn: i < currentStreak,
+      })),
+      checkedInToday,
+    },
     movement: null,
     namedWorkout: null,
     movementId: null,
@@ -174,14 +194,46 @@ describe('GoalDetailScreen', () => {
     expect(found).toBe(true)
   })
 
-  test('renders Mark complete button for active HABIT goals', async () => {
-    ;(api.goals.get as jest.Mock).mockResolvedValue(habitGoal())
+  test('renders the v2 streak hero and tap-to-check CTA for active HABIT goals', async () => {
+    ;(api.goals.get as jest.Mock).mockResolvedValue(habitGoal({ currentStreak: 3 }))
     const { findByText } = render(<GoalDetailScreen />)
+    // Streak hero copy
+    expect(await findByText('CURRENT STREAK')).toBeTruthy()
+    expect(await findByText('3')).toBeTruthy()
+    expect(await findByText('Longest streak: 3 days')).toBeTruthy()
+    // Tap CTA visible when not checked in today
+    expect(await findByText('I did it today')).toBeTruthy()
+    // Manual complete still available as secondary action
     expect(await findByText('Mark complete')).toBeTruthy()
-    expect(await findByText('Daily check-ins coming soon')).toBeTruthy()
   })
 
-  test('Mark complete flips status to COMPLETED', async () => {
+  test('renders Undo + Save note when checkedInToday=true', async () => {
+    ;(api.goals.get as jest.Mock).mockResolvedValue(
+      habitGoal({ currentStreak: 1, checkedInToday: true }),
+    )
+    const { findByText, queryByText } = render(<GoalDetailScreen />)
+    expect(await findByText('Locked in for today.')).toBeTruthy()
+    expect(await findByText('Undo')).toBeTruthy()
+    expect(await findByText('Save note')).toBeTruthy()
+    // The v1 placeholder is gone
+    expect(queryByText('Daily check-ins coming soon')).toBeNull()
+  })
+
+  test('Tap "I did it today" calls record and updates progress', async () => {
+    ;(api.goals.get as jest.Mock).mockResolvedValue(habitGoal({ currentStreak: 0 }))
+    ;(api.goals.checkIns.record as jest.Mock).mockResolvedValue({
+      checkIn: { id: 'c1', goalId: 'goal-1', date: '2026-05-21', note: null, createdAt: new Date().toISOString() },
+      goal: habitGoal({ currentStreak: 1, checkedInToday: true }),
+    })
+    const { findByText } = render(<GoalDetailScreen />)
+    const btn = await findByText('I did it today')
+    fireEvent.press(btn)
+    await waitFor(() => {
+      expect(api.goals.checkIns.record).toHaveBeenCalledWith('goal-1', {})
+    })
+  })
+
+  test('Mark complete still flips status to COMPLETED', async () => {
     ;(api.goals.get as jest.Mock).mockResolvedValue(habitGoal())
     ;(api.users.me.goals.update as jest.Mock).mockResolvedValue({
       ...habitGoal(),
