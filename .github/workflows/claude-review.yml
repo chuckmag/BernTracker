@@ -94,6 +94,10 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           use_sticky_comment: true
+          # TEMP: surface the agent's full SDK output so we can see why the
+          # sticky comment isn't being posted on green reviews. Remove once the
+          # posting path is fixed — full output is verbose and leaks prompt details.
+          show_full_output: true
           claude_args: |
             --model ${{ env.MODEL_ID }}
             --max-turns 30
