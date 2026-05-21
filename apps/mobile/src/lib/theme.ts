@@ -1,4 +1,6 @@
+import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useColorScheme } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 // Brand color values — kept in sync with apps/web/src/index.css and designTokens.ts.
 const BRAND = {
@@ -82,11 +84,74 @@ export const COLORS = {
 
 export type ThemeColors = { [K in keyof typeof COLORS.light]: string }
 
-// useTheme — returns the active palette based on the device color scheme.
-// When #254 (AsyncStorage-backed preference) lands, update this to read from
-// ThemeContext instead so users can override the OS preference.
-export function useTheme(): { isDark: boolean; colors: ThemeColors } {
-  const scheme = useColorScheme()
-  const isDark = scheme === 'dark'
-  return { isDark, colors: isDark ? COLORS.dark : COLORS.light }
+// Three-mode preference mirroring the web `wodalytics-theme` localStorage value
+// (apps/web/CLAUDE.md → *Cross-app contracts*). Persists to AsyncStorage so the
+// choice survives app restarts.
+export type ThemeMode = 'light' | 'dark' | 'system'
+
+const STORAGE_KEY = 'wodalytics-theme'
+
+function isValidMode(value: string | null): value is ThemeMode {
+  return value === 'light' || value === 'dark' || value === 'system'
+}
+
+interface ThemeContextValue {
+  mode: ThemeMode
+  setMode: (mode: ThemeMode) => void
+  isDark: boolean
+  colors: ThemeColors
+}
+
+const ThemeContext = createContext<ThemeContextValue | null>(null)
+
+// Wraps the app so descendants share a single, persisted preference. Mounted
+// in `App.tsx` alongside the other providers; uses `useColorScheme()` as the
+// fallback when `mode === 'system'`.
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const systemScheme = useColorScheme()
+  const [mode, setModeState] = useState<ThemeMode>('system')
+
+  // Hydrate the persisted preference on mount. AsyncStorage failures fall back
+  // to 'system' silently — the OS preference is still applied below, so the
+  // user experience degrades to "no manual override" rather than crashing.
+  useEffect(() => {
+    let cancelled = false
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((raw) => {
+        if (cancelled) return
+        if (isValidMode(raw)) setModeState(raw)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  function setMode(next: ThemeMode) {
+    setModeState(next)
+    AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {})
+  }
+
+  const effective = mode === 'system' ? systemScheme : mode
+  const isDark = effective === 'dark'
+  const colors: ThemeColors = isDark ? COLORS.dark : COLORS.light
+
+  return createElement(ThemeContext.Provider, { value: { mode, setMode, isDark, colors } }, children)
+}
+
+// Returns the active palette + theme controls. When no provider is mounted
+// (e.g. legacy tests, snapshot tools), falls back to OS color scheme without
+// the persistence/setMode surface — `setMode` becomes a no-op and `mode`
+// reflects the OS scheme directly. Existing callers that only destructure
+// `{ isDark, colors }` keep working unchanged.
+export function useTheme(): ThemeContextValue {
+  const ctx = useContext(ThemeContext)
+  const systemScheme = useColorScheme()
+  if (ctx) return ctx
+  const isDark = systemScheme === 'dark'
+  const fallbackMode: ThemeMode = systemScheme === 'light' ? 'light' : systemScheme === 'dark' ? 'dark' : 'system'
+  return {
+    mode: fallbackMode,
+    setMode: () => {},
+    isDark,
+    colors: isDark ? COLORS.dark : COLORS.light,
+  }
 }

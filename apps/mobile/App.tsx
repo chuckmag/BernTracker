@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { GymProvider } from './src/context/GymContext'
 import { ProgramFilterProvider } from './src/context/ProgramFilterContext'
 import { MovementsProvider } from './src/context/MovementsContext'
+import { ThemeProvider } from './src/lib/theme'
 import LoginScreen from './src/screens/LoginScreen'
 import HomeScreen from './src/screens/HomeScreen'
 import FeedScreen from './src/screens/FeedScreen'
@@ -20,6 +21,7 @@ import BenchmarkDetailScreen from './src/screens/BenchmarkDetailScreen'
 import ResultDetailScreen from './src/screens/ResultDetailScreen'
 import UserProfileScreen from './src/screens/UserProfileScreen'
 import WodResultDetailScreen from './src/screens/WodResultDetailScreen'
+import SettingsScreen from './src/screens/SettingsScreen'
 import type { LeaderboardEntry, MovementPrType, BenchmarkSummaryEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -49,6 +51,7 @@ export type MainTabParamList = {
   FeedTab: undefined
   HistoryTab: undefined
   AnalyticsTab: undefined
+  ProfileTab: undefined
 }
 
 export type AnalyticsStackParamList = {
@@ -69,6 +72,10 @@ export type HistoryStackParamList = {
   History: undefined
 }
 
+export type ProfileStackParamList = {
+  Settings: undefined
+}
+
 // ── Navigators ───────────────────────────────────────────────────────────────
 
 const RootStack = createStackNavigator<RootStackParamList>()
@@ -77,6 +84,7 @@ const HomeStack = createStackNavigator<HomeStackParamList>()
 const FeedStack = createStackNavigator<FeedStackParamList>()
 const HistoryStack = createStackNavigator<HistoryStackParamList>()
 const AnalyticsStack = createStackNavigator<AnalyticsStackParamList>()
+const ProfileStack = createStackNavigator<ProfileStackParamList>()
 
 const stackScreenOptions = {
   headerStyle: { backgroundColor: '#111827' },
@@ -106,6 +114,14 @@ function HistoryStackNavigator() {
     <HistoryStack.Navigator screenOptions={stackScreenOptions}>
       <HistoryStack.Screen name="History" component={HistoryScreen} options={{ title: 'History' }} />
     </HistoryStack.Navigator>
+  )
+}
+
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator screenOptions={stackScreenOptions}>
+      <ProfileStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Profile' }} />
+    </ProfileStack.Navigator>
   )
 }
 
@@ -169,6 +185,7 @@ function MainTabs() {
           ),
         }}
       />
+      <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   )
 }
@@ -215,17 +232,19 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <GymProvider>
-        <ProgramFilterProvider>
-          <MovementsProvider>
-            <NavigationContainer>
-              <RootNavigator />
-              <StatusBar style="light" />
-            </NavigationContainer>
-          </MovementsProvider>
-        </ProgramFilterProvider>
-      </GymProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <GymProvider>
+          <ProgramFilterProvider>
+            <MovementsProvider>
+              <NavigationContainer>
+                <RootNavigator />
+                <StatusBar style="light" />
+              </NavigationContainer>
+            </MovementsProvider>
+          </ProgramFilterProvider>
+        </GymProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }

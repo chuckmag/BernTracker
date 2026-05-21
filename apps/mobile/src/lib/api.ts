@@ -251,6 +251,50 @@ export interface PublicUserProfile {
   avatarUrl: string | null
 }
 
+// Emergency contact attached to a user profile. Mirrors the web `EmergencyContact`
+// shape — read-only here for now (settings screen displays the count; the editor
+// rides along with the onboarding work in #208).
+export interface EmergencyContact {
+  id: string
+  userId: string
+  name: string
+  relationship: string | null
+  phone: string
+  email: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// Full profile returned by GET /api/users/me/profile. Superset of `AuthUser`
+// (which is what /api/auth/me returns) — adds birthday / avatarUrl / onboardedAt /
+// role / unit preferences and the user's emergency contacts list.
+export interface UserProfile {
+  id: string
+  email: string
+  name: string | null
+  firstName: string | null
+  lastName: string | null
+  birthday: string | null
+  identifiedGender: IdentifiedGender | null
+  avatarUrl: string | null
+  onboardedAt: string | null
+  role: Role
+  preferredLoadUnit: LoadUnit
+  preferredDistanceUnit: DistanceUnit
+  emergencyContacts: EmergencyContact[]
+}
+
+// PATCH /api/users/me/profile body. All fields optional — server applies a
+// partial update and re-runs `maybeMarkOnboarded` after.
+export interface UpdateProfilePayload {
+  firstName?: string
+  lastName?: string
+  birthday?: string | null
+  identifiedGender?: IdentifiedGender | null
+  preferredLoadUnit?: LoadUnit
+  preferredDistanceUnit?: DistanceUnit
+}
+
 export interface ResultHistoryItem {
   id: string
   workout: {
@@ -653,6 +697,25 @@ export const api = {
   users: {
     public: (userId: string) =>
       request<PublicUserProfile>(`/api/users/${userId}/public`),
+
+    me: {
+      profile: {
+        // GET /api/users/me/profile — returns the caller's full profile
+        // (superset of /api/auth/me) plus their emergency contacts. Used by
+        // the SettingsScreen + the OnboardingScreen pre-fill.
+        get: () => request<UserProfile>('/api/users/me/profile'),
+
+        // PATCH /api/users/me/profile — partial update. Server re-runs
+        // `maybeMarkOnboarded` after every patch, so completing the four
+        // required fields (firstName, lastName, birthday, identifiedGender)
+        // automatically flips `onboardedAt` to now().
+        update: (data: UpdateProfilePayload) =>
+          request<UserProfile>('/api/users/me/profile', {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+          }),
+      },
+    },
   },
 
   social: {
