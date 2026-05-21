@@ -197,6 +197,13 @@ export default function Dashboard() {
             />
           )}
 
+          {/* Goals card — inline on small screens, hidden on desktop (right
+              rail has it). Sits above the Upcoming card here to keep the
+              vertical order consistent with the desktop rail. */}
+          <div className="lg:hidden">
+            <GoalsCard />
+          </div>
+
           {/* Upcoming card — inline on mobile, hidden on desktop (right rail has it) */}
           {!noGym && gymId && (
             <div className="lg:hidden">
