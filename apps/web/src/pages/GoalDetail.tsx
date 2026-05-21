@@ -19,7 +19,8 @@
  * Kebab menu actions: edit title/target date, archive, delete.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import WorkoutMovementHistory from '../components/WorkoutMovementHistory.tsx'
 import {
   LineChart,
   Line,
@@ -206,7 +207,7 @@ export default function GoalDetail() {
       )}
 
       {/* Type-specific body */}
-      {goal.type === 'PR_TARGET' && <PrTargetBody goal={goal} />}
+      {goal.type === 'PR_TARGET' && <PrTargetBody goal={goal} bump={bump} />}
       {goal.type === 'FREQUENCY' && <FrequencyBody goal={goal} />}
       {goal.type === 'HABIT' && (
         <HabitBody goal={goal} onToggleComplete={handleMarkComplete} />
@@ -217,7 +218,7 @@ export default function GoalDetail() {
 
 // ─── PR Target chart ─────────────────────────────────────────────────────────
 
-function PrTargetBody({ goal }: { goal: GoalResponse }) {
+function PrTargetBody({ goal, bump }: { goal: GoalResponse; bump: number }) {
   const [range, setRange] = useState<Range>('3M')
   const [data, setData] = useState<MovementTrajectoryData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -234,7 +235,9 @@ function PrTargetBody({ goal }: { goal: GoalResponse }) {
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false))
-  }, [movementId, prType, range])
+    // `bump` is incremented by parent after a successful backfill so the
+    // trajectory chart refreshes alongside WorkoutMovementHistory.
+  }, [movementId, prType, range, bump])
 
   if (!movementId) {
     // v1 limitation: named-workout PR-target goals show the target + current
@@ -265,14 +268,28 @@ function PrTargetBody({ goal }: { goal: GoalResponse }) {
   const textColor = isDark ? '#9ca3af' : '#64748b'
   const accent = isDark ? BRAND_TOKENS.dark.accent : BRAND_TOKENS.light.accent
 
+  const movementName = goal.movement?.name ?? 'Movement'
+
   return (
-    <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs text-slate-500 dark:text-gray-400">
-          {goal.movement?.name ?? 'Movement'} trajectory
-        </p>
-        <SegmentedControl options={RANGES} value={range} onChange={setRange} />
-      </div>
+    <div className="space-y-4">
+      {/* Movement attribution + deep-link to MovementsPage where the user
+          can see the full movement detail (chart + PR table + backfill).
+          MovementsPage reads `?movementId` on mount and auto-opens the
+          matching detail panel. */}
+      <Link
+        to={`/wodalytics/movements?movementId=${movementId}`}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 rounded"
+      >
+        <span aria-hidden="true">›</span> View {movementName} on Movements
+      </Link>
+
+      <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs text-slate-500 dark:text-gray-400">
+            {movementName} trajectory
+          </p>
+          <SegmentedControl options={RANGES} value={range} onChange={setRange} />
+        </div>
       {!data || data.points.length < 2 ? (
         <p className="text-xs text-slate-400 dark:text-gray-500 py-4">
           Not enough data to chart trajectory yet — log a couple of results to start the line.
@@ -334,6 +351,12 @@ function PrTargetBody({ goal }: { goal: GoalResponse }) {
           </LineChart>
         </ResponsiveContainer>
       )}
+      </div>
+
+      {/* Full movement history — PR table + backfill modal + past results.
+          Reuses the WodDetail component; `currentWorkoutId` is left
+          undefined because Goal Detail has no current-workout context. */}
+      <WorkoutMovementHistory movementId={movementId} movementName={movementName} />
     </div>
   )
 }
