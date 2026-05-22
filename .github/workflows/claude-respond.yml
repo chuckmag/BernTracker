@@ -25,10 +25,14 @@ concurrency:
 jobs:
   respond:
     # Gate: only run when the comment mentions @claude AND was authored by a
-    # human or another bot we trust. Skip our own comments to avoid loops.
+    # human. Bots are filtered out entirely to prevent self-trigger loops —
+    # comments we post via the GITHUB_TOKEN appear as `github-actions[bot]`,
+    # and inline comments posted by the action's MCP tool can appear as
+    # `claude[bot]`. Gating on `user.type != 'Bot'` covers both without
+    # having to enumerate every bot we might trigger from in the future.
     if: |
       contains(github.event.comment.body, '@claude') &&
-      github.event.comment.user.login != 'github-actions[bot]'
+      github.event.comment.user.type != 'Bot'
     runs-on: ubuntu-latest
     permissions:
       contents: read
