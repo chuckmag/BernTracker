@@ -135,24 +135,17 @@ export default function OnboardingScreen() {
           birthday,
           identifiedGender: gender,
         })
-        // Server's `maybeMarkOnboarded` flipped `onboardedAt` — refresh the
-        // cached AuthUser so the RootNavigator gate re-evaluates after we're
-        // done with this flow.
-        await refreshUser()
 
-        // Check for pending gym invitations before exiting the flow.
+        // Defer refreshUser() until we know which branch we're in — calling it
+        // here would flip user.onboardedAt to non-null and trip RootNavigator
+        // into MainTabs before we can land on step 2.
         const pending = await api.users.me.invitations.pendingAll().catch(() => [] as PendingInvitation[])
-        const withGym = pending.filter((item) =>
-          item.kind === 'membershipRequest'
-            ? !!item.data.gymId
-            : !!item.data.gymId,
-        )
+        const withGym = pending.filter((item) => !!item.data.gymId)
         if (withGym.length > 0) {
           setPendingInvitations(withGym)
           setStep(2)
         } else {
-          // No invites — the RootNavigator picks up the now-non-null
-          // `onboardedAt` on the next render and routes to MainTabs.
+          // No invites — refresh now so RootNavigator routes to MainTabs.
           await refreshUser()
         }
       } catch (e: unknown) {
@@ -163,7 +156,8 @@ export default function OnboardingScreen() {
       return
     }
 
-    // Step 2: invitations handled — return to the gated router.
+    // Step 2: invitations handled — refresh AuthUser so the now-non-null
+    // onboardedAt lets RootNavigator route into MainTabs.
     await refreshUser()
   }
 
@@ -229,7 +223,7 @@ export default function OnboardingScreen() {
                       },
                     ]}
                   >
-                    <ThemedText style={styles.stepDotText}>{i + 1}</ThemedText>
+                    <ThemedText style={[styles.stepDotText, { color: colors.onPrimary }]}>{i + 1}</ThemedText>
                   </View>
                   <ThemedText
                     variant={active ? 'primary' : 'tertiary'}
@@ -317,7 +311,7 @@ export default function OnboardingScreen() {
                           ]}
                           testID={`gender-chip-${g.value}`}
                         >
-                          <ThemedText style={[styles.chipText, { color: active ? '#ffffff' : colors.textSecondary }]}>
+                          <ThemedText style={[styles.chipText, { color: active ? colors.onPrimary : colors.textSecondary }]}>
                             {g.label}
                           </ThemedText>
                         </TouchableOpacity>
@@ -370,7 +364,7 @@ export default function OnboardingScreen() {
                             disabled={!!inviteActingOn}
                             testID={`invite-accept-${key}`}
                           >
-                            <ThemedText style={styles.inviteButtonPrimaryText}>
+                            <ThemedText style={[styles.inviteButtonPrimaryText, { color: colors.onPrimary }]}>
                               {acting ? 'Accepting…' : 'Accept'}
                             </ThemedText>
                           </TouchableOpacity>
@@ -422,9 +416,9 @@ export default function OnboardingScreen() {
                 testID="next-button"
               >
                 {submitting
-                  ? <ActivityIndicator color="#ffffff" />
+                  ? <ActivityIndicator color={colors.onPrimary} />
                   : (
-                    <ThemedText style={styles.nextButtonText}>
+                    <ThemedText style={[styles.nextButtonText, { color: colors.onPrimary }]}>
                       {step === 0 ? 'Continue →' : step === 1 ? 'Finish' : 'Go to app →'}
                     </ThemedText>
                   )}
@@ -482,7 +476,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepDotText: {
-    color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -556,7 +549,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   inviteButtonPrimaryText: {
-    color: '#ffffff',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -594,7 +586,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nextButtonText: {
-    color: '#ffffff',
     fontSize: 15,
     fontWeight: '600',
   },

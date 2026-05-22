@@ -35,6 +35,12 @@ import type {
   GoalResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  Invitation,
+  InvitationStatus,
+  InvitationChannel,
+  GymInvitation,
+  MembershipRequestStatus,
+  PendingInvitation,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -73,6 +79,12 @@ export type {
   GoalResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  Invitation,
+  InvitationStatus,
+  InvitationChannel,
+  GymInvitation,
+  MembershipRequestStatus,
+  PendingInvitation,
 }
 // PATCH /api/users/me/profile body alias — the shared Zod-inferred type is
 // the authoritative shape; the alias keeps mobile call sites stable.
@@ -280,60 +292,6 @@ export interface PublicUserProfile {
   name: string | null
   avatarUrl: string | null
 }
-
-
-// ── Invitation types ────────────────────────────────────────────────────────
-// Two parallel models per #204:
-//  - `GymInvitation` is a GymMembershipRequest row (staff invited an existing user)
-//  - `Invitation` is a pre-signup invite delivered via email/SMS by code
-// Both surface on `GET /api/users/me/pending-invitations` as a discriminated union.
-
-export type MembershipRequestStatus = 'PENDING' | 'APPROVED' | 'DECLINED' | 'REVOKED' | 'EXPIRED'
-export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED' | 'EXPIRED'
-export type InvitationChannel = 'EMAIL' | 'SMS'
-
-export interface GymInvitation {
-  id: string
-  gymId: string
-  direction: 'STAFF_INVITED' | 'USER_REQUESTED'
-  status: MembershipRequestStatus
-  email: string | null
-  userId: string | null
-  roleToGrant: Role
-  invitedById: string | null
-  decidedById: string | null
-  decidedAt: string | null
-  expiresAt: string | null
-  createdAt: string
-  updatedAt: string
-  gym: { id: string; name: string; slug: string }
-  invitedBy: { id: string; name: string | null; firstName: string | null; lastName: string | null; email: string } | null
-}
-
-export interface Invitation {
-  id: string
-  code: string
-  channel: InvitationChannel
-  email: string | null
-  phone: string | null
-  gymId: string | null
-  roleToGrant: Role
-  invitedById: string
-  status: InvitationStatus
-  expiresAt: string
-  acceptedById: string | null
-  createdAt: string
-  updatedAt: string
-  gym: { id: string; name: string; slug: string } | null
-  invitedBy: { id: string; firstName: string | null; lastName: string | null }
-}
-
-// Discriminated union returned by GET /api/users/me/pending-invitations.
-// Same shape as the web `PendingInvitation` type — keeps the OnboardingScreen
-// and (future) MyInvitationsSection in lockstep with the web equivalent.
-export type PendingInvitation =
-  | { kind: 'invitation'; data: Invitation }
-  | { kind: 'membershipRequest'; data: GymInvitation }
 
 export interface ResultHistoryItem {
   id: string

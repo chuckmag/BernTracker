@@ -14,10 +14,7 @@ interface AuthState {
   isLoading: boolean
   loginWithTokens: (accessToken: string, refreshToken: string) => Promise<void>
   logout: () => Promise<void>
-  // Re-fetches `/api/auth/me` and updates the cached user. Callers invoke this
-  // after a mutation that the server consumes to derive AuthUser state — most
-  // importantly the OnboardingScreen, which needs `user.onboardedAt` to flip
-  // from null to a timestamp so the RootNavigator routes to MainTabs.
+  // Re-fetch /api/auth/me and update the cached user.
   refreshUser: () => Promise<void>
 }
 

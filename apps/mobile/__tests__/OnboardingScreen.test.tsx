@@ -214,6 +214,28 @@ describe('OnboardingScreen', () => {
     await findByText("You've been invited to a gym!")
   })
 
+  test('does NOT call refreshUser before showing the invitations step (race-condition guard)', async () => {
+    ;(api.users.me.profile.update as jest.Mock).mockResolvedValue({})
+    ;(api.users.me.invitations.pendingAll as jest.Mock).mockResolvedValue([
+      membershipInvite('inv-race', 'Iron Pulse', 'Casey'),
+    ])
+
+    const { findByTestId } = render(<OnboardingScreen />)
+
+    fireEvent.changeText(await findByTestId('first-name-input'), 'Alex')
+    fireEvent.changeText(await findByTestId('last-name-input'), 'Doe')
+    fireEvent.press(await findByTestId('next-button'))
+
+    fireEvent.changeText(await findByTestId('birthday-input'), '1990-04-15')
+    fireEvent.press(await findByTestId('next-button'))
+
+    // We're on step 2 — refreshUser must NOT have been called yet, otherwise
+    // RootNavigator would have re-routed to MainTabs before the user could
+    // accept/decline the invite.
+    await findByTestId('invite-inv-race')
+    expect(mockRefreshUser).not.toHaveBeenCalled()
+  })
+
   test('accepting a membership-request invite calls the request-id endpoint', async () => {
     ;(api.users.me.profile.update as jest.Mock).mockResolvedValue({})
     ;(api.users.me.invitations.pendingAll as jest.Mock).mockResolvedValue([

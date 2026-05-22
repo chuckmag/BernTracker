@@ -33,6 +33,7 @@ export const COLORS = {
     accent:       BRAND.accent.light,
     accentHover:  BRAND.accentHover.light,
     accentText:   '#020617', // slate-950 — accent bg has low contrast with white
+    onPrimary:    '#ffffff', // text rendered on top of `primary` — same in both themes (primary bg is dark enough either way)
     // Status (translucent fills with solid text for readability)
     successText: '#15803d', // emerald-700
     warningText: '#b45309', // amber-700
@@ -67,6 +68,7 @@ export const COLORS = {
     accent:       BRAND.accent.dark,
     accentHover:  BRAND.accentHover.dark,
     accentText:   '#020617', // slate-950 — same: teal has low contrast with white
+    onPrimary:    '#ffffff',
     // Status
     successText: '#34d399', // emerald-400
     warningText: '#fbbf24', // amber-400
