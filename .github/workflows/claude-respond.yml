@@ -43,18 +43,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Pick model
+      - name: Pick model and turn budget
         id: pick
         env:
           BODY: ${{ github.event.comment.body }}
         run: |
           set -euo pipefail
+          # Deep-review uses Opus and a larger turn budget because it's
+          # explicitly invoked for hard / large PRs. A previous deep-review
+          # on PR #439 burned $1.80 hitting error_max_turns at 21 turns;
+          # 40 gives Opus enough room to walk a non-trivial review.
           if echo "$BODY" | grep -qiE '@claude[[:space:]]+deep-review'; then
             echo "model=$DEEP_REVIEW_MODEL" >> "$GITHUB_OUTPUT"
-            echo "Selected Opus for deep-review."
+            echo "max_turns=40" >> "$GITHUB_OUTPUT"
+            echo "Selected Opus for deep-review (max-turns 40)."
           else
             echo "model=$DEFAULT_MODEL" >> "$GITHUB_OUTPUT"
-            echo "Selected default model: $DEFAULT_MODEL"
+            echo "max_turns=20" >> "$GITHUB_OUTPUT"
+            echo "Selected default model: $DEFAULT_MODEL (max-turns 20)."
           fi
 
       - name: Run Claude
@@ -64,10 +70,14 @@ jobs:
           # See claude-review.yml for setup notes + the API-key fallback line.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Edit/Write are intentional in the respond allowlist — @claude
+          # mentions can legitimately ask for code changes, unlike the
+          # read-only review workflow.
+          # `#` lines must live OUTSIDE the `claude_args: |` block scalar:
+          # inside a literal block, YAML doesn't interpret `#` as a comment,
+          # so they'd be passed through to shell-quote, which DOES treat
+          # them as comments and would drop the following --allowed-tools.
           claude_args: |
             --model ${{ steps.pick.outputs.model }}
-            --max-turns 20
-            # Edit/Write are intentional — `@claude fix this` mentions
-            # legitimately produce code changes; the review workflow's list
-            # is narrower because review is read-only.
+            --max-turns ${{ steps.pick.outputs.max_turns }}
             --allowed-tools "Read,Grep,Glob,Edit,Write,Skill,Bash(gh *),Bash(git *),Bash(jq *)"
