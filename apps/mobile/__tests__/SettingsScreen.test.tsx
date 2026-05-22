@@ -1,14 +1,3 @@
-/**
- * SettingsScreen tests
- *
- * Covers the #130 Slice 5 acceptance criteria:
- *   - pre-fills from GET /api/users/me/profile
- *   - editing name / birthday / gender and tapping Save calls update endpoint
- *   - birthday format validation surfaces an inline error
- *   - theme picker writes the new mode via the ThemeProvider's setMode
- *   - sign-out confirmation invokes useAuth().logout()
- */
-
 import React from 'react'
 import { Alert } from 'react-native'
 import { render, fireEvent, waitFor } from '@testing-library/react-native'

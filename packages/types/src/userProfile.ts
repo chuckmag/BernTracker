@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { LoadUnitSchema, DistanceUnitSchema } from './result.js'
+import { LoadUnitSchema, DistanceUnitSchema, type LoadUnit, type DistanceUnit } from './result.js'
+import type { Role } from './auth.js'
 
 export const IdentifiedGenderSchema = z.enum(['FEMALE', 'MALE', 'NON_BINARY', 'PREFER_NOT_TO_SAY'])
 export type IdentifiedGender = z.infer<typeof IdentifiedGenderSchema>
@@ -37,3 +38,32 @@ export const UpdateEmergencyContactSchema = CreateEmergencyContactSchema.partial
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>
 export type CreateEmergencyContactInput = z.infer<typeof CreateEmergencyContactSchema>
 export type UpdateEmergencyContactInput = z.infer<typeof UpdateEmergencyContactSchema>
+
+// Response shapes returned by GET /api/users/me/profile and
+// /api/users/me/emergency-contacts. Dates arrive over the wire as ISO strings.
+export interface EmergencyContact {
+  id: string
+  userId: string
+  name: string
+  relationship: string | null
+  phone: string
+  email: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserProfile {
+  id: string
+  email: string
+  name: string | null
+  firstName: string | null
+  lastName: string | null
+  birthday: string | null
+  identifiedGender: IdentifiedGender | null
+  avatarUrl: string | null
+  onboardedAt: string | null
+  role: Role
+  preferredLoadUnit: LoadUnit
+  preferredDistanceUnit: DistanceUnit
+  emergencyContacts: EmergencyContact[]
+}

@@ -104,7 +104,11 @@ export default function SettingsScreen() {
         {
           text: 'Sign out',
           style: 'destructive',
-          onPress: () => { logout().catch(() => {}) },
+          onPress: () => {
+            logout().catch((e: unknown) => {
+              Alert.alert('Sign-out failed', e instanceof Error ? e.message : 'Please try again.')
+            })
+          },
         },
       ],
     )

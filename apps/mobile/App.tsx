@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { GymProvider } from './src/context/GymContext'
 import { ProgramFilterProvider } from './src/context/ProgramFilterContext'
 import { MovementsProvider } from './src/context/MovementsContext'
-import { ThemeProvider } from './src/lib/theme'
+import { ThemeProvider, useTheme, type ThemeColors } from './src/lib/theme'
 import LoginScreen from './src/screens/LoginScreen'
 import HomeScreen from './src/screens/HomeScreen'
 import FeedScreen from './src/screens/FeedScreen'
@@ -86,48 +86,55 @@ const HistoryStack = createStackNavigator<HistoryStackParamList>()
 const AnalyticsStack = createStackNavigator<AnalyticsStackParamList>()
 const ProfileStack = createStackNavigator<ProfileStackParamList>()
 
-const stackScreenOptions = {
-  headerStyle: { backgroundColor: '#111827' },
-  headerTintColor: '#ffffff',
-  headerTitleStyle: { fontWeight: '600' as const },
-  cardStyle: { backgroundColor: '#030712' },
+function buildStackScreenOptions(colors: ThemeColors) {
+  return {
+    headerStyle: { backgroundColor: colors.tabBarBg },
+    headerTintColor: colors.textPrimary,
+    headerTitleStyle: { fontWeight: '600' as const },
+    cardStyle: { backgroundColor: colors.screenBg },
+  }
 }
 
 function HomeStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <HomeStack.Navigator screenOptions={stackScreenOptions}>
+    <HomeStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
       <HomeStack.Screen name="Home" component={HomeScreen} options={{ title: 'Today' }} />
     </HomeStack.Navigator>
   )
 }
 
 function FeedStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <FeedStack.Navigator screenOptions={stackScreenOptions}>
+    <FeedStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
       <FeedStack.Screen name="Feed" component={FeedScreen} options={{ title: 'Workouts' }} />
     </FeedStack.Navigator>
   )
 }
 
 function HistoryStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <HistoryStack.Navigator screenOptions={stackScreenOptions}>
+    <HistoryStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
       <HistoryStack.Screen name="History" component={HistoryScreen} options={{ title: 'History' }} />
     </HistoryStack.Navigator>
   )
 }
 
 function ProfileStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <ProfileStack.Navigator screenOptions={stackScreenOptions}>
+    <ProfileStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
       <ProfileStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Profile' }} />
     </ProfileStack.Navigator>
   )
 }
 
 function AnalyticsStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <AnalyticsStack.Navigator screenOptions={stackScreenOptions}>
+    <AnalyticsStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
       <AnalyticsStack.Screen
         name="Analytics"
         component={AnalyticsScreen}
@@ -139,7 +146,7 @@ function AnalyticsStackNavigator() {
                 style={{ width: 36, height: 36 }}
                 resizeMode="contain"
               />
-              <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '600' }}>WODalytics</Text>
+              <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: '600' }}>WODalytics</Text>
             </View>
           ),
         }}
@@ -159,13 +166,14 @@ function AnalyticsStackNavigator() {
 }
 
 function MainTabs() {
+  const { colors } = useTheme()
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: '#111827', borderTopColor: '#1f2937' },
-        tabBarActiveTintColor: '#818cf8',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarStyle: { backgroundColor: colors.tabBarBg, borderTopColor: colors.tabBarBorder },
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
       }}
     >
       <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Today' }} />
@@ -191,8 +199,9 @@ function MainTabs() {
 }
 
 function RootStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <RootStack.Navigator screenOptions={stackScreenOptions}>
+    <RootStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
       <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
       <RootStack.Screen name="WodDetail" component={WodDetailScreen} options={{ title: '' }} />
       <RootStack.Screen name="LogResult" component={LogResultScreen} options={{ title: 'Log Result' }} />
@@ -216,11 +225,12 @@ function RootStackNavigator() {
 
 function RootNavigator() {
   const { user, isLoading } = useAuth()
+  const { colors } = useTheme()
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#030712', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color="#818cf8" />
+      <View style={{ flex: 1, backgroundColor: colors.screenBg, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color={colors.primary} />
       </View>
     )
   }
@@ -229,6 +239,11 @@ function RootNavigator() {
 }
 
 // ── App root ─────────────────────────────────────────────────────────────────
+
+function ThemedStatusBar() {
+  const { isDark } = useTheme()
+  return <StatusBar style={isDark ? 'light' : 'dark'} />
+}
 
 export default function App() {
   return (
@@ -239,7 +254,7 @@ export default function App() {
             <MovementsProvider>
               <NavigationContainer>
                 <RootNavigator />
-                <StatusBar style="light" />
+                <ThemedStatusBar />
               </NavigationContainer>
             </MovementsProvider>
           </ProgramFilterProvider>

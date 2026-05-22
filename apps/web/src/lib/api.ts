@@ -24,6 +24,9 @@ import type {
   GoalResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  EmergencyContact,
+  UserProfile,
+  UpdateProfileInput,
 } from '@wodalytics/types'
 import { WORKOUT_TYPE_STYLES } from './workoutTypeStyles'
 import keycloak from './keycloak'
@@ -553,20 +556,7 @@ export interface AuthUser {
   isWodalyticsAdmin: boolean
 }
 
-export interface EmergencyContact {
-  id: string
-  userId: string
-  name: string
-  relationship: string | null
-  phone: string
-  email: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-export interface UserProfile extends Omit<AuthUser, 'isWodalyticsAdmin'> {
-  emergencyContacts: EmergencyContact[]
-}
+export type { EmergencyContact, UserProfile }
 
 export interface PublicUserProfile {
   id: string
@@ -576,12 +566,9 @@ export interface PublicUserProfile {
   avatarUrl: string | null
 }
 
-export interface UpdateProfilePayload {
-  firstName?: string
-  lastName?: string
-  birthday?: string | null
-  identifiedGender?: IdentifiedGender
-}
+// PATCH /api/users/me/profile body alias — the shared Zod-inferred type is
+// the authoritative shape; the alias keeps existing web call sites stable.
+export type UpdateProfilePayload = UpdateProfileInput
 
 export interface CreateEmergencyContactPayload {
   name: string
