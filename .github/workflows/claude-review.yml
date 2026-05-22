@@ -152,16 +152,15 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          OUT="/home/runner/work/_temp/claude-execution-output.json"
+          OUT="${RUNNER_TEMP}/claude-execution-output.json"
           if [ ! -f "$OUT" ]; then
             echo "::warning::No SDK execution output at $OUT — nothing to post."
             exit 0
           fi
           # `.[-1]` picks the top-level SDK summary; subagents emit their own
-          # earlier `result` entries we don't want.
-          REVIEW=$(jq -s '[.. | objects | select(.type=="result")] | .[-1].result // ""' "$OUT")
-          # `jq -s` returns a JSON string (quoted, escaped). Convert to raw text.
-          REVIEW=$(printf '%s' "$REVIEW" | jq -r '.')
+          # earlier `result` entries we don't want. `-rs` extracts the raw
+          # string value in one pass (no double JSON-decode needed).
+          REVIEW=$(jq -rs '[.. | objects | select(.type=="result")] | .[-1].result // ""' "$OUT")
           if [ -z "$REVIEW" ] || [ "$REVIEW" = "null" ]; then
             echo "::warning::Agent produced no result text — skipping sticky post."
             exit 0
@@ -184,7 +183,7 @@ jobs:
         if: steps.size.outputs.over_limit == 'false'
         run: |
           set -euo pipefail
-          OUT="/home/runner/work/_temp/claude-execution-output.json"
+          OUT="${RUNNER_TEMP}/claude-execution-output.json"
           if [ ! -f "$OUT" ]; then
             echo "::warning::No SDK execution output at $OUT — skipping denial check."
             exit 0
