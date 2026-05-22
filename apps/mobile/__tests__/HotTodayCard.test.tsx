@@ -37,7 +37,7 @@ function makeEntry(
     user: { id, name: `User ${id}`, firstName: null, lastName: null, avatarUrl: null, birthday: null },
     level: 'RX',
     workoutGender: 'OPEN',
-    value: { score: { kind: 'TIME', seconds: 300 } },
+    value: { score: { kind: 'TIME', seconds: 300, cappedOut: false }, movementResults: [] },
     notes: null,
     createdAt: new Date().toISOString(),
     _count: { reactions, comments },

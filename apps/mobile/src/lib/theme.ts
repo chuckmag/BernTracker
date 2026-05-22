@@ -80,7 +80,7 @@ export const COLORS = {
   },
 } as const
 
-export type ThemeColors = typeof COLORS.light
+export type ThemeColors = { [K in keyof typeof COLORS.light]: string }
 
 // useTheme — returns the active palette based on the device color scheme.
 // When #254 (AsyncStorage-backed preference) lands, update this to read from
