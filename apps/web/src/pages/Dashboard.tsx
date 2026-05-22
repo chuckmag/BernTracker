@@ -9,6 +9,7 @@ import WodHeroCard from '../components/WodHeroCard.tsx'
 import LeaderboardCard from '../components/LeaderboardCard.tsx'
 import HotTodayCard from '../components/HotTodayCard.tsx'
 import UpcomingCard from '../components/UpcomingCard.tsx'
+import GoalsCard from '../components/GoalsCard.tsx'
 import EmptyState from '../components/ui/EmptyState.tsx'
 import Skeleton from '../components/ui/Skeleton.tsx'
 import Button from '../components/ui/Button.tsx'
@@ -196,6 +197,13 @@ export default function Dashboard() {
             />
           )}
 
+          {/* Goals card — inline on small screens, hidden on desktop (right
+              rail has it). Sits above the Upcoming card here to keep the
+              vertical order consistent with the desktop rail. */}
+          <div className="lg:hidden">
+            <GoalsCard />
+          </div>
+
           {/* Upcoming card — inline on mobile, hidden on desktop (right rail has it) */}
           {!noGym && gymId && (
             <div className="lg:hidden">
@@ -211,7 +219,7 @@ export default function Dashboard() {
 
         {/* Right rail — desktop only */}
         <div className="hidden lg:flex flex-col gap-5">
-          <RailPlaceholder label="Activity" />
+          <GoalsCard />
           {!noGym && gymId && <UpcomingCard gymId={gymId} programIds={upcomingProgramIds} />}
         </div>
       </div>
@@ -253,19 +261,3 @@ function NoGymCard() {
   )
 }
 
-function SocialPlaceholder() {
-  return (
-    <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center gap-2 text-center min-h-[120px]">
-      <p className="text-sm font-medium text-slate-400 dark:text-gray-500">Social feed coming soon</p>
-      <p className="text-xs text-slate-300 dark:text-gray-600">See how your gym mates are doing</p>
-    </div>
-  )
-}
-
-function RailPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-800 border-dashed rounded-xl p-4 min-h-[80px] flex items-center justify-center">
-      <span className="text-xs text-slate-300 dark:text-gray-600">{label}</span>
-    </div>
-  )
-}

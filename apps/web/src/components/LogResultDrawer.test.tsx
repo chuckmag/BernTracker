@@ -28,7 +28,7 @@ const RESULTS_UPDATE = api.results.update as unknown as ReturnType<typeof vi.fn>
 
 function makeMovement(id: string, name: string, prescription: Partial<Workout['workoutMovements'][number]> = {}): Workout['workoutMovements'][number] {
   return {
-    movement: { id, name, parentId: null },
+    movement: { id, name, parentId: null, aliases: [] },
     displayOrder: 0,
     sets: null, reps: null, load: null, loadUnit: null,
     // Mirrors the API default (Prisma column has @default(true)). Tests

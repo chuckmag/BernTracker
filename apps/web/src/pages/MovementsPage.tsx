@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   api,
   type MovementsAnalyticsData,
@@ -117,6 +118,7 @@ export default function MovementsPage() {
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<MovementSummaryEntry | null>(null)
   const [query, setQuery] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
     api.me.analytics
@@ -125,6 +127,17 @@ export default function MovementsPage() {
       .catch((e: Error) => setError(e.message ?? 'Failed to load movements'))
       .finally(() => setLoading(false))
   }, [])
+
+  // Deep-link: `?movementId=X` auto-selects the matching movement and opens
+  // the detail panel. Used by Goal Detail to link the goal's movement here
+  // for full history + backfill access.
+  useEffect(() => {
+    const id = searchParams.get('movementId')
+    if (!id || !data || selected?.movementId === id) return
+    const all = [...data.strength, ...data.monostructural, ...data.gymnastics]
+    const match = all.find((e) => e.movementId === id)
+    if (match) setSelected(match)
+  }, [data, searchParams, selected])
 
   const filtered = useMemo<MovementsAnalyticsData | null>(() => {
     if (!data) return null
@@ -159,7 +172,15 @@ export default function MovementsPage() {
         movementId={selected.movementId}
         name={selected.name}
         prTypes={selected.prTypes}
-        onClose={() => setSelected(null)}
+        onClose={() => {
+          setSelected(null)
+          // Clear `?movementId` from the URL on close so back-navigation
+          // doesn't re-trigger the deep-link auto-open effect.
+          if (searchParams.has('movementId')) {
+            searchParams.delete('movementId')
+            setSearchParams(searchParams, { replace: true })
+          }
+        }}
       />
     )
   }

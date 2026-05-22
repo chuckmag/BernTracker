@@ -65,6 +65,44 @@ If you can't decide which bucket a feature is in, ask the user before opening su
 
 Verify that a tracked issue or open PR exists for every surface this feature touches. If you're about to open a web PR and no mobile sub-issue exists (or vice versa), file it before or alongside this PR. Do not merge a one-surface PR without a tracked counterpart — that is the mechanism that creates parity debt.
 
+## API + MCP planning heuristics
+
+The API and MCP server are two transports over the same DB-manager layer. Every feature that exposes data or actions to a *member acting on their own data* is a candidate for both. Don't treat MCP as "follow-up work" — design the manager once, then ship API and MCP tools as siblings so an LLM client and a REST client see the same capabilities.
+
+**When to file an MCP sub-issue alongside the API one:**
+
+Ask three questions:
+
+1. **Is the actor the member themselves?** If yes (reading their own data, creating their own data, modifying their own data) — MCP is in scope.
+2. **Does the action need a coach/programmer/owner role to be useful?** If yes — *skip MCP for now*. Coach+ role gating isn't wired into the MCP tool layer yet (the `wodalytics_role` claim is in the JWT but tools don't check it). When that lands, revisit; until then, an MCP tool that exposes a coach action would either silently let any member do it or always 403.
+3. **Is the read part of a public surface (leaderboards, named-workout catalog, public programs)?** If yes — MCP is in scope as a read tool, no role check needed.
+
+**What's safe to expose today:**
+- Public reads: leaderboards on gym/public workouts, the named-workout catalog, public programs.
+- Member-scoped reads: my own results, my own goals, my own PRs, my own benchmark history, my own profile.
+- Member-scoped writes: log my own result, set my own plan, create/update/delete my own goal, update my own profile.
+
+**What requires coach/admin roles (defer until MCP role gating lands):**
+- Reading another member's private data (results outside leaderboards, goals, plans).
+- Writing on another member's behalf (set a plan, set a goal, edit profile).
+- Editing programmed workouts (PROGRAMMER).
+- Gym / program / billing admin (OWNER).
+
+**Tool-naming convention for the MCP layer:**
+
+- Reads scoped to the caller: `list_my_X`, `get_my_X`. The `my_` prefix makes the scope obvious in the tool description without forcing a user-ID parameter into the schema — the user is always resolved from the JWT.
+- Writes scoped to the caller: `create_X`, `update_my_X`, `delete_my_X`, `log_X`, `set_my_X`. Verbs without `my_` are fine for create-only (you can only ever create *your own* X). Updates and deletes use `my_` to make the ownership constraint explicit in the name.
+- Public reads keep neutral names: `get_workout_results`, `list_workouts`, `get_programs`.
+- For polymorphic creates (one resource with several variants like a Goal), prefer **separate tools per variant** (`create_pr_target_goal`, `create_frequency_goal`, `create_habit_goal`) over one polymorphic `create_goal`. Each tool's argument schema can declare exactly the fields the variant requires, so the LLM picks the right tool by intent and never has to reason about cross-variant field combinations.
+
+**Reuse, don't duplicate:**
+
+MCP tool handlers are thin wrappers over the same `*DbManager` functions the API route handlers call. If you find yourself re-implementing logic that already exists in a route handler, the manager is missing a method — add it to `packages/db/src/managers/` first, then have both the route and the tool call into it. See `apps/mcp/CLAUDE.md` → *Thin-wrapper mandate* and `apps/api/CLAUDE.md` → *Thin-wrapper mandate*.
+
+**Issue-breakdown hook:**
+
+When the parent feature issue is filed for an API + UI feature that has a "my X" self-service shape, add an **MCP sub-issue** alongside the API/web/mobile ones. It depends on the API sub-issue (or stacks on its branch). Scope is usually small — a single tools file + tests, ~200–400 lines. The PR description should list each tool, its argument schema, and the manager function it delegates to.
+
 ## Tech stack
 
 | Layer | Choice |

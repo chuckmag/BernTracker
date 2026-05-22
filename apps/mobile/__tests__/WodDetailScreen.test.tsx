@@ -34,6 +34,10 @@ jest.mock('../src/lib/api', () => ({
       get: jest.fn(),
       results: jest.fn(),
     },
+    plans: {
+      getForUser: jest.fn().mockResolvedValue(null),
+      listForWorkout: jest.fn().mockResolvedValue([]),
+    },
     social: {
       reactions: {
         listForResult: jest.fn().mockResolvedValue([]),
@@ -62,6 +66,10 @@ const WORKOUT = {
   status: 'PUBLISHED' as const,
   scheduledAt: '2026-06-15T12:00:00.000Z',
   programId: 'prog-1',
+  workoutMovements: [],
+  timeCapSeconds: null,
+  tracksRounds: false,
+  externalSourceId: null,
 }
 
 function makeEntry(id: string, userId: string, userName: string) {

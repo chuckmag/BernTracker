@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
-import type { AnalyticsStackParamList } from '../../../App'
+import type { AnalyticsStackParamList } from '../../App'
 import {
   api,
   type ConsistencyData,
@@ -20,7 +20,9 @@ import {
   type MovementDisplayGroup,
   type MovementPrimaryPR,
   type MovementPrType,
+  type BenchmarkSummaryEntry,
 } from '../lib/api'
+import type { WorkoutCategory } from '@wodalytics/types'
 import ConsistencyCard from '../components/ConsistencyCard'
 import StrengthPRCard from '../components/StrengthPRCard'
 
@@ -39,6 +41,18 @@ const GROUP_LABELS: Record<MovementDisplayGroup, string> = {
   gymnastics: 'Gymnastics',
 }
 
+const BENCHMARK_CATEGORY_ORDER: WorkoutCategory[] = [
+  'GIRL_WOD', 'HERO_WOD', 'OPEN_WOD', 'GAMES_WOD', 'BENCHMARK',
+]
+
+const BENCHMARK_CATEGORY_LABELS: Record<WorkoutCategory, string> = {
+  GIRL_WOD: 'Girls',
+  HERO_WOD: 'Heroes',
+  OPEN_WOD: 'Open',
+  GAMES_WOD: 'Games',
+  BENCHMARK: 'Benchmarks',
+}
+
 function formatPR(pr: MovementPrimaryPR): string {
   switch (pr.type) {
     case 'LOAD':
@@ -54,6 +68,29 @@ function formatPR(pr: MovementPrimaryPR): string {
       return `${pr.distance} ${pr.distanceUnit}`
     case 'CALORIES':
       return `${pr.calories} cal`
+  }
+}
+
+function formatBenchmarkScore(entry: BenchmarkSummaryEntry): string {
+  const r = entry.latestResult
+  if (!r) return 'Not attempted'
+  const { primaryScoreKind: kind, primaryScoreValue: val } = r
+  if (kind == null || val == null) return 'Logged'
+  switch (kind) {
+    case 'TIME': {
+      const m = Math.floor(val / 60)
+      const s = val % 60
+      return `${m}:${String(s).padStart(2, '0')}`
+    }
+    case 'ROUNDS_REPS': {
+      const rounds = Math.floor(val / 1000)
+      const reps = val % 1000
+      return reps > 0 ? `${rounds}+${reps}` : `${rounds} rounds`
+    }
+    case 'LOAD': return `${val} lb`
+    case 'REPS': return `${val} reps`
+    case 'CALORIES': return `${val} cal`
+    default: return String(val)
   }
 }
 
@@ -166,6 +203,144 @@ function MovementsContent({ loading, error, data, navigation }: MovementsContent
   )
 }
 
+// ── Benchmark card ────────────────────────────────────────────────────────────
+
+interface BenchmarkCardProps {
+  entry: BenchmarkSummaryEntry
+  onPress: () => void
+}
+
+function BenchmarkCard({ entry, onPress }: BenchmarkCardProps) {
+  const scoreText = formatBenchmarkScore(entry)
+  const attempted = entry.latestResult !== null || entry.manualResultCount > 0
+
+  return (
+    <TouchableOpacity
+      style={s.movementCard}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={entry.name}
+    >
+      <View style={s.movementCardLeft}>
+        <Text style={s.movementName}>{entry.name}</Text>
+        <Text style={[s.movementPr, !attempted && s.notAttempted]}>{scoreText}</Text>
+      </View>
+      <View style={s.movementCardRight}>
+        {entry.latestResult && (
+          <Text style={s.movementDate}>{formatDate(entry.latestResult.achievedAt)}</Text>
+        )}
+        <Text style={s.movementChevron}>›</Text>
+      </View>
+    </TouchableOpacity>
+  )
+}
+
+// ── Benchmarks tab content ────────────────────────────────────────────────────
+
+interface BenchmarksContentProps {
+  loading: boolean
+  error: string | null
+  data: BenchmarkSummaryEntry[] | null
+  navigation: AnalyticsNav
+  activeCategory: WorkoutCategory
+  onChangeCategory: (cat: WorkoutCategory) => void
+}
+
+function BenchmarksContent({ loading, error, data, navigation, activeCategory, onChangeCategory }: BenchmarksContentProps) {
+  if (loading) {
+    return (
+      <View style={s.center}>
+        <ActivityIndicator color="#818cf8" />
+      </View>
+    )
+  }
+
+  if (error) {
+    return <Text style={s.error}>{error}</Text>
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <View style={s.emptyState}>
+        <Text style={s.emptyTitle}>No benchmarks available</Text>
+        <Text style={s.emptyBody}>Benchmark WODs will appear here once they are added to the library.</Text>
+      </View>
+    )
+  }
+
+  // Group + sort: attempted first, then alphabetical within each category
+  const grouped = new Map<WorkoutCategory, BenchmarkSummaryEntry[]>()
+  for (const cat of BENCHMARK_CATEGORY_ORDER) grouped.set(cat, [])
+  for (const e of data) {
+    const arr = grouped.get(e.category)
+    if (arr) arr.push(e)
+  }
+  for (const [cat, entries] of grouped) {
+    grouped.set(cat, entries.sort((a, b) => {
+      const aAttempted = a.latestResult !== null || a.manualResultCount > 0
+      const bAttempted = b.latestResult !== null || b.manualResultCount > 0
+      if (aAttempted !== bAttempted) return aAttempted ? -1 : 1
+      return a.name.localeCompare(b.name)
+    }))
+  }
+
+  const activeEntries = grouped.get(activeCategory) ?? []
+
+  return (
+    <View style={s.benchmarksContainer}>
+      {/* Category tab strip — horizontally scrollable */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.categoryTabStrip}
+        accessibilityRole="tablist"
+      >
+        {BENCHMARK_CATEGORY_ORDER.map((cat) => {
+          const isActive = cat === activeCategory
+          const count = grouped.get(cat)?.length ?? 0
+          return (
+            <TouchableOpacity
+              key={cat}
+              style={[s.categoryTab, isActive && s.categoryTabActive]}
+              onPress={() => onChangeCategory(cat)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+              accessibilityLabel={BENCHMARK_CATEGORY_LABELS[cat]}
+            >
+              <Text style={[s.categoryTabText, isActive && s.categoryTabTextActive]}>
+                {BENCHMARK_CATEGORY_LABELS[cat]}
+              </Text>
+              {count > 0 && (
+                <View style={[s.categoryCount, isActive && s.categoryCountActive]}>
+                  <Text style={[s.categoryCountText, isActive && s.categoryCountTextActive]}>{count}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )
+        })}
+      </ScrollView>
+
+      {/* Active category entries */}
+      {activeEntries.length === 0 ? (
+        <Text style={s.emptyTabText}>
+          No benchmarks in {BENCHMARK_CATEGORY_LABELS[activeCategory]}.
+        </Text>
+      ) : (
+        <View style={s.groupSection}>
+          {activeEntries.map((e) => (
+            <BenchmarkCard
+              key={e.id}
+              entry={e}
+              onPress={() => navigation.push('BenchmarkDetail', { entry: e })}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  )
+}
+
 // ── Main screen ────────────────────────────────────────────────────────────────
 
 export default function AnalyticsScreen() {
@@ -185,6 +360,14 @@ export default function AnalyticsScreen() {
   const [movementsRefreshing, setMovementsRefreshing] = useState(false)
   const [movementsError, setMovementsError] = useState<string | null>(null)
   const [movementsFetched, setMovementsFetched] = useState(false)
+
+  // Benchmarks tab state
+  const [benchmarksData, setBenchmarksData] = useState<BenchmarkSummaryEntry[] | null>(null)
+  const [benchmarksLoading, setBenchmarksLoading] = useState(false)
+  const [benchmarksRefreshing, setBenchmarksRefreshing] = useState(false)
+  const [benchmarksError, setBenchmarksError] = useState<string | null>(null)
+  const [benchmarksFetched, setBenchmarksFetched] = useState(false)
+  const [benchmarkCategory, setBenchmarkCategory] = useState<WorkoutCategory>('GIRL_WOD')
 
   async function fetchSummary() {
     setSummaryError(null)
@@ -211,6 +394,17 @@ export default function AnalyticsScreen() {
     }
   }
 
+  async function fetchBenchmarks() {
+    setBenchmarksError(null)
+    try {
+      const data = await api.benchmarks.list()
+      setBenchmarksData(data)
+      setBenchmarksFetched(true)
+    } catch (e) {
+      setBenchmarksError(e instanceof Error ? e.message : 'Failed to load benchmarks')
+    }
+  }
+
   useFocusEffect(
     useCallback(() => {
       setSummaryLoading(true)
@@ -223,6 +417,10 @@ export default function AnalyticsScreen() {
       setMovementsLoading(true)
       fetchMovements().finally(() => setMovementsLoading(false))
     }
+    if (tab === 'benchmarks' && !benchmarksFetched && !benchmarksLoading) {
+      setBenchmarksLoading(true)
+      fetchBenchmarks().finally(() => setBenchmarksLoading(false))
+    }
   }, [tab])
 
   async function handleRefresh() {
@@ -234,10 +432,17 @@ export default function AnalyticsScreen() {
       setMovementsRefreshing(true)
       await fetchMovements()
       setMovementsRefreshing(false)
+    } else if (tab === 'benchmarks') {
+      setBenchmarksRefreshing(true)
+      await fetchBenchmarks()
+      setBenchmarksRefreshing(false)
     }
   }
 
-  const isRefreshing = tab === 'summary' ? summaryRefreshing : (tab === 'movements' ? movementsRefreshing : false)
+  const isRefreshing =
+    tab === 'summary' ? summaryRefreshing :
+    tab === 'movements' ? movementsRefreshing :
+    benchmarksRefreshing
 
   return (
     <ScrollView
@@ -293,10 +498,14 @@ export default function AnalyticsScreen() {
       )}
 
       {tab === 'benchmarks' && (
-        <View style={s.benchmarksPlaceholder}>
-          <Text style={s.benchmarksText}>Benchmark WODs coming soon.</Text>
-          <Text style={s.benchmarksSub}>Tracked in #370.</Text>
-        </View>
+        <BenchmarksContent
+          loading={benchmarksLoading}
+          error={benchmarksError}
+          data={benchmarksData}
+          navigation={navigation}
+          activeCategory={benchmarkCategory}
+          onChangeCategory={setBenchmarkCategory}
+        />
       )}
     </ScrollView>
   )
@@ -349,9 +558,70 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Movements
+  // Movements & benchmarks (shared card style)
   movementsContainer: {
     gap: 24,
+  },
+  benchmarksContainer: {
+    gap: 12,
+  },
+
+  // Benchmark category tab strip
+  categoryTabStrip: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  categoryTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    backgroundColor: '#111827',
+  },
+  categoryTabActive: {
+    backgroundColor: '#5B9BE6',
+    borderColor: '#5B9BE6',
+  },
+  categoryTabText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#9ca3af',
+  },
+  categoryTabTextActive: {
+    color: '#020617',
+    fontWeight: '600',
+  },
+  categoryCount: {
+    minWidth: 18,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 9,
+    backgroundColor: '#1f2937',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryCountActive: {
+    backgroundColor: 'rgba(2, 6, 23, 0.18)',
+  },
+  categoryCountText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9ca3af',
+  },
+  categoryCountTextActive: {
+    color: '#020617',
+  },
+  emptyTabText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    paddingVertical: 24,
+    textAlign: 'center',
   },
   groupSection: {
     gap: 8,
@@ -392,6 +662,9 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
   },
+  notAttempted: {
+    color: '#4b5563',
+  },
   movementDate: {
     fontSize: 11,
     color: '#6b7280',
@@ -417,20 +690,5 @@ const s = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     paddingHorizontal: 16,
-  },
-
-  // Benchmarks
-  benchmarksPlaceholder: {
-    paddingVertical: 40,
-    alignItems: 'center',
-    gap: 6,
-  },
-  benchmarksText: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  benchmarksSub: {
-    fontSize: 12,
-    color: '#4b5563',
   },
 })

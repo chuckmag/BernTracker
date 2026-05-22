@@ -173,7 +173,7 @@ describe('WodResultDetail', () => {
       }),
       workoutMovements: [
         {
-          movement: { id: 'm-back-squat', name: 'Back Squat', parentId: null },
+          movement: { id: 'm-back-squat', name: 'Back Squat', parentId: null, aliases: [] },
           displayOrder: 0,
           sets: 5,
           reps: '5',
@@ -238,7 +238,7 @@ describe('WodResultDetail', () => {
       }),
       workoutMovements: [
         {
-          movement: { id: 'm-squat', name: 'Back Squat', parentId: null },
+          movement: { id: 'm-squat', name: 'Back Squat', parentId: null, aliases: [] },
           displayOrder: 0,
           sets: 3,
           reps: '3',
@@ -252,7 +252,7 @@ describe('WodResultDetail', () => {
           seconds: null,
         },
         {
-          movement: { id: 'm-press', name: 'Strict Press', parentId: null },
+          movement: { id: 'm-press', name: 'Strict Press', parentId: null, aliases: [] },
           displayOrder: 1,
           sets: 3,
           reps: '5',

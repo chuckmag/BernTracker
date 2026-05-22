@@ -27,6 +27,9 @@ jest.mock('../src/lib/api', () => ({
       trackedMovements: jest.fn(),
       movements: jest.fn(),
     },
+    benchmarks: {
+      list: jest.fn(),
+    },
   },
 }))
 
@@ -70,6 +73,71 @@ const sampleMovementsData = {
   gymnastics: [],
 }
 
+const sampleBenchmarks = [
+  {
+    id: 'nw-1',
+    name: 'Fran',
+    category: 'GIRL_WOD',
+    aliases: [],
+    isActive: true,
+    description: '21-15-9: Thrusters, Pull-ups',
+    sourceUrl: null,
+    templateWorkout: { id: 'tw-1', type: 'FOR_TIME', description: '21-15-9 Thrusters, Pull-ups', workoutMovements: [] },
+    manualResultCount: 3,
+    latestResult: {
+      id: 'r-1',
+      userId: 'u1',
+      namedWorkoutName: 'Fran',
+      achievedAt: '2026-03-01T00:00:00Z',
+      level: 'RX',
+      workoutGender: 'MALE',
+      value: {},
+      notes: null,
+      primaryScoreKind: 'TIME',
+      primaryScoreValue: 183,
+      createdAt: '2026-03-01T00:00:00Z',
+      updatedAt: '2026-03-01T00:00:00Z',
+    },
+  },
+  {
+    id: 'nw-2',
+    name: 'Grace',
+    category: 'GIRL_WOD',
+    aliases: [],
+    isActive: true,
+    description: '30 Clean & Jerks for time',
+    sourceUrl: null,
+    templateWorkout: null,
+    manualResultCount: 0,
+    latestResult: null,
+  },
+  {
+    id: 'nw-3',
+    name: 'Murph',
+    category: 'HERO_WOD',
+    aliases: [],
+    isActive: true,
+    description: '1 mile, 100 pull-ups, 200 push-ups, 300 squats, 1 mile',
+    sourceUrl: null,
+    templateWorkout: null,
+    manualResultCount: 1,
+    latestResult: {
+      id: 'r-3',
+      userId: 'u1',
+      namedWorkoutName: 'Murph',
+      achievedAt: '2026-05-01T00:00:00Z',
+      level: 'SCALED',
+      workoutGender: 'MALE',
+      value: {},
+      notes: null,
+      primaryScoreKind: 'TIME',
+      primaryScoreValue: 2460,
+      createdAt: '2026-05-01T00:00:00Z',
+      updatedAt: '2026-05-01T00:00:00Z',
+    },
+  },
+]
+
 function makeNavigation() {
   return { push: jest.fn(), navigate: jest.fn(), goBack: jest.fn() } as any
 }
@@ -84,6 +152,7 @@ describe('AnalyticsScreen', () => {
     ;(api.analytics.consistency as jest.Mock).mockResolvedValue(mockConsistency)
     ;(api.analytics.trackedMovements as jest.Mock).mockResolvedValue([])
     ;(api.analytics.movements as jest.Mock).mockResolvedValue(emptyMovementsData)
+    ;(api.benchmarks.list as jest.Mock).mockResolvedValue([])
   })
 
   test('renders Summary, Movements, and Benchmarks tabs', async () => {
@@ -122,7 +191,7 @@ describe('AnalyticsScreen', () => {
 
   test('Movements tab shows movement cards grouped by category', async () => {
     ;(api.analytics.movements as jest.Mock).mockResolvedValue(sampleMovementsData)
-    const { getByRole, findByText, queryByText } = render(<AnalyticsScreen />)
+    const { getByRole, findByText } = render(<AnalyticsScreen />)
     fireEvent.press(getByRole('tab', { name: 'Movements' }))
     expect(await findByText('Strength')).toBeTruthy()
     expect(await findByText('Back Squat')).toBeTruthy()
@@ -154,12 +223,6 @@ describe('AnalyticsScreen', () => {
     expect(await findByText('No PR recorded')).toBeTruthy()
   })
 
-  test('switching to Benchmarks tab shows placeholder text', async () => {
-    const { getByRole, findByText } = render(<AnalyticsScreen />)
-    fireEvent.press(getByRole('tab', { name: 'Benchmarks' }))
-    expect(await findByText('Benchmark WODs coming soon.')).toBeTruthy()
-  })
-
   test('tapping a movement card navigates to MovementDetail', async () => {
     ;(api.analytics.movements as jest.Mock).mockResolvedValue(sampleMovementsData)
     const { getByRole, findByText } = render(<AnalyticsScreen />)
@@ -170,6 +233,94 @@ describe('AnalyticsScreen', () => {
       movementId: 'mv-1',
       name: 'Back Squat',
       prTypes: ['LOAD'],
+    })
+  })
+
+  // ── Benchmarks tab ──────────────────────────────────────────────────────────
+
+  test('Benchmarks tab shows empty state when API returns no benchmarks', async () => {
+    ;(api.benchmarks.list as jest.Mock).mockResolvedValue([])
+    const { getByRole, findByText } = render(<AnalyticsScreen />)
+    fireEvent.press(getByRole('tab', { name: 'Benchmarks' }))
+    expect(await findByText('No benchmarks available')).toBeTruthy()
+  })
+
+  test('Benchmarks tab shows error when API fails', async () => {
+    ;(api.benchmarks.list as jest.Mock).mockRejectedValue(new Error('API down'))
+    const { getByRole, findByText } = render(<AnalyticsScreen />)
+    fireEvent.press(getByRole('tab', { name: 'Benchmarks' }))
+    expect(await findByText('API down')).toBeTruthy()
+  })
+
+  test('Benchmarks tab shows category tab strip with Girls as the default active tab', async () => {
+    ;(api.benchmarks.list as jest.Mock).mockResolvedValue(sampleBenchmarks)
+    const { getByRole, findByRole } = render(<AnalyticsScreen />)
+    fireEvent.press(getByRole('tab', { name: 'Benchmarks' }))
+
+    const girlsTab = await findByRole('tab', { name: 'Girls' })
+    const heroesTab = getByRole('tab', { name: 'Heroes' })
+    expect(girlsTab.props.accessibilityState?.selected).toBe(true)
+    expect(heroesTab.props.accessibilityState?.selected).toBe(false)
+  })
+
+  test('Default Girls category tab shows Fran and Grace, hides Murph', async () => {
+    ;(api.benchmarks.list as jest.Mock).mockResolvedValue(sampleBenchmarks)
+    const { getByRole, findByText, queryByText } = render(<AnalyticsScreen />)
+    fireEvent.press(getByRole('tab', { name: 'Benchmarks' }))
+    expect(await findByText('Fran')).toBeTruthy()
+    expect(await findByText('Grace')).toBeTruthy()
+    expect(queryByText('Murph')).toBeNull()
+  })
+
+  test('Switching to the Heroes category tab shows Murph and hides Girls entries', async () => {
+    ;(api.benchmarks.list as jest.Mock).mockResolvedValue(sampleBenchmarks)
+    const { getByRole, findByRole, findByText, queryByText } = render(<AnalyticsScreen />)
+    fireEvent.press(getByRole('tab', { name: 'Benchmarks' }))
+    await findByText('Fran')
+
+    const heroesTab = await findByRole('tab', { name: 'Heroes' })
+    fireEvent.press(heroesTab)
+
+    expect(await findByText('Murph')).toBeTruthy()
+    expect(queryByText('Fran')).toBeNull()
+    expect(queryByText('Grace')).toBeNull()
+  })
+
+  test('Empty category tab shows an empty-tab message', async () => {
+    ;(api.benchmarks.list as jest.Mock).mockResolvedValue(sampleBenchmarks)
+    const { getByRole, findByRole, findByText } = render(<AnalyticsScreen />)
+    fireEvent.press(getByRole('tab', { name: 'Benchmarks' }))
+    await findByText('Fran')
+
+    const openTab = await findByRole('tab', { name: 'Open' })
+    fireEvent.press(openTab)
+    expect(await findByText(/No benchmarks in Open/)).toBeTruthy()
+  })
+
+  test('Benchmarks tab shows formatted TIME score for attempted WODs in the active category', async () => {
+    ;(api.benchmarks.list as jest.Mock).mockResolvedValue(sampleBenchmarks)
+    const { getByRole, findByText } = render(<AnalyticsScreen />)
+    fireEvent.press(getByRole('tab', { name: 'Benchmarks' }))
+    // Fran: 183s = 3:03 (default Girls tab)
+    expect(await findByText('3:03')).toBeTruthy()
+  })
+
+  test('Benchmarks tab shows "Not attempted" for WODs with no results in the active category', async () => {
+    ;(api.benchmarks.list as jest.Mock).mockResolvedValue(sampleBenchmarks)
+    const { getByRole, findByText } = render(<AnalyticsScreen />)
+    fireEvent.press(getByRole('tab', { name: 'Benchmarks' }))
+    await findByText('Fran')
+    expect(await findByText('Not attempted')).toBeTruthy()
+  })
+
+  test('tapping a benchmark card navigates to BenchmarkDetail', async () => {
+    ;(api.benchmarks.list as jest.Mock).mockResolvedValue(sampleBenchmarks)
+    const { getByRole, findByText } = render(<AnalyticsScreen />)
+    fireEvent.press(getByRole('tab', { name: 'Benchmarks' }))
+    const card = await findByText('Fran')
+    fireEvent.press(card)
+    expect(navigation.push).toHaveBeenCalledWith('BenchmarkDetail', {
+      entry: sampleBenchmarks[0],
     })
   })
 })

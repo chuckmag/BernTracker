@@ -464,7 +464,6 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
 
 interface PastResultCardProps {
   result: MovementHistoryResult
-  currentWorkoutId: string
   onClick: () => void
 }
 
@@ -500,7 +499,11 @@ function PastResultCard({ result, onClick }: PastResultCardProps) {
 interface Props {
   movementId: string
   movementName: string
-  currentWorkoutId: string
+  // Optional — when mounted inside a workout's detail page, used as the
+  // nav-state "back" anchor on clicked history rows. When mounted from a
+  // surface with no current-workout context (e.g. Goal Detail), leave it
+  // undefined and the destination falls back to its default back behavior.
+  currentWorkoutId?: string
 }
 
 export default function WorkoutMovementHistory({ movementId, movementName, currentWorkoutId }: Props) {
@@ -589,7 +592,6 @@ export default function WorkoutMovementHistory({ movementId, movementName, curre
               <PastResultCard
                 key={r.id}
                 result={r}
-                currentWorkoutId={currentWorkoutId}
                 onClick={() =>
                   navigate(`/workouts/${r.workout.id}/results/${r.id}`, {
                     state: { from: 'movement-history', originWorkoutId: currentWorkoutId },

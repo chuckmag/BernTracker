@@ -8,6 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "NODE_PATH=node_modules:../../node_modules jest",
+    "lint": "NODE_PATH=node_modules:../../node_modules tsc --noEmit",
     "build:preview:ios": "eas build --profile preview --platform ios",
     "build:preview:android": "eas build --profile preview --platform android",
     "build:preview": "eas build --profile preview --platform all",
