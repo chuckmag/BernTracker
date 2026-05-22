@@ -98,13 +98,10 @@ jobs:
           # overall review body — we do that ourselves below by reading the
           # SDK's final `result` field and PATCH-ing/creating a sticky.
           use_sticky_comment: true
-          # TEMP — diagnostic: capture every tool_use the agent attempts so
-          # we can build a targeted --allowed-tools list. Remove on the next
-          # commit once the allowlist lands.
-          show_full_output: true
           claude_args: |
             --model ${{ env.MODEL_ID }}
             --max-turns 30
+            --allowed-tools "Read,Grep,Glob,Skill,Bash(gh *),Bash(git *),Bash(jq *)"
           prompt: |
             You are reviewing PR #${{ github.event.pull_request.number }} in the WODalytics monorepo.
 
@@ -160,7 +157,9 @@ jobs:
             echo "::warning::No SDK execution output at $OUT — nothing to post."
             exit 0
           fi
-          REVIEW=$(jq -s '[.. | objects | select(.type=="result")] | .[0].result // ""' "$OUT")
+          # `.[-1]` picks the top-level SDK summary; subagents emit their own
+          # earlier `result` entries we don't want.
+          REVIEW=$(jq -s '[.. | objects | select(.type=="result")] | .[-1].result // ""' "$OUT")
           # `jq -s` returns a JSON string (quoted, escaped). Convert to raw text.
           REVIEW=$(printf '%s' "$REVIEW" | jq -r '.')
           if [ -z "$REVIEW" ] || [ "$REVIEW" = "null" ]; then
@@ -193,10 +192,14 @@ jobs:
           # Recursive descent — the execution log mixes top-level objects with
           # nested arrays (tool_use/tool_result content), so a naive `map(.type)`
           # crashes on the array entries. `.. | objects` walks the structure
-          # and yields every object regardless of nesting depth.
-          DENIALS=$(jq -s '[.. | objects | select(.type=="result")] | .[0].permission_denials_count // 0' "$OUT")
+          # and yields every object regardless of nesting depth. Subagents
+          # emit their own `result` entries earlier in the stream, so take
+          # the LAST one — that's the top-level SDK summary.
+          DENIALS=$(jq -s '[.. | objects | select(.type=="result")] | .[-1].permission_denials_count // 0' "$OUT")
           echo "permission_denials_count=$DENIALS"
           if [ "$DENIALS" -gt 0 ]; then
-            echo "::error::Claude review recorded $DENIALS permission denial(s) — the reviewer almost certainly produced no useful output. Check claude_args / .claude/settings.json permissions."
+            echo "::error::Claude review recorded $DENIALS permission denial(s) — the reviewer almost certainly produced an incomplete review. Tools attempted but denied:"
+            jq -s '[.. | objects | select(.type=="result")] | .[-1].permission_denials // [] | .[] | "  - \(.tool_name): \(.tool_input.command // .tool_input.file_path // .tool_input | tostring | .[0:120])"' -r "$OUT" || true
+            echo "Add the relevant patterns to --allowed-tools in .github/workflows/claude-review.yml."
             exit 1
           fi

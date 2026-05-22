@@ -67,3 +67,4 @@ jobs:
           claude_args: |
             --model ${{ steps.pick.outputs.model }}
             --max-turns 20
+            --allowed-tools "Read,Grep,Glob,Edit,Write,Skill,Bash(gh *),Bash(git *),Bash(jq *)"
