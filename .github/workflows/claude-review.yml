@@ -98,6 +98,10 @@ jobs:
           # overall review body — we do that ourselves below by reading the
           # SDK's final `result` field and PATCH-ing/creating a sticky.
           use_sticky_comment: true
+          # TEMP — diagnostic: capture every tool_use the agent attempts so
+          # we can build a targeted --allowed-tools list. Remove on the next
+          # commit once the allowlist lands.
+          show_full_output: true
           claude_args: |
             --model ${{ env.MODEL_ID }}
             --max-turns 30
