@@ -93,10 +93,15 @@ jobs:
           #   anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # use_sticky_comment governs how the action UPDATES an existing
+          # sticky for inline comments. It does NOT auto-post the agent's
+          # overall review body — we do that ourselves below by reading the
+          # SDK's final `result` field and PATCH-ing/creating a sticky.
           use_sticky_comment: true
           claude_args: |
             --model ${{ env.MODEL_ID }}
-            --max-turns 15
+            --max-turns 30
+            --allowed-tools "Read,Grep,Glob,Skill,Bash(gh *),Bash(git *),Bash(jq *)"
           prompt: |
             You are reviewing PR #${{ github.event.pull_request.number }} in the WODalytics monorepo.
 
@@ -134,3 +139,66 @@ jobs:
             - End with "Reply with `@claude <question>` to dig in, or `@claude deep-review` to escalate to Opus."
 
             Be concise. Engineers read these comments in pull-request time — a 3-paragraph wall of text gets skipped.
+
+      # The action does not auto-post the agent's overall review — the SDK
+      # captures the final assistant reply in `result`, but the action's
+      # post-step only flushes buffered inline comments. Read the `result`
+      # ourselves and either update the existing claude-review sticky or
+      # create a new one.
+      - name: Post Claude's review as a sticky comment
+        if: steps.size.outputs.over_limit == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          OUT="${RUNNER_TEMP}/claude-execution-output.json"
+          if [ ! -f "$OUT" ]; then
+            echo "::warning::No SDK execution output at $OUT — nothing to post."
+            exit 0
+          fi
+          # `.[-1]` picks the top-level SDK summary; subagents emit their own
+          # earlier `result` entries we don't want. `-rs` extracts the raw
+          # string value in one pass (no double JSON-decode needed).
+          REVIEW=$(jq -rs '[.. | objects | select(.type=="result")] | .[-1].result // ""' "$OUT")
+          if [ -z "$REVIEW" ] || [ "$REVIEW" = "null" ]; then
+            echo "::warning::Agent produced no result text — skipping sticky post."
+            exit 0
+          fi
+          marker="<!-- claude-review -->"
+          body=$(printf '%s\n\n%s' "$marker" "$REVIEW")
+          existing=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1 || true)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
+            echo "Updated existing sticky review comment ($existing)."
+          else
+            gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" --body "$body"
+            echo "Posted new sticky review comment."
+          fi
+
+      # Defense in depth: the SDK exits with subtype:"success" even when
+      # every tool call was denied (we've seen 18/18 denials silently produce
+      # an empty review). Fail loudly so green-but-broken can't hide.
+      - name: Fail if the review had any permission denials
+        if: steps.size.outputs.over_limit == 'false'
+        run: |
+          set -euo pipefail
+          OUT="${RUNNER_TEMP}/claude-execution-output.json"
+          if [ ! -f "$OUT" ]; then
+            echo "::warning::No SDK execution output at $OUT — skipping denial check."
+            exit 0
+          fi
+          # Recursive descent — the execution log mixes top-level objects with
+          # nested arrays (tool_use/tool_result content), so a naive `map(.type)`
+          # crashes on the array entries. `.. | objects` walks the structure
+          # and yields every object regardless of nesting depth. Subagents
+          # emit their own `result` entries earlier in the stream, so take
+          # the LAST one — that's the top-level SDK summary.
+          DENIALS=$(jq -s '[.. | objects | select(.type=="result")] | .[-1].permission_denials_count // 0' "$OUT")
+          echo "permission_denials_count=$DENIALS"
+          if [ "$DENIALS" -gt 0 ]; then
+            echo "::error::Claude review recorded $DENIALS permission denial(s) — the reviewer almost certainly produced an incomplete review. Tools attempted but denied:"
+            jq -s '[.. | objects | select(.type=="result")] | .[-1].permission_denials // [] | .[] | "  - \(.tool_name): \(.tool_input.command // .tool_input.file_path // .tool_input | tostring | .[0:120])"' -r "$OUT" || true
+            echo "Add the relevant patterns to --allowed-tools in .github/workflows/claude-review.yml."
+            exit 1
+          fi

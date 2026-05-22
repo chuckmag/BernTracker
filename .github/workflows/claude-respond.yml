@@ -67,3 +67,7 @@ jobs:
           claude_args: |
             --model ${{ steps.pick.outputs.model }}
             --max-turns 20
+            # Edit/Write are intentional — `@claude fix this` mentions
+            # legitimately produce code changes; the review workflow's list
+            # is narrower because review is read-only.
+            --allowed-tools "Read,Grep,Glob,Edit,Write,Skill,Bash(gh *),Bash(git *),Bash(jq *)"

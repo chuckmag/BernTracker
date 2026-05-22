@@ -12,6 +12,13 @@
  * Claude Code passes tool context as JSON on stdin:
  *   { tool_name, tool_input: { command }, cwd }
  */
+
+// In GitHub Actions the project hooks are loaded from origin/main into a
+// non-worktree CI checkout. The `cd <path> && git` lint is for the local
+// session ergonomics — blocking review-agent bash calls here only wastes
+// its turn budget.
+if (process.env.GITHUB_ACTIONS === 'true') process.exit(0)
+
 let raw = ''
 for await (const chunk of process.stdin) raw += chunk
 
