@@ -174,6 +174,10 @@ function InlineCombo({
   }
 
   function handlePick(option: InlineComboOption) {
+    // Idempotent — safe to fire repeatedly. The dropdown row can briefly
+    // receive both onPressIn and onPress in rare timing windows; this
+    // guard keeps the parent's state-update count to one.
+    if (selectedId === option.id) return
     setText(option.name)
     onSelect(option)
   }
@@ -199,7 +203,16 @@ function InlineCombo({
               <TouchableOpacity
                 key={opt.id}
                 style={s.comboRow}
-                onPress={() => handlePick(opt)}
+                // onPressIn (touch-down) instead of onPress (touch-up):
+                // when the soft keyboard is up and the user taps a row,
+                // RN dispatches the keyboard's blur handler on touch-up.
+                // With onPress the first tap would dismiss the keyboard
+                // and never reach the row's handler — requiring a second
+                // tap to actually select. Firing on touch-down commits
+                // the selection before the blur cycle starts, so the
+                // keyboard dismisses *after* the row is selected, which
+                // is the intended UX (selection done → input loses focus).
+                onPressIn={() => handlePick(opt)}
                 accessibilityLabel={`Select ${opt.name}`}
               >
                 <Text style={s.comboRowText}>{opt.name}</Text>
