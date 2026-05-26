@@ -140,10 +140,11 @@ export interface WorkoutMovementPrescriptionPayload {
 export interface AuthUser {
   id: string
   email: string
-  name: string
+  name: string | null
   firstName: string | null
   lastName: string | null
   birthday: string | null
+  avatarUrl: string | null
   identifiedGender: IdentifiedGender | null
 }
 

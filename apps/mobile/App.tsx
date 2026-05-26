@@ -22,6 +22,7 @@ import ResultDetailScreen from './src/screens/ResultDetailScreen'
 import UserProfileScreen from './src/screens/UserProfileScreen'
 import WodResultDetailScreen from './src/screens/WodResultDetailScreen'
 import SettingsScreen from './src/screens/SettingsScreen'
+import AvatarHeaderButton from './src/components/AvatarHeaderButton'
 import type { LeaderboardEntry, MovementPrType, BenchmarkSummaryEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ export type RootStackParamList = {
     | { mode: 'create'; scheduledAt: string; workoutId?: never }
     | { mode: 'edit'; workoutId: string; scheduledAt?: never }
   WodResultDetail: { entry: LeaderboardEntry; workoutTitle?: string }
+  Settings: undefined
 }
 
 export type MainTabParamList = {
@@ -51,7 +53,6 @@ export type MainTabParamList = {
   FeedTab: undefined
   HistoryTab: undefined
   AnalyticsTab: undefined
-  ProfileTab: undefined
 }
 
 export type AnalyticsStackParamList = {
@@ -72,10 +73,6 @@ export type HistoryStackParamList = {
   History: undefined
 }
 
-export type ProfileStackParamList = {
-  Settings: undefined
-}
-
 // ── Navigators ───────────────────────────────────────────────────────────────
 
 const RootStack = createStackNavigator<RootStackParamList>()
@@ -84,7 +81,6 @@ const HomeStack = createStackNavigator<HomeStackParamList>()
 const FeedStack = createStackNavigator<FeedStackParamList>()
 const HistoryStack = createStackNavigator<HistoryStackParamList>()
 const AnalyticsStack = createStackNavigator<AnalyticsStackParamList>()
-const ProfileStack = createStackNavigator<ProfileStackParamList>()
 
 function buildStackScreenOptions(colors: ThemeColors) {
   return {
@@ -95,11 +91,20 @@ function buildStackScreenOptions(colors: ThemeColors) {
   }
 }
 
+// Settings lives on the root stack as a modal so it can be pushed from any
+// tab's header — `mainTabHeaderRight` is the shared `headerRight` that mounts
+// the avatar button on every primary tab screen.
+const mainTabHeaderRight = () => <AvatarHeaderButton />
+
 function HomeStackNavigator() {
   const { colors } = useTheme()
   return (
     <HomeStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
-      <HomeStack.Screen name="Home" component={HomeScreen} options={{ title: 'Today' }} />
+      <HomeStack.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ title: 'Today', headerRight: mainTabHeaderRight }}
+      />
     </HomeStack.Navigator>
   )
 }
@@ -108,7 +113,11 @@ function FeedStackNavigator() {
   const { colors } = useTheme()
   return (
     <FeedStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
-      <FeedStack.Screen name="Feed" component={FeedScreen} options={{ title: 'Workouts' }} />
+      <FeedStack.Screen
+        name="Feed"
+        component={FeedScreen}
+        options={{ title: 'Workouts', headerRight: mainTabHeaderRight }}
+      />
     </FeedStack.Navigator>
   )
 }
@@ -117,17 +126,12 @@ function HistoryStackNavigator() {
   const { colors } = useTheme()
   return (
     <HistoryStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
-      <HistoryStack.Screen name="History" component={HistoryScreen} options={{ title: 'History' }} />
+      <HistoryStack.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{ title: 'History', headerRight: mainTabHeaderRight }}
+      />
     </HistoryStack.Navigator>
-  )
-}
-
-function ProfileStackNavigator() {
-  const { colors } = useTheme()
-  return (
-    <ProfileStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
-      <ProfileStack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Profile' }} />
-    </ProfileStack.Navigator>
   )
 }
 
@@ -139,6 +143,7 @@ function AnalyticsStackNavigator() {
         name="Analytics"
         component={AnalyticsScreen}
         options={{
+          headerRight: mainTabHeaderRight,
           headerTitle: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Image
@@ -193,7 +198,6 @@ function MainTabs() {
           ),
         }}
       />
-      <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   )
 }
@@ -216,6 +220,11 @@ function RootStackNavigator() {
         name="WodResultDetail"
         component={WodResultDetailScreen}
         options={({ route }) => ({ title: route.params.workoutTitle ?? 'Result' })}
+      />
+      <RootStack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ title: 'Profile', presentation: 'modal' }}
       />
     </RootStack.Navigator>
   )
