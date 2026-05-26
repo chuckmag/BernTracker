@@ -28,6 +28,13 @@ import type {
   EmergencyContact,
   UserProfile,
   UpdateProfileInput,
+  GoalType,
+  GoalStatus,
+  TargetPrType,
+  GoalProgress,
+  GoalResponse,
+  CreateGoalInput,
+  UpdateGoalInput,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -59,6 +66,13 @@ export type {
   NamedWorkout,
   EmergencyContact,
   UserProfile,
+  GoalType,
+  GoalStatus,
+  TargetPrType,
+  GoalProgress,
+  GoalResponse,
+  CreateGoalInput,
+  UpdateGoalInput,
 }
 // PATCH /api/users/me/profile body alias — the shared Zod-inferred type is
 // the authoritative shape; the alias keeps mobile call sites stable.
@@ -664,6 +678,12 @@ export const api = {
     public: (userId: string) =>
       request<PublicUserProfile>(`/api/users/${userId}/public`),
 
+    // Per-user "me" namespace under the `/api/users/me/...` route prefix.
+    // Other "me" endpoints still live under `api.me.*` (legacy `/api/me/...`
+    // shape); these newer ones live here to match the API route file. The
+    // asymmetry between `users.me.goals.{list,create}` (under /api/users/me/)
+    // and `users.me.goals.{update,remove}` (under /api/goals/) is documented
+    // on the goals block below.
     me: {
       profile: {
         get: () => request<UserProfile>('/api/users/me/profile'),
@@ -672,6 +692,31 @@ export const api = {
             method: 'PATCH',
             body: JSON.stringify(data),
           }),
+      },
+      // Goals (#434). Heads up on the asymmetry: list + create POST under
+      // `/api/users/me/goals` (member-scoped writes), but `update` and
+      // `remove` PATCH/DELETE `/api/goals/:id` because the server treats
+      // by-id ops as goal-scoped and enforces ownership in the route handler.
+      // The client groups them here for ergonomics; if a matching
+      // `PATCH /api/users/me/goals/:id` route ever lands on the server,
+      // bridge the two paths rather than splitting the client surface.
+      goals: {
+        list: (opts?: { status?: GoalStatus }) => {
+          const qs = opts?.status ? `?status=${opts.status}` : ''
+          return request<GoalResponse[]>(`/api/users/me/goals${qs}`)
+        },
+        create: (input: CreateGoalInput) =>
+          request<GoalResponse>('/api/users/me/goals', {
+            method: 'POST',
+            body: JSON.stringify(input),
+          }),
+        update: (goalId: string, patch: UpdateGoalInput) =>
+          request<GoalResponse>(`/api/goals/${encodeURIComponent(goalId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch),
+          }),
+        remove: (goalId: string) =>
+          request<void>(`/api/goals/${encodeURIComponent(goalId)}`, { method: 'DELETE' }),
       },
     },
   },
@@ -783,5 +828,27 @@ export const api = {
       request<void>(`/api/me/benchmarks/${encodeURIComponent(namedWorkoutId)}/results/${resultId}`, {
         method: 'DELETE',
       }),
+  },
+
+  // ── Named workouts ───────────────────────────────────────────────────────────
+
+  namedWorkouts: {
+    // Lite catalog — used by the goal-create flow's named-workout picker. The
+    // API returns the full NamedWorkout with templateWorkout/category etc;
+    // we only need id+name+category here, so we type it loosely.
+    list: () =>
+      request<Array<{ id: string; name: string; category?: string }>>('/api/named-workouts'),
+  },
+
+  // ── Goals ────────────────────────────────────────────────────────────────────
+  //
+  // Per-goal read by id. Member-scoped writes / list live under
+  // `api.users.me.goals.*` above. Server contract: `apps/api/src/routes/goals.ts`;
+  // shared types: `packages/types/src/goal.ts`. Auto-detection of PR_TARGET /
+  // FREQUENCY completion happens server-side after each Result is logged —
+  // UIs just need to refetch to see the status flip.
+
+  goals: {
+    get: (goalId: string) => request<GoalResponse>(`/api/goals/${encodeURIComponent(goalId)}`),
   },
 }
