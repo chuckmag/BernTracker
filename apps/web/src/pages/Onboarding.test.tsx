@@ -16,6 +16,8 @@ const newProfile: UserProfile = {
   onboardedAt: null,
   role: 'MEMBER',
   identifiedGender: null,
+  preferredLoadUnit: 'LB',
+  preferredDistanceUnit: 'M',
   emergencyContacts: [],
 }
 

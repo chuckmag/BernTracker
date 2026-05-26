@@ -25,6 +25,9 @@ import type {
   BenchmarkHistoryEntry,
   BenchmarkHistoryData,
   NamedWorkout,
+  EmergencyContact,
+  UserProfile,
+  UpdateProfileInput,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -54,7 +57,12 @@ export type {
   BenchmarkHistoryEntry,
   BenchmarkHistoryData,
   NamedWorkout,
+  EmergencyContact,
+  UserProfile,
 }
+// PATCH /api/users/me/profile body alias — the shared Zod-inferred type is
+// the authoritative shape; the alias keeps mobile call sites stable.
+export type UpdateProfilePayload = UpdateProfileInput
 export { AGE_DIVISIONS, deriveWorkoutGender, getAgeDivision } from '@wodalytics/types'
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://qa.wodalytics.com'
@@ -132,10 +140,11 @@ export interface WorkoutMovementPrescriptionPayload {
 export interface AuthUser {
   id: string
   email: string
-  name: string
+  name: string | null
   firstName: string | null
   lastName: string | null
   birthday: string | null
+  avatarUrl: string | null
   identifiedGender: IdentifiedGender | null
 }
 
@@ -250,6 +259,7 @@ export interface PublicUserProfile {
   name: string | null
   avatarUrl: string | null
 }
+
 
 export interface ResultHistoryItem {
   id: string
@@ -653,6 +663,17 @@ export const api = {
   users: {
     public: (userId: string) =>
       request<PublicUserProfile>(`/api/users/${userId}/public`),
+
+    me: {
+      profile: {
+        get: () => request<UserProfile>('/api/users/me/profile'),
+        update: (data: UpdateProfilePayload) =>
+          request<UserProfile>('/api/users/me/profile', {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+          }),
+      },
+    },
   },
 
   social: {

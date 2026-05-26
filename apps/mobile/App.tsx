@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { GymProvider } from './src/context/GymContext'
 import { ProgramFilterProvider } from './src/context/ProgramFilterContext'
 import { MovementsProvider } from './src/context/MovementsContext'
+import { ThemeProvider, useTheme, type ThemeColors } from './src/lib/theme'
 import LoginScreen from './src/screens/LoginScreen'
 import HomeScreen from './src/screens/HomeScreen'
 import FeedScreen from './src/screens/FeedScreen'
@@ -20,6 +21,8 @@ import BenchmarkDetailScreen from './src/screens/BenchmarkDetailScreen'
 import ResultDetailScreen from './src/screens/ResultDetailScreen'
 import UserProfileScreen from './src/screens/UserProfileScreen'
 import WodResultDetailScreen from './src/screens/WodResultDetailScreen'
+import SettingsScreen from './src/screens/SettingsScreen'
+import AvatarHeaderButton from './src/components/AvatarHeaderButton'
 import type { LeaderboardEntry, MovementPrType, BenchmarkSummaryEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -42,6 +45,7 @@ export type RootStackParamList = {
     | { mode: 'create'; scheduledAt: string; workoutId?: never }
     | { mode: 'edit'; workoutId: string; scheduledAt?: never }
   WodResultDetail: { entry: LeaderboardEntry; workoutTitle?: string }
+  Settings: undefined
 }
 
 export type MainTabParamList = {
@@ -78,44 +82,68 @@ const FeedStack = createStackNavigator<FeedStackParamList>()
 const HistoryStack = createStackNavigator<HistoryStackParamList>()
 const AnalyticsStack = createStackNavigator<AnalyticsStackParamList>()
 
-const stackScreenOptions = {
-  headerStyle: { backgroundColor: '#111827' },
-  headerTintColor: '#ffffff',
-  headerTitleStyle: { fontWeight: '600' as const },
-  cardStyle: { backgroundColor: '#030712' },
+function buildStackScreenOptions(colors: ThemeColors) {
+  return {
+    headerStyle: { backgroundColor: colors.tabBarBg },
+    headerTintColor: colors.textPrimary,
+    headerTitleStyle: { fontWeight: '600' as const },
+    cardStyle: { backgroundColor: colors.screenBg },
+  }
 }
 
+// Settings lives on the root stack as a modal so it can be pushed from any
+// tab's header — `mainTabHeaderRight` is the shared `headerRight` that mounts
+// the avatar button on every primary tab screen.
+const mainTabHeaderRight = () => <AvatarHeaderButton />
+
 function HomeStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <HomeStack.Navigator screenOptions={stackScreenOptions}>
-      <HomeStack.Screen name="Home" component={HomeScreen} options={{ title: 'Today' }} />
+    <HomeStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
+      <HomeStack.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ title: 'Today', headerRight: mainTabHeaderRight }}
+      />
     </HomeStack.Navigator>
   )
 }
 
 function FeedStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <FeedStack.Navigator screenOptions={stackScreenOptions}>
-      <FeedStack.Screen name="Feed" component={FeedScreen} options={{ title: 'Workouts' }} />
+    <FeedStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
+      <FeedStack.Screen
+        name="Feed"
+        component={FeedScreen}
+        options={{ title: 'Workouts', headerRight: mainTabHeaderRight }}
+      />
     </FeedStack.Navigator>
   )
 }
 
 function HistoryStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <HistoryStack.Navigator screenOptions={stackScreenOptions}>
-      <HistoryStack.Screen name="History" component={HistoryScreen} options={{ title: 'History' }} />
+    <HistoryStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
+      <HistoryStack.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{ title: 'History', headerRight: mainTabHeaderRight }}
+      />
     </HistoryStack.Navigator>
   )
 }
 
 function AnalyticsStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <AnalyticsStack.Navigator screenOptions={stackScreenOptions}>
+    <AnalyticsStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
       <AnalyticsStack.Screen
         name="Analytics"
         component={AnalyticsScreen}
         options={{
+          headerRight: mainTabHeaderRight,
           headerTitle: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Image
@@ -123,7 +151,7 @@ function AnalyticsStackNavigator() {
                 style={{ width: 36, height: 36 }}
                 resizeMode="contain"
               />
-              <Text style={{ color: '#ffffff', fontSize: 17, fontWeight: '600' }}>WODalytics</Text>
+              <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: '600' }}>WODalytics</Text>
             </View>
           ),
         }}
@@ -143,13 +171,14 @@ function AnalyticsStackNavigator() {
 }
 
 function MainTabs() {
+  const { colors } = useTheme()
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: '#111827', borderTopColor: '#1f2937' },
-        tabBarActiveTintColor: '#818cf8',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarStyle: { backgroundColor: colors.tabBarBg, borderTopColor: colors.tabBarBorder },
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
       }}
     >
       <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Today' }} />
@@ -174,8 +203,9 @@ function MainTabs() {
 }
 
 function RootStackNavigator() {
+  const { colors } = useTheme()
   return (
-    <RootStack.Navigator screenOptions={stackScreenOptions}>
+    <RootStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
       <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
       <RootStack.Screen name="WodDetail" component={WodDetailScreen} options={{ title: '' }} />
       <RootStack.Screen name="LogResult" component={LogResultScreen} options={{ title: 'Log Result' }} />
@@ -191,6 +221,11 @@ function RootStackNavigator() {
         component={WodResultDetailScreen}
         options={({ route }) => ({ title: route.params.workoutTitle ?? 'Result' })}
       />
+      <RootStack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ title: 'Profile', presentation: 'modal' }}
+      />
     </RootStack.Navigator>
   )
 }
@@ -199,11 +234,12 @@ function RootStackNavigator() {
 
 function RootNavigator() {
   const { user, isLoading } = useAuth()
+  const { colors } = useTheme()
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#030712', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color="#818cf8" />
+      <View style={{ flex: 1, backgroundColor: colors.screenBg, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color={colors.primary} />
       </View>
     )
   }
@@ -213,19 +249,26 @@ function RootNavigator() {
 
 // ── App root ─────────────────────────────────────────────────────────────────
 
+function ThemedStatusBar() {
+  const { isDark } = useTheme()
+  return <StatusBar style={isDark ? 'light' : 'dark'} />
+}
+
 export default function App() {
   return (
-    <AuthProvider>
-      <GymProvider>
-        <ProgramFilterProvider>
-          <MovementsProvider>
-            <NavigationContainer>
-              <RootNavigator />
-              <StatusBar style="light" />
-            </NavigationContainer>
-          </MovementsProvider>
-        </ProgramFilterProvider>
-      </GymProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <GymProvider>
+          <ProgramFilterProvider>
+            <MovementsProvider>
+              <NavigationContainer>
+                <RootNavigator />
+                <ThemedStatusBar />
+              </NavigationContainer>
+            </MovementsProvider>
+          </ProgramFilterProvider>
+        </GymProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
