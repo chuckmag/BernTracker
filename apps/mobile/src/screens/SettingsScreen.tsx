@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme, type ThemeMode } from '../lib/theme'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
-import UserAvatar from '../components/UserAvatar'
+import AvatarUploader from '../components/AvatarUploader'
 
 // Mirrors the web Profile.tsx Details tab — same fields, same order, same
 // labels. Theme picker mirrors the cross-app `wodalytics-theme` AsyncStorage
@@ -137,22 +137,14 @@ export default function SettingsScreen() {
     >
       <ThemedView variant="screen" style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          {/* Avatar + identity row */}
+          {/* Avatar uploader + identity row */}
           <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
-            <View style={styles.identityRow}>
-              <UserAvatar
-                avatarUrl={profile.avatarUrl}
-                firstName={profile.firstName}
-                lastName={profile.lastName}
-                name={profile.name}
-                size="lg"
-              />
-              <View style={styles.identityText}>
-                <ThemedText style={styles.identityName}>
-                  {[profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.name || 'Athlete'}
-                </ThemedText>
-                <ThemedText variant="tertiary" style={styles.identityEmail}>{profile.email}</ThemedText>
-              </View>
+            <AvatarUploader size="lg" />
+            <View style={styles.identityText}>
+              <ThemedText style={styles.identityName}>
+                {[profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.name || 'Athlete'}
+              </ThemedText>
+              <ThemedText variant="tertiary" style={styles.identityEmail}>{profile.email}</ThemedText>
             </View>
           </ThemedView>
 

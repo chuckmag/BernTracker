@@ -492,8 +492,12 @@ async function request<T>(
   options: RequestInit = {},
   retry = true,
 ): Promise<T> {
+  // FormData carries its own multipart Content-Type with the boundary string;
+  // forcing application/json on top breaks the upload. Detect and skip the
+  // default for FormData bodies.
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string>),
   }
   if (_accessToken) headers['Authorization'] = `Bearer ${_accessToken}`
@@ -756,6 +760,26 @@ export const api = {
           request<Invitation>(`/api/invitations/code/${code}/accept`, { method: 'POST' }),
         decline: (code: string) =>
           request<Invitation>(`/api/invitations/code/${code}/decline`, { method: 'POST' }),
+      },
+
+      // Avatar upload / removal. RN's FormData appends image files as the
+      // tagged-object shape `{ uri, name, type }`; the API accepts the same
+      // multipart field name (`file`) the web AvatarUploader uses.
+      avatar: {
+        upload: (asset: { uri: string; name: string; mimeType: string }) => {
+          const form = new FormData()
+          form.append('file', {
+            uri: asset.uri,
+            name: asset.name,
+            type: asset.mimeType,
+          } as unknown as Blob)
+          return request<{ avatarUrl: string }>('/api/users/me/avatar', {
+            method: 'POST',
+            body: form,
+          })
+        },
+        remove: () =>
+          request<void>('/api/users/me/avatar', { method: 'DELETE' }),
       },
     },
   },

@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../lib/theme'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
+import AvatarUploader from '../components/AvatarUploader'
 
 // Mirror of apps/web/src/pages/Onboarding.tsx. Three sequential steps:
 //   0 — name (firstName + lastName)
@@ -239,6 +240,7 @@ export default function OnboardingScreen() {
           <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
             {step === 0 && (
               <View style={styles.fieldGroup}>
+                <AvatarUploader size="lg" helper="Add a photo (optional)" />
                 <View style={styles.field}>
                   <ThemedText variant="label" style={styles.fieldLabel}>First name</ThemedText>
                   <TextInput
