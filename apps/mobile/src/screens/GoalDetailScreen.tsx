@@ -18,10 +18,9 @@ import type { RootStackParamList } from '../../App'
 import {
   api,
   type GoalResponse,
-  type MovementPrType,
   type MovementTrajectoryData,
 } from '../lib/api'
-import GoalFormModal from '../components/GoalFormModal'
+import GoalFormModal, { HABIT_V2_COPY } from '../components/GoalFormModal'
 import MovementHistorySection from '../components/MovementHistorySection'
 
 type Nav = StackNavigationProp<RootStackParamList, 'GoalDetail'>
@@ -131,7 +130,14 @@ function PrTrajectoryChart({ points, target, unit }: PrTrajectoryChartProps) {
   )
 }
 
-// ─── Frequency weekly bar chart ────────────────────────────────────────────────
+// ─── Frequency overall progress bar ────────────────────────────────────────────
+//
+// Earlier revision drew per-week bars by distributing `workoutsLogged` evenly
+// across past weeks (the API only returns aggregates in v1). That looked like
+// real per-week history but was fabricated — a 12+0 week distribution rendered
+// as 6+6 to the viewer. Replaced with a single overall progress bar that
+// reflects the data we actually have. When the API exposes a per-week
+// breakdown (`progress.weeklyCounts`?), this can return as a real bar chart.
 
 interface FrequencyBarChartProps {
   workoutsLogged: number
@@ -142,74 +148,46 @@ interface FrequencyBarChartProps {
 }
 
 function FrequencyBarChart({ workoutsLogged, workoutsRequired, perWeek, weeks, currentWeekCount }: FrequencyBarChartProps) {
-  // We don't have per-week counts from the API in v1, so the chart shows a
-  // simple stacked summary: required vs logged plus the current week's bar.
-  // Each cell renders one bar per week (height proportional to perWeek).
-  const innerW = CHART_W - PAD.left - PAD.right
-  const innerH = CHART_H - PAD.top - PAD.bottom
-  const barW = innerW / weeks - 4
-  const barMaxH = innerH
+  // Server validation forbids `perWeek <= 0` or `weeks <= 0`, but the call
+  // site coerces nulls with `?? 0` — guard so a drifted goal record doesn't
+  // produce NaNs.
+  if (workoutsRequired <= 0 || perWeek <= 0 || weeks <= 0) return null
 
-  // Distribute logged workouts evenly across past weeks for visualization,
-  // with the current week reflecting actual count. Best-effort estimate;
-  // the meaningful numbers are the labels below.
-  const completedWeeksCount = Math.max(0, Math.min(weeks - 1, Math.floor((workoutsLogged - currentWeekCount) / Math.max(1, perWeek))))
-  const remainderPerCompleted = completedWeeksCount === 0
-    ? 0
-    : Math.min(perWeek, (workoutsLogged - currentWeekCount) / completedWeeksCount)
-
-  function logged(weekIdx: number): number {
-    if (weekIdx === completedWeeksCount) return currentWeekCount
-    if (weekIdx < completedWeeksCount) return remainderPerCompleted
-    return 0
-  }
+  const ratio = Math.min(1, workoutsLogged / workoutsRequired)
+  const barW = CHART_W - PAD.left - PAD.right
+  const filledW = barW * ratio
+  const barY = PAD.top + 16
+  const barH = 14
+  const pct = Math.round(ratio * 100)
 
   return (
     <View>
-      <Svg width={CHART_W} height={CHART_H} accessibilityLabel="Weekly frequency chart">
-        {/* Required (per-week target) baseline */}
-        <Line
-          x1={PAD.left}
-          y1={PAD.top}
-          x2={CHART_W - PAD.right}
-          y2={PAD.top}
-          stroke="#f59e0b"
-          strokeWidth={1.5}
-          strokeDasharray="4 4"
-        />
+      <Svg width={CHART_W} height={barY + barH + 8} accessibilityLabel="Overall frequency progress bar">
+        {/* Track */}
+        <Rect x={PAD.left} y={barY} width={barW} height={barH} fill="#1f2937" rx={barH / 2} />
+        {/* Fill */}
+        {filledW > 0 && (
+          <Rect
+            x={PAD.left}
+            y={barY}
+            width={filledW}
+            height={barH}
+            fill={ratio >= 1 ? '#22c55e' : '#818cf8'}
+            rx={barH / 2}
+          />
+        )}
+        {/* Percentage label */}
         <SvgText
-          x={CHART_W - PAD.right}
-          y={PAD.top + 2}
-          textAnchor="end"
-          alignmentBaseline="hanging"
-          fill="#f59e0b"
+          x={PAD.left + barW / 2}
+          y={barY + barH / 2 + 1}
+          textAnchor="middle"
+          alignmentBaseline="central"
+          fill="#f9fafb"
           fontSize={10}
-          fontWeight="600"
+          fontWeight="700"
         >
-          {`Target: ${perWeek}/wk`}
+          {`${pct}%`}
         </SvgText>
-
-        {/* Bars */}
-        {Array.from({ length: weeks }).map((_, i) => {
-          const v = logged(i)
-          const h = (v / perWeek) * barMaxH
-          const x = PAD.left + i * (barW + 4)
-          const y = CHART_H - PAD.bottom - h
-          return (
-            <Rect
-              key={i}
-              x={x}
-              y={y}
-              width={Math.max(2, barW)}
-              height={Math.max(0, h)}
-              fill={i === completedWeeksCount ? '#818cf8' : '#4f46e5'}
-              opacity={0.85}
-              rx={2}
-            />
-          )
-        })}
-
-        <Line x1={PAD.left} y1={CHART_H - PAD.bottom} x2={CHART_W - PAD.right} y2={CHART_H - PAD.bottom} stroke="#1f2937" strokeWidth={1} />
       </Svg>
       <View style={chartStyles.legendRow}>
         <Text style={chartStyles.legendText}>
@@ -299,7 +277,9 @@ export default function GoalDetailScreen() {
     if (!goal.movementId || !goal.targetPrType) return
     setTrajectoryLoading(true)
     api.analytics
-      .movementTrajectory(goal.movementId, goal.targetPrType as MovementPrType, '1Y')
+      // `targetPrType` is `TargetPrType` (excludes NONE) — a structural
+      // subtype of `MovementPrType`, so no cast is needed.
+      .movementTrajectory(goal.movementId, goal.targetPrType, '1Y')
       .then(setTrajectory)
       .catch(() => setTrajectory(null))
       .finally(() => setTrajectoryLoading(false))
@@ -528,7 +508,7 @@ export default function GoalDetailScreen() {
               </TouchableOpacity>
             )}
             <View style={s.habitPlaceholder}>
-              <Text style={s.habitPlaceholderText}>Daily check-ins coming soon</Text>
+              <Text style={s.habitPlaceholderText}>{HABIT_V2_COPY}</Text>
             </View>
           </View>
         )}

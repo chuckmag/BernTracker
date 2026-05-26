@@ -44,6 +44,17 @@ const PR_TYPE_LABELS: Record<TargetPrType, string> = {
 export const SMART_HINT_COPY =
   "Goals are easier to achieve when they're time-bound. Consider adding a target date — it's the T in SMART (Specific, Measurable, Achievable, Relevant, Time-bound)."
 
+// "Daily check-ins coming in v2" — shared between the create form and the
+// Habit detail screen so the wording stays consistent.
+export const HABIT_V2_COPY = 'Daily check-ins coming in v2.'
+
+// Edit-mode banner: PATCH /api/goals/:id only accepts { title, targetDate,
+// status } (see apps/api/src/routes/goals.ts → UpdateGoalSchema). Surface
+// that constraint so users don't try to change the target value or PR type
+// inline.
+const EDIT_LOCKED_COPY =
+  'Edit only changes the title and target date. To change the target value, type, or frequency, delete this goal and recreate it.'
+
 // ─── Picker bottom sheets ──────────────────────────────────────────────────────
 
 interface OptionSheetProps<T extends string> {
@@ -120,8 +131,11 @@ function MovementPicker({ visible, movements, selectedId, onSelect, onClose }: M
             onChangeText={setFilter}
             autoFocus
           />
+          {/* Cap exists because the sheet uses ScrollView (no virtualization).
+              200 covers the vast majority of gym catalogs; if a gym ever
+              hits this ceiling, swap to FlatList. */}
           <ScrollView style={s.sheetScroll} keyboardShouldPersistTaps="handled">
-            {filtered.slice(0, 60).map((m) => {
+            {filtered.slice(0, 200).map((m) => {
               const isSel = m.id === selectedId
               return (
                 <TouchableOpacity
@@ -277,6 +291,11 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
 
   function validate(): string | null {
     if (!title.trim()) return 'Title is required'
+    // PATCH only touches title + targetDate, so per-type field validation is
+    // skipped in edit mode — otherwise a goal whose PR-target fields are
+    // missing in local state (or whose original input drifted) would block
+    // a valid title edit.
+    if (mode === 'edit') return null
     if (type === 'PR_TARGET') {
       if (subject === 'movement' && !movementId) return 'Pick a movement'
       if (subject === 'namedWorkout' && !namedWorkout) return 'Pick a named workout'
@@ -310,6 +329,11 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
       if (mode === 'create') {
         let input: CreateGoalInput
         if (type === 'PR_TARGET') {
+          // Set targetLoadUnit / targetRepCount as conditional `undefined`
+          // instead of a conditional spread. TS narrows the
+          // discriminated-union literal correctly through optional fields
+          // but not through `...(cond ? {...} : {})`, which is what forced
+          // the `as CreateGoalInput` cast previously.
           input = {
             type: 'PR_TARGET',
             title: title.trim(),
@@ -318,10 +342,9 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
             namedWorkoutId: subject === 'namedWorkout' ? (namedWorkout?.id ?? undefined) : undefined,
             targetPrType,
             targetValue: Number(targetValue),
-            ...(targetPrType === 'LOAD'
-              ? { targetLoadUnit, targetRepCount: Number(targetRepCount) }
-              : {}),
-          } as CreateGoalInput
+            targetLoadUnit: targetPrType === 'LOAD' ? targetLoadUnit : undefined,
+            targetRepCount: targetPrType === 'LOAD' ? Number(targetRepCount) : undefined,
+          }
         } else if (type === 'FREQUENCY') {
           input = {
             type: 'FREQUENCY',
@@ -394,8 +417,18 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
               accessibilityLabel="Goal title"
             />
 
+            {/* In edit mode, target values / type / cadence are immutable
+                (see UpdateGoalSchema in apps/api/src/routes/goals.ts).
+                Hide the per-type editors to make that obvious instead of
+                rendering them and silently dropping the changes on save. */}
+            {mode === 'edit' && (
+              <View style={s.editLockedBanner} accessibilityLabel="Edit locked notice">
+                <Text style={s.editLockedText}>{EDIT_LOCKED_COPY}</Text>
+              </View>
+            )}
+
             {/* PR Target subform */}
-            {type === 'PR_TARGET' && (
+            {mode === 'create' && type === 'PR_TARGET' && (
               <>
                 <Text style={s.fieldLabel}>SUBJECT</Text>
                 <View style={s.subjectRow}>
@@ -499,7 +532,7 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
             )}
 
             {/* Frequency subform */}
-            {type === 'FREQUENCY' && (
+            {mode === 'create' && type === 'FREQUENCY' && (
               <>
                 <Text style={s.fieldLabel}>WORKOUTS PER WEEK</Text>
                 <TextInput
@@ -526,9 +559,9 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
             )}
 
             {/* Habit subform */}
-            {type === 'HABIT' && (
+            {mode === 'create' && type === 'HABIT' && (
               <View style={s.habitNote}>
-                <Text style={s.habitNoteText}>Daily check-ins coming in v2.</Text>
+                <Text style={s.habitNoteText}>{HABIT_V2_COPY}</Text>
               </View>
             )}
 
@@ -738,6 +771,15 @@ const s = StyleSheet.create({
 
   unitRow: { flexDirection: 'row', gap: 8 },
 
+  editLockedBanner: {
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+  },
+  editLockedText: { color: '#cbd5e1', fontSize: 12, lineHeight: 18 },
   habitNote: {
     backgroundColor: '#1f2937',
     borderRadius: 8,

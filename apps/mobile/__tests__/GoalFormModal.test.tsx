@@ -73,7 +73,13 @@ describe('GoalFormModal', () => {
     expect(await findByText(SMART_HINT_COPY)).toBeTruthy()
   })
 
-  test('hides the SMART hint when editing a goal that already has a target date', async () => {
+  test('SMART hint absent on initial render in edit mode when targetDate is set', async () => {
+    // Renamed from the misleading "hides the SMART hint when editing" — the
+    // hint *appearance* on date-clear isn't exercised here because the
+    // DateTimePicker module is stubbed to noop above. The honest scope is:
+    // when targetDate starts non-null, the hint is not rendered on mount.
+    // Coverage for the cleared-date path lives in the create-mode test
+    // above (no targetDate → hint appears).
     const { queryByText } = render(
       <GoalFormModal
         mode="edit"
@@ -82,9 +88,61 @@ describe('GoalFormModal', () => {
         onSaved={noop}
       />,
     )
-    // We can't easily clear the iOS picker programmatically here, so the
-    // hint should not appear on initial render when targetDate is non-null.
     expect(queryByText(SMART_HINT_COPY)).toBeNull()
+  })
+
+  test('edit mode hides the per-type editors so unsupported fields are not visible', async () => {
+    const { queryByText, queryByLabelText, findByLabelText } = render(
+      <GoalFormModal
+        mode="edit"
+        initialGoal={makeGoal()}
+        onCancel={noop}
+        onSaved={noop}
+      />,
+    )
+    // Edit-locked banner replaces the per-type subforms.
+    expect(await findByLabelText('Edit locked notice')).toBeTruthy()
+    // None of the PR-Target / Frequency editors render in edit mode.
+    expect(queryByText('PR TYPE')).toBeNull()
+    expect(queryByLabelText('Target value')).toBeNull()
+    expect(queryByLabelText('Rep count')).toBeNull()
+    expect(queryByLabelText('Workouts per week')).toBeNull()
+    // Title is still editable.
+    expect(queryByLabelText('Goal title')).toBeTruthy()
+  })
+
+  test('edit mode PATCH body only carries title + targetDate (regression for review #1)', async () => {
+    // Locks in the fix for the deep-review's "edit silently discards
+    // non-editable fields" bug. Even if a future refactor accidentally
+    // re-renders the PR-Target inputs, the save path must still send only
+    // the fields UpdateGoalSchema accepts.
+    ;(api.users.me.goals.update as jest.Mock).mockResolvedValue(
+      makeGoal({ title: 'Renamed squat goal' }),
+    )
+    const onSaved = jest.fn()
+    const { getByText, getByLabelText } = render(
+      <GoalFormModal
+        mode="edit"
+        initialGoal={makeGoal({ title: 'Old squat goal', targetValue: 315 })}
+        onCancel={noop}
+        onSaved={onSaved}
+      />,
+    )
+    fireEvent.changeText(getByLabelText('Goal title'), 'Renamed squat goal')
+    fireEvent.press(getByText('Save'))
+    await waitFor(() => {
+      expect(api.users.me.goals.update).toHaveBeenCalledTimes(1)
+    })
+    const [, patch] = (api.users.me.goals.update as jest.Mock).mock.calls[0]
+    // PATCH body must contain ONLY the fields UpdateGoalSchema accepts.
+    expect(Object.keys(patch).sort()).toEqual(['targetDate', 'title'])
+    expect(patch.title).toBe('Renamed squat goal')
+    // Sanity: nothing leaked through the save path.
+    expect(patch.targetValue).toBeUndefined()
+    expect(patch.targetPrType).toBeUndefined()
+    expect(patch.movementId).toBeUndefined()
+    expect(patch.frequencyPerWeek).toBeUndefined()
+    expect(onSaved).toHaveBeenCalled()
   })
 
   test('PR Target LOAD shows REP COUNT field; switching to TIME hides it', async () => {

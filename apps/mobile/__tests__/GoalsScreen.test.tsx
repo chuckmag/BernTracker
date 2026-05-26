@@ -11,7 +11,12 @@ const mockNavigate = jest.fn()
 jest.mock('@react-navigation/native', () => {
   const React = require('react')
   return {
-    useFocusEffect: (cb: () => void) => React.useEffect(cb, []),
+    // React Navigation's real `useFocusEffect` re-runs the effect whenever
+    // the callback's identity changes (callers wrap it in useCallback whose
+    // deps reflect what should trigger a refetch — e.g. `tab` here). Mock
+    // it with `[cb]` as deps so the test behaviour matches; an empty deps
+    // array would only fire on mount and miss tab-switch refetches.
+    useFocusEffect: (cb: () => void) => React.useEffect(cb, [cb]),
     useNavigation: () => ({ navigate: mockNavigate }),
   }
 })

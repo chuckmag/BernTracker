@@ -680,7 +680,10 @@ export const api = {
 
     // Per-user "me" namespace under the `/api/users/me/...` route prefix.
     // Other "me" endpoints still live under `api.me.*` (legacy `/api/me/...`
-    // shape); these newer ones live here to match the API route file.
+    // shape); these newer ones live here to match the API route file. The
+    // asymmetry between `users.me.goals.{list,create}` (under /api/users/me/)
+    // and `users.me.goals.{update,remove}` (under /api/goals/) is documented
+    // on the goals block below.
     me: {
       profile: {
         get: () => request<UserProfile>('/api/users/me/profile'),

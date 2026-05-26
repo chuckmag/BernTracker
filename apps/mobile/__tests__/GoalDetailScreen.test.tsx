@@ -27,9 +27,19 @@ jest.mock('../src/lib/api', () => ({
   },
 }))
 
-jest.mock('../src/components/GoalFormModal', () => () => {
+jest.mock('../src/components/GoalFormModal', () => {
   const { Text } = require('react-native')
-  return <Text>GoalFormModal</Text>
+  // Default export is the component stub; named exports mirror the real
+  // module so call sites that import constants (e.g. HABIT_V2_COPY) still
+  // resolve to the right string.
+  function GoalFormModalStub() { return <Text>GoalFormModal</Text> }
+  return {
+    __esModule: true,
+    default: GoalFormModalStub,
+    SMART_HINT_COPY:
+      "Goals are easier to achieve when they're time-bound. Consider adding a target date — it's the T in SMART (Specific, Measurable, Achievable, Relevant, Time-bound).",
+    HABIT_V2_COPY: 'Daily check-ins coming in v2.',
+  }
 })
 
 // MovementHistorySection mounts its own data fetch on render; stubbing it
@@ -133,7 +143,12 @@ describe('GoalDetailScreen', () => {
     expect(await findByText('87%')).toBeTruthy()
   })
 
-  test('renders the weekly-progress chart for FREQUENCY goals', async () => {
+  test('renders the overall-progress bar for FREQUENCY goals', async () => {
+    // Updated after deep-review #2: the per-week fabricated bar chart was
+    // replaced with an honest overall progress bar (single fill proportional
+    // to workoutsLogged / workoutsRequired). The bar still carries the
+    // Logged / This-week legend below so the same surface-level info is
+    // covered.
     ;(api.goals.get as jest.Mock).mockResolvedValue({
       ...prGoal(),
       type: 'FREQUENCY',
@@ -157,28 +172,20 @@ describe('GoalDetailScreen', () => {
     })
     const { findByText, findByLabelText } = render(<GoalDetailScreen />)
     expect(await findByText('Weekly progress')).toBeTruthy()
-    // Same SVG-text trick as the PR Target chart — the bar chart's "Target:
-    // 3/wk" annotation lives inside an <SvgText> we can only find via the
-    // chart's accessibilityLabel.
-    const svg = await findByLabelText('Weekly frequency chart')
-    function walk(node: any, acc: any[] = []): any[] {
-      if (!node) return acc
-      acc.push(node)
-      const children = node.props?.children
-      if (Array.isArray(children)) children.forEach((c) => walk(c, acc))
-      else if (children && typeof children === 'object') walk(children, acc)
-      return acc
-    }
-    const all = walk(svg)
-    const found = all.some((n) => n.props?.children === 'Target: 3/wk')
-    expect(found).toBe(true)
+    // Progress bar is queryable via its accessibilityLabel.
+    expect(await findByLabelText('Overall frequency progress bar')).toBeTruthy()
+    // Legend row carries the actual numbers (5/12 logged, 2/3 this week).
+    expect(await findByText(/Logged:/)).toBeTruthy()
+    expect(await findByText(/This week:/)).toBeTruthy()
   })
 
   test('renders Mark complete button for active HABIT goals', async () => {
     ;(api.goals.get as jest.Mock).mockResolvedValue(habitGoal())
     const { findByText } = render(<GoalDetailScreen />)
     expect(await findByText('Mark complete')).toBeTruthy()
-    expect(await findByText('Daily check-ins coming soon')).toBeTruthy()
+    // Updated copy after #9 — the v2 placeholder is now sourced from the
+    // shared HABIT_V2_COPY constant ("Daily check-ins coming in v2.").
+    expect(await findByText('Daily check-ins coming in v2.')).toBeTruthy()
   })
 
   test('Mark complete flips status to COMPLETED', async () => {

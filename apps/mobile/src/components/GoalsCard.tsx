@@ -1,87 +1,22 @@
 import { useCallback, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
-import Svg, { Circle } from 'react-native-svg'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { api, type GoalResponse } from '../lib/api'
 import GoalFormModal from './GoalFormModal'
+import GoalProgressRing from './GoalProgressRing'
+import { formatProgressLabel } from '../lib/goalFormat'
+
+// Re-exported so existing callers (`GoalsScreen` imports it from here in
+// some test fixtures) still resolve. The canonical source is now
+// src/lib/goalFormat.ts.
+export { formatProgressLabel }
 
 type Nav = StackNavigationProp<RootStackParamList>
 
 const RING_SIZE = 36
 const RING_STROKE = 4
-const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2
-const RING_CIRC = 2 * Math.PI * RING_RADIUS
-
-// ─── Progress ring ─────────────────────────────────────────────────────────────
-
-interface ProgressRingProps {
-  percent: number   // 0–100
-  isHabit: boolean
-  isComplete: boolean
-}
-
-function ProgressRing({ percent, isHabit, isComplete }: ProgressRingProps) {
-  if (isHabit) {
-    // HABIT has no numeric progress in v1 — show a hollow ring or a check.
-    return (
-      <View style={[styles.ring, { width: RING_SIZE, height: RING_SIZE }]}>
-        <Text style={[styles.ringText, isComplete && styles.ringTextComplete]}>
-          {isComplete ? '✓' : '·'}
-        </Text>
-      </View>
-    )
-  }
-  const pct = Math.max(0, Math.min(100, percent))
-  const offset = RING_CIRC * (1 - pct / 100)
-  return (
-    <View style={[styles.ring, { width: RING_SIZE, height: RING_SIZE }]}>
-      <Svg width={RING_SIZE} height={RING_SIZE}>
-        <Circle
-          cx={RING_SIZE / 2}
-          cy={RING_SIZE / 2}
-          r={RING_RADIUS}
-          stroke="#1f2937"
-          strokeWidth={RING_STROKE}
-          fill="none"
-        />
-        <Circle
-          cx={RING_SIZE / 2}
-          cy={RING_SIZE / 2}
-          r={RING_RADIUS}
-          stroke={isComplete ? '#34d399' : '#818cf8'}
-          strokeWidth={RING_STROKE}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={RING_CIRC}
-          strokeDashoffset={offset}
-          // Start the ring at 12 o'clock instead of 3.
-          transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-        />
-      </Svg>
-      <View style={styles.ringLabel}>
-        <Text style={styles.ringPct}>{pct}</Text>
-      </View>
-    </View>
-  )
-}
-
-// ─── Numeric progress label ────────────────────────────────────────────────────
-
-export function formatProgressLabel(goal: GoalResponse): string {
-  const p = goal.progress
-  if (p.type === 'PR_TARGET') {
-    const cur = p.current === null ? '—' : String(p.current)
-    const unit = p.unit ? ` ${p.unit}` : ''
-    return `${cur} / ${p.target}${unit}`
-  }
-  if (p.type === 'FREQUENCY') {
-    return `${p.workoutsLogged} / ${p.workoutsRequired} workouts`
-  }
-  // HABIT
-  return goal.status === 'COMPLETED' ? 'Completed' : 'In progress'
-}
 
 // ─── Row ───────────────────────────────────────────────────────────────────────
 
@@ -106,7 +41,13 @@ function GoalRow({ goal, onPress }: GoalRowProps) {
       accessibilityRole="button"
       accessibilityLabel={`${goal.title} ${formatProgressLabel(goal)}`}
     >
-      <ProgressRing percent={percent} isHabit={goal.progress.type === 'HABIT'} isComplete={isComplete} />
+      <GoalProgressRing
+        percent={percent}
+        isHabit={goal.progress.type === 'HABIT'}
+        isComplete={isComplete}
+        size={RING_SIZE}
+        stroke={RING_STROKE}
+      />
       <View style={styles.rowText}>
         <Text style={styles.rowTitle} numberOfLines={1}>{goal.title}</Text>
         <Text style={styles.rowLabel} numberOfLines={1}>{formatProgressLabel(goal)}</Text>
@@ -119,17 +60,21 @@ function GoalRow({ goal, onPress }: GoalRowProps) {
 
 export default function GoalsCard() {
   const navigation = useNavigation<Nav>()
-  const [goals, setGoals] = useState<GoalResponse[] | null>(null)
+  const [goals, setGoals] = useState<GoalResponse[]>([])
   const [loading, setLoading] = useState(true)
+  // Separate error state so a 5xx doesn't render the empty-state "set your
+  // first goal" copy. Matches the GoalsScreen pattern.
+  const [error, setError] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
 
   const fetchGoals = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const list = await api.users.me.goals.list({ status: 'ACTIVE' })
       setGoals(list.slice(0, 3))
-    } catch {
-      setGoals([])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load goals')
     } finally {
       setLoading(false)
     }
@@ -143,11 +88,11 @@ export default function GoalsCard() {
 
   function handleCreated(goal: GoalResponse) {
     setShowCreate(false)
-    setGoals((prev) => (prev ? [goal, ...prev].slice(0, 3) : [goal]))
+    setGoals((prev) => [goal, ...prev].slice(0, 3))
   }
 
-  const showEmpty = !loading && (!goals || goals.length === 0)
-  const showList = !loading && goals && goals.length > 0
+  const showEmpty = !loading && !error && goals.length === 0
+  const showList = !loading && !error && goals.length > 0
 
   return (
     <View style={styles.card}>
@@ -169,18 +114,30 @@ export default function GoalsCard() {
         </View>
       )}
 
+      {!loading && error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       {showEmpty && (
-        <View style={styles.empty}>
+        <TouchableOpacity
+          style={styles.empty}
+          onPress={() => setShowCreate(true)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Create your first goal"
+        >
           <Text style={styles.emptyTitle}>No active goals yet</Text>
           <Text style={styles.emptyBody}>
-            Set a PR target, a weekly frequency, or a habit to track your progress over time.
+            Tap here or "+ New goal" to set a PR target, weekly frequency, or habit.
           </Text>
-        </View>
+        </TouchableOpacity>
       )}
 
       {showList && (
         <View>
-          {goals!.map((g) => (
+          {goals.map((g) => (
             <GoalRow
               key={g.id}
               goal={g}
@@ -275,19 +232,15 @@ const styles = StyleSheet.create({
   rowText: { flex: 1 },
   rowTitle: { fontSize: 14, fontWeight: '600', color: '#f3f4f6' },
   rowLabel: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  ring: { justifyContent: 'center', alignItems: 'center' },
-  ringLabel: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+  errorBox: {
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#7f1d1d',
+    borderRadius: 8,
   },
-  ringPct: { fontSize: 10, fontWeight: '700', color: '#e5e7eb' },
-  ringText: { fontSize: 18, color: '#6b7280' },
-  ringTextComplete: { color: '#34d399', fontWeight: '700' },
+  errorText: { color: '#fecaca', fontSize: 12 },
   footer: {
     paddingHorizontal: 16,
     paddingVertical: 12,

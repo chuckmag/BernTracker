@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { formatProgressLabel } from '../lib/goalFormat'
+import GoalProgressRing from '../components/GoalProgressRing'
 import {
   View,
   Text,
@@ -9,12 +11,10 @@ import {
   RefreshControl,
 } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
-import Svg, { Circle } from 'react-native-svg'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { api, type GoalResponse, type GoalStatus, type GoalType } from '../lib/api'
 import GoalFormModal from '../components/GoalFormModal'
-import { formatProgressLabel } from '../components/GoalsCard'
 
 type Nav = StackNavigationProp<RootStackParamList>
 
@@ -32,44 +32,6 @@ const TYPE_ICON: Record<GoalType, string> = {
 
 const RING_SIZE = 40
 const RING_STROKE = 4
-const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2
-const RING_CIRC = 2 * Math.PI * RING_RADIUS
-
-function ProgressRing({ percent, isHabit, isComplete }: { percent: number; isHabit: boolean; isComplete: boolean }) {
-  if (isHabit) {
-    return (
-      <View style={[s.ring, { width: RING_SIZE, height: RING_SIZE }]}>
-        <Text style={[s.ringInnerHabit, isComplete && s.ringInnerComplete]}>
-          {isComplete ? '✓' : '·'}
-        </Text>
-      </View>
-    )
-  }
-  const pct = Math.max(0, Math.min(100, percent))
-  const offset = RING_CIRC * (1 - pct / 100)
-  return (
-    <View style={[s.ring, { width: RING_SIZE, height: RING_SIZE }]}>
-      <Svg width={RING_SIZE} height={RING_SIZE}>
-        <Circle cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RING_RADIUS} stroke="#1f2937" strokeWidth={RING_STROKE} fill="none" />
-        <Circle
-          cx={RING_SIZE / 2}
-          cy={RING_SIZE / 2}
-          r={RING_RADIUS}
-          stroke={isComplete ? '#34d399' : '#818cf8'}
-          strokeWidth={RING_STROKE}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={RING_CIRC}
-          strokeDashoffset={offset}
-          transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
-        />
-      </Svg>
-      <View style={s.ringInner}>
-        <Text style={s.ringPct}>{pct}</Text>
-      </View>
-    </View>
-  )
-}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return 'No target date'
@@ -107,7 +69,13 @@ function GoalListRow({ goal, onPress }: RowProps) {
       accessibilityRole="button"
       accessibilityLabel={`${goal.title} ${formatProgressLabel(goal)}`}
     >
-      <ProgressRing percent={percent} isHabit={goal.progress.type === 'HABIT'} isComplete={isComplete} />
+      <GoalProgressRing
+        percent={percent}
+        isHabit={goal.progress.type === 'HABIT'}
+        isComplete={isComplete}
+        size={RING_SIZE}
+        stroke={RING_STROKE}
+      />
       <View style={s.rowText}>
         <Text style={s.rowTitle} numberOfLines={1}>
           <Text style={s.rowIcon}>{TYPE_ICON[goal.type]} </Text>
@@ -125,7 +93,9 @@ function GoalListRow({ goal, onPress }: RowProps) {
 export default function GoalsScreen() {
   const navigation = useNavigation<Nav>()
   const [tab, setTab] = useState<GoalStatus>('ACTIVE')
-  const [goals, setGoals] = useState<GoalResponse[] | null>(null)
+  // [] = "loaded, no items"; the separate `loading` flag covers
+  // "not yet loaded", so a tri-state isn't needed.
+  const [goals, setGoals] = useState<GoalResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -141,17 +111,16 @@ export default function GoalsScreen() {
     }
   }, [tab])
 
+  // useFocusEffect covers mount + every refocus, and `fetchGoals`'s identity
+  // changes whenever `tab` changes (its only dep), so tab switches also fire
+  // through this hook. A second useEffect on the same dep would just
+  // double-fetch on every interaction.
   useFocusEffect(
     useCallback(() => {
       setLoading(true)
       fetchGoals().finally(() => setLoading(false))
     }, [fetchGoals]),
   )
-
-  useEffect(() => {
-    setLoading(true)
-    fetchGoals().finally(() => setLoading(false))
-  }, [fetchGoals])
 
   async function handleRefresh() {
     setRefreshing(true)
@@ -200,7 +169,7 @@ export default function GoalsScreen() {
           </View>
         )}
 
-        {!loading && !error && goals && goals.length === 0 && (
+        {!loading && !error && goals.length === 0 && (
           <View style={s.empty}>
             <Text style={s.emptyTitle}>No {TAB_LABELS[tab].toLowerCase()} goals</Text>
             <Text style={s.emptyBody}>
@@ -213,7 +182,7 @@ export default function GoalsScreen() {
           </View>
         )}
 
-        {!loading && goals && goals.length > 0 && (
+        {!loading && goals.length > 0 && (
           <View style={s.list}>
             {goals.map((g) => (
               <GoalListRow
@@ -291,15 +260,6 @@ const s = StyleSheet.create({
   rowIcon: { fontSize: 14 },
   rowMeta: { color: '#cbd5e1', fontSize: 12, marginTop: 2 },
   rowSub: { color: '#6b7280', fontSize: 11, marginTop: 2 },
-
-  ring: { justifyContent: 'center', alignItems: 'center' },
-  ringInner: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  ringPct: { color: '#e5e7eb', fontWeight: '700', fontSize: 11 },
-  ringInnerHabit: { color: '#6b7280', fontSize: 18 },
-  ringInnerComplete: { color: '#34d399', fontWeight: '700' },
 
   fab: {
     position: 'absolute',
