@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import {
   Modal,
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
@@ -22,6 +21,9 @@ import {
   type CreateGoalInput,
 } from '../lib/api'
 import { useMovements } from '../context/MovementsContext'
+import { useTheme, type ThemeColors } from '../lib/theme'
+import ThemedText from './ThemedText'
+import ThemedView from './ThemedView'
 
 // ─── Shared field types ─────────────────────────────────────────────────────────
 
@@ -54,6 +56,16 @@ export const HABIT_V2_COPY = 'Daily check-ins coming in v2.'
 const EDIT_LOCKED_COPY =
   'Edit only changes the title and target date. To change the target value, type, or frequency, delete this goal and recreate it.'
 
+// Reusable input/select style builder — every TextInput and select button in
+// this form needs the same theme-aware bg/border/text triple.
+function inputStyle(colors: ThemeColors) {
+  return {
+    backgroundColor: colors.inputBg,
+    borderColor: colors.borderInteractive,
+    color: colors.textPrimary,
+  }
+}
+
 // ─── Picker bottom sheets ──────────────────────────────────────────────────────
 
 interface OptionSheetProps<T extends string> {
@@ -73,29 +85,37 @@ function OptionSheet<T extends string>({
   onSelect,
   onClose,
 }: OptionSheetProps<T>) {
+  const { colors } = useTheme()
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Pressable style={s.sheetBackdrop} onPress={onClose}>
-        <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={s.sheetTitle}>{title}</Text>
-          <ScrollView style={s.sheetScroll}>
-            {options.map((opt) => {
-              const isSel = opt.value === selectedValue
-              return (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={s.sheetRow}
-                  onPress={() => {
-                    onSelect(opt.value)
-                    onClose()
-                  }}
-                >
-                  <Text style={[s.sheetRowText, isSel && s.sheetRowSelected]}>{opt.label}</Text>
-                  {isSel && <Text style={s.sheetCheck}>✓</Text>}
-                </TouchableOpacity>
-              )
-            })}
-          </ScrollView>
+        <Pressable onPress={(e) => e.stopPropagation()}>
+          <ThemedView variant="card" style={s.sheet}>
+            <ThemedText style={s.sheetTitle}>{title}</ThemedText>
+            <ScrollView style={s.sheetScroll}>
+              {options.map((opt) => {
+                const isSel = opt.value === selectedValue
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[s.sheetRow, { borderBottomColor: colors.borderSubtle }]}
+                    onPress={() => {
+                      onSelect(opt.value)
+                      onClose()
+                    }}
+                  >
+                    <ThemedText
+                      variant="secondary"
+                      style={[s.sheetRowText, isSel && { color: colors.primary, fontWeight: '600' }]}
+                    >
+                      {opt.label}
+                    </ThemedText>
+                    {isSel && <ThemedText style={[s.sheetCheck, { color: colors.primary }]}>✓</ThemedText>}
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+          </ThemedView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -143,6 +163,7 @@ function InlineCombo({
   emptyText,
   accessibilityLabel,
 }: InlineComboProps) {
+  const { colors } = useTheme()
   const [text, setText] = useState(selectedName ?? '')
 
   // Keep the input in sync if the parent's selection changes externally
@@ -185,24 +206,24 @@ function InlineCombo({
   return (
     <View>
       <TextInput
-        style={s.input}
+        style={[s.input, inputStyle(colors)]}
         value={text}
         onChangeText={handleChange}
         placeholder={placeholder}
-        placeholderTextColor="#6b7280"
+        placeholderTextColor={colors.textPlaceholder}
         accessibilityLabel={accessibilityLabel}
         autoCapitalize="words"
         autoCorrect={false}
       />
       {dropdownOpen && (
-        <View style={s.comboDropdown}>
+        <View style={[s.comboDropdown, { backgroundColor: colors.screenBg, borderColor: colors.borderSubtle }]}>
           {matches.length === 0 ? (
-            <Text style={s.comboEmpty}>{emptyText}</Text>
+            <ThemedText variant="tertiary" style={s.comboEmpty}>{emptyText}</ThemedText>
           ) : (
             matches.map((opt) => (
               <TouchableOpacity
                 key={opt.id}
-                style={s.comboRow}
+                style={[s.comboRow, { borderBottomColor: colors.borderSubtle }]}
                 // onPressIn (touch-down) instead of onPress (touch-up):
                 // when the soft keyboard is up and the user taps a row,
                 // RN dispatches the keyboard's blur handler on touch-up.
@@ -215,7 +236,7 @@ function InlineCombo({
                 onPressIn={() => handlePick(opt)}
                 accessibilityLabel={`Select ${opt.name}`}
               >
-                <Text style={s.comboRowText}>{opt.name}</Text>
+                <ThemedText style={s.comboRowText}>{opt.name}</ThemedText>
               </TouchableOpacity>
             ))
           )}
@@ -237,6 +258,7 @@ interface Props {
 type Subject = 'movement' | 'namedWorkout'
 
 export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: Props) {
+  const { colors, isDark } = useTheme()
   const movements = useMovements()
 
   // Type — only mutable in create mode.
@@ -388,6 +410,13 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
   }
 
   const showSmartHint = !targetDate
+  const inputThemed = inputStyle(colors)
+
+  // Chip styles — active chips use the saturated primary, inactive ones match
+  // the input style. Mirrors the previous indigo treatment for the active
+  // state with the new tokens.
+  const chipBase = [s.subjectChip, { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive }]
+  const chipActive = { backgroundColor: colors.primary, borderColor: colors.primaryHover }
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onCancel}>
@@ -395,34 +424,34 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
         style={s.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={s.sheetMain}>
+        <ThemedView variant="card" style={s.sheetMain}>
           <ScrollView
             style={s.scroll}
             contentContainerStyle={s.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={s.title}>{mode === 'create' ? 'New goal' : 'Edit goal'}</Text>
+            <ThemedText style={s.title}>{mode === 'create' ? 'New goal' : 'Edit goal'}</ThemedText>
 
             {/* Type — locked in edit mode */}
-            <Text style={s.fieldLabel}>TYPE</Text>
+            <ThemedText variant="label" style={s.fieldLabel}>TYPE</ThemedText>
             <TouchableOpacity
-              style={[s.selectBtn, mode === 'edit' && s.selectBtnDisabled]}
+              style={[s.selectBtn, inputThemed, mode === 'edit' && s.selectBtnDisabled]}
               disabled={mode === 'edit'}
               onPress={() => setTypeSheet(true)}
               accessibilityLabel="Goal type"
             >
-              <Text style={s.selectBtnText}>{TYPE_LABELS[type]}</Text>
-              {mode === 'create' && <Text style={s.selectBtnChevron}>▾</Text>}
+              <ThemedText style={s.selectBtnText}>{TYPE_LABELS[type]}</ThemedText>
+              {mode === 'create' && <ThemedText style={[s.selectBtnChevron, { color: colors.primary }]}>▾</ThemedText>}
             </TouchableOpacity>
 
             {/* Title */}
-            <Text style={s.fieldLabel}>TITLE</Text>
+            <ThemedText variant="label" style={s.fieldLabel}>TITLE</ThemedText>
             <TextInput
-              style={s.input}
+              style={[s.input, inputThemed]}
               value={title}
               onChangeText={setTitle}
               placeholder="e.g. 315 lb back squat"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={colors.textPlaceholder}
               accessibilityLabel="Goal title"
             />
 
@@ -431,33 +460,43 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
                 Hide the per-type editors to make that obvious instead of
                 rendering them and silently dropping the changes on save. */}
             {mode === 'edit' && (
-              <View style={s.editLockedBanner} accessibilityLabel="Edit locked notice">
-                <Text style={s.editLockedText}>{EDIT_LOCKED_COPY}</Text>
+              <View
+                style={[
+                  s.editLockedBanner,
+                  { backgroundColor: `${colors.primary}1a`, borderColor: colors.borderInteractive },
+                ]}
+                accessibilityLabel="Edit locked notice"
+              >
+                <ThemedText variant="secondary" style={s.editLockedText}>{EDIT_LOCKED_COPY}</ThemedText>
               </View>
             )}
 
             {/* PR Target subform */}
             {mode === 'create' && type === 'PR_TARGET' && (
               <>
-                <Text style={s.fieldLabel}>SUBJECT</Text>
+                <ThemedText variant="label" style={s.fieldLabel}>SUBJECT</ThemedText>
                 <View style={s.subjectRow}>
                   <TouchableOpacity
-                    style={[s.subjectChip, subject === 'movement' && s.subjectChipActive]}
+                    style={[...chipBase, subject === 'movement' && chipActive]}
                     onPress={() => setSubject('movement')}
                   >
-                    <Text style={[s.subjectChipText, subject === 'movement' && s.subjectChipTextActive]}>
+                    <ThemedText
+                      variant={subject === 'movement' ? 'primary' : 'tertiary'}
+                      style={[s.subjectChipText, subject === 'movement' && { color: colors.onPrimary, fontWeight: '600' }]}
+                    >
                       Movement
-                    </Text>
+                    </ThemedText>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[s.subjectChip, subject === 'namedWorkout' && s.subjectChipActive]}
+                    style={[...chipBase, subject === 'namedWorkout' && chipActive]}
                     onPress={() => setSubject('namedWorkout')}
                   >
-                    <Text
-                      style={[s.subjectChipText, subject === 'namedWorkout' && s.subjectChipTextActive]}
+                    <ThemedText
+                      variant={subject === 'namedWorkout' ? 'primary' : 'tertiary'}
+                      style={[s.subjectChipText, subject === 'namedWorkout' && { color: colors.onPrimary, fontWeight: '600' }]}
                     >
                       Named workout
-                    </Text>
+                    </ThemedText>
                   </TouchableOpacity>
                 </View>
 
@@ -484,52 +523,50 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
                   />
                 )}
 
-                <Text style={s.fieldLabel}>PR TYPE</Text>
-                <TouchableOpacity style={s.selectBtn} onPress={() => setPrTypeSheet(true)}>
-                  <Text style={s.selectBtnText}>{PR_TYPE_LABELS[targetPrType]}</Text>
-                  <Text style={s.selectBtnChevron}>▾</Text>
+                <ThemedText variant="label" style={s.fieldLabel}>PR TYPE</ThemedText>
+                <TouchableOpacity style={[s.selectBtn, inputThemed]} onPress={() => setPrTypeSheet(true)}>
+                  <ThemedText style={s.selectBtnText}>{PR_TYPE_LABELS[targetPrType]}</ThemedText>
+                  <ThemedText style={[s.selectBtnChevron, { color: colors.primary }]}>▾</ThemedText>
                 </TouchableOpacity>
 
-                <Text style={s.fieldLabel}>TARGET VALUE</Text>
+                <ThemedText variant="label" style={s.fieldLabel}>TARGET VALUE</ThemedText>
                 <TextInput
-                  style={s.input}
+                  style={[s.input, inputThemed]}
                   value={targetValue}
                   onChangeText={setTargetValue}
                   keyboardType="decimal-pad"
                   placeholder="e.g. 315"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={colors.textPlaceholder}
                   accessibilityLabel="Target value"
                 />
 
                 {targetPrType === 'LOAD' && (
                   <>
-                    <Text style={s.fieldLabel}>REP COUNT</Text>
+                    <ThemedText variant="label" style={s.fieldLabel}>REP COUNT</ThemedText>
                     <TextInput
-                      style={s.input}
+                      style={[s.input, inputThemed]}
                       value={targetRepCount}
                       onChangeText={setTargetRepCount}
                       keyboardType="number-pad"
                       placeholder="e.g. 1 for 1RM"
-                      placeholderTextColor="#6b7280"
+                      placeholderTextColor={colors.textPlaceholder}
                       accessibilityLabel="Rep count"
                     />
 
-                    <Text style={s.fieldLabel}>UNIT</Text>
+                    <ThemedText variant="label" style={s.fieldLabel}>UNIT</ThemedText>
                     <View style={s.unitRow}>
                       {(['LB', 'KG'] as const).map((u) => (
                         <TouchableOpacity
                           key={u}
-                          style={[s.subjectChip, targetLoadUnit === u && s.subjectChipActive]}
+                          style={[...chipBase, targetLoadUnit === u && chipActive]}
                           onPress={() => setTargetLoadUnit(u)}
                         >
-                          <Text
-                            style={[
-                              s.subjectChipText,
-                              targetLoadUnit === u && s.subjectChipTextActive,
-                            ]}
+                          <ThemedText
+                            variant={targetLoadUnit === u ? 'primary' : 'tertiary'}
+                            style={[s.subjectChipText, targetLoadUnit === u && { color: colors.onPrimary, fontWeight: '600' }]}
                           >
                             {u}
-                          </Text>
+                          </ThemedText>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -541,25 +578,25 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
             {/* Frequency subform */}
             {mode === 'create' && type === 'FREQUENCY' && (
               <>
-                <Text style={s.fieldLabel}>WORKOUTS PER WEEK</Text>
+                <ThemedText variant="label" style={s.fieldLabel}>WORKOUTS PER WEEK</ThemedText>
                 <TextInput
-                  style={s.input}
+                  style={[s.input, inputThemed]}
                   value={frequencyPerWeek}
                   onChangeText={setFrequencyPerWeek}
                   keyboardType="number-pad"
                   placeholder="3"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={colors.textPlaceholder}
                   accessibilityLabel="Workouts per week"
                 />
 
-                <Text style={s.fieldLabel}>WEEKS</Text>
+                <ThemedText variant="label" style={s.fieldLabel}>WEEKS</ThemedText>
                 <TextInput
-                  style={s.input}
+                  style={[s.input, inputThemed]}
                   value={frequencyWeeks}
                   onChangeText={setFrequencyWeeks}
                   keyboardType="number-pad"
                   placeholder="4"
-                  placeholderTextColor="#6b7280"
+                  placeholderTextColor={colors.textPlaceholder}
                   accessibilityLabel="Weeks"
                 />
               </>
@@ -567,20 +604,20 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
 
             {/* Habit subform */}
             {mode === 'create' && type === 'HABIT' && (
-              <View style={s.habitNote}>
-                <Text style={s.habitNoteText}>{HABIT_V2_COPY}</Text>
+              <View style={[s.habitNote, { backgroundColor: colors.inputBg }]}>
+                <ThemedText variant="tertiary" style={s.habitNoteText}>{HABIT_V2_COPY}</ThemedText>
               </View>
             )}
 
             {/* Target date — common to all */}
-            <Text style={s.fieldLabel}>TARGET DATE (OPTIONAL)</Text>
+            <ThemedText variant="label" style={s.fieldLabel}>TARGET DATE (OPTIONAL)</ThemedText>
             {Platform.OS === 'ios' ? (
               <View style={s.dateRow}>
                 <DateTimePicker
                   value={targetDate ?? new Date()}
                   mode="date"
                   display="default"
-                  themeVariant="dark"
+                  themeVariant={isDark ? 'dark' : 'light'}
                   onChange={(_, date) => {
                     if (date) setTargetDate(date)
                   }}
@@ -590,17 +627,17 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
                     onPress={() => setTargetDate(null)}
                     accessibilityLabel="Clear target date"
                   >
-                    <Text style={s.clearBtn}>Clear</Text>
+                    <ThemedText style={[s.clearBtn, { color: colors.primary }]}>Clear</ThemedText>
                   </TouchableOpacity>
                 )}
               </View>
             ) : (
               <View style={s.dateRow}>
                 <TouchableOpacity
-                  style={s.androidDateBtn}
+                  style={[s.androidDateBtn, { backgroundColor: colors.inputBg }]}
                   onPress={() => setShowAndroidPicker(true)}
                 >
-                  <Text style={s.androidDateBtnText}>
+                  <ThemedText style={s.androidDateBtnText}>
                     {targetDate
                       ? targetDate.toLocaleDateString('en-US', {
                           month: 'short',
@@ -608,11 +645,11 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
                           year: 'numeric',
                         })
                       : 'Pick a date'}
-                  </Text>
+                  </ThemedText>
                 </TouchableOpacity>
                 {targetDate && (
                   <TouchableOpacity onPress={() => setTargetDate(null)}>
-                    <Text style={s.clearBtn}>Clear</Text>
+                    <ThemedText style={[s.clearBtn, { color: colors.primary }]}>Clear</ThemedText>
                   </TouchableOpacity>
                 )}
                 {showAndroidPicker && (
@@ -630,35 +667,47 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
             )}
 
             {showSmartHint && (
-              <View style={s.smartHint} accessibilityLabel="SMART goal hint">
-                <Text style={s.smartHintText}>{SMART_HINT_COPY}</Text>
+              <View
+                style={[
+                  s.smartHint,
+                  { backgroundColor: `${colors.primary}1a`, borderLeftColor: colors.primary },
+                ]}
+                accessibilityLabel="SMART goal hint"
+              >
+                <ThemedText variant="secondary" style={s.smartHintText}>{SMART_HINT_COPY}</ThemedText>
               </View>
             )}
 
             {error && (
               <View style={s.errorRow}>
-                <Text style={s.errorText}>{error}</Text>
+                <ThemedText style={[s.errorText, { color: colors.errorText }]}>{error}</ThemedText>
               </View>
             )}
           </ScrollView>
 
-          <View style={s.actions}>
-            <TouchableOpacity style={s.cancelBtn} onPress={onCancel} disabled={saving}>
-              <Text style={s.cancelBtnText}>Cancel</Text>
+          <View style={[s.actions, { borderTopColor: colors.borderSubtle }]}>
+            <TouchableOpacity
+              style={[s.cancelBtn, { backgroundColor: colors.borderSubtle }]}
+              onPress={onCancel}
+              disabled={saving}
+            >
+              <ThemedText variant="tertiary" style={s.cancelBtnText}>Cancel</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.saveBtn, saving && s.saveBtnDisabled]}
+              style={[s.saveBtn, { backgroundColor: colors.primary }, saving && s.saveBtnDisabled]}
               onPress={handleSave}
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color={colors.onPrimary} />
               ) : (
-                <Text style={s.saveBtnText}>{mode === 'create' ? 'Create' : 'Save'}</Text>
+                <ThemedText style={[s.saveBtnText, { color: colors.onPrimary }]}>
+                  {mode === 'create' ? 'Create' : 'Save'}
+                </ThemedText>
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </ThemedView>
       </KeyboardAvoidingView>
 
       <OptionSheet
@@ -690,6 +739,10 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
+//
+// Module-level static styles. Theme-dependent backgrounds, borders, and
+// foreground colors are layered on inline via useTheme() — see
+// apps/mobile/CLAUDE.md → *Design system*.
 
 const s = StyleSheet.create({
   overlay: {
@@ -698,7 +751,6 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheetMain: {
-    backgroundColor: '#111827',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: '92%',
@@ -708,24 +760,19 @@ const s = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#f9fafb',
     marginBottom: 8,
   },
   fieldLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#6b7280',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginTop: 12,
     marginBottom: 4,
   },
   input: {
-    backgroundColor: '#1f2937',
     borderWidth: 1,
-    borderColor: '#374151',
     borderRadius: 8,
-    color: '#f9fafb',
     fontSize: 15,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -734,51 +781,39 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1f2937',
     borderWidth: 1,
-    borderColor: '#374151',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   selectBtnDisabled: { opacity: 0.6 },
-  selectBtnText: { color: '#f3f4f6', fontSize: 14 },
-  selectBtnChevron: { color: '#818cf8', fontSize: 12, marginLeft: 8 },
+  selectBtnText: { fontSize: 14 },
+  selectBtnChevron: { fontSize: 12, marginLeft: 8 },
 
   subjectRow: { flexDirection: 'row', gap: 8 },
   subjectChip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#1f2937',
     borderWidth: 1,
-    borderColor: '#374151',
   },
-  subjectChipActive: {
-    backgroundColor: '#4338ca',
-    borderColor: '#6366f1',
-  },
-  subjectChipText: { color: '#9ca3af', fontSize: 13, fontWeight: '500' },
-  subjectChipTextActive: { color: '#ffffff', fontWeight: '600' },
+  subjectChipText: { fontSize: 13, fontWeight: '500' },
 
   unitRow: { flexDirection: 'row', gap: 8 },
 
   editLockedBanner: {
-    backgroundColor: '#1e293b',
-    borderColor: '#334155',
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
     marginTop: 16,
   },
-  editLockedText: { color: '#cbd5e1', fontSize: 12, lineHeight: 18 },
+  editLockedText: { fontSize: 12, lineHeight: 18 },
   habitNote: {
-    backgroundColor: '#1f2937',
     borderRadius: 8,
     padding: 12,
     marginTop: 8,
   },
-  habitNoteText: { color: '#9ca3af', fontSize: 12 },
+  habitNoteText: { fontSize: 12 },
 
   dateRow: {
     flexDirection: 'row',
@@ -788,26 +823,23 @@ const s = StyleSheet.create({
   },
   androidDateBtn: {
     flex: 1,
-    backgroundColor: '#1f2937',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  androidDateBtnText: { color: '#f3f4f6', fontSize: 14 },
-  clearBtn: { color: '#818cf8', fontSize: 13, fontWeight: '500' },
+  androidDateBtnText: { fontSize: 14 },
+  clearBtn: { fontSize: 13, fontWeight: '500' },
 
   smartHint: {
     marginTop: 12,
-    backgroundColor: '#1e293b',
     borderRadius: 8,
     padding: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#818cf8',
   },
-  smartHintText: { color: '#cbd5e1', fontSize: 12, lineHeight: 17 },
+  smartHintText: { fontSize: 12, lineHeight: 17 },
 
   errorRow: { marginTop: 12 },
-  errorText: { color: '#f87171', fontSize: 13 },
+  errorText: { fontSize: 13 },
 
   actions: {
     flexDirection: 'row',
@@ -816,25 +848,22 @@ const s = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 28,
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
   },
   cancelBtn: {
     flex: 1,
-    backgroundColor: '#1f2937',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  cancelBtnText: { color: '#9ca3af', fontSize: 14, fontWeight: '600' },
+  cancelBtnText: { fontSize: 14, fontWeight: '600' },
   saveBtn: {
     flex: 2,
-    backgroundColor: '#4338ca',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
+  saveBtnText: { fontSize: 14, fontWeight: '700' },
 
   sheetBackdrop: {
     flex: 1,
@@ -842,23 +871,12 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#111827',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
     maxHeight: '70%',
   },
-  sheetTitle: { fontSize: 16, fontWeight: '700', color: '#f9fafb', marginBottom: 8 },
-  sheetSearch: {
-    backgroundColor: '#1f2937',
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 8,
-    color: '#f9fafb',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
+  sheetTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
   sheetScroll: { maxHeight: 400 },
   sheetRow: {
     flexDirection: 'row',
@@ -866,19 +884,14 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
-  sheetRowText: { color: '#d1d5db', fontSize: 14, flex: 1 },
-  sheetRowSelected: { color: '#818cf8', fontWeight: '600' },
-  sheetCheck: { color: '#818cf8', fontSize: 14, marginLeft: 8 },
-  sheetEmpty: { color: '#6b7280', fontSize: 13, paddingVertical: 24, textAlign: 'center' },
+  sheetRowText: { fontSize: 14, flex: 1 },
+  sheetCheck: { fontSize: 14, marginLeft: 8 },
   // Inline-typeahead dropdown — anchored directly below the search input
   // (no Modal), so it sits inside the form's KeyboardAvoidingView and rides
   // up with the soft keyboard. Capped at 3 matches per the UX brief.
   comboDropdown: {
     marginTop: 6,
-    backgroundColor: '#0f172a',
-    borderColor: '#1f2937',
     borderWidth: 1,
     borderRadius: 8,
     overflow: 'hidden',
@@ -887,11 +900,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
-  comboRowText: { color: '#f3f4f6', fontSize: 14 },
+  comboRowText: { fontSize: 14 },
   comboEmpty: {
-    color: '#6b7280',
     fontSize: 13,
     paddingVertical: 16,
     paddingHorizontal: 12,

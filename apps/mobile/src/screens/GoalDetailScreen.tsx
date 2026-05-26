@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -22,6 +21,9 @@ import {
 } from '../lib/api'
 import GoalFormModal, { HABIT_V2_COPY } from '../components/GoalFormModal'
 import MovementHistorySection from '../components/MovementHistorySection'
+import { useTheme, type ThemeColors } from '../lib/theme'
+import ThemedText from '../components/ThemedText'
+import ThemedView from '../components/ThemedView'
 
 type Nav = StackNavigationProp<RootStackParamList, 'GoalDetail'>
 type RouteP = RouteProp<RootStackParamList, 'GoalDetail'>
@@ -43,13 +45,16 @@ interface PrTrajectoryChartProps {
   points: MovementTrajectoryData['points']
   target: number
   unit: string | null
+  colors: ThemeColors
 }
 
-function PrTrajectoryChart({ points, target, unit }: PrTrajectoryChartProps) {
+function PrTrajectoryChart({ points, target, unit, colors }: PrTrajectoryChartProps) {
   if (points.length === 0) {
     return (
       <View style={chartStyles.placeholder}>
-        <Text style={chartStyles.placeholderText}>No data yet — log a result to see progress.</Text>
+        <ThemedText variant="tertiary" style={chartStyles.placeholderText}>
+          No data yet — log a result to see progress.
+        </ThemedText>
       </View>
     )
   }
@@ -70,14 +75,14 @@ function PrTrajectoryChart({ points, target, unit }: PrTrajectoryChartProps) {
   return (
     <Svg width={CHART_W} height={CHART_H} accessibilityLabel="PR target trajectory chart">
       {/* Axes */}
-      <Line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={CHART_H - PAD.bottom} stroke="#1f2937" strokeWidth={1} />
-      <Line x1={PAD.left} y1={CHART_H - PAD.bottom} x2={CHART_W - PAD.right} y2={CHART_H - PAD.bottom} stroke="#1f2937" strokeWidth={1} />
+      <Line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={CHART_H - PAD.bottom} stroke={colors.borderSubtle} strokeWidth={1} />
+      <Line x1={PAD.left} y1={CHART_H - PAD.bottom} x2={CHART_W - PAD.right} y2={CHART_H - PAD.bottom} stroke={colors.borderSubtle} strokeWidth={1} />
 
       {/* Min / max ticks */}
-      <SvgText x={PAD.left - 4} y={toY(minVal)} textAnchor="end" alignmentBaseline="central" fill="#6b7280" fontSize={9}>
+      <SvgText x={PAD.left - 4} y={toY(minVal)} textAnchor="end" alignmentBaseline="central" fill={colors.textTertiary} fontSize={9}>
         {Math.round(minVal)}
       </SvgText>
-      <SvgText x={PAD.left - 4} y={toY(maxVal)} textAnchor="end" alignmentBaseline="central" fill="#6b7280" fontSize={9}>
+      <SvgText x={PAD.left - 4} y={toY(maxVal)} textAnchor="end" alignmentBaseline="central" fill={colors.textTertiary} fontSize={9}>
         {Math.round(maxVal)}
       </SvgText>
 
@@ -87,7 +92,7 @@ function PrTrajectoryChart({ points, target, unit }: PrTrajectoryChartProps) {
         y1={targetY}
         x2={CHART_W - PAD.right}
         y2={targetY}
-        stroke="#f59e0b"
+        stroke={colors.warningText}
         strokeWidth={1.5}
         strokeDasharray="4 4"
       />
@@ -97,7 +102,7 @@ function PrTrajectoryChart({ points, target, unit }: PrTrajectoryChartProps) {
         y={PAD.top + 2}
         textAnchor="end"
         alignmentBaseline="hanging"
-        fill="#f59e0b"
+        fill={colors.warningText}
         fontSize={10}
         fontWeight="600"
       >
@@ -109,7 +114,7 @@ function PrTrajectoryChart({ points, target, unit }: PrTrajectoryChartProps) {
         <Polyline
           points={poly}
           fill="none"
-          stroke="#818cf8"
+          stroke={colors.primary}
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -123,7 +128,7 @@ function PrTrajectoryChart({ points, target, unit }: PrTrajectoryChartProps) {
           cx={toX(i)}
           cy={toY(values[i])}
           r={3}
-          fill="#818cf8"
+          fill={colors.primary}
         />
       ))}
     </Svg>
@@ -145,9 +150,10 @@ interface FrequencyBarChartProps {
   perWeek: number
   weeks: number
   currentWeekCount: number
+  colors: ThemeColors
 }
 
-function FrequencyBarChart({ workoutsLogged, workoutsRequired, perWeek, weeks, currentWeekCount }: FrequencyBarChartProps) {
+function FrequencyBarChart({ workoutsLogged, workoutsRequired, perWeek, weeks, currentWeekCount, colors }: FrequencyBarChartProps) {
   // Server validation forbids `perWeek <= 0` or `weeks <= 0`, but the call
   // site coerces nulls with `?? 0` — guard so a drifted goal record doesn't
   // produce NaNs.
@@ -164,7 +170,7 @@ function FrequencyBarChart({ workoutsLogged, workoutsRequired, perWeek, weeks, c
     <View>
       <Svg width={CHART_W} height={barY + barH + 8} accessibilityLabel="Overall frequency progress bar">
         {/* Track */}
-        <Rect x={PAD.left} y={barY} width={barW} height={barH} fill="#1f2937" rx={barH / 2} />
+        <Rect x={PAD.left} y={barY} width={barW} height={barH} fill={colors.borderSubtle} rx={barH / 2} />
         {/* Fill */}
         {filledW > 0 && (
           <Rect
@@ -172,7 +178,7 @@ function FrequencyBarChart({ workoutsLogged, workoutsRequired, perWeek, weeks, c
             y={barY}
             width={filledW}
             height={barH}
-            fill={ratio >= 1 ? '#22c55e' : '#818cf8'}
+            fill={ratio >= 1 ? colors.successText : colors.primary}
             rx={barH / 2}
           />
         )}
@@ -182,7 +188,7 @@ function FrequencyBarChart({ workoutsLogged, workoutsRequired, perWeek, weeks, c
           y={barY + barH / 2 + 1}
           textAnchor="middle"
           alignmentBaseline="central"
-          fill="#f9fafb"
+          fill={colors.onPrimary}
           fontSize={10}
           fontWeight="700"
         >
@@ -190,12 +196,12 @@ function FrequencyBarChart({ workoutsLogged, workoutsRequired, perWeek, weeks, c
         </SvgText>
       </Svg>
       <View style={chartStyles.legendRow}>
-        <Text style={chartStyles.legendText}>
-          Logged: <Text style={chartStyles.legendBold}>{workoutsLogged}</Text> of {workoutsRequired}
-        </Text>
-        <Text style={chartStyles.legendText}>
-          This week: <Text style={chartStyles.legendBold}>{currentWeekCount}</Text>/{perWeek}
-        </Text>
+        <ThemedText variant="tertiary" style={chartStyles.legendText}>
+          Logged: <ThemedText style={chartStyles.legendBold}>{workoutsLogged}</ThemedText> of {workoutsRequired}
+        </ThemedText>
+        <ThemedText variant="tertiary" style={chartStyles.legendText}>
+          This week: <ThemedText style={chartStyles.legendBold}>{currentWeekCount}</ThemedText>/{perWeek}
+        </ThemedText>
       </View>
     </View>
   )
@@ -213,21 +219,24 @@ interface ActionMenuProps {
 }
 
 function ActionMenu({ visible, status, onEdit, onArchive, onDelete, onClose }: ActionMenuProps) {
+  const { colors } = useTheme()
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.menuBackdrop} onPress={onClose}>
-        <Pressable style={s.menu} onPress={(e) => e.stopPropagation()}>
-          <TouchableOpacity style={s.menuItem} onPress={onEdit}>
-            <Text style={s.menuItemText}>Edit</Text>
-          </TouchableOpacity>
-          {status !== 'ARCHIVED' && (
-            <TouchableOpacity style={s.menuItem} onPress={onArchive}>
-              <Text style={s.menuItemText}>Archive</Text>
+        <Pressable onPress={(e) => e.stopPropagation()}>
+          <ThemedView variant="card" style={s.menu}>
+            <TouchableOpacity style={[s.menuItem, { borderBottomColor: colors.borderSubtle }]} onPress={onEdit}>
+              <ThemedText style={s.menuItemText}>Edit</ThemedText>
             </TouchableOpacity>
-          )}
-          <TouchableOpacity style={s.menuItem} onPress={onDelete}>
-            <Text style={[s.menuItemText, s.menuItemDanger]}>Delete</Text>
-          </TouchableOpacity>
+            {status !== 'ARCHIVED' && (
+              <TouchableOpacity style={[s.menuItem, { borderBottomColor: colors.borderSubtle }]} onPress={onArchive}>
+                <ThemedText style={s.menuItemText}>Archive</ThemedText>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={[s.menuItem, { borderBottomColor: colors.borderSubtle }]} onPress={onDelete}>
+              <ThemedText style={[s.menuItemText, { color: colors.errorText }]}>Delete</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -237,6 +246,7 @@ function ActionMenu({ visible, status, onEdit, onArchive, onDelete, onClose }: A
 // ─── Main screen ───────────────────────────────────────────────────────────────
 
 export default function GoalDetailScreen() {
+  const { colors } = useTheme()
   const navigation = useNavigation<Nav>()
   const route = useRoute<RouteP>()
   const { goalId } = route.params
@@ -350,46 +360,46 @@ export default function GoalDetailScreen() {
 
   if (loading) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator color="#818cf8" />
-      </View>
+      <ThemedView variant="screen" style={s.center}>
+        <ActivityIndicator color={colors.primary} />
+      </ThemedView>
     )
   }
 
   if (error || !goal) {
     return (
-      <View style={s.center}>
-        <Text style={s.errorText}>{error ?? 'Goal not found'}</Text>
-      </View>
+      <ThemedView variant="screen" style={s.center}>
+        <ThemedText style={[s.errorText, { color: colors.errorText }]}>{error ?? 'Goal not found'}</ThemedText>
+      </ThemedView>
     )
   }
 
   return (
-    <View style={s.container}>
+    <ThemedView variant="screen" style={s.container}>
       <ScrollView style={s.scroll} contentContainerStyle={s.content}>
         <View style={s.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={s.title}>{goal.title}</Text>
-            <Text style={s.subtitle}>
+            <ThemedText style={s.title}>{goal.title}</ThemedText>
+            <ThemedText variant="tertiary" style={s.subtitle}>
               {goal.type === 'PR_TARGET' ? 'PR Target' : goal.type === 'FREQUENCY' ? 'Frequency' : 'Habit'}
               {' · '}
               {goal.targetDate ? formatDate(goal.targetDate) : 'no target date'}
-            </Text>
-            <Text style={s.subtitle}>Status: {goal.status}</Text>
+            </ThemedText>
+            <ThemedText variant="tertiary" style={s.subtitle}>Status: {goal.status}</ThemedText>
           </View>
           <TouchableOpacity
-            style={s.menuBtn}
+            style={[s.menuBtn, { backgroundColor: colors.borderSubtle }]}
             onPress={() => setShowMenu(true)}
             accessibilityLabel="Goal actions"
             accessibilityRole="button"
           >
-            <Text style={s.menuBtnText}>⋯</Text>
+            <ThemedText variant="secondary" style={s.menuBtnText}>⋯</ThemedText>
           </TouchableOpacity>
         </View>
 
         {/* PR Target detail */}
         {goal.type === 'PR_TARGET' && goal.progress.type === 'PR_TARGET' && (
-          <View style={s.chartCard}>
+          <ThemedView variant="card" style={[s.chartCard, { borderColor: colors.borderSubtle }]}>
             {/* Movement attribution. MovementDetail lives in the nested
                 Analytics tab stack — cross-stack push from a root-stack
                 screen is non-trivial to type, and the inline
@@ -398,43 +408,44 @@ export default function GoalDetailScreen() {
                 show. Leaving this as a label for now; if a clean cross-
                 stack hop is wanted later, file as a #130 follow-up. */}
             {goal.movementId && goal.movement && (
-              <Text style={s.movementLabel}>
+              <ThemedText variant="tertiary" style={s.movementLabel}>
                 {goal.movement.name}
-              </Text>
+              </ThemedText>
             )}
-            <Text style={s.chartTitle}>Trajectory</Text>
+            <ThemedText style={s.chartTitle}>Trajectory</ThemedText>
             {trajectoryLoading ? (
               <View style={chartStyles.placeholder}>
-                <ActivityIndicator size="small" color="#818cf8" />
+                <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : (
               <PrTrajectoryChart
                 points={trajectory?.points ?? []}
                 target={goal.progress.target}
                 unit={targetUnit}
+                colors={colors}
               />
             )}
             <View style={s.statRow}>
               <View style={s.stat}>
-                <Text style={s.statLabel}>Current</Text>
-                <Text style={s.statValue}>
+                <ThemedText variant="tertiary" style={s.statLabel}>Current</ThemedText>
+                <ThemedText style={s.statValue}>
                   {goal.progress.current ?? '—'}
                   {goal.progress.unit ? ` ${goal.progress.unit}` : ''}
-                </Text>
+                </ThemedText>
               </View>
               <View style={s.stat}>
-                <Text style={s.statLabel}>Target</Text>
-                <Text style={s.statValue}>
+                <ThemedText variant="tertiary" style={s.statLabel}>Target</ThemedText>
+                <ThemedText style={s.statValue}>
                   {goal.progress.target}
                   {goal.progress.unit ? ` ${goal.progress.unit}` : ''}
-                </Text>
+                </ThemedText>
               </View>
               <View style={s.stat}>
-                <Text style={s.statLabel}>Progress</Text>
-                <Text style={s.statValue}>{goal.progress.percent}%</Text>
+                <ThemedText variant="tertiary" style={s.statLabel}>Progress</ThemedText>
+                <ThemedText style={s.statValue}>{goal.progress.percent}%</ThemedText>
               </View>
             </View>
-          </View>
+          </ThemedView>
         )}
 
         {/* Movement history + backfill modal. Reuses the existing component
@@ -452,65 +463,70 @@ export default function GoalDetailScreen() {
 
         {/* Frequency detail */}
         {goal.type === 'FREQUENCY' && goal.progress.type === 'FREQUENCY' && (
-          <View style={s.chartCard}>
-            <Text style={s.chartTitle}>Weekly progress</Text>
+          <ThemedView variant="card" style={[s.chartCard, { borderColor: colors.borderSubtle }]}>
+            <ThemedText style={s.chartTitle}>Weekly progress</ThemedText>
             <FrequencyBarChart
               workoutsLogged={goal.progress.workoutsLogged}
               workoutsRequired={goal.progress.workoutsRequired}
               perWeek={goal.frequencyPerWeek ?? 0}
               weeks={goal.frequencyWeeks ?? 0}
               currentWeekCount={goal.progress.currentWeekCount}
+              colors={colors}
             />
             <View style={s.statRow}>
               <View style={s.stat}>
-                <Text style={s.statLabel}>Logged</Text>
-                <Text style={s.statValue}>{goal.progress.workoutsLogged}</Text>
+                <ThemedText variant="tertiary" style={s.statLabel}>Logged</ThemedText>
+                <ThemedText style={s.statValue}>{goal.progress.workoutsLogged}</ThemedText>
               </View>
               <View style={s.stat}>
-                <Text style={s.statLabel}>Required</Text>
-                <Text style={s.statValue}>{goal.progress.workoutsRequired}</Text>
+                <ThemedText variant="tertiary" style={s.statLabel}>Required</ThemedText>
+                <ThemedText style={s.statValue}>{goal.progress.workoutsRequired}</ThemedText>
               </View>
               <View style={s.stat}>
-                <Text style={s.statLabel}>Weeks left</Text>
-                <Text style={s.statValue}>{goal.progress.weeksRemaining}</Text>
+                <ThemedText variant="tertiary" style={s.statLabel}>Weeks left</ThemedText>
+                <ThemedText style={s.statValue}>{goal.progress.weeksRemaining}</ThemedText>
               </View>
             </View>
-          </View>
+          </ThemedView>
         )}
 
         {/* Habit detail */}
         {goal.type === 'HABIT' && (
-          <View style={s.chartCard}>
-            <Text style={s.chartTitle}>Habit</Text>
-            <Text style={s.habitMeta}>
-              Target date: <Text style={s.habitMetaBold}>{goal.targetDate ? formatDate(goal.targetDate) : 'none'}</Text>
-            </Text>
+          <ThemedView variant="card" style={[s.chartCard, { borderColor: colors.borderSubtle }]}>
+            <ThemedText style={s.chartTitle}>Habit</ThemedText>
+            <ThemedText variant="secondary" style={s.habitMeta}>
+              Target date: <ThemedText style={s.habitMetaBold}>{goal.targetDate ? formatDate(goal.targetDate) : 'none'}</ThemedText>
+            </ThemedText>
             {goal.status === 'COMPLETED' ? (
-              <View style={s.habitDone}>
-                <Text style={s.habitDoneText}>Completed</Text>
+              <View style={[s.habitDone, { backgroundColor: `${colors.successText}26` }]}>
+                <ThemedText style={[s.habitDoneText, { color: colors.successText }]}>Completed</ThemedText>
                 {goal.completedAt && (
-                  <Text style={s.habitDoneDate}>on {formatDate(goal.completedAt)}</Text>
+                  <ThemedText variant="tertiary" style={s.habitDoneDate}>on {formatDate(goal.completedAt)}</ThemedText>
                 )}
               </View>
             ) : (
               <TouchableOpacity
-                style={[s.completeBtn, updating && s.completeBtnDisabled]}
+                style={[
+                  s.completeBtn,
+                  { backgroundColor: colors.primary },
+                  updating && s.completeBtnDisabled,
+                ]}
                 onPress={handleMarkComplete}
                 disabled={updating}
                 accessibilityRole="button"
                 accessibilityLabel="Mark goal complete"
               >
                 {updating ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={colors.onPrimary} />
                 ) : (
-                  <Text style={s.completeBtnText}>Mark complete</Text>
+                  <ThemedText style={[s.completeBtnText, { color: colors.onPrimary }]}>Mark complete</ThemedText>
                 )}
               </TouchableOpacity>
             )}
-            <View style={s.habitPlaceholder}>
-              <Text style={s.habitPlaceholderText}>{HABIT_V2_COPY}</Text>
+            <View style={[s.habitPlaceholder, { backgroundColor: colors.borderSubtle }]}>
+              <ThemedText variant="tertiary" style={s.habitPlaceholderText}>{HABIT_V2_COPY}</ThemedText>
             </View>
-          </View>
+          </ThemedView>
         )}
       </ScrollView>
 
@@ -534,72 +550,70 @@ export default function GoalDetailScreen() {
           onSaved={handleEdited}
         />
       )}
-    </View>
+    </ThemedView>
   )
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
+//
+// Static module-level styles. Theme-dependent properties (backgrounds,
+// borders, foreground colors) are layered on inline via useTheme(); see
+// apps/mobile/CLAUDE.md → *Design system*.
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#030712' },
+  container: { flex: 1 },
   scroll: { flex: 1 },
   content: { padding: 16, gap: 16 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#030712' },
-  errorText: { color: '#f87171', fontSize: 14 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  errorText: { fontSize: 14 },
 
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  title: { color: '#f9fafb', fontSize: 20, fontWeight: '700' },
-  subtitle: { color: '#9ca3af', fontSize: 12, marginTop: 2 },
+  title: { fontSize: 20, fontWeight: '700' },
+  subtitle: { fontSize: 12, marginTop: 2 },
   menuBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#1f2937',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  menuBtnText: { color: '#cbd5e1', fontSize: 18, fontWeight: '700' },
+  menuBtnText: { fontSize: 18, fontWeight: '700' },
 
   chartCard: {
-    backgroundColor: '#111827',
     borderRadius: 12,
     padding: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#1f2937',
   },
-  chartTitle: { color: '#f3f4f6', fontSize: 14, fontWeight: '600' },
-  movementLabel: { color: '#9ca3af', fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
+  chartTitle: { fontSize: 14, fontWeight: '600' },
+  movementLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
 
   statRow: { flexDirection: 'row', justifyContent: 'space-around' },
   stat: { alignItems: 'center' },
-  statLabel: { color: '#6b7280', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
-  statValue: { color: '#f3f4f6', fontSize: 16, fontWeight: '600', marginTop: 4 },
+  statLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statValue: { fontSize: 16, fontWeight: '600', marginTop: 4 },
 
-  habitMeta: { color: '#cbd5e1', fontSize: 13 },
-  habitMetaBold: { color: '#f3f4f6', fontWeight: '600' },
+  habitMeta: { fontSize: 13 },
+  habitMetaBold: { fontWeight: '600' },
   habitDone: {
-    backgroundColor: 'rgba(52, 211, 153, 0.15)',
     borderRadius: 8,
     padding: 14,
     alignItems: 'center',
   },
-  habitDoneText: { color: '#34d399', fontWeight: '700', fontSize: 15 },
-  habitDoneDate: { color: '#9ca3af', fontSize: 12, marginTop: 4 },
+  habitDoneText: { fontWeight: '700', fontSize: 15 },
+  habitDoneDate: { fontSize: 12, marginTop: 4 },
   completeBtn: {
-    backgroundColor: '#4338ca',
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
   },
   completeBtnDisabled: { opacity: 0.6 },
-  completeBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+  completeBtnText: { fontSize: 15, fontWeight: '700' },
   habitPlaceholder: {
     borderRadius: 8,
-    backgroundColor: '#1f2937',
     padding: 12,
   },
-  habitPlaceholderText: { color: '#6b7280', fontSize: 12, textAlign: 'center' },
+  habitPlaceholderText: { fontSize: 12, textAlign: 'center' },
 
   menuBackdrop: {
     flex: 1,
@@ -607,7 +621,6 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   menu: {
-    backgroundColor: '#111827',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingVertical: 8,
@@ -617,10 +630,8 @@ const s = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
-  menuItemText: { color: '#e5e7eb', fontSize: 15, fontWeight: '500' },
-  menuItemDanger: { color: '#f87171' },
+  menuItemText: { fontSize: 15, fontWeight: '500' },
 })
 
 const chartStyles = StyleSheet.create({
@@ -629,12 +640,12 @@ const chartStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderText: { color: '#6b7280', fontSize: 12 },
+  placeholderText: { fontSize: 12 },
   legendRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 4,
   },
-  legendText: { color: '#9ca3af', fontSize: 11 },
-  legendBold: { color: '#f3f4f6', fontWeight: '700' },
+  legendText: { fontSize: 11 },
+  legendBold: { fontWeight: '700' },
 })

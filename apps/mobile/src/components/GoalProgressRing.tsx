@@ -1,5 +1,7 @@
-import { View, Text, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
+import { useTheme } from '../lib/theme'
+import ThemedText from './ThemedText'
 
 // Shared progress ring used by the home dashboard's `GoalsCard` and the
 // full `GoalsScreen` list. Two near-identical copies lived in those files
@@ -22,15 +24,19 @@ export default function GoalProgressRing({
   size,
   stroke,
 }: GoalProgressRingProps) {
+  const { colors } = useTheme()
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
 
   if (isHabit) {
     return (
       <View style={[styles.ring, { width: size, height: size }]}>
-        <Text style={[styles.ringInnerHabit, isComplete && styles.ringInnerComplete]}>
+        <ThemedText
+          variant={isComplete ? 'primary' : 'label'}
+          style={[styles.ringInnerHabit, isComplete && { color: colors.successText }]}
+        >
           {isComplete ? '✓' : '·'}
-        </Text>
+        </ThemedText>
       </View>
     )
   }
@@ -45,7 +51,7 @@ export default function GoalProgressRing({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="#1f2937"
+          stroke={colors.borderSubtle}
           strokeWidth={stroke}
           fill="none"
         />
@@ -53,7 +59,7 @@ export default function GoalProgressRing({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={isComplete ? '#34d399' : '#818cf8'}
+          stroke={isComplete ? colors.successText : colors.primary}
           strokeWidth={stroke}
           fill="none"
           strokeLinecap="round"
@@ -64,7 +70,7 @@ export default function GoalProgressRing({
         />
       </Svg>
       <View style={styles.ringInner}>
-        <Text style={styles.ringPct}>{pct}</Text>
+        <ThemedText style={styles.ringPct}>{pct}</ThemedText>
       </View>
     </View>
   )
@@ -73,7 +79,6 @@ export default function GoalProgressRing({
 const styles = StyleSheet.create({
   ring: { alignItems: 'center', justifyContent: 'center' },
   ringInner: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  ringPct: { color: '#f9fafb', fontSize: 11, fontWeight: '600' },
-  ringInnerHabit: { color: '#4b5563', fontSize: 14, fontWeight: '700' },
-  ringInnerComplete: { color: '#34d399' },
+  ringPct: { fontSize: 11, fontWeight: '600' },
+  ringInnerHabit: { fontSize: 14, fontWeight: '700' },
 })

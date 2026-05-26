@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, TouchableOpacity, StyleSheet } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
@@ -7,6 +7,9 @@ import { api, type GoalResponse } from '../lib/api'
 import GoalFormModal from './GoalFormModal'
 import GoalProgressRing from './GoalProgressRing'
 import { formatProgressLabel } from '../lib/goalFormat'
+import { useTheme } from '../lib/theme'
+import ThemedText from './ThemedText'
+import ThemedView from './ThemedView'
 
 // Re-exported so existing callers (`GoalsScreen` imports it from here in
 // some test fixtures) still resolve. The canonical source is now
@@ -26,6 +29,7 @@ interface GoalRowProps {
 }
 
 function GoalRow({ goal, onPress }: GoalRowProps) {
+  const { colors } = useTheme()
   const isComplete =
     goal.status === 'COMPLETED' ||
     (goal.progress.type !== 'HABIT' && goal.progress.isComplete)
@@ -35,7 +39,7 @@ function GoalRow({ goal, onPress }: GoalRowProps) {
       : 0
   return (
     <TouchableOpacity
-      style={styles.row}
+      style={[styles.row, { borderBottomColor: colors.borderSubtle }]}
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
@@ -49,8 +53,10 @@ function GoalRow({ goal, onPress }: GoalRowProps) {
         stroke={RING_STROKE}
       />
       <View style={styles.rowText}>
-        <Text style={styles.rowTitle} numberOfLines={1}>{goal.title}</Text>
-        <Text style={styles.rowLabel} numberOfLines={1}>{formatProgressLabel(goal)}</Text>
+        <ThemedText style={styles.rowTitle} numberOfLines={1}>{goal.title}</ThemedText>
+        <ThemedText variant="tertiary" style={styles.rowLabel} numberOfLines={1}>
+          {formatProgressLabel(goal)}
+        </ThemedText>
       </View>
     </TouchableOpacity>
   )
@@ -59,6 +65,7 @@ function GoalRow({ goal, onPress }: GoalRowProps) {
 // ─── Card ──────────────────────────────────────────────────────────────────────
 
 export default function GoalsCard() {
+  const { colors } = useTheme()
   const navigation = useNavigation<Nav>()
   const [goals, setGoals] = useState<GoalResponse[]>([])
   const [loading, setLoading] = useState(true)
@@ -95,28 +102,28 @@ export default function GoalsCard() {
   const showList = !loading && !error && goals.length > 0
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>My Goals</Text>
+    <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
+        <ThemedText variant="tertiary" style={styles.headerText}>My Goals</ThemedText>
         <TouchableOpacity
           onPress={() => navigation.navigate('Goals')}
           accessibilityLabel="View all goals"
           accessibilityRole="button"
         >
-          <Text style={styles.viewAll}>View all</Text>
+          <ThemedText style={[styles.viewAll, { color: colors.primary }]}>View all</ThemedText>
         </TouchableOpacity>
       </View>
 
       {loading && (
         <View style={styles.shimmerContainer}>
-          <View style={styles.shimmer} />
-          <View style={[styles.shimmer, { width: '70%', marginTop: 8 }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.borderSubtle }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.borderSubtle, width: '70%', marginTop: 8 }]} />
         </View>
       )}
 
       {!loading && error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[styles.errorBox, { backgroundColor: `${colors.errorText}1a` }]}>
+          <ThemedText style={[styles.errorText, { color: colors.errorText }]}>{error}</ThemedText>
         </View>
       )}
 
@@ -128,10 +135,10 @@ export default function GoalsCard() {
           accessibilityRole="button"
           accessibilityLabel="Create your first goal"
         >
-          <Text style={styles.emptyTitle}>No active goals yet</Text>
-          <Text style={styles.emptyBody}>
+          <ThemedText style={styles.emptyTitle}>No active goals yet</ThemedText>
+          <ThemedText variant="tertiary" style={styles.emptyBody}>
             Tap here or "+ New goal" to set a PR target, weekly frequency, or habit.
-          </Text>
+          </ThemedText>
         </TouchableOpacity>
       )}
 
@@ -147,14 +154,14 @@ export default function GoalsCard() {
         </View>
       )}
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { borderTopColor: colors.borderSubtle }]}>
         <TouchableOpacity
-          style={styles.newBtn}
+          style={[styles.newBtn, { backgroundColor: colors.borderSubtle }]}
           onPress={() => setShowCreate(true)}
           accessibilityRole="button"
           accessibilityLabel="Create a new goal"
         >
-          <Text style={styles.newBtnText}>+ New goal</Text>
+          <ThemedText style={[styles.newBtnText, { color: colors.primary }]}>+ New goal</ThemedText>
         </TouchableOpacity>
       </View>
 
@@ -165,16 +172,14 @@ export default function GoalsCard() {
           onSaved={handleCreated}
         />
       )}
-    </View>
+    </ThemedView>
   )
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#111827',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
     overflow: 'hidden',
   },
   header: {
@@ -184,25 +189,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   headerText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6b7280',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   viewAll: {
     fontSize: 12,
-    color: '#818cf8',
     fontWeight: '600',
   },
   shimmerContainer: { padding: 16 },
   shimmer: {
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#1f2937',
     width: '90%',
   },
   empty: {
@@ -213,11 +214,9 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#e5e7eb',
   },
   emptyBody: {
     fontSize: 12,
-    color: '#9ca3af',
     lineHeight: 17,
   },
   row: {
@@ -227,34 +226,29 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   rowText: { flex: 1 },
-  rowTitle: { fontSize: 14, fontWeight: '600', color: '#f3f4f6' },
-  rowLabel: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  rowTitle: { fontSize: 14, fontWeight: '600' },
+  rowLabel: { fontSize: 12, marginTop: 2 },
   errorBox: {
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: '#7f1d1d',
     borderRadius: 8,
   },
-  errorText: { color: '#fecaca', fontSize: 12 },
+  errorText: { fontSize: 12 },
   footer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
   },
   newBtn: {
-    backgroundColor: '#1f2937',
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
   },
   newBtnText: {
-    color: '#818cf8',
     fontSize: 13,
     fontWeight: '600',
   },
