@@ -19,7 +19,6 @@ import {
   type GoalResponse,
   type GoalType,
   type TargetPrType,
-  type Movement,
   type CreateGoalInput,
 } from '../lib/api'
 import { useMovements } from '../context/MovementsContext'
@@ -103,114 +102,113 @@ function OptionSheet<T extends string>({
   )
 }
 
-// Searchable movement picker — modal sheet with text filter.
-interface MovementPickerProps {
-  visible: boolean
-  movements: Movement[]
+// ─── Inline typeahead combo ────────────────────────────────────────────────────
+//
+// The movement and named-workout pickers previously opened a full-screen
+// `Modal`. That modal sat on top of the soft keyboard and pushed the filtered
+// results below the keyboard line, so as the user typed and the list shrunk
+// the visible results disappeared behind the keyboard. Replaced with this
+// inline combo: a single TextInput inside the parent form's
+// KeyboardAvoidingView + ScrollView, with the top-3 matches rendered as a
+// small dropdown directly below the field. The dropdown rides up with the
+// keyboard for free (it's part of the same scroll surface).
+//
+// Behaviour:
+//   - When a value is selected and the input text matches its name, the
+//     dropdown stays hidden — the field reads as a "chosen value" state.
+//   - As soon as the user types something that doesn't match the selected
+//     name, the selection clears (so submit-time validation catches "user
+//     typed but didn't pick") and the top-3 matches appear.
+//   - Tapping a match populates the input with its name, fires `onSelect`,
+//     and dismisses the dropdown.
+
+interface InlineComboOption { id: string; name: string }
+
+interface InlineComboProps {
+  options: InlineComboOption[]
   selectedId: string | null
-  onSelect: (m: Movement) => void
-  onClose: () => void
+  selectedName: string | null
+  onSelect: (option: InlineComboOption | null) => void
+  placeholder: string
+  emptyText: string
+  accessibilityLabel: string
 }
 
-function MovementPicker({ visible, movements, selectedId, onSelect, onClose }: MovementPickerProps) {
-  const [filter, setFilter] = useState('')
-  const filtered = filter.trim()
-    ? movements.filter((m) => m.name.toLowerCase().includes(filter.toLowerCase()))
-    : movements
+function InlineCombo({
+  options,
+  selectedId,
+  selectedName,
+  onSelect,
+  placeholder,
+  emptyText,
+  accessibilityLabel,
+}: InlineComboProps) {
+  const [text, setText] = useState(selectedName ?? '')
+
+  // Keep the input in sync if the parent's selection changes externally
+  // (e.g. initial form load for edit mode, or a programmatic reset).
+  useEffect(() => {
+    if (selectedName !== null) setText(selectedName)
+  }, [selectedName])
+
+  const trimmed = text.trim()
+  // Open the dropdown whenever there's typed text that doesn't equal the
+  // current selection's name. No focus tracking — the parent ScrollView's
+  // `keyboardShouldPersistTaps="handled"` keeps row taps from being eaten
+  // by a blur event, and the dropdown auto-dismisses the moment a pick
+  // brings `text` back into agreement with `selectedName`.
+  const matchesSelected = selectedName !== null && trimmed === selectedName
+  const dropdownOpen = trimmed.length > 0 && !matchesSelected
+  const matches = dropdownOpen
+    ? options
+        .filter((o) => o.name.toLowerCase().includes(trimmed.toLowerCase()))
+        .slice(0, 3)
+    : []
+
+  function handleChange(next: string) {
+    setText(next)
+    // The user is editing — anything they typed that isn't an exact match
+    // of the current selection invalidates that selection. The save path
+    // requires a re-pick from the dropdown.
+    if (selectedId !== null && next !== selectedName) onSelect(null)
+  }
+
+  function handlePick(option: InlineComboOption) {
+    setText(option.name)
+    onSelect(option)
+  }
 
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <Pressable style={s.sheetBackdrop} onPress={onClose}>
-        <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={s.sheetTitle}>Choose a movement</Text>
-          <TextInput
-            style={s.sheetSearch}
-            placeholder="Search…"
-            placeholderTextColor="#6b7280"
-            value={filter}
-            onChangeText={setFilter}
-            autoFocus
-          />
-          {/* Cap exists because the sheet uses ScrollView (no virtualization).
-              200 covers the vast majority of gym catalogs; if a gym ever
-              hits this ceiling, swap to FlatList. */}
-          <ScrollView style={s.sheetScroll} keyboardShouldPersistTaps="handled">
-            {filtered.slice(0, 200).map((m) => {
-              const isSel = m.id === selectedId
-              return (
-                <TouchableOpacity
-                  key={m.id}
-                  style={s.sheetRow}
-                  onPress={() => {
-                    onSelect(m)
-                    onClose()
-                  }}
-                >
-                  <Text style={[s.sheetRowText, isSel && s.sheetRowSelected]}>{m.name}</Text>
-                  {isSel && <Text style={s.sheetCheck}>✓</Text>}
-                </TouchableOpacity>
-              )
-            })}
-            {filtered.length === 0 && (
-              <Text style={s.sheetEmpty}>No movements match.</Text>
-            )}
-          </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  )
-}
-
-interface NamedWorkoutPickerProps {
-  visible: boolean
-  options: { id: string; name: string }[]
-  selectedId: string | null
-  onSelect: (nw: { id: string; name: string }) => void
-  onClose: () => void
-}
-
-function NamedWorkoutPicker({ visible, options, selectedId, onSelect, onClose }: NamedWorkoutPickerProps) {
-  const [filter, setFilter] = useState('')
-  const filtered = filter.trim()
-    ? options.filter((m) => m.name.toLowerCase().includes(filter.toLowerCase()))
-    : options
-  return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <Pressable style={s.sheetBackdrop} onPress={onClose}>
-        <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={s.sheetTitle}>Choose a named workout</Text>
-          <TextInput
-            style={s.sheetSearch}
-            placeholder="Search…"
-            placeholderTextColor="#6b7280"
-            value={filter}
-            onChangeText={setFilter}
-            autoFocus
-          />
-          <ScrollView style={s.sheetScroll} keyboardShouldPersistTaps="handled">
-            {filtered.slice(0, 60).map((nw) => {
-              const isSel = nw.id === selectedId
-              return (
-                <TouchableOpacity
-                  key={nw.id}
-                  style={s.sheetRow}
-                  onPress={() => {
-                    onSelect(nw)
-                    onClose()
-                  }}
-                >
-                  <Text style={[s.sheetRowText, isSel && s.sheetRowSelected]}>{nw.name}</Text>
-                  {isSel && <Text style={s.sheetCheck}>✓</Text>}
-                </TouchableOpacity>
-              )
-            })}
-            {filtered.length === 0 && (
-              <Text style={s.sheetEmpty}>No named workouts match.</Text>
-            )}
-          </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <View>
+      <TextInput
+        style={s.input}
+        value={text}
+        onChangeText={handleChange}
+        placeholder={placeholder}
+        placeholderTextColor="#6b7280"
+        accessibilityLabel={accessibilityLabel}
+        autoCapitalize="words"
+        autoCorrect={false}
+      />
+      {dropdownOpen && (
+        <View style={s.comboDropdown}>
+          {matches.length === 0 ? (
+            <Text style={s.comboEmpty}>{emptyText}</Text>
+          ) : (
+            matches.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                style={s.comboRow}
+                onPress={() => handlePick(opt)}
+                accessibilityLabel={`Select ${opt.name}`}
+              >
+                <Text style={s.comboRowText}>{opt.name}</Text>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+      )}
+    </View>
   )
 }
 
@@ -252,8 +250,6 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
     (initialGoal?.targetPrType as TargetPrType | null | undefined) ?? 'LOAD',
   )
   const [prTypeSheet, setPrTypeSheet] = useState(false)
-  const [movementSheet, setMovementSheet] = useState(false)
-  const [namedWorkoutSheet, setNamedWorkoutSheet] = useState(false)
   const [targetValue, setTargetValue] = useState(
     initialGoal?.targetValue !== null && initialGoal?.targetValue !== undefined
       ? String(initialGoal.targetValue)
@@ -453,28 +449,26 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
                 </View>
 
                 {subject === 'movement' && (
-                  <TouchableOpacity
-                    style={s.selectBtn}
-                    onPress={() => setMovementSheet(true)}
+                  <InlineCombo
+                    options={movements.map((m) => ({ id: m.id, name: m.name }))}
+                    selectedId={movementId}
+                    selectedName={selectedMovement?.name ?? null}
+                    onSelect={(opt) => setMovementId(opt?.id ?? null)}
+                    placeholder="Search movements…"
+                    emptyText="No movements match"
                     accessibilityLabel="Choose movement"
-                  >
-                    <Text style={s.selectBtnText}>
-                      {selectedMovement ? selectedMovement.name : 'Choose a movement…'}
-                    </Text>
-                    <Text style={s.selectBtnChevron}>▾</Text>
-                  </TouchableOpacity>
+                  />
                 )}
                 {subject === 'namedWorkout' && (
-                  <TouchableOpacity
-                    style={s.selectBtn}
-                    onPress={() => setNamedWorkoutSheet(true)}
+                  <InlineCombo
+                    options={namedWorkouts}
+                    selectedId={namedWorkout?.id ?? null}
+                    selectedName={namedWorkout?.name ?? null}
+                    onSelect={(opt) => setNamedWorkout(opt)}
+                    placeholder="Search named workouts…"
+                    emptyText="No named workouts match"
                     accessibilityLabel="Choose named workout"
-                  >
-                    <Text style={s.selectBtnText}>
-                      {namedWorkout ? namedWorkout.name : 'Choose a named workout…'}
-                    </Text>
-                    <Text style={s.selectBtnChevron}>▾</Text>
-                  </TouchableOpacity>
+                  />
                 )}
 
                 <Text style={s.fieldLabel}>PR TYPE</Text>
@@ -678,21 +672,6 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
         onClose={() => setPrTypeSheet(false)}
       />
 
-      <MovementPicker
-        visible={movementSheet}
-        movements={movements}
-        selectedId={movementId}
-        onSelect={(m) => setMovementId(m.id)}
-        onClose={() => setMovementSheet(false)}
-      />
-
-      <NamedWorkoutPicker
-        visible={namedWorkoutSheet}
-        options={namedWorkouts}
-        selectedId={namedWorkout?.id ?? null}
-        onSelect={(nw) => setNamedWorkout(nw)}
-        onClose={() => setNamedWorkoutSheet(false)}
-      />
     </Modal>
   )
 }
@@ -880,4 +859,29 @@ const s = StyleSheet.create({
   sheetRowSelected: { color: '#818cf8', fontWeight: '600' },
   sheetCheck: { color: '#818cf8', fontSize: 14, marginLeft: 8 },
   sheetEmpty: { color: '#6b7280', fontSize: 13, paddingVertical: 24, textAlign: 'center' },
+  // Inline-typeahead dropdown — anchored directly below the search input
+  // (no Modal), so it sits inside the form's KeyboardAvoidingView and rides
+  // up with the soft keyboard. Capped at 3 matches per the UX brief.
+  comboDropdown: {
+    marginTop: 6,
+    backgroundColor: '#0f172a',
+    borderColor: '#1f2937',
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  comboRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2937',
+  },
+  comboRowText: { color: '#f3f4f6', fontSize: 14 },
+  comboEmpty: {
+    color: '#6b7280',
+    fontSize: 13,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    textAlign: 'center',
+  },
 })

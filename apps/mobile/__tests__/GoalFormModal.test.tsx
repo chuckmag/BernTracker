@@ -183,6 +183,37 @@ describe('GoalFormModal', () => {
     expect(onSaved).not.toHaveBeenCalled()
   })
 
+  test('inline movement combo: typing shows matching dropdown rows, tapping selects', async () => {
+    // Replaces the old modal picker — typing in the combo's input shows
+    // matching options inline (top 3); tap to pick. Confirms a typed-then-
+    // picked flow ends in a create call that carries the right movementId.
+    ;(api.users.me.goals.create as jest.Mock).mockResolvedValue(makeGoal())
+    const onSaved = jest.fn()
+    const { getByText, getByLabelText, findByLabelText, queryByLabelText } = render(
+      <GoalFormModal mode="create" onCancel={noop} onSaved={onSaved} />,
+    )
+    // Before typing the dropdown row shouldn't render.
+    expect(queryByLabelText('Select Back Squat')).toBeNull()
+    const movementInput = getByLabelText('Choose movement')
+    fireEvent.changeText(movementInput, 'back')
+    // Top match should surface and be tappable.
+    const row = await findByLabelText('Select Back Squat')
+    fireEvent.press(row)
+    // Fill in the rest of the form and submit.
+    fireEvent.changeText(getByLabelText('Goal title'), 'Squat 315')
+    fireEvent.changeText(getByLabelText('Target value'), '315')
+    fireEvent.press(getByText('Create'))
+    await waitFor(() => {
+      expect(api.users.me.goals.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'PR_TARGET',
+          movementId: 'mv-squat',
+          targetValue: 315,
+        }),
+      )
+    })
+  })
+
   test('FREQUENCY validates per-week and weeks ranges', async () => {
     const onSaved = jest.fn()
     const { getByText, getByLabelText, findByText } = render(
