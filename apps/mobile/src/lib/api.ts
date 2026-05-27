@@ -35,6 +35,12 @@ import type {
   GoalResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  Invitation,
+  InvitationStatus,
+  InvitationChannel,
+  GymInvitation,
+  MembershipRequestStatus,
+  PendingInvitation,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -73,6 +79,12 @@ export type {
   GoalResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  Invitation,
+  InvitationStatus,
+  InvitationChannel,
+  GymInvitation,
+  MembershipRequestStatus,
+  PendingInvitation,
 }
 // PATCH /api/users/me/profile body alias — the shared Zod-inferred type is
 // the authoritative shape; the alias keeps mobile call sites stable.
@@ -159,7 +171,14 @@ export interface AuthUser {
   lastName: string | null
   birthday: string | null
   avatarUrl: string | null
+  // Set by `maybeMarkOnboarded` (packages/db/src/managers/userProfileDbManager.ts)
+  // once the four required profile fields are populated. `null` means the user
+  // is mid-onboarding — RootNavigator routes them to OnboardingScreen instead
+  // of MainTabs.
+  onboardedAt: string | null
+  role: Role
   identifiedGender: IdentifiedGender | null
+  isWodalyticsAdmin?: boolean
 }
 
 export interface Gym {
@@ -273,7 +292,6 @@ export interface PublicUserProfile {
   name: string | null
   avatarUrl: string | null
 }
-
 
 export interface ResultHistoryItem {
   id: string
@@ -474,8 +492,12 @@ async function request<T>(
   options: RequestInit = {},
   retry = true,
 ): Promise<T> {
+  // FormData carries its own multipart Content-Type with the boundary string;
+  // forcing application/json on top breaks the upload. Detect and skip the
+  // default for FormData bodies.
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string>),
   }
   if (_accessToken) headers['Authorization'] = `Bearer ${_accessToken}`
@@ -717,6 +739,47 @@ export const api = {
           }),
         remove: (goalId: string) =>
           request<void>(`/api/goals/${encodeURIComponent(goalId)}`, { method: 'DELETE' }),
+      },
+
+      // GymMembershipRequest-backed invitations (staff invited the existing user).
+      // Used during onboarding + future settings memberships UI.
+      invitations: {
+        accept: (id: string) =>
+          request<GymInvitation>(`/api/invitations/${id}/accept`, { method: 'POST' }),
+        decline: (id: string) =>
+          request<GymInvitation>(`/api/invitations/${id}/decline`, { method: 'POST' }),
+        // Merged feed of pending Invitation (pre-signup) + GymMembershipRequest
+        // (existing user). Same union shape the web Onboarding step 2 consumes.
+        pendingAll: () =>
+          request<PendingInvitation[]>('/api/users/me/pending-invitations'),
+      },
+
+      // Pre-signup invitations identified by short code (email/SMS link).
+      codeInvitations: {
+        accept: (code: string) =>
+          request<Invitation>(`/api/invitations/code/${code}/accept`, { method: 'POST' }),
+        decline: (code: string) =>
+          request<Invitation>(`/api/invitations/code/${code}/decline`, { method: 'POST' }),
+      },
+
+      // Avatar upload / removal. RN's FormData appends image files as the
+      // tagged-object shape `{ uri, name, type }`; the API accepts the same
+      // multipart field name (`file`) the web AvatarUploader uses.
+      avatar: {
+        upload: (asset: { uri: string; name: string; mimeType: string }) => {
+          const form = new FormData()
+          form.append('file', {
+            uri: asset.uri,
+            name: asset.name,
+            type: asset.mimeType,
+          } as unknown as Blob)
+          return request<{ avatarUrl: string }>('/api/users/me/avatar', {
+            method: 'POST',
+            body: form,
+          })
+        },
+        remove: () =>
+          request<void>('/api/users/me/avatar', { method: 'DELETE' }),
       },
     },
   },
