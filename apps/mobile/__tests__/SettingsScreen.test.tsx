@@ -29,6 +29,19 @@ jest.mock('../src/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
 
+// Mock BirthdayField with a TextInput so the screen test can drive its
+// value/onChange contract via fireEvent.changeText — the native date picker
+// is exercised in its own unit test (BirthdayField.test.tsx).
+jest.mock('../src/components/BirthdayField', () => {
+  const { TextInput } = jest.requireActual('react-native')
+  return {
+    __esModule: true,
+    default: ({ value, onChange, testID }: { value: string; onChange: (next: string) => void; testID?: string }) => (
+      <TextInput value={value} onChangeText={onChange} testID={testID} />
+    ),
+  }
+})
+
 const mockSetMode = jest.fn()
 // Replace the whole theme module rather than requireActual'ing it — that
 // avoids importing AsyncStorage at the type-only `ThemeMode` re-export site
@@ -118,18 +131,6 @@ describe('SettingsScreen', () => {
       })
     })
     await findByText('Saved.')
-  })
-
-  test('invalid birthday format blocks the save and surfaces an error', async () => {
-    ;(api.users.me.profile.get as jest.Mock).mockResolvedValue(profileFixture())
-
-    const { findByTestId, findByText } = render(<SettingsScreen />)
-
-    fireEvent.changeText(await findByTestId('birthday-input'), '04/15/1990')
-    fireEvent.press(await findByTestId('save-button'))
-
-    await findByText(/YYYY-MM-DD/)
-    expect(api.users.me.profile.update).not.toHaveBeenCalled()
   })
 
   test('theme chip taps call ThemeProvider.setMode', async () => {

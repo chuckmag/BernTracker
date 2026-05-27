@@ -48,7 +48,7 @@ export default (): ExpoConfig => {
       },
       predictiveBackGestureEnabled: false,
     },
-    plugins: ['expo-web-browser'],
+    plugins: ['expo-web-browser', '@react-native-community/datetimepicker'],
     updates: { url: `https://u.expo.dev/${projectId}` },
     extra: { eas: { projectId } },
   }
