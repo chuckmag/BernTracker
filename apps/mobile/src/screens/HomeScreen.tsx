@@ -19,6 +19,7 @@ import WodHeroCard from '../components/WodHeroCard'
 import LeaderboardCard from '../components/LeaderboardCard'
 import UpcomingCard from '../components/UpcomingCard'
 import HotTodayCard from '../components/HotTodayCard'
+import GoalsCard from '../components/GoalsCard'
 
 function firstNameOf(user: { firstName?: string | null; name?: string | null } | null): string | null {
   if (user?.firstName) return user.firstName
@@ -173,6 +174,9 @@ export default function HomeScreen() {
           )}
         </>
       )}
+
+      {/* My Goals — fetches its own data; renders regardless of WOD presence. */}
+      {!loading && <GoalsCard />}
 
       {!loading && activeGym && (
         <UpcomingCard gymId={activeGym.id} programIds={upcomingProgramIds} />

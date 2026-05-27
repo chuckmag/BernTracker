@@ -16,6 +16,8 @@ const baseProfile: UserProfile = {
   onboardedAt: '2026-01-01T00:00:00.000Z',
   role: 'MEMBER',
   identifiedGender: 'FEMALE',
+  preferredLoadUnit: 'LB',
+  preferredDistanceUnit: 'M',
   emergencyContacts: [
     {
       id: 'c1',

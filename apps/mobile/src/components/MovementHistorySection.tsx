@@ -315,7 +315,10 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
 interface Props {
   movementId: string
   movementName: string
-  navigation: StackNavigationProp<RootStackParamList, 'WodDetail'>
+  // Loose nav type so this component can be mounted from any screen in
+  // the root stack (WodDetail, GoalDetail, etc.). The component only
+  // pushes to 'WodDetail' internally.
+  navigation: StackNavigationProp<RootStackParamList>
 }
 
 export default function MovementHistorySection({ movementId, movementName, navigation }: Props) {

@@ -24,6 +24,17 @@ import type {
   GoalResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  EmergencyContact,
+  UserProfile,
+  UpdateProfileInput,
+  Invitation,
+  InvitationStatus,
+  InvitationChannel,
+  InvitationLookup,
+  GymInvitation,
+  GymJoinRequest,
+  MembershipRequestStatus,
+  PendingInvitation,
 } from '@wodalytics/types'
 import { WORKOUT_TYPE_STYLES } from './workoutTypeStyles'
 import keycloak from './keycloak'
@@ -553,20 +564,7 @@ export interface AuthUser {
   isWodalyticsAdmin: boolean
 }
 
-export interface EmergencyContact {
-  id: string
-  userId: string
-  name: string
-  relationship: string | null
-  phone: string
-  email: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-export interface UserProfile extends Omit<AuthUser, 'isWodalyticsAdmin'> {
-  emergencyContacts: EmergencyContact[]
-}
+export type { EmergencyContact, UserProfile }
 
 export interface PublicUserProfile {
   id: string
@@ -576,12 +574,9 @@ export interface PublicUserProfile {
   avatarUrl: string | null
 }
 
-export interface UpdateProfilePayload {
-  firstName?: string
-  lastName?: string
-  birthday?: string | null
-  identifiedGender?: IdentifiedGender
-}
+// PATCH /api/users/me/profile body alias — the shared Zod-inferred type is
+// the authoritative shape; the alias keeps existing web call sites stable.
+export type UpdateProfilePayload = UpdateProfileInput
 
 export interface CreateEmergencyContactPayload {
   name: string
@@ -592,69 +587,20 @@ export interface CreateEmergencyContactPayload {
 
 export type UpdateEmergencyContactPayload = Partial<CreateEmergencyContactPayload>
 
-export type MembershipRequestStatus = 'PENDING' | 'APPROVED' | 'DECLINED' | 'REVOKED' | 'EXPIRED'
-
-export interface GymInvitation {
-  id: string
-  gymId: string
-  direction: 'STAFF_INVITED' | 'USER_REQUESTED'
-  status: MembershipRequestStatus
-  email: string | null
-  userId: string | null
-  roleToGrant: Role
-  invitedById: string | null
-  decidedById: string | null
-  decidedAt: string | null
-  expiresAt: string | null
-  createdAt: string
-  updatedAt: string
-  gym: { id: string; name: string; slug: string }
-  invitedBy: { id: string; name: string | null; firstName: string | null; lastName: string | null; email: string } | null
+export type {
+  MembershipRequestStatus,
+  GymInvitation,
+  InvitationStatus,
+  InvitationChannel,
+  Invitation,
+  InvitationLookup,
+  PendingInvitation,
 }
 
 export interface CreateInvitationPayload {
   email: string
   roleToGrant?: Role
 }
-
-export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'REVOKED' | 'EXPIRED'
-export type InvitationChannel = 'EMAIL' | 'SMS'
-
-// Pre-signup invitation delivered via email link or SMS code.
-// Separate from GymInvitation (which is a GymMembershipRequest for existing users).
-export interface Invitation {
-  id: string
-  code: string
-  channel: InvitationChannel
-  email: string | null
-  phone: string | null
-  gymId: string | null
-  roleToGrant: Role
-  invitedById: string
-  status: InvitationStatus
-  expiresAt: string
-  acceptedById: string | null
-  createdAt: string
-  updatedAt: string
-  gym: { id: string; name: string; slug: string } | null
-  invitedBy: { id: string; firstName: string | null; lastName: string | null }
-}
-
-// Public lookup shape returned by GET /invitations/:code (safe subset — no contact info)
-export interface InvitationLookup {
-  code: string
-  channel: InvitationChannel
-  gymId: string | null
-  gym: { id: string; name: string; slug: string } | null
-  invitedBy: { id: string; firstName: string | null; lastName: string | null }
-  roleToGrant: Role
-  expiresAt: string
-}
-
-// Discriminated union returned by GET /users/me/pending-invitations
-export type PendingInvitation =
-  | { kind: 'invitation'; data: Invitation }
-  | { kind: 'membershipRequest'; data: GymInvitation }
 
 // Unified gym invite response — backend routes to whichever model fits
 export type GymInviteResponse =
@@ -674,25 +620,7 @@ export interface CreateAppInvitePayload {
   phone?: string
 }
 
-// User-requested join (slice D2). Same model as GymInvitation but with the
-// invitedBy slot null and a `user` join populated for the staff-side list.
-export interface GymJoinRequest {
-  id: string
-  gymId: string
-  direction: 'USER_REQUESTED'
-  status: MembershipRequestStatus
-  email: string | null
-  userId: string | null
-  roleToGrant: Role
-  invitedById: string | null
-  decidedById: string | null
-  decidedAt: string | null
-  expiresAt: string | null
-  createdAt: string
-  updatedAt: string
-  gym: { id: string; name: string; slug: string }
-  user: { id: string; name: string | null; firstName: string | null; lastName: string | null; email: string } | null
-}
+export type { GymJoinRequest }
 
 export type GymBrowseStatus = 'NONE' | 'MEMBER' | 'REQUEST_PENDING'
 
