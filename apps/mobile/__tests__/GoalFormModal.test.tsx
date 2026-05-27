@@ -187,6 +187,11 @@ describe('GoalFormModal', () => {
     // Replaces the old modal picker — typing in the combo's input shows
     // matching options inline (top 3); tap to pick. Confirms a typed-then-
     // picked flow ends in a create call that carries the right movementId.
+    //
+    // Note: the row uses onPressIn (touch-down) instead of onPress so the
+    // selection commits before the soft keyboard's blur dismisses it on
+    // touch-up. The test fires the 'pressIn' event to match the prop the
+    // component actually listens for.
     ;(api.users.me.goals.create as jest.Mock).mockResolvedValue(makeGoal())
     const onSaved = jest.fn()
     const { getByText, getByLabelText, findByLabelText, queryByLabelText } = render(
@@ -198,7 +203,7 @@ describe('GoalFormModal', () => {
     fireEvent.changeText(movementInput, 'back')
     // Top match should surface and be tappable.
     const row = await findByLabelText('Select Back Squat')
-    fireEvent.press(row)
+    fireEvent(row, 'pressIn')
     // Fill in the rest of the form and submit.
     fireEvent.changeText(getByLabelText('Goal title'), 'Squat 315')
     fireEvent.changeText(getByLabelText('Target value'), '315')
