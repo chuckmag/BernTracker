@@ -221,3 +221,4 @@ See the comment on #1 for the full navigation hub.
 | #12 | Slice 3 — Gyms + users |
 | #13 | Slice 4 — Workout publishing |
 | #14 | Slice 5 — Member mobile |
+<!-- e2e test marker — verifying #451 daemon + #452 hooks. Will be closed. -->
