@@ -288,10 +288,14 @@ async function poll() {
   }
 }
 
-// Initial check immediately, then on interval
+// Initial check immediately, then on interval. The setInterval handle is
+// intentionally NOT unref'd — the watcher is a long-running daemon and the
+// scheduled timer is the only thing keeping the event loop alive between
+// polls. With `.unref()`, the process exited immediately after the first
+// poll, so comments arriving more than a few seconds after spawn were never
+// pulled until something else re-spawned the watcher.
 poll().then(() => {
-  const timer = setInterval(poll, POLL_INTERVAL_MS)
-  timer.unref()  // don't keep the process alive if nothing else is running
+  setInterval(poll, POLL_INTERVAL_MS)
 
   process.on('SIGTERM', () => {
     log('Received SIGTERM — exiting without teardown.')
