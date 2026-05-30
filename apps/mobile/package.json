@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "test": "NODE_PATH=node_modules:../../node_modules jest",
     "lint": "NODE_PATH=node_modules:../../node_modules tsc --noEmit",
+    "eas-build-post-install": "npm --prefix ../../packages/types run build",
     "build:preview:ios": "npx eas-cli@latest build --profile preview --platform ios",
     "build:preview:android": "npx eas-cli@latest build --profile preview --platform android",
     "build:preview": "npx eas-cli@latest build --profile preview --platform all",
