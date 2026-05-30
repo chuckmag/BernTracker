@@ -2,7 +2,7 @@
   "expo": {
     "name": "WODalytics",
     "slug": "wodalytics",
-    "owner": "chuckmag",
+    "owner": "wodtech",
     "version": "1.0.0",
     "scheme": "com.wodalytics.app",
     "orientation": "portrait",
@@ -38,11 +38,11 @@
       "favicon": "./assets/favicon.png"
     },
     "updates": {
-      "url": "https://u.expo.dev/PROJECT_ID_PLACEHOLDER"
+      "url": "https://u.expo.dev/f0a6deb9-d571-4d24-9e33-d456bf16ebe3"
     },
     "extra": {
       "eas": {
-        "projectId": "PROJECT_ID_PLACEHOLDER"
+        "projectId": "f0a6deb9-d571-4d24-9e33-d456bf16ebe3"
       }
     }
   }
