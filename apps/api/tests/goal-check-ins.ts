@@ -342,6 +342,26 @@ async function testInvalidIsoDateRejected() {
   check('400 on impossible calendar date', 400, r.status)
 }
 
+async function testIsoDatetimeFloorsToCalendarDate() {
+  console.log('\n=== POST — ISO datetime floors to the calendar date ===')
+  // The non-obvious code path: a full ISO datetime should land in the
+  // date-only DB column as the UTC calendar date, regardless of time.
+  // Use a non-today date so it doesn't collide with prior tests' rows.
+  await prisma.goalCheckIn.deleteMany({ where: { goalId: habitGoalId } })
+  const r = await api('POST', `/goals/${habitGoalId}/check-ins`, token, {
+    date: '2026-05-29T22:30:00.000Z',
+  })
+  check('201', 201, r.status)
+  const checkIn = r.body.checkIn as { date: string }
+  check('checkIn.date floored to 2026-05-29', '2026-05-29', checkIn.date)
+
+  // Sanity-check the round-trip: the row read back via GET shows the
+  // same calendar date.
+  const list = await api('GET', `/goals/${habitGoalId}/check-ins`, token)
+  const rows = list.body as unknown as Array<{ date: string }>
+  check('GET round-trip — same date', '2026-05-29', rows[0]?.date)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -358,6 +378,7 @@ async function main() {
     await testNoteTooLong()
     await testEmptyNoteRejected()
     await testInvalidIsoDateRejected()
+    await testIsoDatetimeFloorsToCalendarDate()
   } finally {
     await cleanup()
     await prisma.$disconnect()
