@@ -17,7 +17,6 @@ type BirthdayFieldProps = {
 }
 
 const MIN_DATE = new Date(1900, 0, 1)
-const TODAY = () => new Date()
 
 // Format a Date as YYYY-MM-DD in the local timezone — the API stores
 // birthday as a date-only column, so the local calendar day is what
@@ -56,9 +55,14 @@ export default function BirthdayField({
 }: BirthdayFieldProps) {
   const { colors } = useTheme()
   const [open, setOpen] = useState(false)
+  // iOS spinner emits a pick on every wheel scroll. Hold those in a local
+  // draft and only commit to the parent on Done — Cancel should leave the
+  // committed value untouched.
+  const [iosDraft, setIosDraft] = useState<string | null>(null)
 
   const display = formatDisplay(value)
   const initialDate = fromYmd(value) ?? new Date(2000, 0, 1)
+  const maxDate = new Date()
 
   function handleAndroidChange(event: DateTimePickerEvent, picked?: Date) {
     setOpen(false)
@@ -66,7 +70,18 @@ export default function BirthdayField({
   }
 
   function handleIOSChange(_event: DateTimePickerEvent, picked?: Date) {
-    if (picked) onChange(toYmd(picked))
+    if (picked) setIosDraft(toYmd(picked))
+  }
+
+  function handleIOSDone() {
+    if (iosDraft !== null) onChange(iosDraft)
+    setIosDraft(null)
+    setOpen(false)
+  }
+
+  function handleIOSCancel() {
+    setIosDraft(null)
+    setOpen(false)
   }
 
   return (
@@ -96,7 +111,7 @@ export default function BirthdayField({
           value={initialDate}
           mode="date"
           display="default"
-          maximumDate={TODAY()}
+          maximumDate={maxDate}
           minimumDate={MIN_DATE}
           onChange={handleAndroidChange}
           testID={`${testID}-picker`}
@@ -104,37 +119,41 @@ export default function BirthdayField({
       )}
 
       {/* iOS picker — wrap in a modal so the wheel sits over the screen and
-          the user explicitly confirms with Done. */}
+          the user explicitly confirms with Done. Backdrop tap = Cancel. */}
       {Platform.OS === 'ios' && (
         <Modal
           visible={open}
           transparent
           animationType="slide"
-          onRequestClose={() => setOpen(false)}
+          onRequestClose={handleIOSCancel}
         >
-          <Pressable style={styles.iosBackdrop} onPress={() => setOpen(false)}>
+          <Pressable style={styles.iosBackdrop} onPress={handleIOSCancel}>
             <Pressable onPress={(e) => e.stopPropagation()}>
               <ThemedView variant="card" style={[styles.iosSheet, { borderColor: colors.borderSubtle }]}>
                 <View style={[styles.iosSheetHeader, { borderBottomColor: colors.borderSubtle }]}>
                   <TouchableOpacity
-                    onPress={() => setOpen(false)}
+                    onPress={handleIOSCancel}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel, discard birthday selection"
                     testID={`${testID}-cancel`}
                   >
                     <ThemedText variant="secondary">Cancel</ThemedText>
                   </TouchableOpacity>
                   <ThemedText style={styles.iosSheetTitle}>{label}</ThemedText>
                   <TouchableOpacity
-                    onPress={() => setOpen(false)}
+                    onPress={handleIOSDone}
+                    accessibilityRole="button"
+                    accessibilityLabel="Done, confirm birthday selection"
                     testID={`${testID}-done`}
                   >
                     <ThemedText style={{ color: colors.primary, fontWeight: '600' }}>Done</ThemedText>
                   </TouchableOpacity>
                 </View>
                 <DateTimePicker
-                  value={fromYmd(value) ?? initialDate}
+                  value={(iosDraft ? fromYmd(iosDraft) : fromYmd(value)) ?? initialDate}
                   mode="date"
                   display="spinner"
-                  maximumDate={TODAY()}
+                  maximumDate={maxDate}
                   minimumDate={MIN_DATE}
                   onChange={handleIOSChange}
                   testID={`${testID}-picker`}

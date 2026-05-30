@@ -1,6 +1,6 @@
 import React from 'react'
 import { Platform } from 'react-native'
-import { render, fireEvent } from '@testing-library/react-native'
+import { act, render, fireEvent } from '@testing-library/react-native'
 import BirthdayField from '../src/components/BirthdayField'
 
 // Stub the native DateTimePicker as a no-op `View` that pulls `onChange`
@@ -57,28 +57,44 @@ describe('BirthdayField', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  test('iOS: picker stays mounted and fires onChange as the wheel scrolls', () => {
+  test('iOS: wheel scrolls do not commit to the parent until Done is pressed', () => {
     Platform.OS = 'ios'
     const onChange = jest.fn()
     const { getByTestId } = render(<BirthdayField value="" onChange={onChange} />)
     fireEvent.press(getByTestId('birthday-field'))
 
     expect(lastPickerProps).not.toBeNull()
-    lastPickerProps!.onChange({ type: 'set' }, new Date(2000, 0, 1))
+    // Picker's onChange isn't fired through fireEvent, so wrap in act() to
+    // flush the iosDraft setState before the Done press reads it.
+    act(() => { lastPickerProps!.onChange({ type: 'set' }, new Date(1980, 5, 10)) })
+    act(() => { lastPickerProps!.onChange({ type: 'set' }, new Date(2000, 0, 1)) })
+    // Draft state holds the picks; parent state is untouched until Done.
+    expect(onChange).not.toHaveBeenCalled()
+
+    fireEvent.press(getByTestId('birthday-field-done'))
+    expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange).toHaveBeenCalledWith('2000-01-01')
   })
 
-  test('iOS: Done button dismisses the picker (no value change)', () => {
+  test('iOS: Cancel after scrolling leaves the parent value unchanged', () => {
     Platform.OS = 'ios'
     const onChange = jest.fn()
     const { getByTestId } = render(<BirthdayField value="1990-04-15" onChange={onChange} />)
     fireEvent.press(getByTestId('birthday-field'))
-    // Picker should be mounted now
-    expect(getByTestId('birthday-field-picker')).toBeTruthy()
 
+    // User spins the wheel to a wrong date, then taps Cancel.
+    act(() => { lastPickerProps!.onChange({ type: 'set' }, new Date(1975, 7, 20)) })
+    fireEvent.press(getByTestId('birthday-field-cancel'))
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  test('iOS: Done with no scrolls is a no-op', () => {
+    Platform.OS = 'ios'
+    const onChange = jest.fn()
+    const { getByTestId } = render(<BirthdayField value="1990-04-15" onChange={onChange} />)
+    fireEvent.press(getByTestId('birthday-field'))
     fireEvent.press(getByTestId('birthday-field-done'))
-    // Pressing Done shouldn't fire a synthetic onChange — the wheel already
-    // emitted picks on every scroll. We just verify the screen doesn't crash.
     expect(onChange).not.toHaveBeenCalled()
   })
 })
