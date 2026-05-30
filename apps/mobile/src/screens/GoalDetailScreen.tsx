@@ -21,7 +21,7 @@ import {
 } from '../lib/api'
 import GoalFormModal, { HABIT_V2_COPY } from '../components/GoalFormModal'
 import MovementHistorySection from '../components/MovementHistorySection'
-import { useTheme, type ThemeColors } from '../lib/theme'
+import { useTheme } from '../lib/theme'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
 
@@ -45,10 +45,10 @@ interface PrTrajectoryChartProps {
   points: MovementTrajectoryData['points']
   target: number
   unit: string | null
-  colors: ThemeColors
 }
 
-function PrTrajectoryChart({ points, target, unit, colors }: PrTrajectoryChartProps) {
+function PrTrajectoryChart({ points, target, unit }: PrTrajectoryChartProps) {
+  const { colors } = useTheme()
   if (points.length === 0) {
     return (
       <View style={chartStyles.placeholder}>
@@ -150,10 +150,10 @@ interface FrequencyBarChartProps {
   perWeek: number
   weeks: number
   currentWeekCount: number
-  colors: ThemeColors
 }
 
-function FrequencyBarChart({ workoutsLogged, workoutsRequired, perWeek, weeks, currentWeekCount, colors }: FrequencyBarChartProps) {
+function FrequencyBarChart({ workoutsLogged, workoutsRequired, perWeek, weeks, currentWeekCount }: FrequencyBarChartProps) {
+  const { colors } = useTheme()
   // Server validation forbids `perWeek <= 0` or `weeks <= 0`, but the call
   // site coerces nulls with `?? 0` — guard so a drifted goal record doesn't
   // produce NaNs.
@@ -422,7 +422,6 @@ export default function GoalDetailScreen() {
                 points={trajectory?.points ?? []}
                 target={goal.progress.target}
                 unit={targetUnit}
-                colors={colors}
               />
             )}
             <View style={s.statRow}>
@@ -471,7 +470,6 @@ export default function GoalDetailScreen() {
               perWeek={goal.frequencyPerWeek ?? 0}
               weeks={goal.frequencyWeeks ?? 0}
               currentWeekCount={goal.progress.currentWeekCount}
-              colors={colors}
             />
             <View style={s.statRow}>
               <View style={s.stat}>
