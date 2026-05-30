@@ -182,13 +182,17 @@ function FrequencyBarChart({ workoutsLogged, workoutsRequired, perWeek, weeks, c
             rx={barH / 2}
           />
         )}
-        {/* Percentage label */}
+        {/* Percentage label. At 0% the bar fill is absent, so the label sits
+            on the empty track — `onPrimary` (white) would be invisible on
+            the light-mode track (`borderSubtle` ≈ #e2e8f0). Fall back to
+            `textPrimary` so the "0%" stays legible until the fill grows
+            under it. */}
         <SvgText
           x={PAD.left + barW / 2}
           y={barY + barH / 2 + 1}
           textAnchor="middle"
           alignmentBaseline="central"
-          fill={colors.onPrimary}
+          fill={filledW > 0 ? colors.onPrimary : colors.textPrimary}
           fontSize={10}
           fontWeight="700"
         >

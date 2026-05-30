@@ -216,7 +216,7 @@ function InlineCombo({
         autoCorrect={false}
       />
       {dropdownOpen && (
-        <View style={[s.comboDropdown, { backgroundColor: colors.screenBg, borderColor: colors.borderSubtle }]}>
+        <View style={[s.comboDropdown, { backgroundColor: colors.inputBg, borderColor: colors.borderSubtle }]}>
           {matches.length === 0 ? (
             <ThemedText variant="tertiary" style={s.comboEmpty}>{emptyText}</ThemedText>
           ) : (
