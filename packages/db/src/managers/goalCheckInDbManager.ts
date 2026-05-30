@@ -65,15 +65,16 @@ export async function recordCheckIn(data: RecordCheckInData): Promise<GoalCheckI
   })
 }
 
-// Returns the deleted row, or null if no row existed for that date.
-export async function deleteCheckIn(goalId: string, date: Date): Promise<GoalCheckIn | null> {
-  const flooredDate = utcMidnight(date)
-  const existing = await prisma.goalCheckIn.findUnique({
-    where: { goalId_date: { goalId, date: flooredDate } },
+// Returns true if a row was deleted, false if no row existed for that date.
+// Uses deleteMany (which is a no-op for missing rows) so two concurrent
+// DELETEs for the same (goalId, date) both resolve cleanly — only the
+// first reports `true`, the second reports `false`. The findUnique +
+// delete pair would TOCTOU and throw P2025 from the second call.
+export async function deleteCheckIn(goalId: string, date: Date): Promise<boolean> {
+  const { count } = await prisma.goalCheckIn.deleteMany({
+    where: { goalId, date: utcMidnight(date) },
   })
-  if (!existing) return null
-  await prisma.goalCheckIn.delete({ where: { id: existing.id } })
-  return existing
+  return count > 0
 }
 
 interface FindCheckInsOptions {

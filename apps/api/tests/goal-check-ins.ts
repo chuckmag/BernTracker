@@ -144,6 +144,8 @@ async function testRejectsNonHabit() {
   check('POST — 400 on PR_TARGET goal', 400, r.status)
   const r2 = await api('GET', `/goals/${prTargetGoalId}/check-ins`, token)
   check('GET — 400 on PR_TARGET goal', 400, r2.status)
+  const r3 = await api('DELETE', `/goals/${prTargetGoalId}/check-ins/${ymd(new Date())}`, token)
+  check('DELETE — 400 on PR_TARGET goal', 400, r3.status)
 }
 
 // ─── Record + idempotency + note edit ─────────────────────────────────────────
@@ -323,6 +325,12 @@ async function testNoteTooLong() {
   check('400', 400, r.status)
 }
 
+async function testEmptyNoteRejected() {
+  console.log('\n=== POST — empty-string note rejected ===')
+  const r = await api('POST', `/goals/${habitGoalId}/check-ins`, token, { note: '' })
+  check('400 on note=""', 400, r.status)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -337,6 +345,7 @@ async function main() {
     await testDeleteCheckIn()
     await testListCheckIns()
     await testNoteTooLong()
+    await testEmptyNoteRejected()
   } finally {
     await cleanup()
     await prisma.$disconnect()

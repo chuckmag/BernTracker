@@ -176,8 +176,8 @@ async function deleteCheckInHandler(req: Request, res: Response) {
   const date = parseYmd(dateRaw)
   if (!date) return res.status(400).json({ error: 'Date must be a valid YYYY-MM-DD' })
 
-  const deleted = await deleteCheckIn(goal.id, date)
-  if (!deleted) return res.status(404).json({ error: 'No check-in for that date' })
+  const removed = await deleteCheckIn(goal.id, date)
+  if (!removed) return res.status(404).json({ error: 'No check-in for that date' })
 
   res.json({ goal: await toGoalResponse(goal) })
 }

@@ -71,7 +71,13 @@ export const RecordGoalCheckInSchema = z.object({
       z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD or ISO 8601'),
     ])
     .optional(),
-  note: z.string().max(280, 'Note must be 280 characters or fewer').optional(),
+  // Min 1 rejects empty-string notes — if the user has nothing to say,
+  // they should omit the field, not send "".
+  note: z
+    .string()
+    .min(1, 'Note must be non-empty if provided')
+    .max(280, 'Note must be 280 characters or fewer')
+    .optional(),
 })
 
 export type RecordGoalCheckInInput = z.infer<typeof RecordGoalCheckInSchema>
