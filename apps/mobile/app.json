@@ -2,12 +2,16 @@
   "expo": {
     "name": "WODalytics",
     "slug": "wodalytics",
-    "owner": "chuckmag",
+    "owner": "wodtech",
     "version": "1.0.0",
     "scheme": "com.wodalytics.app",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,7 +19,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.wodalytics.app"
+      "bundleIdentifier": "com.wodalytics.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.wodalytics.app",
@@ -29,6 +36,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f0a6deb9-d571-4d24-9e33-d456bf16ebe3"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f0a6deb9-d571-4d24-9e33-d456bf16ebe3"
+      }
     }
   }
 }

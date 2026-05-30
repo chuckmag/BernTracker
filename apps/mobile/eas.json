@@ -1,0 +1,54 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://qa.wodalytics.com"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://wodalytics.com"
+      }
+    }
+  },
+  "submit": {
+    "preview": {
+      "ios": {
+        "ascApiKeyIssuerId": "54079113-997f-4844-b957-e1739f47c0c6",
+        "ascApiKeyId": "JKFQR773M4",
+        "ascApiKeyPath": "./keys/AuthKey.p8"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./keys/berntracker-d54bfe373fb7.json",
+        "track": "internal"
+      }
+    },
+    "production": {
+      "ios": {
+        "ascApiKeyIssuerId": "54079113-997f-4844-b957-e1739f47c0c6",
+        "ascApiKeyId": "JKFQR773M4",
+        "ascApiKeyPath": "./keys/AuthKey.p8"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./keys/berntracker-d54bfe373fb7.json",
+        "track": "production"
+      }
+    }
+  }
+}
