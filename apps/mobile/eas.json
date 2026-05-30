@@ -30,8 +30,8 @@
   "submit": {
     "preview": {
       "ios": {
-        "ascApiKeyIssuerId": "FILL_AFTER_SETUP",
-        "ascApiKeyId": "FILL_AFTER_SETUP",
+        "ascApiKeyIssuerId": "54079113-997f-4844-b957-e1739f47c0c6",
+        "ascApiKeyId": "JKFQR773M4",
         "ascApiKeyPath": "./keys/AuthKey.p8"
       },
       "android": {
@@ -41,8 +41,8 @@
     },
     "production": {
       "ios": {
-        "ascApiKeyIssuerId": "FILL_AFTER_SETUP",
-        "ascApiKeyId": "FILL_AFTER_SETUP",
+        "ascApiKeyIssuerId": "54079113-997f-4844-b957-e1739f47c0c6",
+        "ascApiKeyId": "JKFQR773M4",
         "ascApiKeyPath": "./keys/AuthKey.p8"
       },
       "android": {
