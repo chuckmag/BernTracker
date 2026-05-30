@@ -181,6 +181,11 @@ Hot reload is on by default — saving any file in `apps/mobile/` updates the ap
 
 > **Simulator alternative:** If you have Xcode installed, press `i` in the Expo terminal to open in the iOS Simulator — no phone needed and `localhost` works as-is.
 
+> **`EAS_PROJECT_ID` env var (optional):** `apps/mobile/app.config.ts` is a dynamic Expo config that reads `EAS_PROJECT_ID` from `process.env`. Leave it unset for normal local dev — `expo-updates` will stay quiet because no OTA URL is emitted. EAS builds (`npm run build:*` in `apps/mobile/`) already inject the value via `eas.json` env, so you don't need to set it to ship a build. Add it to `.env` only if you specifically want to test OTA updates locally:
+> ```bash
+> EAS_PROJECT_ID="f0a6deb9-d571-4d24-9e33-d456bf16ebe3"
+> ```
+
 ### Schema migrations
 
 Any time you change `packages/db/prisma/schema.prisma`, run the migration command and **commit the generated file** before opening or merging a PR:

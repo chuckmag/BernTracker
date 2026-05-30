@@ -45,6 +45,20 @@ npx jest -t "renders feed rows"
 
 **Don't remove or rename the `eas-build-post-install` script in `package.json`.** It compiles `@wodalytics/types` (`tsc` → `packages/types/dist/`) before Metro runs on the EAS worker. Without it, every EAS build fails with `Unable to resolve module @wodalytics/types`, because EAS only runs `npm install` on the worker and never builds workspace packages. Safe to remove only if `@wodalytics/types` is also removed from `dependencies`.
 
+## Dynamic Expo config — `app.config.ts`
+
+The Expo config lives in `app.config.ts` (not `app.json`). It reads `EAS_PROJECT_ID` from `process.env` and only emits `updates.url` / `extra.eas.projectId` when that env var is set. Local `expo start` runs leave those fields undefined, which keeps `expo-updates` from emitting warnings about an unrouted OTA channel during development.
+
+The project ID `f0a6deb9-d571-4d24-9e33-d456bf16ebe3` is baked into every build profile's `env` block in `eas.json`, so `npm run build:*` / `npm run submit:*` resolve the projectId automatically — no engineer action required.
+
+**When to set `EAS_PROJECT_ID` locally:** only if you want to exercise OTA updates in development. Export it in your shell or add it to the repo-root `.env`:
+
+```bash
+EAS_PROJECT_ID=f0a6deb9-d571-4d24-9e33-d456bf16ebe3
+```
+
+Leaving it unset is the normal path.
+
 ## Cross-app contracts (web parity)
 
 Mobile must mirror the per-user state shapes the web already uses, so a user can switch between web and mobile without losing context. When adding a new piece of persisted state, check `apps/web/CLAUDE.md` → *Cross-app contracts* first and match the storage key + API shape. The active mobile-parity backlog lives at #130; see the root CLAUDE.md → *Parity-first feature design* for the planning rule that governs how mobile and web stay in sync.
