@@ -1,6 +1,8 @@
 import type { ExpoConfig } from 'expo/config'
 
 export default (): ExpoConfig => {
+  // Truthy check intentionally suppresses both `undefined` and `""` —
+  // an empty-string env var (e.g. `EAS_PROJECT_ID=` in `.env`) is treated as unset.
   const projectId = process.env.EAS_PROJECT_ID
 
   return {

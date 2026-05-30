@@ -92,19 +92,9 @@ This is documented at [expo.fyi/first-android-submission](https://expo.fyi/first
 
 ## Dynamic Expo config
 
-The Expo config lives in `apps/mobile/app.config.ts` (a TypeScript dynamic config), not `app.json`. It reads `EAS_PROJECT_ID` from `process.env` and only populates `updates.url` / `extra.eas.projectId` when that env var is set.
+`apps/mobile/app.config.ts` is a TypeScript dynamic config that reads `EAS_PROJECT_ID` from `process.env` and only emits `updates.url` / `extra.eas.projectId` when set. Every build profile in `eas.json` injects the project ID, so builds resolve it automatically.
 
-**Why dynamic?** A static `app.json` with a hard-coded `updates.url` / `extra.eas.projectId` triggers `expo-updates` warnings during local `expo start` runs, because dev mode never actually wires an OTA channel. Making those fields conditional lets `npm run dev` stay quiet without removing the values that EAS builds need.
-
-**Where the project ID comes from:** every build profile in `eas.json` (`development`, `preview`, `production`) sets `EAS_PROJECT_ID=f0a6deb9-d571-4d24-9e33-d456bf16ebe3` in its `env` block. EAS CLI applies those env vars before evaluating `app.config.ts`, so builds resolve the project automatically — no engineer action required.
-
-**When you want OTA in local dev:** set the same env var in your shell or in the repo-root `.env`:
-
-```bash
-EAS_PROJECT_ID=f0a6deb9-d571-4d24-9e33-d456bf16ebe3
-```
-
-Leaving it unset is the normal day-to-day path.
+See [`CLAUDE.md` → *Dynamic Expo config*](./CLAUDE.md#dynamic-expo-config--appconfigts) for the full explanation and the local-dev override path.
 
 ## Monorepo build-time gotcha (don't touch)
 
