@@ -74,7 +74,7 @@ function StrengthPrTable({ entries, onTapEmpty, onTapFilled }: StrengthPrTablePr
               activeOpacity={0.7}
             >
               <ThemedText variant="tertiary" style={s.rmRep}>{reps}RM</ThemedText>
-              <ThemedText style={[s.rmEmpty, { color: colors.borderInteractive }]}>???</ThemedText>
+              <ThemedText variant="muted" style={s.rmEmpty}>???</ThemedText>
             </TouchableOpacity>
           )
         })}
@@ -168,7 +168,7 @@ function PastResultCard({ result, onPress }: PastResultCardProps) {
         <View style={s.cardSets}>
           {visibleSets.map((set, i) => (
             <ThemedText key={i} variant="tertiary" style={s.cardSet}>
-              <ThemedText variant="label" style={s.cardSetNum}>{i + 1}  </ThemedText>
+              <ThemedText variant="label">{i + 1}  </ThemedText>
               {describeSet(set, result.loadUnit)}
             </ThemedText>
           ))}
@@ -568,9 +568,6 @@ const s = StyleSheet.create({
   cardSet: {
     fontSize: 12,
     fontVariant: ['tabular-nums'],
-  },
-  cardSetNum: {
-    // color comes from variant="label"
   },
   cardMore: {
     fontSize: 11,
