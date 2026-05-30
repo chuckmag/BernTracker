@@ -11,6 +11,7 @@
         "simulator": true
       },
       "env": {
+        "EXPO_PUBLIC_API_URL": "https://qa.wodalytics.com",
         "EAS_PROJECT_ID": "f0a6deb9-d571-4d24-9e33-d456bf16ebe3"
       }
     },
