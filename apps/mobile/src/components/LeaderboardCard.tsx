@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, TouchableOpacity, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { api, type LeaderboardEntry } from '../lib/api'
 import { formatResultValue } from '../lib/format'
 import UserRowProfile from './UserRowProfile'
+import { useTheme } from '../lib/theme'
+import ThemedText from './ThemedText'
+import ThemedView from './ThemedView'
 
 type Nav = StackNavigationProp<RootStackParamList>
 
@@ -23,6 +26,7 @@ interface Props {
 }
 
 export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: Props) {
+  const { colors } = useTheme()
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -40,23 +44,23 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
   const myRowBelow = myEntry && myRank >= 5
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.headerText} numberOfLines={1}>
+    <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
+        <ThemedText variant="tertiary" style={styles.headerText} numberOfLines={1}>
           Today · &ldquo;{workoutTitle}&rdquo;
-        </Text>
+        </ThemedText>
       </View>
 
       {loading && (
         <View style={styles.shimmerContainer}>
-          <View style={styles.shimmer} />
-          <View style={[styles.shimmer, { width: '70%', marginTop: 8 }]} />
-          <View style={[styles.shimmer, { width: '80%', marginTop: 8 }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.borderSubtle }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.borderSubtle, width: '70%', marginTop: 8 }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.borderSubtle, width: '80%', marginTop: 8 }]} />
         </View>
       )}
 
       {!loading && entries.length === 0 && (
-        <Text style={styles.emptyText}>No results yet — be the first to log!</Text>
+        <ThemedText variant="tertiary" style={styles.emptyText}>No results yet — be the first to log!</ThemedText>
       )}
 
       {!loading && entries.length > 0 && (
@@ -73,17 +77,19 @@ export default function LeaderboardCard({ workoutId, workoutTitle, myUserId }: P
 
           {myRowBelow && (
             <>
-              <Text style={styles.divider}>···</Text>
+              <ThemedText variant="muted" style={styles.divider}>···</ThemedText>
               <ResultRow rank={myRank + 1} entry={myEntry} workoutId={workoutId} isMe />
             </>
           )}
 
           {!myEntry && (
-            <Text style={styles.logPrompt}>Log your result to appear on the board</Text>
+            <ThemedText variant="muted" style={[styles.logPrompt, { borderTopColor: colors.borderSubtle }]}>
+              Log your result to appear on the board
+            </ThemedText>
           )}
         </View>
       )}
-    </View>
+    </ThemedView>
   )
 }
 
@@ -98,34 +104,33 @@ function ResultRow({
   workoutId: string
   isMe: boolean
 }) {
+  const { colors } = useTheme()
   const navigation = useNavigation<Nav>()
   const score = formatResultValue(entry.value)
 
   return (
     <TouchableOpacity
-      style={[styles.row, isMe && styles.myRow]}
+      style={[styles.row, isMe && { backgroundColor: `${colors.primary}33` }]}
       onPress={() => navigation.navigate('ResultDetail', { workoutId, resultId: entry.id, from: 'dashboard' })}
       activeOpacity={0.7}
     >
-      <Text style={styles.rank}>{rank}</Text>
+      <ThemedText variant="tertiary" style={styles.rank}>{rank}</ThemedText>
       <UserRowProfile
         user={entry.user}
         onAvatarPress={() => navigation.navigate('UserProfile', { userId: entry.user.id })}
       />
-      <View style={styles.levelBadge}>
-        <Text style={styles.levelText}>{LEVEL_LABEL[entry.level] ?? entry.level}</Text>
+      <View style={[styles.levelBadge, { backgroundColor: colors.borderInteractive }]}>
+        <ThemedText variant="tertiary" style={styles.levelText}>{LEVEL_LABEL[entry.level] ?? entry.level}</ThemedText>
       </View>
-      <Text style={styles.score}>{score}</Text>
+      <ThemedText variant="secondary" style={styles.score}>{score}</ThemedText>
     </TouchableOpacity>
   )
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#111827',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
     overflow: 'hidden',
   },
   header: {
@@ -135,12 +140,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   headerText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6b7280',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     flex: 1,
@@ -151,12 +154,10 @@ const styles = StyleSheet.create({
   shimmer: {
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#1f2937',
     width: '90%',
   },
   emptyText: {
     fontSize: 13,
-    color: '#6b7280',
     textAlign: 'center',
     paddingHorizontal: 16,
     paddingVertical: 20,
@@ -168,18 +169,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 10,
   },
-  myRow: {
-    backgroundColor: 'rgba(67,56,202,0.2)',
-  },
   rank: {
     width: 18,
     fontSize: 11,
     fontWeight: '600',
-    color: '#6b7280',
     textAlign: 'right',
   },
   levelBadge: {
-    backgroundColor: '#374151',
     borderRadius: 4,
     paddingHorizontal: 5,
     paddingVertical: 2,
@@ -187,27 +183,22 @@ const styles = StyleSheet.create({
   levelText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#9ca3af',
   },
   score: {
     fontSize: 13,
-    color: '#e5e7eb',
     fontVariant: ['tabular-nums'],
   },
   divider: {
     fontSize: 12,
-    color: '#374151',
     textAlign: 'center',
     paddingVertical: 2,
     letterSpacing: 2,
   },
   logPrompt: {
     fontSize: 11,
-    color: '#4b5563',
     textAlign: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
   },
 })

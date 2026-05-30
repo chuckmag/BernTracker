@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
-  Text,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -13,10 +12,13 @@ import type { StackScreenProps } from '@react-navigation/stack'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import type { FeedStackParamList, MainTabParamList, RootStackParamList } from '../../App'
 import { api, type PersonalProgram, type Workout } from '../lib/api'
-import { styleFor, WORKOUT_TYPE_STYLES, type WorkoutTypeStyle } from '../lib/workoutTypeStyles'
+import { styleFor } from '../lib/workoutTypeStyles'
 import { useGym } from '../context/GymContext'
 import { useProgramFilter } from '../context/ProgramFilterContext'
 import ProgramFilterPicker from '../components/ProgramFilterPicker'
+import { useTheme } from '../lib/theme'
+import ThemedText from '../components/ThemedText'
+import ThemedView from '../components/ThemedView'
 
 type Props = CompositeScreenProps<
   StackScreenProps<FeedStackParamList, 'Feed'>,
@@ -102,19 +104,21 @@ function WorkoutCard({
 }) {
   const ts = styleFor(workout.type)
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.cardLeft}>
-        <View style={[styles.typeBadge, { backgroundColor: ts.bgTint }]}>
-          <Text style={[styles.typeAbbr, { color: ts.tint }]}>{ts.abbr}</Text>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <ThemedView variant="card" style={styles.card}>
+        <View style={styles.cardLeft}>
+          <View style={[styles.typeBadge, { backgroundColor: ts.bgTint }]}>
+            <ThemedText style={[styles.typeAbbr, { color: ts.tint }]}>{ts.abbr}</ThemedText>
+          </View>
+          <View style={styles.cardBody}>
+            <ThemedText style={styles.cardTitle} numberOfLines={1}>{workout.title}</ThemedText>
+            <ThemedText variant="tertiary" style={styles.cardType}>
+              {isPersonal ? `Personal · ${ts.label}` : ts.label}
+            </ThemedText>
+          </View>
         </View>
-        <View style={styles.cardBody}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{workout.title}</Text>
-          <Text style={styles.cardType}>
-            {isPersonal ? `Personal · ${ts.label}` : ts.label}
-          </Text>
-        </View>
-      </View>
-      <Text style={styles.chevron}>›</Text>
+        <ThemedText variant="muted" style={styles.chevron}>›</ThemedText>
+      </ThemedView>
     </TouchableOpacity>
   )
 }
@@ -127,6 +131,7 @@ interface DayBlockItemProps {
 }
 
 function DayBlockItem({ block, personalProgramId, onWorkoutPress, onAddPersonalPress }: DayBlockItemProps) {
+  const { colors } = useTheme()
   // Partition the day's workouts into gym tiles and personal tiles. Personal
   // tiles always sort to the bottom of the day with an "Extra work" divider
   // between, mirroring the web feed (#183) — readable as "your extra work,
@@ -146,8 +151,8 @@ function DayBlockItem({ block, personalProgramId, onWorkoutPress, onAddPersonalP
   return (
     <View style={styles.dayBlock}>
       <View style={styles.dayHeaderRow}>
-        <Text style={styles.dayHeader}>{formatDateHeader(block.date)}</Text>
-        <View style={styles.divider} />
+        <ThemedText variant="tertiary" style={styles.dayHeader}>{formatDateHeader(block.date)}</ThemedText>
+        <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
         {onAddPersonalPress && (
           <TouchableOpacity
             onPress={() => onAddPersonalPress(block.date)}
@@ -156,13 +161,13 @@ function DayBlockItem({ block, personalProgramId, onWorkoutPress, onAddPersonalP
             style={styles.addBtn}
             hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
           >
-            <Text style={styles.addBtnText}>+</Text>
+            <ThemedText variant="tertiary" style={styles.addBtnText}>+</ThemedText>
           </TouchableOpacity>
         )}
       </View>
       {empty ? (
         <View style={styles.emptyDay}>
-          <Text style={styles.emptyDayText}>No workouts planned</Text>
+          <ThemedText variant="muted" style={styles.emptyDayText}>No workouts planned</ThemedText>
         </View>
       ) : (
         <>
@@ -173,9 +178,9 @@ function DayBlockItem({ block, personalProgramId, onWorkoutPress, onAddPersonalP
             <>
               {gymTiles.length > 0 && (
                 <View style={styles.extraWorkDivider}>
-                  <View style={styles.extraWorkLine} />
-                  <Text style={styles.extraWorkLabel}>EXTRA WORK</Text>
-                  <View style={styles.extraWorkLine} />
+                  <View style={[styles.extraWorkLine, { backgroundColor: colors.borderSubtle }]} />
+                  <ThemedText variant="tertiary" style={styles.extraWorkLabel}>EXTRA WORK</ThemedText>
+                  <View style={[styles.extraWorkLine, { backgroundColor: colors.borderSubtle }]} />
                 </View>
               )}
               {personalTiles.map((w) => (
@@ -195,6 +200,7 @@ function DayBlockItem({ block, personalProgramId, onWorkoutPress, onAddPersonalP
 }
 
 export default function FeedScreen({ navigation }: Props) {
+  const { colors } = useTheme()
   const { activeGym } = useGym()
   const { selected: selectedProgramIds } = useProgramFilter()
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([])
@@ -290,67 +296,67 @@ export default function FeedScreen({ navigation }: Props) {
 
   if (!activeGym) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.emptyText}>No gym selected.</Text>
-      </View>
+      <ThemedView variant="screen" style={styles.center}>
+        <ThemedText variant="tertiary" style={styles.emptyText}>No gym selected.</ThemedText>
+      </ThemedView>
     )
   }
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#818cf8" />
-      </View>
+      <ThemedView variant="screen" style={styles.center}>
+        <ActivityIndicator color={colors.primary} />
+      </ThemedView>
     )
   }
 
   return (
-    <FlatList
-      style={styles.container}
-      contentContainerStyle={dayBlocks.length === 0 ? styles.centerContent : styles.listContent}
-      data={dayBlocks}
-      keyExtractor={(b) => b.date}
-      renderItem={({ item }) => (
-        <DayBlockItem
-          block={item}
-          personalProgramId={personalProgram?.id ?? null}
-          onWorkoutPress={(id) => navigation.navigate('WodDetail', { workoutId: id })}
-          onAddPersonalPress={
-            personalProgram
-              ? (dateKey) => navigation.navigate('WorkoutEditor', { mode: 'create', scheduledAt: dateKey })
-              : null
-          }
-        />
-      )}
-      onEndReached={loadMoreOlder}
-      onEndReachedThreshold={0.5}
-      ListEmptyComponent={
-        <View style={styles.center}>
-          <Text style={styles.emptyText}>{error ?? 'No workouts to show.'}</Text>
-        </View>
-      }
-      ListFooterComponent={
-        loadingMore ? (
-          <View style={styles.footerLoading}>
-            <ActivityIndicator color="#818cf8" />
+    <ThemedView variant="screen" style={styles.container}>
+      <FlatList
+        contentContainerStyle={dayBlocks.length === 0 ? styles.centerContent : styles.listContent}
+        data={dayBlocks}
+        keyExtractor={(b) => b.date}
+        renderItem={({ item }) => (
+          <DayBlockItem
+            block={item}
+            personalProgramId={personalProgram?.id ?? null}
+            onWorkoutPress={(id) => navigation.navigate('WodDetail', { workoutId: id })}
+            onAddPersonalPress={
+              personalProgram
+                ? (dateKey) => navigation.navigate('WorkoutEditor', { mode: 'create', scheduledAt: dateKey })
+                : null
+            }
+          />
+        )}
+        onEndReached={loadMoreOlder}
+        onEndReachedThreshold={0.5}
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <ThemedText variant="tertiary" style={styles.emptyText}>{error ?? 'No workouts to show.'}</ThemedText>
           </View>
-        ) : null
-      }
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          tintColor="#818cf8"
-        />
-      }
-    />
+        }
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.footerLoading}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : null
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      />
+    </ThemedView>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
   },
   listContent: {
     paddingVertical: 16,
@@ -362,10 +368,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#030712',
   },
   emptyText: {
-    color: '#6b7280',
     fontSize: 15,
     textAlign: 'center',
     paddingHorizontal: 24,
@@ -383,13 +387,11 @@ const styles = StyleSheet.create({
   dayHeader: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#6b7280',
     letterSpacing: 0.8,
   },
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: '#1f2937',
   },
   // Right-aligned "+" button on the day header — taps into WorkoutEditor
   // (create mode) for that calendar date. Hit-slop padded so the touch
@@ -403,7 +405,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   addBtnText: {
-    color: '#9ca3af',
     fontSize: 22,
     fontWeight: '500',
     lineHeight: 24,
@@ -420,10 +421,8 @@ const styles = StyleSheet.create({
   extraWorkLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#1f2937',
   },
   extraWorkLabel: {
-    color: '#6b7280',
     fontSize: 9,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -433,12 +432,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   emptyDayText: {
-    color: '#4b5563',
     fontSize: 13,
     fontStyle: 'italic',
   },
   card: {
-    backgroundColor: '#111827',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
@@ -472,16 +469,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
     marginBottom: 2,
   },
   cardType: {
     fontSize: 12,
-    color: '#6b7280',
   },
   chevron: {
     fontSize: 20,
-    color: '#4b5563',
     marginLeft: 8,
   },
   footerLoading: {

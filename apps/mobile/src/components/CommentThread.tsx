@@ -52,7 +52,7 @@ function Avatar({ user, size = 32 }: AvatarProps) {
         },
       ]}
     >
-      <Text style={[styles.avatarText, { fontSize: size * 0.35 }]}>
+      <Text style={[styles.avatarText, { fontSize: size * 0.35, color: colors.textPrimary }]}>
         {initials(user?.firstName ?? null, user?.lastName ?? null)}
       </Text>
     </View>
@@ -273,7 +273,7 @@ export default function CommentThread({ resultId }: Props) {
           activeOpacity={0.8}
           testID="post-button"
         >
-          <Text style={styles.postBtnText}>{submitting ? '…' : 'Post'}</Text>
+          <Text style={[styles.postBtnText, { color: colors.onPrimary }]}>{submitting ? '…' : 'Post'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -346,7 +346,6 @@ const styles = StyleSheet.create({
     minWidth: 52,
   },
   postBtnText: {
-    color: '#ffffff',
     fontWeight: '600',
     fontSize: 14,
   },
@@ -375,7 +374,6 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   avatarText: {
-    color: '#ffffff',
     fontWeight: '700',
   },
   commentBody: {

@@ -218,7 +218,7 @@ export default function SettingsScreen() {
                       ]}
                       testID={`gender-chip-${g.value}`}
                     >
-                      <ThemedText style={[styles.chipText, { color: active ? '#ffffff' : colors.textSecondary }]}>
+                      <ThemedText style={[styles.chipText, { color: active ? colors.onPrimary : colors.textSecondary }]}>
                         {g.label}
                       </ThemedText>
                     </TouchableOpacity>
@@ -249,7 +249,7 @@ export default function SettingsScreen() {
                       ]}
                       testID={`theme-chip-${t.value}`}
                     >
-                      <ThemedText style={[styles.chipText, { color: active ? '#ffffff' : colors.textSecondary }]}>
+                      <ThemedText style={[styles.chipText, { color: active ? colors.onPrimary : colors.textSecondary }]}>
                         {t.label}
                       </ThemedText>
                     </TouchableOpacity>
@@ -275,8 +275,8 @@ export default function SettingsScreen() {
             testID="save-button"
           >
             {saving
-              ? <ActivityIndicator color="#ffffff" />
-              : <ThemedText style={styles.saveButtonText}>Save changes</ThemedText>}
+              ? <ActivityIndicator color={colors.onPrimary} />
+              : <ThemedText style={[styles.saveButtonText, { color: colors.onPrimary }]}>Save changes</ThemedText>}
           </TouchableOpacity>
 
           {/* Sign out — danger zone, lives at the bottom out of muscle-memory reach */}
@@ -379,7 +379,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveButtonText: {
-    color: '#ffffff',
     fontSize: 15,
     fontWeight: '600',
   },

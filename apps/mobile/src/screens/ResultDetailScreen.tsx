@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { useAuth } from '../context/AuthContext'
@@ -7,6 +7,9 @@ import { api, type LeaderboardEntry, type Workout } from '../lib/api'
 import { formatResultValue } from '../lib/format'
 import UserAvatar from '../components/UserAvatar'
 import { displayNameOf } from '../components/UserRowProfile'
+import { useTheme } from '../lib/theme'
+import ThemedText from '../components/ThemedText'
+import ThemedView from '../components/ThemedView'
 
 type Props = StackScreenProps<RootStackParamList, 'ResultDetail'>
 
@@ -27,6 +30,7 @@ function scheduledDateLabel(iso: string): string {
 }
 
 export default function ResultDetailScreen({ route, navigation }: Props) {
+  const { colors } = useTheme()
   const { workoutId, resultId, from } = route.params
   const { user: me } = useAuth()
   const [workout, setWorkout] = useState<Workout | null>(null)
@@ -56,17 +60,17 @@ export default function ResultDetailScreen({ route, navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator color="#818cf8" />
-      </View>
+      <ThemedView variant="screen" style={styles.centered}>
+        <ActivityIndicator color={colors.primary} />
+      </ThemedView>
     )
   }
 
   if (error || !workout || !result) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error ?? 'Result not found.'}</Text>
-      </View>
+      <ThemedView variant="screen" style={styles.centered}>
+        <ThemedText style={[styles.errorText, { color: colors.errorText }]}>{error ?? 'Result not found.'}</ThemedText>
+      </ThemedView>
     )
   }
 
@@ -76,52 +80,53 @@ export default function ResultDetailScreen({ route, navigation }: Props) {
   const score = formatResultValue(result.value)
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      {/* Header: avatar + title */}
-      <View style={styles.titleRow}>
-        <UserAvatar
-          avatarUrl={result.user.avatarUrl}
-          firstName={result.user.firstName}
-          lastName={result.user.lastName}
-          name={result.user.name}
-          size="sm"
-        />
-        <Text style={styles.title}>{title}</Text>
-      </View>
-
-      {/* Workout context */}
-      <View style={styles.section}>
-        <Text style={styles.workoutTitle}>{workout.title}</Text>
-        <Text style={styles.workoutDate}>{scheduledDateLabel(workout.scheduledAt)}</Text>
-      </View>
-
-      {/* Result */}
-      <View style={styles.resultCard}>
-        <View style={styles.resultRow}>
-          <Text style={styles.resultLabel}>Result</Text>
-          <Text style={styles.resultValue}>{score}</Text>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelText}>{LEVEL_LABELS[result.level] ?? result.level}</Text>
-          </View>
+    <ThemedView variant="screen" style={styles.root}>
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Header: avatar + title */}
+        <View style={styles.titleRow}>
+          <UserAvatar
+            avatarUrl={result.user.avatarUrl}
+            firstName={result.user.firstName}
+            lastName={result.user.lastName}
+            name={result.user.name}
+            size="sm"
+          />
+          <ThemedText style={styles.title}>{title}</ThemedText>
         </View>
 
-        <View style={styles.divider} />
+        {/* Workout context */}
+        <View style={styles.section}>
+          <ThemedText style={styles.workoutTitle}>{workout.title}</ThemedText>
+          <ThemedText variant="tertiary" style={styles.workoutDate}>{scheduledDateLabel(workout.scheduledAt)}</ThemedText>
+        </View>
 
-        <Text style={styles.notesLabel}>Notes</Text>
-        {result.notes ? (
-          <Text style={styles.notes}>{result.notes}</Text>
-        ) : (
-          <Text style={styles.notesEmpty}>No notes for this result.</Text>
-        )}
-      </View>
-    </ScrollView>
+        {/* Result */}
+        <ThemedView variant="card" style={[styles.resultCard, { borderColor: colors.borderSubtle }]}>
+          <View style={styles.resultRow}>
+            <ThemedText variant="tertiary" style={styles.resultLabel}>Result</ThemedText>
+            <ThemedText style={styles.resultValue}>{score}</ThemedText>
+            <View style={[styles.levelBadge, { backgroundColor: colors.borderInteractive }]}>
+              <ThemedText variant="tertiary" style={styles.levelText}>{LEVEL_LABELS[result.level] ?? result.level}</ThemedText>
+            </View>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
+
+          <ThemedText variant="tertiary" style={styles.notesLabel}>Notes</ThemedText>
+          {result.notes ? (
+            <ThemedText variant="secondary" style={styles.notes}>{result.notes}</ThemedText>
+          ) : (
+            <ThemedText variant="muted" style={styles.notesEmpty}>No notes for this result.</ThemedText>
+          )}
+        </ThemedView>
+      </ScrollView>
+    </ThemedView>
   )
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#030712',
   },
   content: {
     padding: 16,
@@ -129,12 +134,10 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    backgroundColor: '#030712',
     alignItems: 'center',
     justifyContent: 'center',
   },
   errorText: {
-    color: '#f87171',
     fontSize: 14,
   },
   titleRow: {
@@ -145,7 +148,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
     flex: 1,
     flexWrap: 'wrap',
   },
@@ -155,17 +157,13 @@ const styles = StyleSheet.create({
   workoutTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#f9fafb',
   },
   workoutDate: {
     fontSize: 13,
-    color: '#9ca3af',
   },
   resultCard: {
-    backgroundColor: '#111827',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1f2937',
     padding: 16,
     gap: 10,
   },
@@ -177,18 +175,15 @@ const styles = StyleSheet.create({
   resultLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6b7280',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   resultValue: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#f9fafb',
     fontVariant: ['tabular-nums'],
   },
   levelBadge: {
-    backgroundColor: '#374151',
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -196,27 +191,22 @@ const styles = StyleSheet.create({
   levelText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#9ca3af',
   },
   divider: {
     height: 1,
-    backgroundColor: '#1f2937',
   },
   notesLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6b7280',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   notes: {
     fontSize: 14,
-    color: '#d1d5db',
     lineHeight: 20,
   },
   notesEmpty: {
     fontSize: 14,
-    color: '#4b5563',
     fontStyle: 'italic',
   },
 })

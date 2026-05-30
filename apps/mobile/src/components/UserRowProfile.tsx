@@ -1,5 +1,6 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, TouchableOpacity, StyleSheet } from 'react-native'
 import UserAvatar from './UserAvatar'
+import ThemedText from './ThemedText'
 
 export interface UserRowProfileUser {
   id: string
@@ -39,9 +40,9 @@ export default function UserRowProfile({ user, onAvatarPress }: Props) {
           size="sm"
         />
       </TouchableOpacity>
-      <Text style={styles.name} numberOfLines={1}>
+      <ThemedText style={styles.name} numberOfLines={1}>
         {displayNameOf(user)}
-      </Text>
+      </ThemedText>
     </View>
   )
 }
@@ -58,6 +59,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '500',
-    color: '#f9fafb',
   },
 })
