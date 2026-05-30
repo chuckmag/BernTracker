@@ -32,7 +32,7 @@ export default function GoalProgressRing({
     return (
       <View style={[styles.ring, { width: size, height: size }]}>
         <ThemedText
-          variant={isComplete ? 'primary' : 'label'}
+          variant="label"
           style={[styles.ringInnerHabit, isComplete && { color: colors.successText }]}
         >
           {isComplete ? '✓' : '·'}

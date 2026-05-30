@@ -158,7 +158,7 @@ export default function GoalsScreen() {
               accessibilityLabel={TAB_LABELS[status]}
             >
               <ThemedText
-                variant={tab === status ? 'primary' : 'tertiary'}
+                variant={tab === status ? undefined : 'tertiary'}
                 style={[s.tabText, tab === status && s.tabTextActive]}
               >
                 {TAB_LABELS[status]}

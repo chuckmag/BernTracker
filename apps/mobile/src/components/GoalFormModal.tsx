@@ -481,7 +481,7 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
                     onPress={() => setSubject('movement')}
                   >
                     <ThemedText
-                      variant={subject === 'movement' ? 'primary' : 'tertiary'}
+                      variant="tertiary"
                       style={[s.subjectChipText, subject === 'movement' && { color: colors.onPrimary, fontWeight: '600' }]}
                     >
                       Movement
@@ -492,7 +492,7 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
                     onPress={() => setSubject('namedWorkout')}
                   >
                     <ThemedText
-                      variant={subject === 'namedWorkout' ? 'primary' : 'tertiary'}
+                      variant="tertiary"
                       style={[s.subjectChipText, subject === 'namedWorkout' && { color: colors.onPrimary, fontWeight: '600' }]}
                     >
                       Named workout
@@ -562,7 +562,7 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
                           onPress={() => setTargetLoadUnit(u)}
                         >
                           <ThemedText
-                            variant={targetLoadUnit === u ? 'primary' : 'tertiary'}
+                            variant="tertiary"
                             style={[s.subjectChipText, targetLoadUnit === u && { color: colors.onPrimary, fontWeight: '600' }]}
                           >
                             {u}
