@@ -77,22 +77,11 @@ A framework and toolchain built on top of React Native that handles all the pain
 
 **For app store distribution:** Yes — you need an EAS account. For a team project, use an **Expo organization account** rather than a personal one so the project isn't tied to one person's login. When the time comes, the owner creates the org at [expo.dev](https://expo.dev) and invites team members.
 
-#### EAS setup (defer until pre-launch)
+#### EAS setup
 
-When you're ready to distribute to TestFlight or the Play Store, run:
+EAS is configured. Build profiles (`development`, `preview`, `production`), credentials, and the `npm run build:*` / `submit:*` scripts are all documented in [`apps/mobile/README.md`](apps/mobile/README.md). Read that file when you're ready to ship a build to TestFlight or Google Play Internal Testing.
 
-```bash
-# 1. Link the project to your Expo organization account (run once)
-npx eas-cli@latest init
-
-# 2. Configure build profiles (creates eas.json — commit this file)
-npx eas-cli@latest build:configure
-
-# 3. Build for both platforms and submit to stores (when ready to release)
-npx eas-cli@latest build --platform all --auto-submit
-```
-
-> **Not now:** `eas build` costs EAS build credits, requires an Apple Developer Program account ($99/yr) and Google Play Console account ($25 one-time), and is only relevant at the point of shipping to users. This is a Slice 5+ concern.
+> Pure Expo Go dev (`npm run dev` in `apps/mobile/`) needs no EAS account or credentials — just install Expo Go on your phone and scan the QR code. EAS is only required when you're producing a signed binary for a store.
 
 ---
 

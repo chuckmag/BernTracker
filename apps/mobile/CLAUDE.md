@@ -41,6 +41,10 @@ npx jest -t "renders feed rows"
 
 **Connecting Expo Go to a local API:** set `EXPO_PUBLIC_API_URL` in the repo-root `.env` to your Mac's LAN IP (`ipconfig getifaddr en0`), not `localhost` — `localhost` resolves to the phone, not the dev machine. iOS Simulator can use `localhost` directly.
 
+**EAS build / submit workflows live in [`README.md`](./README.md).** That file documents the `build:*` / `submit:*` npm scripts, credential setup, profiles, and known gotchas — Read it when the user asks about shipping a build, not by default.
+
+**Don't remove or rename the `eas-build-post-install` script in `package.json`.** It compiles `@wodalytics/types` (`tsc` → `packages/types/dist/`) before Metro runs on the EAS worker. Without it, every EAS build fails with `Unable to resolve module @wodalytics/types`, because EAS only runs `npm install` on the worker and never builds workspace packages. Safe to remove only if `@wodalytics/types` is also removed from `dependencies`.
+
 ## Cross-app contracts (web parity)
 
 Mobile must mirror the per-user state shapes the web already uses, so a user can switch between web and mobile without losing context. When adding a new piece of persisted state, check `apps/web/CLAUDE.md` → *Cross-app contracts* first and match the storage key + API shape. The active mobile-parity backlog lives at #130; see the root CLAUDE.md → *Parity-first feature design* for the planning rule that governs how mobile and web stay in sync.
