@@ -331,6 +331,17 @@ async function testEmptyNoteRejected() {
   check('400 on note=""', 400, r.status)
 }
 
+async function testInvalidIsoDateRejected() {
+  console.log('\n=== POST — Zod-valid but calendar-invalid ISO date rejected ===')
+  // Zod's `.datetime()` validates format only; "2026-13-01T00:00:00.000Z"
+  // passes Zod but new Date() produces Invalid Date. The handler must
+  // 400 instead of forwarding NaN to Prisma.
+  const r = await api('POST', `/goals/${habitGoalId}/check-ins`, token, {
+    date: '2026-13-01T00:00:00.000Z',
+  })
+  check('400 on impossible calendar date', 400, r.status)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -346,6 +357,7 @@ async function main() {
     await testListCheckIns()
     await testNoteTooLong()
     await testEmptyNoteRejected()
+    await testInvalidIsoDateRejected()
   } finally {
     await cleanup()
     await prisma.$disconnect()

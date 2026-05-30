@@ -152,7 +152,13 @@ async function recordCheckInHandler(req: Request, res: Response) {
   const parsed = RecordGoalCheckInSchema.safeParse(req.body ?? {})
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
+  // Zod's `.datetime()` validates format but not calendar validity, so a
+  // string like "2026-13-01T00:00:00Z" passes Zod and produces an Invalid
+  // Date here — guard before it reaches Prisma.
   const date = parsed.data.date ? new Date(parsed.data.date) : new Date()
+  if (Number.isNaN(date.getTime())) {
+    return res.status(400).json({ error: 'Date is not a valid calendar date' })
+  }
   const row = await recordCheckIn({
     goalId: goal.id,
     userId: req.user!.id,
@@ -190,10 +196,12 @@ async function listCheckInsHandler(req: Request, res: Response) {
   const untilRaw = req.query.until
   const limitRaw = req.query.limit
 
+  // parseQueryDate returns null on parse failure. Reject before passing
+  // down so the manager only sees `Date | undefined`.
   const since = typeof sinceRaw === 'string' ? parseQueryDate(sinceRaw) : undefined
+  if (since === null) return res.status(400).json({ error: 'Invalid since date' })
   const until = typeof untilRaw === 'string' ? parseQueryDate(untilRaw) : undefined
-  if (sinceRaw !== undefined && since === null) return res.status(400).json({ error: 'Invalid since date' })
-  if (untilRaw !== undefined && until === null) return res.status(400).json({ error: 'Invalid until date' })
+  if (until === null) return res.status(400).json({ error: 'Invalid until date' })
 
   let limit: number | undefined
   if (typeof limitRaw === 'string') {
@@ -204,11 +212,9 @@ async function listCheckInsHandler(req: Request, res: Response) {
     limit = n
   }
 
-  const rows = await findCheckInsForGoal(goal.id, {
-    since: since ?? undefined,
-    until: until ?? undefined,
-    limit,
-  })
+  // The null guards above narrowed since/until to `Date | undefined` —
+  // no `?? undefined` fallback needed.
+  const rows = await findCheckInsForGoal(goal.id, { since, until, limit })
   res.json(rows.map(toCheckInResponse))
 }
 
