@@ -48,6 +48,7 @@ export default (): ExpoConfig => {
       },
       predictiveBackGestureEnabled: false,
     },
+    plugins: ['expo-web-browser'],
     updates: { url: `https://u.expo.dev/${projectId}` },
     extra: { eas: { projectId } },
   }
