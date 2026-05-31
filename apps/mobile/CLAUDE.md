@@ -47,17 +47,15 @@ npx jest -t "renders feed rows"
 
 ## Dynamic Expo config — `app.config.ts`
 
-The Expo config lives in `app.config.ts` (not `app.json`). It reads `EAS_PROJECT_ID` from `process.env` and only emits `updates.url` / `extra.eas.projectId` when that env var is set. Local `expo start` runs leave those fields undefined, which keeps `expo-updates` from emitting warnings about an unrouted OTA channel during development.
+The Expo config lives in `app.config.ts` (not `app.json`). The canonical wodtech project ID (`f0a6deb9-d571-4d24-9e33-d456bf16ebe3`) is a hard default at the top of the file, with `EAS_PROJECT_ID` from `process.env` as an override.
 
-The project ID `f0a6deb9-d571-4d24-9e33-d456bf16ebe3` is baked into every build profile's `env` block in `eas.json`, so `npm run build:*` / `npm run submit:*` resolve the projectId automatically — no engineer action required.
+**Why a hard default and not pure env-driven?** `eas submit` (and the local CLI step of `eas build`) evaluate `app.config.ts` *in the local CLI process*, before any `eas.json` `env` block is applied. `env` blocks only run on the build worker. If `extra.eas.projectId` resolves to `undefined` locally, the CLI prompts to write the projectId back into the dynamic config — which it can't (dynamic configs aren't auto-writeable) and the command fails. Keeping the default in code lets `eas submit`/`eas build` just work.
 
-**When to set `EAS_PROJECT_ID` locally:** only if you want to exercise OTA updates in development. Export it in your shell or add it to the repo-root `.env`:
+**When to set `EAS_PROJECT_ID` locally:** only for forks or throwaway test projects pointing at a different Expo project. The default covers every wodtech build/submit. Override via shell export or `apps/mobile/.env`:
 
 ```bash
-EAS_PROJECT_ID=f0a6deb9-d571-4d24-9e33-d456bf16ebe3
+EAS_PROJECT_ID=<some-other-project-id>
 ```
-
-Leaving it unset is the normal path.
 
 ## Cross-app contracts (web parity)
 

@@ -11,8 +11,7 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://qa.wodalytics.com",
-        "EAS_PROJECT_ID": "f0a6deb9-d571-4d24-9e33-d456bf16ebe3"
+        "EXPO_PUBLIC_API_URL": "https://qa.wodalytics.com"
       }
     },
     "preview": {
@@ -20,16 +19,14 @@
       "autoIncrement": true,
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://qa.wodalytics.com",
-        "EAS_PROJECT_ID": "f0a6deb9-d571-4d24-9e33-d456bf16ebe3"
+        "EXPO_PUBLIC_API_URL": "https://qa.wodalytics.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://wodalytics.com",
-        "EAS_PROJECT_ID": "f0a6deb9-d571-4d24-9e33-d456bf16ebe3"
+        "EXPO_PUBLIC_API_URL": "https://wodalytics.com"
       }
     }
   },

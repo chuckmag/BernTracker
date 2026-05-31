@@ -1,9 +1,17 @@
 import type { ExpoConfig } from 'expo/config'
 
+// Canonical wodtech Expo project. Hard default so `eas submit`/`eas build`
+// resolve the project at local-CLI config-eval time without an env var dance —
+// eas.json `env` blocks are only applied on the build worker, not in the local
+// CLI process, so `eas submit` would otherwise prompt to write the projectId
+// back into the config. Override via EAS_PROJECT_ID env var for forks or
+// throwaway test projects.
+const DEFAULT_PROJECT_ID = 'f0a6deb9-d571-4d24-9e33-d456bf16ebe3'
+
 export default (): ExpoConfig => {
-  // Truthy check intentionally suppresses both `undefined` and `""` —
-  // an empty-string env var (e.g. `EAS_PROJECT_ID=` in `.env`) is treated as unset.
-  const projectId = process.env.EAS_PROJECT_ID
+  // `||` (not `??`) so an empty-string env var falls back to the default —
+  // matches how shells and `.env` files often clear a var by setting `KEY=`.
+  const projectId = process.env.EAS_PROJECT_ID || DEFAULT_PROJECT_ID
 
   return {
     name: 'WODalytics',
@@ -43,11 +51,7 @@ export default (): ExpoConfig => {
     web: {
       favicon: './assets/favicon.png',
     },
-    ...(projectId
-      ? {
-          updates: { url: `https://u.expo.dev/${projectId}` },
-          extra: { eas: { projectId } },
-        }
-      : {}),
+    updates: { url: `https://u.expo.dev/${projectId}` },
+    extra: { eas: { projectId } },
   }
 }
