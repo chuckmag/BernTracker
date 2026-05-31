@@ -48,9 +48,6 @@ export default (): ExpoConfig => {
       },
       predictiveBackGestureEnabled: false,
     },
-    web: {
-      favicon: './assets/favicon.png',
-    },
     updates: { url: `https://u.expo.dev/${projectId}` },
     extra: { eas: { projectId } },
   }
