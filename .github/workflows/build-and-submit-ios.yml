@@ -9,12 +9,12 @@
 #   1. Repo secret EXPO_TOKEN — an Expo access token belonging to a wodtech
 #      org member. Generate at expo.dev → Account Settings → Access Tokens.
 #   2. App Store Connect API key uploaded to the EAS credential vault for the
-#      selected profile (`eas credentials` → iOS → <profile> → App Store
-#      Connect API Key → Upload). This is Phase 1 of #488; until it's done,
-#      submit will fall back to the `ascApiKey*` paths in `apps/mobile/eas.json`
-#      which only exist on individual laptops, not on the runner — and submit
-#      will fail. Build itself is unaffected (iOS dist cert + provisioning
-#      profile are already vault-resident by default).
+#      selected profile (`npx eas-cli@latest credentials` → iOS → <profile> →
+#      App Store Connect API Key → Upload). The `submit.*.ios` blocks in
+#      `apps/mobile/eas.json` are intentionally empty so `eas submit` resolves
+#      from the vault; without the upload, the submit step will error out.
+#      Build itself is unaffected (iOS dist cert + provisioning profile are
+#      already vault-resident by default).
 
 name: build-and-submit-ios
 

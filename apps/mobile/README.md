@@ -37,10 +37,8 @@ The full table of scripts and what they do is in [Build & submit scripts](#build
 
 You only need this if you're going to run `eas build` or `eas submit` from your machine. Pure JS dev (Expo Go) needs none of it.
 
-1. **Get added to the `wodtech` Expo org** ([expo.dev](https://expo.dev) → org settings → invite). Then `npx eas-cli@latest login` and pick the account that's a member.
-2. **Get the iOS API key** — `apps/mobile/keys/AuthKey.p8`. Ask a teammate, or generate a new one at [App Store Connect → Users and Access → Integrations → App Store Connect API](https://appstoreconnect.apple.com/access/integrations/api). If you generate a new one, also update `ascApiKeyId` and `ascApiKeyIssuerId` in `eas.json` — and remember Apple shows the `.p8` exactly once at download time.
-3. **Get the Android service account JSON** — `apps/mobile/keys/berntracker-d54bfe373fb7.json`. Ask a teammate; this one is harder to regenerate because the Play Console binding is account-scoped.
-4. **Verify locally**: `npx eas-cli@latest whoami` should print your Expo username; `ls apps/mobile/keys/` should show both files.
+1. **Get added to the `wodtech` Expo org** ([expo.dev](https://expo.dev) → org settings → invite). Then `npx eas-cli@latest login` and pick the account that's a member. Both store credentials (App Store Connect API key, Google Play service account) live in the **EAS credential vault** — `eas submit` pulls them at submit time, so you never touch a `.p8` or service-account JSON locally. Rotation is `npx eas-cli@latest credentials` → choose platform/profile → upload.
+2. **Verify locally**: `npx eas-cli@latest whoami` should print your Expo username.
 
 ## Build & submit scripts
 
@@ -86,9 +84,9 @@ The runner only drives the EAS CLI; the actual build runs on EAS macOS/Linux wor
 **Prerequisites:**
 
 1. Repo secret `EXPO_TOKEN` — an Expo access token belonging to a wodtech org member. Generate at [expo.dev → Account Settings → Access Tokens](https://expo.dev/settings/access-tokens) and add at **Settings → Secrets and variables → Actions → New repository secret**.
-2. The relevant store credentials (App Store Connect API key, Google Play service account JSON) uploaded to the **EAS credential vault** via `eas credentials`. This is [#488](https://github.com/chuckmag/WODalytics/issues/488) Phase 1. Until those are in the vault, the `submit` step will fall back to the file paths in `apps/mobile/eas.json`, which only exist on individual laptops — submit will fail on the runner. Build itself works without it.
+2. App Store Connect API key + Google Play service account JSON uploaded to the **EAS credential vault** via `npx eas-cli@latest credentials`. The `submit.*` blocks in `apps/mobile/eas.json` are intentionally empty so `eas submit` resolves from the vault; without the upload, submit cannot find a key on the runner and will fail.
 
-**Fallback:** The local `npm run build:*` / `npm run submit:*` scripts (see [Build & submit scripts](#build--submit-scripts) above) keep working and are the right path when CI is unavailable or you want to ship from a branch that hasn't been pushed.
+**Fallback:** The local `npm run build:*` / `npm run submit:*` scripts (see [Build & submit scripts](#build--submit-scripts) above) keep working and are the right path when CI is unavailable or you want to ship from a branch that hasn't been pushed. They resolve credentials from the same EAS vault, so a wodtech-member `eas login` is enough.
 
 ## The first-Android-submission gotcha
 
@@ -121,7 +119,7 @@ This is required because EAS only runs `npm install` on the build worker — it 
 
 | Error | Cause | Fix |
 |---|---|---|
-| `Invalid Apple App Store Connect API Key ID` | `ascApiKeyId` / `ascApiKeyIssuerId` in `eas.json` are placeholders, or the `.p8` file is missing/wrong | Regenerate the key at App Store Connect, update `eas.json`, save the new `.p8` to `apps/mobile/keys/AuthKey.p8` |
+| `Invalid Apple App Store Connect API Key ID` | The ASC API key stored in the EAS vault has been revoked / rotated / expired | Generate a new key at App Store Connect → Users and Access → Integrations → App Store Connect API (Apple shows the `.p8` exactly once), then run `npx eas-cli@latest credentials` → iOS → `<profile>` → App Store Connect API Key → Upload, and shred the local `.p8` |
 | `Unable to resolve module ../../App from .../expo/AppEntry.js` | Metro fell back to Expo's default entry (monorepo entry-point resolution issue) | Verify `package.json` `"main": "index.ts"` is committed and `index.ts` exists |
 | `Unable to resolve module @wodalytics/types` | `eas-build-post-install` hook was removed or `packages/types/dist/` failed to build | Re-add the hook; check the EAS log for `tsc` errors in the post-install step |
 | `You haven't submitted this app to Google Play Store yet` | First Android submission for a new package | See [The first-Android-submission gotcha](#the-first-android-submission-gotcha) |

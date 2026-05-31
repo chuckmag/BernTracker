@@ -9,12 +9,12 @@
 #   1. Repo secret EXPO_TOKEN — an Expo access token belonging to a wodtech
 #      org member. Generate at expo.dev → Account Settings → Access Tokens.
 #   2. Google Play service account JSON uploaded to the EAS credential vault
-#      for the selected profile (`eas credentials` → Android → <profile> →
-#      Google Service Account → Upload). This is Phase 1 of #488; until it's
-#      done, submit will fall back to the `serviceAccountKeyPath` in
-#      `apps/mobile/eas.json` which only exists on individual laptops —
-#      and submit will fail. Build itself is unaffected (Android keystore is
-#      already vault-resident by default).
+#      for the selected profile (`npx eas-cli@latest credentials` → Android →
+#      <profile> → Google Service Account → Upload). The `submit.*.android`
+#      blocks in `apps/mobile/eas.json` are intentionally empty (apart from
+#      `track:`) so `eas submit` resolves from the vault; without the upload,
+#      the submit step will error out. Build itself is unaffected (Android
+#      keystore is already vault-resident by default).
 #   3. First-Android-submission gotcha: the very first preview/production
 #      submission for `com.wodalytics.app` must be uploaded manually through
 #      the Play Console web UI — Google requires it. See apps/mobile/README.md.
