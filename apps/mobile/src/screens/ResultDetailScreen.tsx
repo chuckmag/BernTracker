@@ -10,6 +10,7 @@ import { displayNameOf } from '../components/UserRowProfile'
 import { useTheme } from '../lib/theme'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
+import MarkdownText from '../components/MarkdownText'
 
 type Props = StackScreenProps<RootStackParamList, 'ResultDetail'>
 
@@ -114,7 +115,9 @@ export default function ResultDetailScreen({ route, navigation }: Props) {
 
           <ThemedText variant="tertiary" style={styles.notesLabel}>Notes</ThemedText>
           {result.notes ? (
-            <ThemedText variant="secondary" style={styles.notes}>{result.notes}</ThemedText>
+            <View style={styles.notes}>
+              <MarkdownText source={result.notes} variant="secondary" />
+            </View>
           ) : (
             <ThemedText variant="muted" style={styles.notesEmpty}>No notes for this result.</ThemedText>
           )}
@@ -202,8 +205,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   notes: {
-    fontSize: 14,
-    lineHeight: 20,
+    marginTop: 2,
   },
   notesEmpty: {
     fontSize: 14,

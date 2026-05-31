@@ -5,6 +5,7 @@ import { useTheme } from '../lib/theme'
 import { formatResultValue, describeSet } from '../lib/format'
 import ResultReactions from '../components/ResultReactions'
 import CommentThread from '../components/CommentThread'
+import MarkdownText from '../components/MarkdownText'
 const LEVEL_LABELS: Record<string, string> = {
   RX_PLUS: 'RX+',
   RX: 'RX',
@@ -64,7 +65,9 @@ export default function WodResultDetailScreen({ route }: Props) {
         )}
 
         {entry.notes ? (
-          <Text style={[styles.notes, { color: colors.textTertiary }]}>{entry.notes}</Text>
+          <View style={styles.notes}>
+            <MarkdownText source={entry.notes} variant="tertiary" />
+          </View>
         ) : null}
 
         {/* Reactions inline on the result card */}
@@ -145,8 +148,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   notes: {
-    fontSize: 14,
-    lineHeight: 20,
+    marginTop: 4,
   },
   commentSection: {
     borderRadius: 12,
