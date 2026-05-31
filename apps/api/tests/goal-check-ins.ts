@@ -342,6 +342,24 @@ async function testInvalidIsoDateRejected() {
   check('400 on impossible calendar date', 400, r.status)
 }
 
+async function testInvalidYmdBodyRejected() {
+  console.log('\n=== POST — Zod-valid but calendar-invalid YYYY-MM-DD body rejected ===')
+  // Two failure modes the regex check doesn't catch:
+  //   - "2026-13-99" — Invalid Date (caught by an isNaN guard)
+  //   - "2026-02-29" — V8 silently rolls over to 2026-03-01 (NOT caught
+  //                    by isNaN; only the calendar round-trip in parseYmd
+  //                    catches it)
+  const r1 = await api('POST', `/goals/${habitGoalId}/check-ins`, token, {
+    date: '2026-13-99',
+  })
+  check('400 on impossible YYYY-MM-DD components', 400, r1.status)
+
+  const r2 = await api('POST', `/goals/${habitGoalId}/check-ins`, token, {
+    date: '2026-02-29',
+  })
+  check('400 on Feb 29 of a non-leap year', 400, r2.status)
+}
+
 async function testIsoDatetimeFloorsToCalendarDate() {
   console.log('\n=== POST — ISO datetime floors to the calendar date ===')
   // The non-obvious code path: a full ISO datetime should land in the
@@ -378,6 +396,7 @@ async function main() {
     await testNoteTooLong()
     await testEmptyNoteRejected()
     await testInvalidIsoDateRejected()
+    await testInvalidYmdBodyRejected()
     await testIsoDatetimeFloorsToCalendarDate()
   } finally {
     await cleanup()

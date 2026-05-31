@@ -268,16 +268,10 @@ export async function computeGoalProgress(goal: Goal, now: Date = new Date()): P
   }
   if (goal.type === 'PR_TARGET') return computePrTargetProgress(goal)
   if (goal.type === 'FREQUENCY') return computeFrequencyProgress(goal)
-  // Exhaustive — TypeScript will flag unhandled enum members.
-  return {
-    type: 'HABIT',
-    currentStreak: 0,
-    longestStreak: 0,
-    totalCheckIns: 0,
-    weekCheckIns: 0,
-    last7Days: [],
-    checkedInToday: false,
-  }
+  // Exhaustive check — TypeScript guards this at compile time, but if a
+  // future `GoalType` enum member skips a code update we'd rather surface
+  // the gap loudly than silently return plausible-looking HABIT zeros.
+  throw new Error(`Unhandled goal type: ${(goal as Goal).type}`)
 }
 
 // ─── Auto-detection hooks ─────────────────────────────────────────────────────
