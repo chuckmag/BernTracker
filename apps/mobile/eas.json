@@ -9,6 +9,9 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://qa.wodalytics.com"
       }
     },
     "preview": {

@@ -23,7 +23,7 @@ The full table of scripts and what they do is in [Build & submit scripts](#build
 
 ## Project context — read this first
 
-- **EAS project owner is `wodtech`** (the org), not anyone's personal account. When you `npx eas-cli@latest login`, log in as a user who's a member of `wodtech`. The project ID is `f0a6deb9-d571-4d24-9e33-d456bf16ebe3`, already committed in `app.json`.
+- **EAS project owner is `wodtech`** (the org), not anyone's personal account. When you `npx eas-cli@latest login`, log in as a user who's a member of `wodtech`. The project ID is `f0a6deb9-d571-4d24-9e33-d456bf16ebe3`, set via the `EAS_PROJECT_ID` env var in every build profile's `env` block in `eas.json` — `app.config.ts` reads it from `process.env` at config-eval time (see [Dynamic Expo config](#dynamic-expo-config) below).
 - **Two app stores, three keys.**
   - **Apple Developer Program** ($99/yr) account → App Store Connect API key → `apps/mobile/keys/AuthKey.p8`
   - **Google Play Console** ($25 one-time) account → Google Cloud service account → `apps/mobile/keys/berntracker-d54bfe373fb7.json`
@@ -89,6 +89,12 @@ If `npm run submit:preview:android` fails with `You haven't submitted this app t
 4. Once that release is in the testing track, re-run `npm run submit:preview:android` for the *next* build and it will succeed.
 
 This is documented at [expo.fyi/first-android-submission](https://expo.fyi/first-android-submission).
+
+## Dynamic Expo config
+
+`apps/mobile/app.config.ts` is a TypeScript dynamic config that reads `EAS_PROJECT_ID` from `process.env` and only emits `updates.url` / `extra.eas.projectId` when set. Every build profile in `eas.json` injects the project ID, so builds resolve it automatically.
+
+See [`CLAUDE.md` → *Dynamic Expo config*](./CLAUDE.md#dynamic-expo-config--appconfigts) for the full explanation and the local-dev override path.
 
 ## Monorepo build-time gotcha (don't touch)
 

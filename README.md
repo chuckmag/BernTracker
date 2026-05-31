@@ -181,6 +181,8 @@ Hot reload is on by default — saving any file in `apps/mobile/` updates the ap
 
 > **Simulator alternative:** If you have Xcode installed, press `i` in the Expo terminal to open in the iOS Simulator — no phone needed and `localhost` works as-is.
 
+> **`EAS_PROJECT_ID` env var (optional):** `apps/mobile/app.config.ts` is a dynamic Expo config that defaults the Expo project ID to the canonical wodtech project. Set `EAS_PROJECT_ID` in `apps/mobile/.env` (the file Expo reads) only if you're working a fork that points at a different Expo project — the default works for every wodtech build, submit, and local dev session. See `apps/mobile/CLAUDE.md` → *Dynamic Expo config* for the full rationale.
+
 ### Schema migrations
 
 Any time you change `packages/db/prisma/schema.prisma`, run the migration command and **commit the generated file** before opening or merging a PR:
