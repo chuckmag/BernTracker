@@ -88,6 +88,14 @@ The runner only drives the EAS CLI; the actual build runs on EAS macOS/Linux wor
 
 **Fallback:** The local `npm run build:*` / `npm run submit:*` scripts (see [Build & submit scripts](#build--submit-scripts) above) keep working and are the right path when CI is unavailable or you want to ship from a branch that hasn't been pushed. They resolve credentials from the same EAS vault, so a wodtech-member `eas login` is enough.
 
+### Shipping a JS-only OTA update (`eas update`)
+
+A third manual workflow, `.github/workflows/eas-update.yml`, publishes a JS-only over-the-air update via `eas update`. Triggered the same way (**Actions → eas-update → Run workflow**), pick the branch (`preview` or `production` — matches the channel set in the corresponding `eas.json` build profile), optionally type a message, click Run. Any installed build with `expo-updates` and a matching `runtimeVersion` picks up the update on next launch.
+
+Cheaper than a full rebuild — no `.ipa` / `.aab`, no TestFlight / Play upload, no store review. Use it for JS-only fixes (bug fix, copy change, new screen that doesn't add a native module). Anything that touches native code (new Expo SDK package, plugin change, native config) still needs `build-and-submit-*`.
+
+Only prerequisite beyond `EXPO_TOKEN` is a one-time channel→branch mapping in the [Expo dashboard → Updates → Channels](https://expo.dev/accounts/wodtech/projects/wodalytics/channels) — the workflow creates the branch on first publish, but it cannot create the mapping.
+
 ## The first-Android-submission gotcha
 
 The first time you push a new package name (`com.wodalytics.app`) to Google Play, **the API will reject it**. Google requires the first submission to be uploaded manually through the Play Console web UI to verify ownership. After that, the API works for every subsequent release.
