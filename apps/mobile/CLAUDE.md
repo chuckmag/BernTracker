@@ -57,6 +57,20 @@ The Expo config lives in `app.config.ts` (not `app.json`). The canonical wodtech
 EAS_PROJECT_ID=<some-other-project-id>
 ```
 
+## `expo-doctor` — major-version warnings are build-breaking
+
+Treat any `❗ Major version mismatch` line from `npx expo-doctor` against an Expo-managed package as **must-fix before the next EAS build**, not informational. Patch and minor drift can usually wait, but a major-version mismatch on a native module (e.g. `expo-web-browser`, `expo-image-picker`, `expo-secure-store`) means the JS package and the autolinked native class registration are out of sync. The build succeeds, the bundle runs, and then the first `requireNativeModule('X')` call throws an unhandled JS exception — which RN routes to `RCTFatal → abort()` in release, surfacing as an immediate-launch TestFlight crash with no visible error message unless `expo-updates` is disabled.
+
+**Fix path** — from `apps/mobile/`:
+
+```bash
+npx expo install --fix     # bumps all expo packages to the SDK-recommended versions
+npm run lint && npm test   # sanity check
+# review the changes in package.json + package-lock.json before committing
+```
+
+If the doctor output suggests adding a config plugin (e.g. `Add "expo-web-browser" to plugins`), our dynamic `app.config.ts` won't accept the auto-rewrite; add it manually to the `plugins` array in the returned config. iOS treats most of these plugins as no-ops; Android often depends on them for Custom Tabs / intent-filter / permission wiring at prebuild time.
+
 ## Cross-app contracts (web parity)
 
 Mobile must mirror the per-user state shapes the web already uses, so a user can switch between web and mobile without losing context. When adding a new piece of persisted state, check `apps/web/CLAUDE.md` → *Cross-app contracts* first and match the storage key + API shape. The active mobile-parity backlog lives at #130; see the root CLAUDE.md → *Parity-first feature design* for the planning rule that governs how mobile and web stay in sync.
