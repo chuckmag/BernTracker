@@ -1,0 +1,104 @@
+# Manual CI build + TestFlight submit for iOS.
+#
+# Triggered from Actions → "build-and-submit-ios" → Run workflow. The runner
+# only drives the EAS CLI — the actual `.ipa` build happens on EAS's macOS
+# workers (so this can stay on `ubuntu-latest`), and the resulting artifact is
+# pushed straight to TestFlight from EAS without ever touching the runner.
+#
+# Prerequisites:
+#   1. Repo secret EXPO_TOKEN — an Expo access token belonging to a wodtech
+#      org member. Generate at expo.dev → Account Settings → Access Tokens.
+#   2. App Store Connect API key uploaded to the EAS credential vault for the
+#      selected profile (`eas credentials` → iOS → <profile> → App Store
+#      Connect API Key → Upload). This is Phase 1 of #488; until it's done,
+#      submit will fall back to the `ascApiKey*` paths in `apps/mobile/eas.json`
+#      which only exist on individual laptops, not on the runner — and submit
+#      will fail. Build itself is unaffected (iOS dist cert + provisioning
+#      profile are already vault-resident by default).
+
+name: build-and-submit-ios
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS build profile'
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
+      submit:
+        description: 'Submit the build to TestFlight (uncheck to build only)'
+        type: boolean
+        default: true
+
+# Serialize per profile so two preview builds can't race each other to the
+# submit step and upload the wrong artifact. Cross-platform doesn't conflict
+# (android lives in its own workflow with its own group).
+concurrency:
+  group: build-and-submit-ios-${{ inputs.profile }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-submit:
+    name: Build${{ inputs.submit && ' + submit' || '' }} iOS (${{ inputs.profile }})
+    runs-on: ubuntu-latest
+    # EAS preview builds are typically 25-45 min; production can run longer.
+    # Cap at 2h so a stuck queue doesn't hold a runner forever.
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fail fast if EXPO_TOKEN is missing
+        if: env.EXPO_TOKEN == ''
+        run: |
+          echo "::error::EXPO_TOKEN secret is not set. Add it at Settings → Secrets and variables → Actions."
+          exit 1
+
+      - name: Confirm EAS auth
+        run: npx eas-cli@latest whoami
+
+      - name: Build (non-interactive, wait for completion)
+        id: build
+        run: |
+          set -euo pipefail
+          out=$(npx eas-cli@latest build \
+            --profile "${{ inputs.profile }}" \
+            --platform ios \
+            --non-interactive \
+            --wait \
+            --json)
+          # With --wait + --json, eas build emits a JSON array of build objects.
+          build_id=$(echo "$out" | jq -r '.[0].id // empty')
+          build_url=$(echo "$out" | jq -r '.[0].artifacts.buildUrl // .[0].id // empty')
+          if [ -z "$build_id" ]; then
+            echo "::error::Could not parse build ID from eas build output:"
+            echo "$out"
+            exit 1
+          fi
+          echo "build_id=$build_id" >> "$GITHUB_OUTPUT"
+          echo "::notice title=iOS build complete::id=$build_id  url=$build_url"
+
+      - name: Submit build to TestFlight
+        if: ${{ inputs.submit }}
+        run: |
+          npx eas-cli@latest submit \
+            --profile "${{ inputs.profile }}" \
+            --platform ios \
+            --id "${{ steps.build.outputs.build_id }}" \
+            --non-interactive

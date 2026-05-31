@@ -77,6 +77,19 @@ Typical flow for shipping a preview build:
 
 If a build fails, the same URL has the full log. Common failure modes are documented at the bottom.
 
+## CI-driven build + submit (GitHub Actions)
+
+Two manual workflows live at `.github/workflows/build-and-submit-{ios,android}.yml`. Trigger them from **Actions → build-and-submit-ios (or -android) → Run workflow**, pick a profile (`preview` or `production`), and toggle the `submit` checkbox off if you want a build without an upload.
+
+The runner only drives the EAS CLI; the actual build runs on EAS macOS/Linux workers, and the artifact is pushed straight to TestFlight or Google Play from EAS without ever touching the runner. Local credentials are not required.
+
+**Prerequisites:**
+
+1. Repo secret `EXPO_TOKEN` — an Expo access token belonging to a wodtech org member. Generate at [expo.dev → Account Settings → Access Tokens](https://expo.dev/settings/access-tokens) and add at **Settings → Secrets and variables → Actions → New repository secret**.
+2. The relevant store credentials (App Store Connect API key, Google Play service account JSON) uploaded to the **EAS credential vault** via `eas credentials`. This is [#488](https://github.com/chuckmag/WODalytics/issues/488) Phase 1. Until those are in the vault, the `submit` step will fall back to the file paths in `apps/mobile/eas.json`, which only exist on individual laptops — submit will fail on the runner. Build itself works without it.
+
+**Fallback:** The local `npm run build:*` / `npm run submit:*` scripts (see [Build & submit scripts](#build--submit-scripts) above) keep working and are the right path when CI is unavailable or you want to ship from a branch that hasn't been pushed.
+
 ## The first-Android-submission gotcha
 
 The first time you push a new package name (`com.wodalytics.app`) to Google Play, **the API will reject it**. Google requires the first submission to be uploaded manually through the Play Console web UI to verify ownership. After that, the API works for every subsequent release.
