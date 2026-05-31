@@ -22,6 +22,7 @@ import WorkoutPlanModal from '../components/WorkoutPlanModal'
 import { useTheme } from '../lib/theme'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
+import MarkdownText from '../components/MarkdownText'
 
 type Props = StackScreenProps<RootStackParamList, 'WodDetail'>
 
@@ -241,9 +242,9 @@ export default function WodDetailScreen({ route, navigation }: Props) {
             <ThemedText variant="tertiary" style={styles.coachNotesChevron}>{showCoachNotes ? '−' : '+'}</ThemedText>
           </TouchableOpacity>
           {showCoachNotes ? (
-            <ThemedText variant="secondary" style={styles.coachNotesBody} testID="coach-notes-body">
-              {workout.coachNotes}
-            </ThemedText>
+            <View style={styles.coachNotesBody}>
+              <MarkdownText source={workout.coachNotes} variant="secondary" testID="coach-notes-body" />
+            </View>
           ) : null}
         </View>
       ) : null}
@@ -252,7 +253,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       {workout.description ? (
         <View style={styles.section}>
           <ThemedText variant="muted" style={styles.sectionLabel}>WORKOUT</ThemedText>
-          <ThemedText variant="secondary" style={styles.description}>{workout.description}</ThemedText>
+          <MarkdownText source={workout.description} variant="secondary" />
         </View>
       ) : null}
 
@@ -304,7 +305,11 @@ export default function WodDetailScreen({ route, navigation }: Props) {
                   </ThemedText>
                 )
               })}
-              {myPlan.notes ? <ThemedText variant="tertiary" style={styles.planNotes}>{myPlan.notes}</ThemedText> : null}
+              {myPlan.notes ? (
+                <View style={styles.planNotes}>
+                  <MarkdownText source={myPlan.notes} variant="tertiary" />
+                </View>
+              ) : null}
             </View>
           ) : (
             <ThemedText variant="muted" style={styles.planEmpty}>No plan set yet.</ThemedText>
@@ -639,10 +644,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 10,
   },
-  description: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
   sourceLink: {
     marginHorizontal: 20,
     marginTop: 12,
@@ -667,8 +668,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   coachNotesBody: {
-    fontSize: 15,
-    lineHeight: 22,
+    marginTop: 4,
   },
   logButton: {
     marginHorizontal: 20,
@@ -790,8 +790,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   planNotes: {
-    fontSize: 13,
-    fontStyle: 'italic',
     marginTop: 2,
   },
   planEmpty: {
