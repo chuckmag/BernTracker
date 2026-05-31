@@ -428,7 +428,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
                 testID={`level-chip-${f.label}`}
               >
                 <ThemedText
-                  variant={isActive ? undefined : 'tertiary'}
+                  variant="tertiary"
                   style={[styles.chipText, isActive && { color: colors.primary, fontWeight: '600' }]}
                 >
                   {f.label}
@@ -459,7 +459,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
                 testID={`gender-chip-${f.label}`}
               >
                 <ThemedText
-                  variant={isActive ? undefined : 'tertiary'}
+                  variant="tertiary"
                   style={[styles.chipText, isActive && { color: colors.primary, fontWeight: '600' }]}
                 >
                   {f.label}
@@ -490,7 +490,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
                 testID={`division-chip-${f.label}`}
               >
                 <ThemedText
-                  variant={isActive ? undefined : 'tertiary'}
+                  variant="tertiary"
                   style={[styles.chipText, isActive && { color: colors.primary, fontWeight: '600' }]}
                 >
                   {f.label}

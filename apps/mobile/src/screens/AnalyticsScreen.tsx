@@ -321,7 +321,7 @@ function BenchmarksContent({ loading, error, data, navigation, activeCategory, o
               accessibilityLabel={BENCHMARK_CATEGORY_LABELS[cat]}
             >
               <ThemedText
-                variant={isActive ? undefined : 'tertiary'}
+                variant="tertiary"
                 style={[
                   s.categoryTabText,
                   isActive && { color: colors.onPrimary, fontWeight: '600' },
@@ -338,7 +338,7 @@ function BenchmarksContent({ loading, error, data, navigation, activeCategory, o
                   ]}
                 >
                   <ThemedText
-                    variant={isActive ? undefined : 'tertiary'}
+                    variant="tertiary"
                     style={[
                       s.categoryCountText,
                       isActive && { color: colors.onPrimary },

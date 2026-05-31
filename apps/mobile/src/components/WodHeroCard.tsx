@@ -65,7 +65,7 @@ export default function WodHeroCard({ data }: Props) {
           <ThemedText style={[styles.typeBadgeText, { color: ts.tint }]}>{ts.abbr}</ThemedText>
         </View>
         {workout.namedWorkout?.category === 'BENCHMARK' && (
-          <View style={[styles.benchmarkBadge, { backgroundColor: `${colors.primary}26` }]}>
+          <View style={[styles.benchmarkBadge, { backgroundColor: `${colors.primary}33` }]}>
             <ThemedText style={[styles.benchmarkBadgeText, { color: colors.primary }]}>BENCHMARK</ThemedText>
           </View>
         )}

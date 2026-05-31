@@ -505,7 +505,7 @@ export default function LogResultScreen({ route, navigation }: Props) {
                 onPress={() => setLevel(l.value)}
               >
                 <ThemedText
-                  variant={isActive ? undefined : 'tertiary'}
+                  variant="tertiary"
                   style={[styles.chipText, isActive && { color: colors.primary, fontWeight: '600' }]}
                 >
                   {l.label}
@@ -853,7 +853,7 @@ function SetsTableRN({
                       testID={`load-unit-${u.value}`}
                     >
                       <ThemedText
-                        variant={isActive ? undefined : 'tertiary'}
+                        variant="tertiary"
                         style={[styles.unitChipText, isActive && { color: colors.primary, fontWeight: '600' }]}
                       >
                         {u.label}
@@ -883,7 +883,7 @@ function SetsTableRN({
                       testID={`distance-unit-${u.value}`}
                     >
                       <ThemedText
-                        variant={isActive ? undefined : 'tertiary'}
+                        variant="tertiary"
                         style={[styles.unitChipText, isActive && { color: colors.primary, fontWeight: '600' }]}
                       >
                         {u.label}
@@ -1112,7 +1112,7 @@ function ScoreFieldsRN({
                     testID={`score-distance-unit-${u.value}`}
                   >
                     <ThemedText
-                      variant={isActive ? undefined : 'tertiary'}
+                      variant="tertiary"
                       style={[styles.unitChipText, isActive && { color: colors.primary, fontWeight: '600' }]}
                     >
                       {u.label}

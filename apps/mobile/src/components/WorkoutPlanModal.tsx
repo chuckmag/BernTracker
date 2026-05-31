@@ -204,7 +204,7 @@ export default function WorkoutPlanModal({ visible, workout, targetUser, existin
                     accessibilityState={{ selected: level === l.value }}
                   >
                     <ThemedText
-                      variant={level === l.value ? undefined : 'tertiary'}
+                      variant="tertiary"
                       style={[
                         styles.levelChipText,
                         level === l.value && { color: colors.primary, fontWeight: '600' },
