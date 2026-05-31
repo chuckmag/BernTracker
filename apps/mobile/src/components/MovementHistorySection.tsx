@@ -250,7 +250,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
-        style={s.modalOverlay}
+        style={[s.modalOverlay, { backgroundColor: colors.modalScrim }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ThemedView
@@ -324,7 +324,7 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
 
           <View style={s.modalActions}>
             <TouchableOpacity
-              style={[s.cancelBtn, { backgroundColor: colors.borderSubtle }]}
+              style={[s.cancelBtn, { backgroundColor: colors.surfaceSubtle }]}
               onPress={onClose}
               activeOpacity={0.7}
             >
@@ -578,7 +578,6 @@ const s = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   modalSheet: {
     borderTopLeftRadius: 16,

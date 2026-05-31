@@ -55,9 +55,9 @@ export default function HotTodayCard({ workoutId }: Props) {
 
       {loading && (
         <View style={styles.shimmerContainer}>
-          <View style={[styles.shimmer, { backgroundColor: colors.borderSubtle }]} />
-          <View style={[styles.shimmer, { backgroundColor: colors.borderSubtle, width: '70%', marginTop: 8 }]} />
-          <View style={[styles.shimmer, { backgroundColor: colors.borderSubtle, width: '80%', marginTop: 8 }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.surfaceSubtle }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.surfaceSubtle, width: '70%', marginTop: 8 }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.surfaceSubtle, width: '80%', marginTop: 8 }]} />
         </View>
       )}
 

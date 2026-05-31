@@ -154,8 +154,8 @@ export default function HomeScreen() {
 
         {loading && !refreshing && (
           <ThemedView variant="card" style={[styles.loadingCard, { borderColor: colors.borderSubtle }]}>
-            <View style={[styles.loadingShimmer, { backgroundColor: colors.borderSubtle }]} />
-            <View style={[styles.loadingShimmer, { backgroundColor: colors.borderSubtle, width: '70%', marginTop: 8 }]} />
+            <View style={[styles.loadingShimmer, { backgroundColor: colors.surfaceSubtle }]} />
+            <View style={[styles.loadingShimmer, { backgroundColor: colors.surfaceSubtle, width: '70%', marginTop: 8 }]} />
           </ThemedView>
         )}
 
@@ -230,7 +230,7 @@ function DashboardProgramPicker({
       </TouchableOpacity>
 
       <Modal animationType="fade" transparent visible={open} onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
+        <Pressable style={[styles.backdrop, { backgroundColor: colors.modalScrim }]} onPress={() => setOpen(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <ThemedView variant="card" style={styles.sheet}>
               <ThemedText style={styles.sheetTitle}>Program</ThemedText>
@@ -306,7 +306,6 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   sheet: {

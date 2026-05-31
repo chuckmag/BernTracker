@@ -59,7 +59,7 @@ export default function ProgramFilterPicker() {
         visible={open}
         onRequestClose={() => setOpen(false)}
       >
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
+        <Pressable style={[styles.backdrop, { backgroundColor: colors.modalScrim }]} onPress={() => setOpen(false)}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <ThemedView variant="card" style={styles.sheet}>
               <View style={styles.sheetHeader}>
@@ -136,7 +136,6 @@ const styles = StyleSheet.create({
   chevron: { fontSize: 11 },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   sheet: {

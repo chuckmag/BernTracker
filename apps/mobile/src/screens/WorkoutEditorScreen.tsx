@@ -1016,7 +1016,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
           onRequestClose={() => setTypePickerOpen(false)}
         >
           <Pressable
-            style={styles.typePickerBackdrop}
+            style={[styles.typePickerBackdrop, { backgroundColor: colors.modalScrim }]}
             onPress={() => setTypePickerOpen(false)}
             testID="type-picker-backdrop"
           >
@@ -1079,7 +1079,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
           onRequestClose={() => setUnitPickerFor(null)}
         >
           <Pressable
-            style={styles.typePickerBackdrop}
+            style={[styles.typePickerBackdrop, { backgroundColor: colors.modalScrim }]}
             onPress={() => setUnitPickerFor(null)}
             testID="unit-picker-backdrop"
           >
@@ -1393,7 +1393,7 @@ const styles = StyleSheet.create({
   typeSelectChevron: { fontSize: 14 },
 
   // Bottom-sheet modal for the type picker.
-  typePickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  typePickerBackdrop: { flex: 1, justifyContent: 'flex-end' },
   typePickerSheet: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,

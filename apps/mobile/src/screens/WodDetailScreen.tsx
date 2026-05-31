@@ -284,7 +284,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
             </TouchableOpacity>
           </View>
           {myPlan ? (
-            <View style={[styles.planCard, { backgroundColor: colors.borderSubtle }]}>
+            <View style={[styles.planCard, { backgroundColor: colors.surfaceSubtle }]}>
               {myPlan.level && (
                 <View style={[styles.planLevelBadge, { backgroundColor: primaryTintBg }]}>
                   <ThemedText style={[styles.planLevelText, { color: colors.primary }]}>{LEVEL_LABELS[myPlan.level]}</ThemedText>

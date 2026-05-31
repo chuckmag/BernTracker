@@ -165,7 +165,7 @@ export default function WorkoutPlanModal({ visible, workout, targetUser, existin
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: colors.modalScrim }]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardWrap}
@@ -324,7 +324,6 @@ export default function WorkoutPlanModal({ visible, workout, targetUser, existin
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   keyboardWrap: {
