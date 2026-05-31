@@ -104,9 +104,15 @@ export default function CalendarScreen({ navigation }: Props) {
     if (!silent) setLoading(true)
     setError(null)
     try {
-      const stripStart = new Date(stripStartKey + 'T00:00:00')
+      // UTC bounds, not local. The server stores `scheduledAt` at a UTC
+      // moment for the named calendar date (e.g. midnight or noon UTC);
+      // converting local-midnight to ISO shifts the lower bound forward by
+      // the local UTC offset, which drops workouts whose UTC moment falls
+      // before that. For a PST viewer, "local midnight 5/28" = 5/28 07:00Z,
+      // so a 5/28 00:00Z workout would be missed.
+      const stripStart = new Date(`${stripStartKey}T00:00:00.000Z`)
       const stripEnd = addDays(stripStart, STRIP_DAYS - 1)
-      stripEnd.setHours(23, 59, 59, 999)
+      stripEnd.setUTCHours(23, 59, 59, 999)
       const data = await api.gyms.workouts(
         activeGym.id,
         stripStart.toISOString(),

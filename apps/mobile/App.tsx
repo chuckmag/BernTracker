@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, Text, View } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createStackNavigator } from '@react-navigation/stack'
+import { Ionicons } from '@expo/vector-icons'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { GymProvider } from './src/context/GymContext'
 import { ProgramFilterProvider } from './src/context/ProgramFilterContext'
@@ -212,26 +213,54 @@ function MainTabs() {
         tabBarStyle: { backgroundColor: colors.tabBarBg, borderTopColor: colors.tabBarBorder },
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
+        // Icon-only tab bar. Labels hidden globally so the icons get the
+        // full vertical real estate of the bar — keeps the row tight and
+        // readable on the smallest viewports.
+        tabBarShowLabel: false,
       }}
     >
-      <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Today' }} />
-      <Tab.Screen name="FeedTab" component={FeedStackNavigator} options={{ title: 'Feed' }} />
+      <Tab.Screen
+        name="HomeTab"
+        component={HomeStackNavigator}
+        options={{
+          title: 'Today',
+          tabBarAccessibilityLabel: 'Today',
+          tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="FeedTab"
+        component={FeedStackNavigator}
+        options={{
+          title: 'Feed',
+          tabBarAccessibilityLabel: 'Feed',
+          tabBarIcon: ({ color, size }) => <Ionicons name="newspaper-outline" size={size} color={color} />,
+        }}
+      />
       <Tab.Screen
         name="CalendarTab"
         component={CalendarStackNavigator}
         options={{
           title: 'Calendar',
-          tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size, color, lineHeight: size + 2 }}>📅</Text>
-          ),
+          tabBarAccessibilityLabel: 'Calendar',
+          tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
         }}
       />
-      <Tab.Screen name="HistoryTab" component={HistoryStackNavigator} options={{ title: 'History' }} />
+      <Tab.Screen
+        name="HistoryTab"
+        component={HistoryStackNavigator}
+        options={{
+          title: 'History',
+          tabBarAccessibilityLabel: 'History',
+          tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" size={size} color={color} />,
+        }}
+      />
       <Tab.Screen
         name="AnalyticsTab"
         component={AnalyticsStackNavigator}
         options={{
           title: 'Analytics',
+          tabBarAccessibilityLabel: 'Analytics',
           tabBarIcon: ({ focused, size }) => (
             <Image
               source={require('./assets/favicon.png')}

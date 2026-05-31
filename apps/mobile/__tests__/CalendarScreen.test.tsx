@@ -124,6 +124,25 @@ describe('CalendarScreen', () => {
     expect(args[3]).toEqual(['prog-a', 'prog-b'])
   })
 
+  test('strip window bounds are UTC-midnight aligned (regression guard)', async () => {
+    // Server stores `scheduledAt` at UTC moments tied to the calendar date;
+    // converting local-midnight to ISO would shift the lower bound past
+    // 00:00Z for any viewer west of UTC and drop the first day's workouts.
+    render(<CalendarScreen navigation={makeNavigation()} route={{} as any} />)
+    await waitFor(() => expect(api.gyms.workouts).toHaveBeenCalled())
+    const [, from, to] = (api.gyms.workouts as jest.Mock).mock.calls[0]
+    const fromDate = new Date(from)
+    const toDate = new Date(to)
+    // `from` is exactly UTC midnight (HH:MM:SS:ms all zero).
+    expect(fromDate.getUTCHours()).toBe(0)
+    expect(fromDate.getUTCMinutes()).toBe(0)
+    expect(fromDate.getUTCSeconds()).toBe(0)
+    expect(fromDate.getUTCMilliseconds()).toBe(0)
+    // `to` is the last UTC millisecond of the 3rd day → 2 days + 23:59:59.999 from `from`.
+    const spanMs = toDate.getTime() - fromDate.getTime()
+    expect(spanMs).toBe(2 * 86400000 + (23 * 3600 + 59 * 60 + 59) * 1000 + 999)
+  })
+
   test('empty program selection passes undefined for programIds (the "all programs" contract)', async () => {
     render(<CalendarScreen navigation={makeNavigation()} route={{} as any} />)
     await waitFor(() => expect(api.gyms.workouts).toHaveBeenCalled())
