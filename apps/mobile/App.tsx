@@ -11,6 +11,7 @@ import { ThemeProvider, useTheme, type ThemeColors } from './src/lib/theme'
 import LoginScreen from './src/screens/LoginScreen'
 import HomeScreen from './src/screens/HomeScreen'
 import FeedScreen from './src/screens/FeedScreen'
+import CalendarScreen from './src/screens/CalendarScreen'
 import WodDetailScreen from './src/screens/WodDetailScreen'
 import HistoryScreen from './src/screens/HistoryScreen'
 import LogResultScreen from './src/screens/LogResultScreen'
@@ -60,6 +61,11 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   HomeTab: undefined
   FeedTab: undefined
+  // Calendar tab — 3-day strip view of every program the user can see,
+  // with the same multi-select program filter as the feed. Mirrors the
+  // mweb narrow layout of WorkoutCalendarBoard so a member switching
+  // between web and Expo sees the same window.
+  CalendarTab: undefined
   HistoryTab: undefined
   AnalyticsTab: undefined
 }
@@ -78,6 +84,10 @@ export type FeedStackParamList = {
   Feed: undefined
 }
 
+export type CalendarStackParamList = {
+  Calendar: undefined
+}
+
 export type HistoryStackParamList = {
   History: undefined
 }
@@ -88,6 +98,7 @@ const RootStack = createStackNavigator<RootStackParamList>()
 const Tab = createBottomTabNavigator<MainTabParamList>()
 const HomeStack = createStackNavigator<HomeStackParamList>()
 const FeedStack = createStackNavigator<FeedStackParamList>()
+const CalendarStack = createStackNavigator<CalendarStackParamList>()
 const HistoryStack = createStackNavigator<HistoryStackParamList>()
 const AnalyticsStack = createStackNavigator<AnalyticsStackParamList>()
 
@@ -128,6 +139,19 @@ function FeedStackNavigator() {
         options={{ title: 'Workouts', headerRight: mainTabHeaderRight }}
       />
     </FeedStack.Navigator>
+  )
+}
+
+function CalendarStackNavigator() {
+  const { colors } = useTheme()
+  return (
+    <CalendarStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
+      <CalendarStack.Screen
+        name="Calendar"
+        component={CalendarScreen}
+        options={{ title: 'Calendar', headerRight: mainTabHeaderRight }}
+      />
+    </CalendarStack.Navigator>
   )
 }
 
@@ -192,6 +216,16 @@ function MainTabs() {
     >
       <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Today' }} />
       <Tab.Screen name="FeedTab" component={FeedStackNavigator} options={{ title: 'Feed' }} />
+      <Tab.Screen
+        name="CalendarTab"
+        component={CalendarStackNavigator}
+        options={{
+          title: 'Calendar',
+          tabBarIcon: ({ color, size }) => (
+            <Text style={{ fontSize: size, color, lineHeight: size + 2 }}>📅</Text>
+          ),
+        }}
+      />
       <Tab.Screen name="HistoryTab" component={HistoryStackNavigator} options={{ title: 'History' }} />
       <Tab.Screen
         name="AnalyticsTab"
