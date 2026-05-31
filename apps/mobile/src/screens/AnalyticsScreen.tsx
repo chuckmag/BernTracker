@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -9,6 +8,9 @@ import {
   RefreshControl,
 } from 'react-native'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
+import { useTheme } from '../lib/theme'
+import ThemedText from '../components/ThemedText'
+import ThemedView from '../components/ThemedView'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { AnalyticsStackParamList } from '../../App'
 import {
@@ -111,24 +113,26 @@ interface MovementCardProps {
 }
 
 function MovementCard({ entry, onPress }: MovementCardProps) {
+  const { colors } = useTheme()
   return (
     <TouchableOpacity
-      style={s.movementCard}
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={entry.name}
     >
-      <View style={s.movementCardLeft}>
-        <Text style={s.movementName}>{entry.name}</Text>
-        <Text style={s.movementPr}>
-          {entry.primaryPR ? formatPR(entry.primaryPR) : 'No PR recorded'}
-        </Text>
-      </View>
-      <View style={s.movementCardRight}>
-        <Text style={s.movementDate}>{formatDate(entry.lastLoggedAt)}</Text>
-        <Text style={s.movementChevron}>›</Text>
-      </View>
+      <ThemedView variant="card" style={[s.movementCard, { borderColor: colors.borderSubtle }]}>
+        <View style={s.movementCardLeft}>
+          <ThemedText style={s.movementName}>{entry.name}</ThemedText>
+          <ThemedText variant="tertiary" style={s.movementPr}>
+            {entry.primaryPR ? formatPR(entry.primaryPR) : 'No PR recorded'}
+          </ThemedText>
+        </View>
+        <View style={s.movementCardRight}>
+          <ThemedText variant="tertiary" style={s.movementDate}>{formatDate(entry.lastLoggedAt)}</ThemedText>
+          <ThemedText variant="muted" style={s.movementChevron}>›</ThemedText>
+        </View>
+      </ThemedView>
     </TouchableOpacity>
   )
 }
@@ -145,7 +149,7 @@ function GroupSection({ group, entries, navigation }: GroupSectionProps) {
   if (entries.length === 0) return null
   return (
     <View style={s.groupSection}>
-      <Text style={s.groupLabel}>{GROUP_LABELS[group]}</Text>
+      <ThemedText variant="muted" style={s.groupLabel}>{GROUP_LABELS[group]}</ThemedText>
       {entries.map((e) => (
         <MovementCard
           key={e.movementId}
@@ -171,25 +175,26 @@ interface MovementsContentProps {
 }
 
 function MovementsContent({ loading, error, data, navigation }: MovementsContentProps) {
+  const { colors } = useTheme()
   if (loading) {
     return (
       <View style={s.center}>
-        <ActivityIndicator color="#818cf8" />
+        <ActivityIndicator color={colors.primary} />
       </View>
     )
   }
 
   if (error) {
-    return <Text style={s.error}>{error}</Text>
+    return <ThemedText style={[s.error, { color: colors.errorText }]}>{error}</ThemedText>
   }
 
   if (!data || (!data.strength.length && !data.monostructural.length && !data.gymnastics.length)) {
     return (
       <View style={s.emptyState}>
-        <Text style={s.emptyTitle}>No movements logged yet</Text>
-        <Text style={s.emptyBody}>
+        <ThemedText variant="tertiary" style={s.emptyTitle}>No movements logged yet</ThemedText>
+        <ThemedText variant="tertiary" style={s.emptyBody}>
           Your logged movements will appear here once you start tracking workouts.
-        </Text>
+        </ThemedText>
       </View>
     )
   }
@@ -211,27 +216,29 @@ interface BenchmarkCardProps {
 }
 
 function BenchmarkCard({ entry, onPress }: BenchmarkCardProps) {
+  const { colors } = useTheme()
   const scoreText = formatBenchmarkScore(entry)
   const attempted = entry.latestResult !== null || entry.manualResultCount > 0
 
   return (
     <TouchableOpacity
-      style={s.movementCard}
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={entry.name}
     >
-      <View style={s.movementCardLeft}>
-        <Text style={s.movementName}>{entry.name}</Text>
-        <Text style={[s.movementPr, !attempted && s.notAttempted]}>{scoreText}</Text>
-      </View>
-      <View style={s.movementCardRight}>
-        {entry.latestResult && (
-          <Text style={s.movementDate}>{formatDate(entry.latestResult.achievedAt)}</Text>
-        )}
-        <Text style={s.movementChevron}>›</Text>
-      </View>
+      <ThemedView variant="card" style={[s.movementCard, { borderColor: colors.borderSubtle }]}>
+        <View style={s.movementCardLeft}>
+          <ThemedText style={s.movementName}>{entry.name}</ThemedText>
+          <ThemedText variant={attempted ? 'tertiary' : 'muted'} style={s.movementPr}>{scoreText}</ThemedText>
+        </View>
+        <View style={s.movementCardRight}>
+          {entry.latestResult && (
+            <ThemedText variant="tertiary" style={s.movementDate}>{formatDate(entry.latestResult.achievedAt)}</ThemedText>
+          )}
+          <ThemedText variant="muted" style={s.movementChevron}>›</ThemedText>
+        </View>
+      </ThemedView>
     </TouchableOpacity>
   )
 }
@@ -248,23 +255,24 @@ interface BenchmarksContentProps {
 }
 
 function BenchmarksContent({ loading, error, data, navigation, activeCategory, onChangeCategory }: BenchmarksContentProps) {
+  const { colors } = useTheme()
   if (loading) {
     return (
       <View style={s.center}>
-        <ActivityIndicator color="#818cf8" />
+        <ActivityIndicator color={colors.primary} />
       </View>
     )
   }
 
   if (error) {
-    return <Text style={s.error}>{error}</Text>
+    return <ThemedText style={[s.error, { color: colors.errorText }]}>{error}</ThemedText>
   }
 
   if (!data || data.length === 0) {
     return (
       <View style={s.emptyState}>
-        <Text style={s.emptyTitle}>No benchmarks available</Text>
-        <Text style={s.emptyBody}>Benchmark WODs will appear here once they are added to the library.</Text>
+        <ThemedText variant="tertiary" style={s.emptyTitle}>No benchmarks available</ThemedText>
+        <ThemedText variant="tertiary" style={s.emptyBody}>Benchmark WODs will appear here once they are added to the library.</ThemedText>
       </View>
     )
   }
@@ -302,18 +310,42 @@ function BenchmarksContent({ loading, error, data, navigation, activeCategory, o
           return (
             <TouchableOpacity
               key={cat}
-              style={[s.categoryTab, isActive && s.categoryTabActive]}
+              style={[
+                s.categoryTab,
+                { backgroundColor: colors.cardBg, borderColor: colors.borderSubtle },
+                isActive && { backgroundColor: colors.primary, borderColor: colors.primary },
+              ]}
               onPress={() => onChangeCategory(cat)}
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
               accessibilityLabel={BENCHMARK_CATEGORY_LABELS[cat]}
             >
-              <Text style={[s.categoryTabText, isActive && s.categoryTabTextActive]}>
+              <ThemedText
+                variant="tertiary"
+                style={[
+                  s.categoryTabText,
+                  isActive && { color: colors.onPrimary, fontWeight: '600' },
+                ]}
+              >
                 {BENCHMARK_CATEGORY_LABELS[cat]}
-              </Text>
+              </ThemedText>
               {count > 0 && (
-                <View style={[s.categoryCount, isActive && s.categoryCountActive]}>
-                  <Text style={[s.categoryCountText, isActive && s.categoryCountTextActive]}>{count}</Text>
+                <View
+                  style={[
+                    s.categoryCount,
+                    { backgroundColor: colors.borderSubtle },
+                    isActive && { backgroundColor: 'rgba(255,255,255,0.18)' },
+                  ]}
+                >
+                  <ThemedText
+                    variant="tertiary"
+                    style={[
+                      s.categoryCountText,
+                      isActive && { color: colors.onPrimary },
+                    ]}
+                  >
+                    {count}
+                  </ThemedText>
                 </View>
               )}
             </TouchableOpacity>
@@ -323,9 +355,9 @@ function BenchmarksContent({ loading, error, data, navigation, activeCategory, o
 
       {/* Active category entries */}
       {activeEntries.length === 0 ? (
-        <Text style={s.emptyTabText}>
+        <ThemedText variant="tertiary" style={s.emptyTabText}>
           No benchmarks in {BENCHMARK_CATEGORY_LABELS[activeCategory]}.
-        </Text>
+        </ThemedText>
       ) : (
         <View style={s.groupSection}>
           {activeEntries.map((e) => (
@@ -344,6 +376,7 @@ function BenchmarksContent({ loading, error, data, navigation, activeCategory, o
 // ── Main screen ────────────────────────────────────────────────────────────────
 
 export default function AnalyticsScreen() {
+  const { colors } = useTheme()
   const navigation = useNavigation<AnalyticsNav>()
   const [tab, setTab] = useState<AnalyticsTab>('summary')
 
@@ -445,37 +478,42 @@ export default function AnalyticsScreen() {
     benchmarksRefreshing
 
   return (
-    <ScrollView
-      style={s.container}
-      contentContainerStyle={s.content}
-      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#818cf8" />}
-    >
+    <ThemedView variant="screen" style={s.container}>
+      <ScrollView
+        contentContainerStyle={s.content}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
+      >
       {/* Tab strip */}
-      <View style={s.tabStrip} accessibilityRole="tablist">
+      <ThemedView variant="card" style={s.tabStrip} accessibilityRole="tablist">
         {(['summary', 'movements', 'benchmarks'] as AnalyticsTab[]).map((t) => (
           <TouchableOpacity
             key={t}
-            style={[s.tab, tab === t && s.tabActive]}
+            style={[s.tab, tab === t && { backgroundColor: colors.borderSubtle }]}
             onPress={() => setTab(t)}
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === t }}
             accessibilityLabel={TAB_LABELS[t]}
           >
-            <Text style={[s.tabText, tab === t && s.tabTextActive]}>{TAB_LABELS[t]}</Text>
+            <ThemedText
+              variant={tab === t ? undefined : 'tertiary'}
+              style={[s.tabText, tab === t && s.tabTextActive]}
+            >
+              {TAB_LABELS[t]}
+            </ThemedText>
           </TouchableOpacity>
         ))}
-      </View>
+      </ThemedView>
 
       {/* Tab content */}
       {tab === 'summary' && (
         <>
           {summaryLoading && (
             <View style={s.center}>
-              <ActivityIndicator color="#818cf8" />
+              <ActivityIndicator color={colors.primary} />
             </View>
           )}
           {!summaryLoading && summaryError && (
-            <Text style={s.error}>{summaryError}</Text>
+            <ThemedText style={[s.error, { color: colors.errorText }]}>{summaryError}</ThemedText>
           )}
           {!summaryLoading && !summaryError && (
             <>
@@ -507,7 +545,8 @@ export default function AnalyticsScreen() {
           onChangeCategory={setBenchmarkCategory}
         />
       )}
-    </ScrollView>
+      </ScrollView>
+    </ThemedView>
   )
 }
 
@@ -516,7 +555,6 @@ export default function AnalyticsScreen() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
   },
   content: {
     padding: 16,
@@ -527,14 +565,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   error: {
-    color: '#f87171',
     fontSize: 14,
   },
 
   // Tab strip
   tabStrip: {
     flexDirection: 'row',
-    backgroundColor: '#111827',
     borderRadius: 8,
     padding: 3,
     gap: 2,
@@ -545,16 +581,11 @@ const s = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 6,
   },
-  tabActive: {
-    backgroundColor: '#1f2937',
-  },
   tabText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6b7280',
   },
   tabTextActive: {
-    color: '#ffffff',
     fontWeight: '600',
   },
 
@@ -581,45 +612,25 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1f2937',
-    backgroundColor: '#111827',
-  },
-  categoryTabActive: {
-    backgroundColor: '#5B9BE6',
-    borderColor: '#5B9BE6',
   },
   categoryTabText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#9ca3af',
-  },
-  categoryTabTextActive: {
-    color: '#020617',
-    fontWeight: '600',
   },
   categoryCount: {
     minWidth: 18,
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 9,
-    backgroundColor: '#1f2937',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  categoryCountActive: {
-    backgroundColor: 'rgba(2, 6, 23, 0.18)',
   },
   categoryCountText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#9ca3af',
-  },
-  categoryCountTextActive: {
-    color: '#020617',
   },
   emptyTabText: {
     fontSize: 13,
-    color: '#9ca3af',
     paddingVertical: 24,
     textAlign: 'center',
   },
@@ -629,7 +640,6 @@ const s = StyleSheet.create({
   groupLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#4b5563',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
@@ -637,10 +647,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#111827',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1f2937',
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
@@ -656,22 +664,15 @@ const s = StyleSheet.create({
   movementName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#f9fafb',
   },
   movementPr: {
     fontSize: 12,
-    color: '#9ca3af',
-  },
-  notAttempted: {
-    color: '#4b5563',
   },
   movementDate: {
     fontSize: 11,
-    color: '#6b7280',
   },
   movementChevron: {
     fontSize: 16,
-    color: '#4b5563',
   },
 
   // Empty state
@@ -683,11 +684,9 @@ const s = StyleSheet.create({
   emptyTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#9ca3af',
   },
   emptyBody: {
     fontSize: 13,
-    color: '#6b7280',
     textAlign: 'center',
     paddingHorizontal: 16,
   },

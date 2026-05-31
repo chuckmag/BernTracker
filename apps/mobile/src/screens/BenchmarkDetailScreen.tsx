@@ -100,7 +100,7 @@ interface TrendChartProps {
 }
 
 function TrendChart({ entries, scoreKind }: TrendChartProps) {
-  const { colors, isDark } = useTheme()
+  const { colors } = useTheme()
 
   const scored = entries
     .filter((e) => e.primaryScoreValue != null)
@@ -129,8 +129,8 @@ function TrendChart({ entries, scoreKind }: TrendChartProps) {
 
   const points = scored.map((e, i) => `${xOf(i)},${yOf(e.primaryScoreValue!)}`).join(' ')
   const lineColor = colors.accent
-  const gridColor = isDark ? '#1f2937' : '#e2e8f0'
-  const tickColor = isDark ? '#6b7280' : '#64748b'
+  const gridColor = colors.borderSubtle
+  const tickColor = colors.textTertiary
 
   return (
     <View style={{ alignItems: 'center', marginVertical: 8 }}>
@@ -206,7 +206,7 @@ const SCORE_KIND_OPTIONS: { value: string; label: string }[] = [
 ]
 
 function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResultModalProps) {
-  const { colors, isDark } = useTheme()
+  const { colors } = useTheme()
   const [date, setDate] = useState(todayStr())
   const [timeMin, setTimeMin] = useState('')
   const [timeSec, setTimeSec] = useState('')
@@ -313,7 +313,7 @@ function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResu
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[s.modalContainer, { backgroundColor: colors.cardBg }]}>
-        <View style={s.modalHeader}>
+        <View style={[s.modalHeader, { borderBottomColor: colors.borderSubtle }]}>
           <Text style={[s.modalTitle, { color: colors.textPrimary }]}>Add Result</Text>
           <TouchableOpacity onPress={() => { reset(); onClose() }} accessibilityLabel="Close">
             <Text style={[s.modalClose, { color: colors.accent }]}>Cancel</Text>
@@ -357,7 +357,7 @@ function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResu
                     accessibilityState={{ selected: pickedKind === opt.value }}
                     accessibilityLabel={opt.label}
                   >
-                    <Text style={[s.kindBtnText, { color: pickedKind === opt.value ? '#020617' : colors.textSecondary }]}>
+                    <Text style={[s.kindBtnText, { color: pickedKind === opt.value ? colors.accentText : colors.textSecondary }]}>
                       {opt.label}
                     </Text>
                   </TouchableOpacity>
@@ -464,7 +464,7 @@ function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResu
                 accessibilityRole="radio"
                 accessibilityState={{ selected: level === l }}
               >
-                <Text style={[s.levelBtnText, { color: level === l ? '#020617' : colors.textSecondary }]}>
+                <Text style={[s.levelBtnText, { color: level === l ? colors.accentText : colors.textSecondary }]}>
                   {LEVEL_LABELS[l]}
                 </Text>
               </TouchableOpacity>
@@ -483,17 +483,17 @@ function AddResultModal({ visible, entry, scoreKind, onClose, onSaved }: AddResu
             numberOfLines={3}
           />
 
-          {error && <Text style={s.errorText}>{error}</Text>}
+          {error && <Text style={[s.errorText, { color: colors.errorText }]}>{error}</Text>}
 
           <TouchableOpacity
-            style={[s.saveBtn, saving && s.saveBtnDisabled]}
+            style={[s.saveBtn, { backgroundColor: colors.accent }, saving && s.saveBtnDisabled]}
             onPress={handleSave}
             disabled={saving}
             accessibilityRole="button"
           >
             {saving
-              ? <ActivityIndicator color="#020617" />
-              : <Text style={s.saveBtnText}>Save Result</Text>
+              ? <ActivityIndicator color={colors.accentText} />
+              : <Text style={[s.saveBtnText, { color: colors.accentText }]}>Save Result</Text>
             }
           </TouchableOpacity>
         </ScrollView>
@@ -515,7 +515,10 @@ function HistoryRow({ item, scoreKind, colors, onDelete }: HistoryRowProps) {
   // Always prefer the result's own primaryScoreKind — the server sets it per result.
   // Fall back to the parent's derived kind only if the result has none.
   const scoreText = formatScore(item.primaryScoreKind ?? scoreKind, item.primaryScoreValue)
-  const levelColor = item.level === 'RX' ? '#818cf8' : item.level === 'RX_PLUS' ? '#a78bfa' : '#6b7280'
+  const levelColor =
+    item.level === 'RX' ? colors.primary
+    : item.level === 'RX_PLUS' ? colors.accent
+    : colors.textTertiary
 
   function confirmDelete() {
     Alert.alert('Delete result?', 'This cannot be undone.', [
@@ -538,7 +541,7 @@ function HistoryRow({ item, scoreKind, colors, onDelete }: HistoryRowProps) {
       <View style={s.historyRight}>
         <Text style={[s.historyLevel, { color: levelColor }]}>{LEVEL_LABELS[item.level]}</Text>
         <TouchableOpacity onPress={confirmDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={s.deleteBtn}>✕</Text>
+          <Text style={[s.deleteBtn, { color: colors.textTertiary }]}>✕</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -673,7 +676,7 @@ export default function BenchmarkDetailScreen({ route }: Props) {
             accessibilityRole="button"
             accessibilityLabel="Add result"
           >
-            <Text style={s.addBtnText}>+ Add</Text>
+            <Text style={[s.addBtnText, { color: colors.accentText }]}>+ Add</Text>
           </TouchableOpacity>
         </View>
 
@@ -683,7 +686,7 @@ export default function BenchmarkDetailScreen({ route }: Props) {
           </View>
         )}
         {!loading && error && (
-          <Text style={s.errorText}>{error}</Text>
+          <Text style={[s.errorText, { color: colors.errorText }]}>{error}</Text>
         )}
         {!loading && !error && history.length === 0 && (
           <Text style={[s.emptyText, { color: colors.textTertiary }]}>No results yet. Tap + Add to log one.</Text>
@@ -804,7 +807,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
   },
-  addBtnText: { fontSize: 13, fontWeight: '600', color: '#020617' },
+  addBtnText: { fontSize: 13, fontWeight: '600' },
 
   historyRow: {
     flexDirection: 'row',
@@ -821,11 +824,11 @@ const s = StyleSheet.create({
   historyNotes: { fontSize: 12, marginTop: 2 },
   historyRight: { alignItems: 'flex-end', gap: 6 },
   historyLevel: { fontSize: 12, fontWeight: '600' },
-  deleteBtn: { fontSize: 14, color: '#6b7280', paddingLeft: 4 },
+  deleteBtn: { fontSize: 14, paddingLeft: 4 },
 
   center: { paddingVertical: 32, alignItems: 'center' },
   emptyText: { fontSize: 14, textAlign: 'center', paddingVertical: 16 },
-  errorText: { color: '#f87171', fontSize: 14 },
+  errorText: { fontSize: 14 },
 
   // Modal
   modalContainer: { flex: 1 },
@@ -836,7 +839,6 @@ const s = StyleSheet.create({
     padding: 16,
     paddingTop: Platform.OS === 'ios' ? 20 : 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   modalTitle: { fontSize: 17, fontWeight: '600' },
   modalClose: { fontSize: 15 },
@@ -883,12 +885,11 @@ const s = StyleSheet.create({
   kindBtnText: { fontSize: 12, fontWeight: '600' },
 
   saveBtn: {
-    backgroundColor: '#2BA8A4',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { fontSize: 16, fontWeight: '700', color: '#020617' },
+  saveBtnText: { fontSize: 16, fontWeight: '700' },
 })

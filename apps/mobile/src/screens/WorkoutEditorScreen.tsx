@@ -932,7 +932,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
                   },
                 ]}
               >
-                {tracksRounds && <ThemedText style={styles.checkboxMark}>✓</ThemedText>}
+                {tracksRounds && <ThemedText style={[styles.checkboxMark, { color: colors.onPrimary }]}>✓</ThemedText>}
               </View>
               <ThemedText variant="secondary" style={styles.tracksRoundsLabel}>
                 Track rounds + partial reps separately
@@ -971,9 +971,9 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
             testID="save-button"
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.onPrimary} />
             ) : (
-              <ThemedText style={[styles.submitBtnText, { color: '#fff' }]}>
+              <ThemedText style={[styles.submitBtnText, { color: colors.onPrimary }]}>
                 {mode === 'create' ? 'Save workout' : 'Save changes'}
               </ThemedText>
             )}
@@ -1120,7 +1120,7 @@ export default function WorkoutEditorScreen({ navigation, route }: Props) {
                       ]}
                       testID={`unit-picker-chip-${u}`}
                     >
-                      <ThemedText style={[styles.chipLabel, selected && { color: '#fff', fontWeight: '700' }]}>
+                      <ThemedText style={[styles.chipLabel, selected && { color: colors.onPrimary, fontWeight: '700' }]}>
                         {UNIT_LABELS[u]}
                       </ThemedText>
                     </TouchableOpacity>
@@ -1254,7 +1254,7 @@ function PrescriptionCard({
               },
             ]}
           >
-            {prescription.tracksLoad && <ThemedText style={styles.checkboxMark}>✓</ThemedText>}
+            {prescription.tracksLoad && <ThemedText style={[styles.checkboxMark, { color: colors.onPrimary }]}>✓</ThemedText>}
           </View>
           <ThemedText variant="tertiary" style={styles.tracksLoadLabel}>
             Track load on results
@@ -1357,7 +1357,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxMark: { color: '#fff', fontSize: 12, fontWeight: '700', lineHeight: 14 },
+  checkboxMark: { fontSize: 12, fontWeight: '700', lineHeight: 14 },
 
   // Manual movement search (slice 3a follow-up).
   movementSearchInput: { marginTop: 8 },

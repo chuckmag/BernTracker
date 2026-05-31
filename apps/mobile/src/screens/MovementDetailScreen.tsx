@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -66,16 +65,15 @@ function shortDate(iso: string): string {
 
 interface TrajectoryChartProps {
   points: MovementTrajectoryData['points']
-  isDark: boolean
   selectedIndex: number | null
   onSelectIndex: (i: number | null) => void
 }
 
-function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: TrajectoryChartProps) {
+function TrajectoryChart({ points, selectedIndex, onSelectIndex }: TrajectoryChartProps) {
   const { colors } = useTheme()
   const lineColor = colors.primary
-  const gridColor = isDark ? '#1f2937' : '#e2e8f0'
-  const tickColor = isDark ? '#6b7280' : '#64748b'
+  const gridColor = colors.borderSubtle
+  const tickColor = colors.textTertiary
 
   if (points.length < 2) {
     return (
@@ -144,7 +142,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
             cy={toY(values[i])}
             r={isSelected ? 4 : 2.5}
             fill={lineColor}
-            stroke={isSelected ? (isDark ? '#ffffff' : '#1e293b') : 'none'}
+            stroke={isSelected ? colors.textPrimary : 'none'}
             strokeWidth={isSelected ? 1.5 : 0}
           />
         )
@@ -158,8 +156,8 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
 function EntryRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={cs.entryRow}>
-      <Text style={cs.entryDate}>{label}</Text>
-      <Text style={cs.entryValue}>{value}</Text>
+      <ThemedText variant="tertiary" style={cs.entryDate}>{label}</ThemedText>
+      <ThemedText variant="secondary" style={cs.entryValue}>{value}</ThemedText>
     </View>
   )
 }
@@ -173,7 +171,7 @@ type Props = {
 
 export default function MovementDetailScreen({ navigation: _navigation, route }: Props) {
   const { movementId, name: _name, prTypes } = route.params
-  const { colors, isDark } = useTheme()
+  const { colors } = useTheme()
 
   const [selectedPrType, setSelectedPrType] = useState<MovementPrType>(prTypes[0])
   const [range, setRange] = useState<'1M' | '3M' | '6M' | '1Y'>('3M')
@@ -227,35 +225,38 @@ export default function MovementDetailScreen({ navigation: _navigation, route }:
     <ScrollView
       style={[cs.container, { backgroundColor: colors.screenBg }]}
       contentContainerStyle={cs.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#818cf8" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
     >
       {/* PR type tab strip (only shown when multiple prTypes) */}
       {prTypes.length > 1 && (
-        <View style={cs.tabStrip} accessibilityRole="tablist">
+        <ThemedView variant="card" style={cs.tabStrip} accessibilityRole="tablist">
           {prTypes.map((pt) => (
             <TouchableOpacity
               key={pt}
-              style={[cs.tab, selectedPrType === pt && cs.tabActive]}
+              style={[cs.tab, selectedPrType === pt && { backgroundColor: colors.borderSubtle }]}
               onPress={() => { setSelectedPrType(pt); setSelectedDotIndex(null) }}
               accessibilityRole="tab"
               accessibilityState={{ selected: selectedPrType === pt }}
               accessibilityLabel={PR_TYPE_LABELS[pt]}
             >
-              <Text style={[cs.tabText, selectedPrType === pt && cs.tabTextActive]}>
+              <ThemedText
+                variant={selectedPrType === pt ? undefined : 'tertiary'}
+                style={[cs.tabText, selectedPrType === pt && cs.tabTextActive]}
+              >
                 {PR_TYPE_LABELS[pt]}
-              </Text>
+              </ThemedText>
             </TouchableOpacity>
           ))}
-        </View>
+        </ThemedView>
       )}
 
       {prsLoading && (
         <View style={cs.center}>
-          <ActivityIndicator color="#818cf8" />
+          <ActivityIndicator color={colors.primary} />
         </View>
       )}
 
-      {!prsLoading && prsError && <Text style={cs.error}>{prsError}</Text>}
+      {!prsLoading && prsError && <ThemedText style={[cs.error, { color: colors.errorText }]}>{prsError}</ThemedText>}
 
       {!prsLoading && !prsError && (
         <>
@@ -268,14 +269,20 @@ export default function MovementDetailScreen({ navigation: _navigation, route }:
                   {RANGE_OPTIONS.map((opt) => (
                     <TouchableOpacity
                       key={opt.value}
-                      style={[cs.rangeChip, range === opt.value && cs.rangeChipActive]}
+                      style={[
+                        cs.rangeChip,
+                        { backgroundColor: range === opt.value ? colors.borderInteractive : colors.borderSubtle },
+                      ]}
                       onPress={() => setRange(opt.value)}
                       accessibilityRole="button"
                       accessibilityState={{ selected: range === opt.value }}
                     >
-                      <Text style={[cs.rangeChipText, range === opt.value && cs.rangeChipTextActive]}>
+                      <ThemedText
+                        variant={range === opt.value ? undefined : 'tertiary'}
+                        style={[cs.rangeChipText, range === opt.value && cs.rangeChipTextActive]}
+                      >
                         {opt.label}
-                      </Text>
+                      </ThemedText>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -283,12 +290,11 @@ export default function MovementDetailScreen({ navigation: _navigation, route }:
 
               {trajectoryLoading ? (
                 <View style={cs.chartPlaceholder}>
-                  <ActivityIndicator size="small" color="#818cf8" />
+                  <ActivityIndicator size="small" color={colors.primary} />
                 </View>
               ) : (
                 <TrajectoryChart
                   points={trajectory?.points ?? []}
-                  isDark={isDark}
                   selectedIndex={selectedDotIndex}
                   onSelectIndex={setSelectedDotIndex}
                 />
@@ -296,8 +302,8 @@ export default function MovementDetailScreen({ navigation: _navigation, route }:
 
               {selectedPoint && (
                 <View style={[cs.callout, { backgroundColor: `${colors.primary}1a` }]}>
-                  <Text style={cs.calloutDate}>{formatDate(selectedPoint.achievedAt)}</Text>
-                  <Text style={[cs.calloutValue, { color: colors.primary }]}>{selectedPoint.label}</Text>
+                  <ThemedText variant="tertiary" style={cs.calloutDate}>{formatDate(selectedPoint.achievedAt)}</ThemedText>
+                  <ThemedText style={[cs.calloutValue, { color: colors.primary }]}>{selectedPoint.label}</ThemedText>
                 </View>
               )}
             </ThemedView>
@@ -363,14 +369,12 @@ const cs = StyleSheet.create({
     alignItems: 'center',
   },
   error: {
-    color: '#f87171',
     fontSize: 14,
   },
 
   // Tab strip (pr types)
   tabStrip: {
     flexDirection: 'row',
-    backgroundColor: '#111827',
     borderRadius: 8,
     padding: 3,
     gap: 2,
@@ -381,16 +385,11 @@ const cs = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 6,
   },
-  tabActive: {
-    backgroundColor: '#1f2937',
-  },
   tabText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6b7280',
   },
   tabTextActive: {
-    color: '#ffffff',
     fontWeight: '600',
   },
 
@@ -417,18 +416,12 @@ const cs = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
-    backgroundColor: '#1f2937',
-  },
-  rangeChipActive: {
-    backgroundColor: '#374151',
   },
   rangeChipText: {
     fontSize: 11,
-    color: '#6b7280',
     fontWeight: '500',
   },
   rangeChipTextActive: {
-    color: '#ffffff',
     fontWeight: '600',
   },
   chartPlaceholder: {
@@ -447,7 +440,6 @@ const cs = StyleSheet.create({
   },
   calloutDate: {
     fontSize: 11,
-    color: '#9ca3af',
   },
   calloutValue: {
     fontSize: 13,
@@ -474,12 +466,10 @@ const cs = StyleSheet.create({
   },
   entryDate: {
     fontSize: 12,
-    color: '#6b7280',
   },
   entryValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#e5e7eb',
   },
 
   // Empty
