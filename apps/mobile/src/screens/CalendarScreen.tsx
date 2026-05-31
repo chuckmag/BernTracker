@@ -94,6 +94,16 @@ export default function CalendarScreen({ navigation }: Props) {
     return () => { cancelled = true }
   }, [])
 
+  // Visual axis is intentionally local (parsed without `Z`) so column labels
+  // — day-of-week and date number rendered via getDay/getDate — track the
+  // user's wall-clock today, not the UTC date. A holistic UTC parse would
+  // shift "today" forward for any user west of UTC after their local
+  // evening crosses UTC midnight (~5pm PDT, ~2pm HST). The data axis is
+  // UTC (see `loadStrip` bounds and `workoutsByDate` keying off the ISO
+  // slice); the two coordinate systems converge on the same `YYYY-MM-DD`
+  // string because `addDays` preserves the local time-of-day and the
+  // workout `scheduledAt` is conventionally stored at a UTC moment that
+  // names the intended calendar date.
   const visibleDays = useMemo(() => {
     const start = new Date(stripStartKey + 'T00:00:00')
     return Array.from({ length: STRIP_DAYS }, (_, i) => addDays(start, i))
