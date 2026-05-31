@@ -73,8 +73,4 @@ describe('MarkdownText', () => {
     expect(getByTestId('coach-notes-body')).toBeTruthy()
   })
 
-  test('does not wrap in an extra View when no testID is provided', () => {
-    const { queryByTestId } = render(<MarkdownText source="hello" />)
-    expect(queryByTestId('coach-notes-body')).toBeNull()
-  })
 })

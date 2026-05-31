@@ -11,7 +11,8 @@ interface MarkdownTextProps {
   testID?: string
 }
 
-// Tables fall back to plain text — phone width can't carry a real table.
+// Tables are left unstyled — phone width can't carry a real table; the
+// library's default render is good enough.
 export default function MarkdownText({ source, variant = 'secondary', testID }: MarkdownTextProps) {
   const { colors } = useTheme()
   const styles = useMemo(() => buildStyles(colors, variant), [colors, variant])
@@ -22,7 +23,7 @@ export default function MarkdownText({ source, variant = 'secondary', testID }: 
     <Markdown
       style={styles}
       onLinkPress={(url) => {
-        Linking.openURL(url).catch(() => {})
+        Linking.openURL(url).catch((err) => console.warn('MarkdownText: failed to open URL', url, err))
         return true
       }}
     >
@@ -43,7 +44,7 @@ function buildStyles(colors: ThemeColors, variant: Variant): Record<string, Text
     borderWidth: 0,
     padding: 8,
     borderRadius: 6,
-    fontFamily: 'Courier',
+    fontFamily: 'monospace',
     fontSize: 13,
     marginVertical: 4,
   }
@@ -52,7 +53,7 @@ function buildStyles(colors: ThemeColors, variant: Variant): Record<string, Text
       color: base,
       fontSize,
       lineHeight,
-      ...(variant === 'tertiary' ? { fontStyle: 'italic' } : null),
+      ...(variant === 'tertiary' ? { fontStyle: 'italic' as const } : undefined),
     },
     paragraph: { marginTop: 0, marginBottom: 8 },
     heading1: { color: colors.textPrimary, fontSize: 18, fontWeight: '600', marginTop: 4, marginBottom: 4 },
@@ -85,15 +86,11 @@ function buildStyles(colors: ThemeColors, variant: Variant): Record<string, Text
       paddingHorizontal: 4,
       paddingVertical: 1,
       borderRadius: 4,
-      fontFamily: 'Courier',
+      fontFamily: 'monospace',
       fontSize: 13,
     },
     code_block: codeBlock,
     fence: codeBlock,
     hr: { backgroundColor: colors.borderSubtle, height: 1, marginVertical: 8 },
-    table: { borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: 4, marginVertical: 4 },
-    th: { padding: 6, borderColor: colors.borderSubtle },
-    td: { padding: 6, borderColor: colors.borderSubtle },
-    tr: { borderBottomWidth: 1, borderColor: colors.borderSubtle, flexDirection: 'row' },
   })
 }
