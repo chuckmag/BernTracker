@@ -116,8 +116,8 @@ export default function GoalsCard() {
 
       {loading && (
         <View style={styles.shimmerContainer}>
-          <View style={[styles.shimmer, { backgroundColor: colors.borderSubtle }]} />
-          <View style={[styles.shimmer, { backgroundColor: colors.borderSubtle, width: '70%', marginTop: 8 }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.surfaceSubtle }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.surfaceSubtle, width: '70%', marginTop: 8 }]} />
         </View>
       )}
 
@@ -156,7 +156,7 @@ export default function GoalsCard() {
 
       <View style={[styles.footer, { borderTopColor: colors.borderSubtle }]}>
         <TouchableOpacity
-          style={[styles.newBtn, { backgroundColor: colors.borderSubtle }]}
+          style={[styles.newBtn, { backgroundColor: colors.surfaceSubtle }]}
           onPress={() => setShowCreate(true)}
           accessibilityRole="button"
           accessibilityLabel="Create a new goal"

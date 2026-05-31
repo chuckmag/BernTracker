@@ -87,7 +87,7 @@ export default function WodHeroCard({ data }: Props) {
       {/* Result or CTAs */}
       <View style={styles.resultRow}>
         {myResult ? (
-          <View style={[styles.resultCard, { backgroundColor: colors.borderSubtle, borderColor: colors.borderInteractive }]}>
+          <View style={[styles.resultCard, { backgroundColor: colors.surfaceSubtle, borderColor: colors.borderInteractive }]}>
             <ThemedText style={[styles.loggedLabel, { color: colors.successText }]}>
               ✓ Logged · {formatTime(myResult.createdAt)}
             </ThemedText>
@@ -109,7 +109,7 @@ export default function WodHeroCard({ data }: Props) {
               <ThemedText style={[styles.ctaPrimaryText, { color: colors.onPrimary }]}>Start workout</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.ctaSecondary, { backgroundColor: colors.borderSubtle, borderColor: colors.borderInteractive }]}
+              style={[styles.ctaSecondary, { backgroundColor: colors.surfaceSubtle, borderColor: colors.borderInteractive }]}
               onPress={goToWod}
               activeOpacity={0.8}
             >

@@ -17,6 +17,7 @@ export const COLORS = {
     screenBg:   '#f8fafc', // slate-50
     cardBg:     '#ffffff', // white
     inputBg:    '#ffffff',
+    surfaceSubtle: '#f1f5f9', // slate-100 — recessed neutral surface (inner cards, quiet buttons, skeletons)
     // Borders
     borderSubtle:      '#e2e8f0', // slate-200
     borderInteractive: '#cbd5e1', // slate-300
@@ -34,6 +35,9 @@ export const COLORS = {
     accentHover:  BRAND.accentHover.light,
     accentText:   '#020617', // slate-950 — accent bg has low contrast with white
     onPrimary:    '#ffffff', // text rendered on top of `primary` — same in both themes (primary bg is dark enough either way)
+    onPrimaryTint: 'rgba(255,255,255,0.18)', // translucent overlay on top of `primary` (count badges, pill chrome)
+    // Overlays
+    modalScrim: 'rgba(0,0,0,0.6)', // backdrop for modal sheets — theme-invariant by design
     // Status (translucent fills with solid text for readability)
     successText: '#15803d', // emerald-700
     warningText: '#b45309', // amber-700
@@ -52,6 +56,7 @@ export const COLORS = {
     screenBg:   '#030712', // gray-950
     cardBg:     '#111827', // gray-900
     inputBg:    '#1f2937', // gray-800
+    surfaceSubtle: '#1f2937', // gray-800 — recessed neutral surface (inner cards, quiet buttons, skeletons)
     // Borders
     borderSubtle:      '#1f2937', // gray-800
     borderInteractive: '#374151', // gray-700
@@ -69,6 +74,9 @@ export const COLORS = {
     accentHover:  BRAND.accentHover.dark,
     accentText:   '#020617', // slate-950 — same: teal has low contrast with white
     onPrimary:    '#ffffff',
+    onPrimaryTint: 'rgba(255,255,255,0.18)',
+    // Overlays
+    modalScrim: 'rgba(0,0,0,0.6)',
     // Status
     successText: '#34d399', // emerald-400
     warningText: '#fbbf24', // amber-400

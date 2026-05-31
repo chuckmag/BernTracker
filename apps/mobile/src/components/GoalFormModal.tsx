@@ -88,7 +88,7 @@ function OptionSheet<T extends string>({
   const { colors } = useTheme()
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <Pressable style={s.sheetBackdrop} onPress={onClose}>
+      <Pressable style={[s.sheetBackdrop, { backgroundColor: colors.modalScrim }]} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()}>
           <ThemedView variant="card" style={s.sheet}>
             <ThemedText style={s.sheetTitle}>{title}</ThemedText>
@@ -421,7 +421,7 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onCancel}>
       <KeyboardAvoidingView
-        style={s.overlay}
+        style={[s.overlay, { backgroundColor: colors.modalScrim }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ThemedView variant="card" style={s.sheetMain}>
@@ -687,7 +687,7 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
 
           <View style={[s.actions, { borderTopColor: colors.borderSubtle }]}>
             <TouchableOpacity
-              style={[s.cancelBtn, { backgroundColor: colors.borderSubtle }]}
+              style={[s.cancelBtn, { backgroundColor: colors.surfaceSubtle }]}
               onPress={onCancel}
               disabled={saving}
             >
@@ -747,7 +747,6 @@ export default function GoalFormModal({ mode, initialGoal, onCancel, onSaved }: 
 const s = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   sheetMain: {
@@ -867,7 +866,6 @@ const s = StyleSheet.create({
 
   sheetBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   sheet: {

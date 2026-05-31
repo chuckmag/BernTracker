@@ -945,7 +945,7 @@ function SetsTableRN({
       {/* Action buttons */}
       <View style={styles.tableActions}>
         <TouchableOpacity
-          style={[styles.addSetBtn, { backgroundColor: colors.borderSubtle }]}
+          style={[styles.addSetBtn, { backgroundColor: colors.surfaceSubtle }]}
           onPress={() => onAddSet(movementIdx)}
           accessibilityLabel="Add set"
           testID="add-set"

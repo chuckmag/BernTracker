@@ -227,7 +227,7 @@ function ActionMenu({ visible, status, onEdit, onArchive, onDelete, onClose }: A
   const { colors } = useTheme()
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.menuBackdrop} onPress={onClose}>
+      <Pressable style={[s.menuBackdrop, { backgroundColor: colors.modalScrim }]} onPress={onClose}>
         <Pressable onPress={(e) => e.stopPropagation()}>
           <ThemedView variant="card" style={s.menu}>
             <TouchableOpacity style={[s.menuItem, { borderBottomColor: colors.borderSubtle }]} onPress={onEdit}>
@@ -393,7 +393,7 @@ export default function GoalDetailScreen() {
             <ThemedText variant="tertiary" style={s.subtitle}>Status: {goal.status}</ThemedText>
           </View>
           <TouchableOpacity
-            style={[s.menuBtn, { backgroundColor: colors.borderSubtle }]}
+            style={[s.menuBtn, { backgroundColor: colors.surfaceSubtle }]}
             onPress={() => setShowMenu(true)}
             accessibilityLabel="Goal actions"
             accessibilityRole="button"
@@ -526,7 +526,7 @@ export default function GoalDetailScreen() {
                 )}
               </TouchableOpacity>
             )}
-            <View style={[s.habitPlaceholder, { backgroundColor: colors.borderSubtle }]}>
+            <View style={[s.habitPlaceholder, { backgroundColor: colors.surfaceSubtle }]}>
               <ThemedText variant="tertiary" style={s.habitPlaceholderText}>{HABIT_V2_COPY}</ThemedText>
             </View>
           </ThemedView>
@@ -620,7 +620,6 @@ const s = StyleSheet.create({
 
   menuBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   menu: {
