@@ -215,7 +215,7 @@
         "pkce.code.challenge.method": "S256"
       },
       "redirectUris": [
-        "com.wodalytics.app://*",
+        "com.wodalytics.app://redirect",
         "exp://localhost:*",
         "exp://127.0.0.1:*",
         "exp://*"
