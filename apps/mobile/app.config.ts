@@ -48,7 +48,10 @@ export default (): ExpoConfig => {
       },
       predictiveBackGestureEnabled: false,
     },
-    updates: { url: `https://u.expo.dev/${projectId}` },
+    // DEBUG: disable expo-updates so its ErrorRecovery stops masking the
+    // underlying JS exception in TestFlight crash reports. Revert to
+    // `updates: { url: ... }` once the real crash cause is identified.
+    updates: { enabled: false },
     extra: { eas: { projectId } },
   }
 }
