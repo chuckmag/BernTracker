@@ -63,12 +63,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Fail fast if EXPO_TOKEN is missing
         if: env.EXPO_TOKEN == ''
         run: |
           echo "::error::EXPO_TOKEN secret is not set. Add it at Settings → Secrets and variables → Actions."
           exit 1
+
+      # eas-cli evaluates `apps/mobile/app.config.ts` in the local CLI process
+      # before shipping work to the EAS queue. That evaluator resolves Expo
+      # config plugins (currently `expo-web-browser`) against the project's
+      # node_modules — so we need a real install on the runner.
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .
 
       - name: Confirm EAS auth
         run: npx eas-cli@latest whoami
