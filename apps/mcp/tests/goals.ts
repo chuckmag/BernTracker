@@ -171,6 +171,7 @@ async function seedFixtures(): Promise<Fixtures> {
 }
 
 async function cleanupFixtures(f: Fixtures): Promise<void> {
+  await prisma.goalCheckIn.deleteMany({ where: { userId: { in: [f.memberUserId, f.otherUserId] } } })
   await prisma.goal.deleteMany({ where: { userId: { in: [f.memberUserId, f.otherUserId] } } })
   await prisma.namedWorkout.deleteMany({ where: { id: f.namedWorkoutId } })
   await prisma.movement.deleteMany({ where: { id: f.movementId } })
@@ -410,6 +411,148 @@ async function run(): Promise<void> {
     {
       const r = await callTool(BASE, memberToken, 'delete_my_goal', { goalId: frequencyGoalId })
       checkTrue('isError', r.isError)
+    }
+
+    // ── Habit check-ins ───────────────────────────────────────────────────────
+    //
+    // habitGoalId was set up earlier and went through a COMPLETED→ACTIVE
+    // cycle in T13/T14; it's currently ACTIVE, no check-ins yet.
+
+    function ymd(d: Date): string {
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(d.getUTCDate()).padStart(2, '0')
+      return `${d.getUTCFullYear()}-${m}-${day}`
+    }
+    const today = new Date()
+    const todayStr = ymd(today)
+
+    console.log('\n=== T19: record_habit_check_in — happy path ===')
+    {
+      const r = await callTool(BASE, memberToken, 'record_habit_check_in', {
+        goalId: habitGoalId,
+      })
+      check('not error', false, r.isError)
+      const result = r.parsed as { checkIn: { date: string; note: string | null }; goal: { progress: { type: string; currentStreak: number; checkedInToday: boolean; totalCheckIns: number } } } | null
+      check('checkIn.date = today', todayStr, result?.checkIn.date)
+      check('checkIn.note = null', null, result?.checkIn.note)
+      check('progress.type=HABIT', 'HABIT', result?.goal.progress.type)
+      check('progress.currentStreak=1', 1, result?.goal.progress.currentStreak)
+      check('progress.checkedInToday=true', true, result?.goal.progress.checkedInToday)
+      check('progress.totalCheckIns=1', 1, result?.goal.progress.totalCheckIns)
+    }
+
+    console.log('\n=== T20: record_habit_check_in — idempotent re-tap with note ===')
+    {
+      const r = await callTool(BASE, memberToken, 'record_habit_check_in', {
+        goalId: habitGoalId,
+        note: 'felt great',
+      })
+      check('not error', false, r.isError)
+      const result = r.parsed as { checkIn: { note: string | null }; goal: { progress: { totalCheckIns: number } } } | null
+      check('checkIn.note updated', 'felt great', result?.checkIn.note)
+      check('totalCheckIns still 1 (upsert)', 1, result?.goal.progress.totalCheckIns)
+    }
+
+    console.log('\n=== T21: record_habit_check_in — wrong-type goal → error ===')
+    {
+      const r = await callTool(BASE, memberToken, 'record_habit_check_in', {
+        goalId: prTargetGoalId,
+      })
+      checkTrue('isError', r.isError)
+      checkTrue('mentions habit', r.text.toLowerCase().includes('habit'))
+    }
+
+    console.log('\n=== T22: record_habit_check_in — other user → error ===')
+    {
+      const r = await callTool(BASE, otherToken, 'record_habit_check_in', {
+        goalId: habitGoalId,
+      })
+      checkTrue('isError', r.isError)
+    }
+
+    console.log('\n=== T23: record_habit_check_in — explicit YYYY-MM-DD date ===')
+    {
+      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+      const r = await callTool(BASE, memberToken, 'record_habit_check_in', {
+        goalId: habitGoalId,
+        date: ymd(yesterday),
+      })
+      check('not error', false, r.isError)
+      const result = r.parsed as { checkIn: { date: string }; goal: { progress: { currentStreak: number; totalCheckIns: number } } } | null
+      check('checkIn.date echoes yesterday', ymd(yesterday), result?.checkIn.date)
+      check('currentStreak=2 (today + yesterday)', 2, result?.goal.progress.currentStreak)
+      check('totalCheckIns=2', 2, result?.goal.progress.totalCheckIns)
+    }
+
+    console.log('\n=== T24: list_my_habit_check_ins ===')
+    {
+      const r = await callTool(BASE, memberToken, 'list_my_habit_check_ins', {
+        goalId: habitGoalId,
+      })
+      check('not error', false, r.isError)
+      const rows = r.parsed as Array<{ date: string }> | null
+      check('2 rows', 2, rows?.length)
+      check('newest first — today', todayStr, rows?.[0].date)
+    }
+
+    console.log('\n=== T25: list_my_habit_check_ins — limit=1 ===')
+    {
+      const r = await callTool(BASE, memberToken, 'list_my_habit_check_ins', {
+        goalId: habitGoalId,
+        limit: 1,
+      })
+      check('not error', false, r.isError)
+      const rows = r.parsed as unknown[] | null
+      check('1 row', 1, rows?.length)
+    }
+
+    console.log('\n=== T26: list_my_habit_check_ins — wrong type → error ===')
+    {
+      const r = await callTool(BASE, memberToken, 'list_my_habit_check_ins', {
+        goalId: prTargetGoalId,
+      })
+      checkTrue('isError', r.isError)
+    }
+
+    console.log('\n=== T27: undo_my_habit_check_in — removes the row ===')
+    {
+      const r = await callTool(BASE, memberToken, 'undo_my_habit_check_in', {
+        goalId: habitGoalId,
+        date: todayStr,
+      })
+      check('not error', false, r.isError)
+      const result = r.parsed as { goal: { progress: { totalCheckIns: number; checkedInToday: boolean } } } | null
+      check('totalCheckIns=1 after undo', 1, result?.goal.progress.totalCheckIns)
+      check('checkedInToday=false', false, result?.goal.progress.checkedInToday)
+    }
+
+    console.log('\n=== T28: undo_my_habit_check_in — missing date → error ===')
+    {
+      const r = await callTool(BASE, memberToken, 'undo_my_habit_check_in', {
+        goalId: habitGoalId,
+        date: todayStr,
+      })
+      checkTrue('isError', r.isError)
+      checkTrue('mentions no check-in', r.text.toLowerCase().includes('no check-in'))
+    }
+
+    console.log('\n=== T29: undo_my_habit_check_in — other user → error ===')
+    {
+      const r = await callTool(BASE, otherToken, 'undo_my_habit_check_in', {
+        goalId: habitGoalId,
+        date: todayStr,
+      })
+      checkTrue('isError', r.isError)
+    }
+
+    console.log('\n=== T30: record_habit_check_in — invalid date → error ===')
+    {
+      const r = await callTool(BASE, memberToken, 'record_habit_check_in', {
+        goalId: habitGoalId,
+        date: '2026-13-99',
+      })
+      checkTrue('isError', r.isError)
+      checkTrue('mentions valid date', r.text.toLowerCase().includes('valid'))
     }
   } finally {
     await cleanupFixtures(f)

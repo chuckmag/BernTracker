@@ -152,12 +152,22 @@ async function recordCheckInHandler(req: Request, res: Response) {
   const parsed = RecordGoalCheckInSchema.safeParse(req.body ?? {})
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
 
-  // Zod's `.datetime()` validates format but not calendar validity, so a
-  // string like "2026-13-01T00:00:00Z" passes Zod and produces an Invalid
-  // Date here — guard before it reaches Prisma.
-  const date = parsed.data.date ? new Date(parsed.data.date) : new Date()
-  if (Number.isNaN(date.getTime())) {
-    return res.status(400).json({ error: 'Date is not a valid calendar date' })
+  // Zod validates format but not calendar validity. Two failure modes
+  // worth catching:
+  //   - "2026-13-01T00:00:00Z"  — ISO datetime that produces Invalid Date
+  //   - "2026-02-29"            — YYYY-MM-DD that V8 silently rolls over
+  //                               to March 1 (Feb has 28 days in 2026)
+  // parseQueryDate uses parseYmd's calendar round-trip for YYYY-MM-DD and
+  // an isNaN guard for ISO datetimes, so both paths reject cleanly.
+  let date: Date
+  if (parsed.data.date) {
+    const parsedDate = parseQueryDate(parsed.data.date)
+    if (!parsedDate) {
+      return res.status(400).json({ error: 'Date is not a valid calendar date' })
+    }
+    date = parsedDate
+  } else {
+    date = new Date()
   }
   const row = await recordCheckIn({
     goalId: goal.id,
