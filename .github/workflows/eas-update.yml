@@ -99,9 +99,17 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Update message: $msg"
 
+      # Pass interpolated values via env vars so the shell never sees the raw
+      # ${{ ... }} expression. The default message (`steps.msg.outputs.message`)
+      # falls back to the commit subject, which is attacker-influenced on a
+      # public repo — a subject containing `$(...)`, backticks, or unbalanced
+      # quotes could otherwise execute arbitrary commands.
       - name: Publish update
+        env:
+          UPDATE_BRANCH: ${{ inputs.branch }}
+          UPDATE_MESSAGE: ${{ steps.msg.outputs.message }}
         run: |
           npx eas-cli@latest update \
-            --branch "${{ inputs.branch }}" \
-            --message "${{ steps.msg.outputs.message }}" \
+            --branch "$UPDATE_BRANCH" \
+            --message "$UPDATE_MESSAGE" \
             --non-interactive
