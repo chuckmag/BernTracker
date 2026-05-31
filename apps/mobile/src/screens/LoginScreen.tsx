@@ -15,7 +15,15 @@ import ThemedView from '../components/ThemedView'
 
 WebBrowser.maybeCompleteAuthSession()
 
-const redirectUri = AuthSession.makeRedirectUri({ scheme: 'com.wodalytics.app' })
+// Pin an explicit path on the OAuth redirect URI. `com.wodalytics.app://`
+// (no path) is technically incomplete per RFC 3986 and Keycloak's URI
+// matcher rejects it as `invalid_redirect_uri` even with a `://*` wildcard
+// in the allow-list. A real path produces `com.wodalytics.app://redirect`
+// which is a well-formed URI that Keycloak can match exactly.
+const redirectUri = AuthSession.makeRedirectUri({
+  scheme: 'com.wodalytics.app',
+  path: 'redirect',
+})
 
 const BASE_CONFIG = {
   clientId: CLIENT_ID,
