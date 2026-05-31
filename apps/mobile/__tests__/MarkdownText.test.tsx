@@ -74,9 +74,6 @@ describe('MarkdownText', () => {
   })
 
   test('does not wrap in an extra View when no testID is provided', () => {
-    // Sanity check that the default render path doesn't add an extra wrapper —
-    // keeps layout predictable for callers that put MarkdownText inside their
-    // own positioning View.
     const { queryByTestId } = render(<MarkdownText source="hello" />)
     expect(queryByTestId('coach-notes-body')).toBeNull()
   })

@@ -11,14 +11,7 @@ interface MarkdownTextProps {
   testID?: string
 }
 
-// Drop-in replacement for `<ThemedText>{value}</ThemedText>` when the value may
-// contain markdown (workout descriptions, coach notes, athlete notes). Matches
-// the web `MarkdownDescription` element coverage (paragraphs, headings, bold,
-// italic, lists, links, code, blockquote, hr). Tables fall back to plain text —
-// phone width can't carry a real table.
-//
-// Renders null for empty/whitespace input so callers can skip the conditional
-// wrapper they would otherwise need around a bare ThemedText.
+// Tables fall back to plain text — phone width can't carry a real table.
 export default function MarkdownText({ source, variant = 'secondary', testID }: MarkdownTextProps) {
   const { colors } = useTheme()
   const styles = useMemo(() => buildStyles(colors, variant), [colors, variant])
@@ -44,6 +37,16 @@ function buildStyles(colors: ThemeColors, variant: Variant): Record<string, Text
   const base = variant === 'tertiary' ? colors.textTertiary : colors.textSecondary
   const fontSize = variant === 'tertiary' ? 13 : 15
   const lineHeight = variant === 'tertiary' ? 18 : 22
+  const codeBlock: TextStyle = {
+    backgroundColor: colors.surfaceSubtle,
+    color: colors.textPrimary,
+    borderWidth: 0,
+    padding: 8,
+    borderRadius: 6,
+    fontFamily: 'Courier',
+    fontSize: 13,
+    marginVertical: 4,
+  }
   return StyleSheet.create({
     body: {
       color: base,
@@ -85,26 +88,8 @@ function buildStyles(colors: ThemeColors, variant: Variant): Record<string, Text
       fontFamily: 'Courier',
       fontSize: 13,
     },
-    code_block: {
-      backgroundColor: colors.surfaceSubtle,
-      color: colors.textPrimary,
-      borderWidth: 0,
-      padding: 8,
-      borderRadius: 6,
-      fontFamily: 'Courier',
-      fontSize: 13,
-      marginVertical: 4,
-    },
-    fence: {
-      backgroundColor: colors.surfaceSubtle,
-      color: colors.textPrimary,
-      borderWidth: 0,
-      padding: 8,
-      borderRadius: 6,
-      fontFamily: 'Courier',
-      fontSize: 13,
-      marginVertical: 4,
-    },
+    code_block: codeBlock,
+    fence: codeBlock,
     hr: { backgroundColor: colors.borderSubtle, height: 1, marginVertical: 8 },
     table: { borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: 4, marginVertical: 4 },
     th: { padding: 6, borderColor: colors.borderSubtle },
