@@ -89,6 +89,7 @@ Key color roles:
 | Screen background | `colors.screenBg` | `#f8fafc` | `#030712` |
 | Card / panel | `colors.cardBg` | `#ffffff` | `#111827` |
 | Input background | `colors.inputBg` | `#ffffff` | `#1f2937` |
+| Recessed surface | `colors.surfaceSubtle` | `#f1f5f9` | `#1f2937` |
 | Primary text | `colors.textPrimary` | `#020617` | `#ffffff` |
 | Secondary text | `colors.textSecondary` | `#334155` | `#d1d5db` |
 | Muted / caption | `colors.textTertiary` | `#64748b` | `#9ca3af` |
@@ -98,8 +99,13 @@ Key color roles:
 | Interactive border | `colors.borderInteractive` | `#cbd5e1` | `#374151` |
 | Brand primary | `colors.primary` | `#1E5AA8` | `#5B9BE6` |
 | Brand accent (teal) | `colors.accent` | `#2BA8A4` | `#5FD4D0` |
+| On-primary text | `colors.onPrimary` | `#ffffff` | `#ffffff` |
+| On-primary overlay | `colors.onPrimaryTint` | `rgba(255,255,255,0.18)` | `rgba(255,255,255,0.18)` |
+| Modal scrim | `colors.modalScrim` | `rgba(0,0,0,0.6)` | `rgba(0,0,0,0.6)` |
 
 > **Accent text:** use `colors.accentText` (`#020617`) not white — teal has only ~1.7:1 contrast with white.
+
+> **`surfaceSubtle` vs. `borderSubtle`:** use `surfaceSubtle` when the role is "a barely-distinct recessed surface" (inner cards, quiet/secondary buttons, shimmer skeletons). Use `borderSubtle` only when the role is a 1px line (dividers, slider tracks). In dark mode the two tokens share the same value (`#1f2937`) — the semantic split is currently only load-bearing in light mode, but the distinct token makes future divergence cheap.
 
 ### Base components — `src/components/Themed*.tsx`
 
