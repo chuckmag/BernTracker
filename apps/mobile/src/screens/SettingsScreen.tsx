@@ -10,12 +10,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
+import type { StackNavigationProp } from '@react-navigation/stack'
 import { api, type IdentifiedGender, type UserProfile } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useTheme, type ThemeMode } from '../lib/theme'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
 import AvatarUploader from '../components/AvatarUploader'
+import type { RootStackParamList } from '../../App'
 
 // Mirrors the web Profile.tsx Details tab — same fields, same order, same
 // labels. Theme picker mirrors the cross-app `wodalytics-theme` AsyncStorage
@@ -36,9 +39,12 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'system', label: 'System' },
 ]
 
+type Nav = StackNavigationProp<RootStackParamList, 'Settings'>
+
 export default function SettingsScreen() {
   const { logout } = useAuth()
   const { colors, mode: themeMode, setMode: setThemeMode } = useTheme()
+  const navigation = useNavigation<Nav>()
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [firstName, setFirstName] = useState('')
@@ -231,6 +237,20 @@ export default function SettingsScreen() {
             </View>
           </ThemedView>
 
+          {/* Memberships — quick path to find / request to join another gym (#505) */}
+          <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
+            <ThemedText variant="label" style={styles.sectionLabel}>GYM MEMBERSHIPS</ThemedText>
+            <TouchableOpacity
+              style={[styles.linkRow, { borderColor: colors.borderInteractive }]}
+              onPress={() => navigation.navigate('BrowseGyms')}
+              accessibilityRole="button"
+              testID="browse-gyms-link"
+            >
+              <ThemedText style={[styles.linkRowText, { color: colors.textPrimary }]}>Find another gym</ThemedText>
+              <ThemedText style={[styles.linkRowChevron, { color: colors.textTertiary }]}>›</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
+
           {/* Appearance */}
           <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
             <ThemedText variant="label" style={styles.sectionLabel}>APPEARANCE</ThemedText>
@@ -395,5 +415,23 @@ const styles = StyleSheet.create({
   signOutText: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  linkRowText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  linkRowChevron: {
+    fontSize: 22,
+    fontWeight: '300',
+    lineHeight: 22,
   },
 })

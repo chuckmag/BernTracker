@@ -3,6 +3,11 @@ import { Alert } from 'react-native'
 import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import SettingsScreen from '../src/screens/SettingsScreen'
 
+const mockNavigate = jest.fn()
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: mockNavigate }),
+}))
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {
@@ -80,6 +85,7 @@ function profileFixture(overrides: Partial<Record<string, unknown>> = {}) {
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockNavigate.mockClear()
     ;(useAuth as jest.Mock).mockReturnValue({
       user: { id: 'u1' },
       isLoading: false,
@@ -168,5 +174,14 @@ describe('SettingsScreen', () => {
 
     await findByText('offline')
     expect(queryByTestId('save-button')).toBeNull()
+  })
+
+  test('"Find another gym" link navigates to BrowseGyms', async () => {
+    ;(api.users.me.profile.get as jest.Mock).mockResolvedValue(profileFixture())
+
+    const { findByTestId } = render(<SettingsScreen />)
+    fireEvent.press(await findByTestId('browse-gyms-link'))
+
+    expect(mockNavigate).toHaveBeenCalledWith('BrowseGyms')
   })
 })

@@ -35,6 +35,8 @@ import type {
   GymJoinRequest,
   MembershipRequestStatus,
   PendingInvitation,
+  BrowseGym,
+  GymBrowseStatus,
 } from '@wodalytics/types'
 import { WORKOUT_TYPE_STYLES } from './workoutTypeStyles'
 import keycloak from './keycloak'
@@ -65,6 +67,8 @@ export type {
   GoalResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  BrowseGym,
+  GymBrowseStatus,
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
@@ -621,18 +625,6 @@ export interface CreateAppInvitePayload {
 }
 
 export type { GymJoinRequest }
-
-export type GymBrowseStatus = 'NONE' | 'MEMBER' | 'REQUEST_PENDING'
-
-export interface BrowseGym {
-  id: string
-  name: string
-  slug: string
-  timezone: string
-  logoUrl: string | null
-  memberCount: number
-  callerStatus: GymBrowseStatus
-}
 
 export const api = {
   auth: {
