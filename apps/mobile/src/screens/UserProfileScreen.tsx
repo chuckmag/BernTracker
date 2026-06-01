@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native'
+import { StyleSheet, ActivityIndicator } from 'react-native'
 import type { StackScreenProps } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { api, type PublicUserProfile } from '../lib/api'
 import UserAvatar from '../components/UserAvatar'
+import { useTheme } from '../lib/theme'
+import ThemedText from '../components/ThemedText'
+import ThemedView from '../components/ThemedView'
 
 type Props = StackScreenProps<RootStackParamList, 'UserProfile'>
 
@@ -15,6 +18,7 @@ function displayName(profile: PublicUserProfile): string {
 }
 
 export default function UserProfileScreen({ route }: Props) {
+  const { colors } = useTheme()
   const { userId } = route.params
   const [profile, setProfile] = useState<PublicUserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -31,23 +35,23 @@ export default function UserProfileScreen({ route }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator color="#818cf8" />
-      </View>
+      <ThemedView variant="screen" style={styles.centered}>
+        <ActivityIndicator color={colors.primary} />
+      </ThemedView>
     )
   }
 
   if (error || !profile) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error ?? 'User not found.'}</Text>
-      </View>
+      <ThemedView variant="screen" style={styles.centered}>
+        <ThemedText style={[styles.errorText, { color: colors.errorText }]}>{error ?? 'User not found.'}</ThemedText>
+      </ThemedView>
     )
   }
 
   return (
-    <View style={styles.root}>
-      <View style={styles.card}>
+    <ThemedView variant="screen" style={styles.root}>
+      <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
         <UserAvatar
           avatarUrl={profile.avatarUrl}
           firstName={profile.firstName}
@@ -55,33 +59,28 @@ export default function UserProfileScreen({ route }: Props) {
           name={profile.name}
           size="lg"
         />
-        <Text style={styles.name}>{displayName(profile)}</Text>
-      </View>
-    </View>
+        <ThemedText style={styles.name}>{displayName(profile)}</ThemedText>
+      </ThemedView>
+    </ThemedView>
   )
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#030712',
     padding: 16,
   },
   centered: {
     flex: 1,
-    backgroundColor: '#030712',
     alignItems: 'center',
     justifyContent: 'center',
   },
   errorText: {
-    color: '#f87171',
     fontSize: 14,
   },
   card: {
-    backgroundColor: '#111827',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
     padding: 32,
     alignItems: 'center',
     gap: 16,
@@ -89,7 +88,6 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
     textAlign: 'center',
   },
 })

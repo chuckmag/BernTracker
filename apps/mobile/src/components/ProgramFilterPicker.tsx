@@ -4,7 +4,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
   ActivityIndicator,
@@ -12,6 +11,9 @@ import {
 import { useNavigation, type NavigationProp } from '@react-navigation/native'
 import type { RootStackParamList } from '../../App'
 import { useProgramFilter } from '../context/ProgramFilterContext'
+import { useTheme } from '../lib/theme'
+import ThemedText from './ThemedText'
+import ThemedView from './ThemedView'
 
 /**
  * Header-button entry point for the multi-program filter on FeedScreen.
@@ -21,10 +23,12 @@ import { useProgramFilter } from '../context/ProgramFilterContext'
  *   - Tap → modal with checkbox-style toggle rows
  *   - "Clear" pill resets to empty (= all programs) — matches the web semantics
  *
- * Hidden entirely if the user has no available programs (avoids a useless
- * dropdown for first-run gyms).
+ * When the caller has no available programs (first-run gym), the picker
+ * collapses into a single "Browse programs ›" pill so the public catalog
+ * (#507) is still reachable.
  */
 export default function ProgramFilterPicker() {
+  const { colors } = useTheme()
   const { selected, available, loading, toggle, clear } = useProgramFilter()
   const [open, setOpen] = useState(false)
   const navigation = useNavigation<NavigationProp<RootStackParamList>>()
@@ -35,19 +39,15 @@ export default function ProgramFilterPicker() {
   }
 
   if (!available.length && !loading) {
-    // Even with no available programs, surface the Browse entry point so a
-    // first-run member who hasn't joined any programs yet can still find the
-    // public catalog. Tap renders a tiny chevron in the header that opens
-    // BrowsePrograms directly.
     return (
       <TouchableOpacity
-        style={styles.headerButton}
+        style={[styles.headerButton, { backgroundColor: colors.inputBg }]}
         onPress={goToBrowse}
         accessibilityLabel="Browse public programs"
         testID="program-filter-browse-empty"
       >
-        <Text style={styles.headerButtonText} numberOfLines={1}>Browse programs</Text>
-        <Text style={styles.chevron}>›</Text>
+        <ThemedText variant="secondary" style={styles.headerButtonText} numberOfLines={1}>Browse programs</ThemedText>
+        <ThemedText style={[styles.chevron, { color: colors.primary }]}>›</ThemedText>
       </TouchableOpacity>
     )
   }
@@ -65,13 +65,13 @@ export default function ProgramFilterPicker() {
   return (
     <>
       <TouchableOpacity
-        style={styles.headerButton}
+        style={[styles.headerButton, { backgroundColor: colors.inputBg }]}
         onPress={() => setOpen(true)}
         accessibilityLabel="Filter programs"
         testID="program-filter-button"
       >
-        <Text style={styles.headerButtonText} numberOfLines={1}>{labelText}</Text>
-        <Text style={styles.chevron}>▾</Text>
+        <ThemedText variant="secondary" style={styles.headerButtonText} numberOfLines={1}>{labelText}</ThemedText>
+        <ThemedText style={[styles.chevron, { color: colors.primary }]}>▾</ThemedText>
       </TouchableOpacity>
 
       <Modal
@@ -80,60 +80,70 @@ export default function ProgramFilterPicker() {
         visible={open}
         onRequestClose={() => setOpen(false)}
       >
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Programs</Text>
-              <TouchableOpacity onPress={clear} testID="program-filter-clear">
-                <Text style={styles.clearText}>Clear</Text>
+        <Pressable style={[styles.backdrop, { backgroundColor: colors.modalScrim }]} onPress={() => setOpen(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <ThemedView variant="card" style={styles.sheet}>
+              <View style={styles.sheetHeader}>
+                <ThemedText style={styles.sheetTitle}>Programs</ThemedText>
+                <TouchableOpacity onPress={clear} testID="program-filter-clear">
+                  <ThemedText style={[styles.clearText, { color: colors.primary }]}>Clear</ThemedText>
+                </TouchableOpacity>
+              </View>
+              <ThemedText variant="tertiary" style={styles.helper}>
+                Empty selection shows workouts from every program.
+              </ThemedText>
+
+              <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+                {loading && available.length === 0 ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator color={colors.primary} />
+                  </View>
+                ) : (
+                  available.map(({ program }) => {
+                    const isSelected = selected.includes(program.id)
+                    return (
+                      <TouchableOpacity
+                        key={program.id}
+                        style={[styles.row, { borderBottomColor: colors.borderSubtle }]}
+                        onPress={() => toggle(program.id)}
+                        testID={`program-row-${program.id}`}
+                      >
+                        <View
+                          style={[
+                            styles.checkbox,
+                            { borderColor: colors.borderInteractive },
+                            isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                          ]}
+                        >
+                          {isSelected && <ThemedText style={[styles.checkmark, { color: colors.onPrimary }]}>✓</ThemedText>}
+                        </View>
+                        <ThemedText variant="secondary" style={styles.rowLabel} numberOfLines={1}>{program.name}</ThemedText>
+                      </TouchableOpacity>
+                    )
+                  })
+                )}
+              </ScrollView>
+
+              {/* Discovery entry point for BrowsePrograms (#507) — mirrors the
+                  "Browse public programs →" footer on the web picker. */}
+              <TouchableOpacity
+                style={[styles.browseRow, { borderTopColor: colors.borderSubtle }]}
+                onPress={goToBrowse}
+                testID="program-filter-browse"
+              >
+                <ThemedText style={[styles.browseRowText, { color: colors.primary }]}>
+                  Browse public programs →
+                </ThemedText>
               </TouchableOpacity>
-            </View>
-            <Text style={styles.helper}>
-              Empty selection shows workouts from every program.
-            </Text>
 
-            <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-              {loading && available.length === 0 ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator color="#818cf8" />
-                </View>
-              ) : (
-                available.map(({ program }) => {
-                  const isSelected = selected.includes(program.id)
-                  return (
-                    <TouchableOpacity
-                      key={program.id}
-                      style={styles.row}
-                      onPress={() => toggle(program.id)}
-                      testID={`program-row-${program.id}`}
-                    >
-                      <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                        {isSelected && <Text style={styles.checkmark}>✓</Text>}
-                      </View>
-                      <Text style={styles.rowLabel} numberOfLines={1}>{program.name}</Text>
-                    </TouchableOpacity>
-                  )
-                })
-              )}
-            </ScrollView>
-
-            {/* Discovery entry point for BrowsePrograms (#507) — mirrors the
-                "Browse public programs →" footer on the web picker. */}
-            <TouchableOpacity
-              style={styles.browseRow}
-              onPress={goToBrowse}
-              testID="program-filter-browse"
-            >
-              <Text style={styles.browseRowText}>Browse public programs →</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.doneBtn}
-              onPress={() => setOpen(false)}
-              testID="program-filter-done"
-            >
-              <Text style={styles.doneBtnText}>Done</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.doneBtn, { backgroundColor: colors.primary }]}
+                onPress={() => setOpen(false)}
+                testID="program-filter-done"
+              >
+                <ThemedText style={[styles.doneBtnText, { color: colors.onPrimary }]}>Done</ThemedText>
+              </TouchableOpacity>
+            </ThemedView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -147,25 +157,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: '#1f2937',
     borderRadius: 6,
     marginRight: 12,
     maxWidth: 180,
   },
   headerButtonText: {
-    color: '#e5e7eb',
     fontSize: 13,
     fontWeight: '500',
     marginRight: 4,
   },
-  chevron: { color: '#818cf8', fontSize: 11 },
+  chevron: { fontSize: 11 },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#111827',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingTop: 16,
@@ -179,9 +185,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 4,
   },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#ffffff' },
-  clearText: { color: '#818cf8', fontSize: 14, fontWeight: '500' },
-  helper: { color: '#6b7280', fontSize: 12, marginBottom: 12 },
+  sheetTitle: { fontSize: 18, fontWeight: '700' },
+  clearText: { fontSize: 14, fontWeight: '500' },
+  helper: { fontSize: 12, marginBottom: 12 },
   list: { maxHeight: 360 },
   listContent: { paddingVertical: 4 },
   loadingRow: { paddingVertical: 24, alignItems: 'center' },
@@ -190,34 +196,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   checkbox: {
     width: 22,
     height: 22,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#374151',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  checkboxChecked: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
-  checkmark: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
-  rowLabel: { color: '#e5e7eb', fontSize: 15, flex: 1 },
+  checkmark: { fontSize: 14, fontWeight: '700' },
+  rowLabel: { fontSize: 15, flex: 1 },
   browseRow: {
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
     marginTop: 8,
   },
-  browseRowText: { color: '#818cf8', fontSize: 15, fontWeight: '500' },
+  browseRowText: { fontSize: 15, fontWeight: '500' },
   doneBtn: {
-    backgroundColor: '#4f46e5',
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 16,
   },
-  doneBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
+  doneBtnText: { fontSize: 15, fontWeight: '600' },
 })

@@ -14,6 +14,8 @@ interface AuthState {
   isLoading: boolean
   loginWithTokens: (accessToken: string, refreshToken: string) => Promise<void>
   logout: () => Promise<void>
+  // Re-fetch /api/auth/me and update the cached user.
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -67,8 +69,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
   }
 
+  async function refreshUser() {
+    const u = await api.auth.me().catch(() => null)
+    if (u) setUser(u)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, loginWithTokens, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, loginWithTokens, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

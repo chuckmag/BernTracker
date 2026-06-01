@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, StyleSheet, TouchableOpacity } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { api, type LeaderboardEntry } from '../lib/api'
 import { formatResultValue } from '../lib/format'
 import UserRowProfile from './UserRowProfile'
+import { useTheme } from '../lib/theme'
+import ThemedText from './ThemedText'
+import ThemedView from './ThemedView'
 
 const LEVEL_LABEL: Record<string, string> = {
   RX_PLUS: 'RX+',
@@ -25,6 +28,7 @@ interface Props {
 type Nav = StackNavigationProp<RootStackParamList>
 
 export default function HotTodayCard({ workoutId }: Props) {
+  const { colors } = useTheme()
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -43,22 +47,22 @@ export default function HotTodayCard({ workoutId }: Props) {
   }, [workoutId])
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>🔥 Hot Today</Text>
-        <Text style={styles.subText}>most reacted results</Text>
+    <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
+        <ThemedText variant="tertiary" style={styles.headerText}>🔥 Hot Today</ThemedText>
+        <ThemedText variant="muted" style={styles.subText}>most reacted results</ThemedText>
       </View>
 
       {loading && (
         <View style={styles.shimmerContainer}>
-          <View style={styles.shimmer} />
-          <View style={[styles.shimmer, { width: '70%', marginTop: 8 }]} />
-          <View style={[styles.shimmer, { width: '80%', marginTop: 8 }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.surfaceSubtle }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.surfaceSubtle, width: '70%', marginTop: 8 }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.surfaceSubtle, width: '80%', marginTop: 8 }]} />
         </View>
       )}
 
       {!loading && entries.length === 0 && (
-        <Text style={styles.emptyText}>No reactions yet — be the first to cheer someone on</Text>
+        <ThemedText variant="tertiary" style={styles.emptyText}>No reactions yet — be the first to cheer someone on</ThemedText>
       )}
 
       {!loading && entries.length > 0 && (
@@ -68,11 +72,12 @@ export default function HotTodayCard({ workoutId }: Props) {
           ))}
         </View>
       )}
-    </View>
+    </ThemedView>
   )
 }
 
 function HotRow({ entry, workoutId }: { entry: LeaderboardEntry; workoutId: string }) {
+  const { colors } = useTheme()
   const navigation = useNavigation<Nav>()
   const score = formatResultValue(entry.value)
   const totalReactions = entry._count.reactions
@@ -91,21 +96,21 @@ function HotRow({ entry, workoutId }: { entry: LeaderboardEntry; workoutId: stri
         />
       </View>
 
-      <View style={styles.levelBadge}>
-        <Text style={styles.levelText}>{LEVEL_LABEL[entry.level] ?? entry.level}</Text>
+      <View style={[styles.levelBadge, { backgroundColor: colors.borderInteractive }]}>
+        <ThemedText variant="tertiary" style={styles.levelText}>{LEVEL_LABEL[entry.level] ?? entry.level}</ThemedText>
       </View>
-      <Text style={styles.score}>{score}</Text>
+      <ThemedText variant="tertiary" style={styles.score}>{score}</ThemedText>
 
       <View style={styles.counts}>
         {totalReactions > 0 && (
-          <Text style={styles.countChip} accessibilityLabel={`${totalReactions} reactions`}>
+          <ThemedText variant="tertiary" style={styles.countChip} accessibilityLabel={`${totalReactions} reactions`}>
             🔥 {totalReactions}
-          </Text>
+          </ThemedText>
         )}
         {totalComments > 0 && (
-          <Text style={styles.countChip} accessibilityLabel={`${totalComments} comments`}>
+          <ThemedText variant="tertiary" style={styles.countChip} accessibilityLabel={`${totalComments} comments`}>
             💬 {totalComments}
-          </Text>
+          </ThemedText>
         )}
       </View>
     </TouchableOpacity>
@@ -114,28 +119,23 @@ function HotRow({ entry, workoutId }: { entry: LeaderboardEntry; workoutId: stri
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#111827',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
     overflow: 'hidden',
   },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   headerText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6b7280',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   subText: {
     fontSize: 10,
-    color: '#4b5563',
     marginTop: 2,
   },
   shimmerContainer: {
@@ -144,12 +144,10 @@ const styles = StyleSheet.create({
   shimmer: {
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#1f2937',
     width: '90%',
   },
   emptyText: {
     fontSize: 13,
-    color: '#6b7280',
     textAlign: 'center',
     paddingHorizontal: 16,
     paddingVertical: 20,
@@ -166,7 +164,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   levelBadge: {
-    backgroundColor: '#374151',
     borderRadius: 4,
     paddingHorizontal: 5,
     paddingVertical: 2,
@@ -174,11 +171,9 @@ const styles = StyleSheet.create({
   levelText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#9ca3af',
   },
   score: {
     fontSize: 11,
-    color: '#9ca3af',
     fontVariant: ['tabular-nums'],
   },
   counts: {
@@ -189,6 +184,5 @@ const styles = StyleSheet.create({
   },
   countChip: {
     fontSize: 12,
-    color: '#6b7280',
   },
 })

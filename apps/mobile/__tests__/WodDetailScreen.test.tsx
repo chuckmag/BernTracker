@@ -286,7 +286,9 @@ describe('WodDetailScreen', () => {
       <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
     )
 
-    // The highlight style adds backgroundColor: '#1e1b4b' to the current user's row.
+    // The highlight style adds a 20% primary-tint overlay (`${colors.primary}33`)
+    // to the current user's row. In the Jest env (no ThemeProvider), useTheme
+    // falls back to the light palette → colors.primary = '#1E5AA8'.
     const meText = await findByText('Me')
 
     // Walk up the tree until we find a node with the highlight backgroundColor.
@@ -301,7 +303,7 @@ describe('WodDetailScreen', () => {
       return null
     }
 
-    const highlight = '#1e1b4b'
+    const highlight = '#1E5AA833'
     expect(findAncestorWithBg(meText, highlight)).not.toBeNull()
     expect(findAncestorWithBg(await findByText('Alice'), highlight)).toBeNull()
   })

@@ -8,10 +8,19 @@ import {
   updateGoalByOwner,
   deleteGoalByOwner,
   computeGoalProgress,
+  recordCheckIn,
+  deleteCheckIn,
+  findCheckInsForGoal,
 } from '@wodalytics/db'
 import type { GoalWithRelations } from '@wodalytics/db'
-import { CreateGoalSchema, UpdateGoalSchema, GoalStatusSchema } from '@wodalytics/types'
-import type { GoalResponse } from '@wodalytics/types'
+import type { GoalCheckIn } from '@wodalytics/db'
+import {
+  CreateGoalSchema,
+  UpdateGoalSchema,
+  GoalStatusSchema,
+  RecordGoalCheckInSchema,
+} from '@wodalytics/types'
+import type { GoalResponse, GoalCheckInResponse } from '@wodalytics/types'
 
 const router = Router()
 
@@ -31,6 +40,20 @@ router.patch('/goals/:goalId', requireAuth, updateGoalHandler)
 
 // DELETE /api/goals/:goalId
 router.delete('/goals/:goalId', requireAuth, deleteGoalHandler)
+
+// ─── Habit check-ins ──────────────────────────────────────────────────────────
+//
+// Per-day confirmation tied to a HABIT-type Goal. PR_TARGET / FREQUENCY
+// goals reject these routes with 400.
+
+// POST   /api/goals/:goalId/check-ins
+router.post('/goals/:goalId/check-ins', requireAuth, recordCheckInHandler)
+
+// DELETE /api/goals/:goalId/check-ins/:date
+router.delete('/goals/:goalId/check-ins/:date', requireAuth, deleteCheckInHandler)
+
+// GET    /api/goals/:goalId/check-ins?since=&until=&limit=
+router.get('/goals/:goalId/check-ins', requireAuth, listCheckInsHandler)
 
 export default router
 
@@ -99,6 +122,129 @@ async function deleteGoalHandler(req: Request, res: Response) {
   }
 }
 
+// ─── Habit check-in handlers ──────────────────────────────────────────────────
+
+// Looks up the goal, verifies ownership, verifies HABIT type. Shared
+// preflight for all three check-in routes — keeps ownership / 404 / 400
+// behavior identical regardless of which route entered.
+async function loadOwnedHabitGoal(req: Request, res: Response): Promise<GoalWithRelations | null> {
+  const goalId = req.params.goalId as string
+  const goal = await findGoalById(goalId)
+  if (!goal) {
+    res.status(404).json({ error: 'Goal not found' })
+    return null
+  }
+  if (goal.userId !== req.user!.id) {
+    res.status(403).json({ error: 'You do not own this goal' })
+    return null
+  }
+  if (goal.type !== 'HABIT') {
+    res.status(400).json({ error: 'Check-ins are only valid for habit goals' })
+    return null
+  }
+  return goal
+}
+
+async function recordCheckInHandler(req: Request, res: Response) {
+  const goal = await loadOwnedHabitGoal(req, res)
+  if (!goal) return
+
+  const parsed = RecordGoalCheckInSchema.safeParse(req.body ?? {})
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() })
+
+  // Zod's `.datetime()` validates format but not calendar validity, so a
+  // string like "2026-13-01T00:00:00Z" passes Zod and produces an Invalid
+  // Date here — guard before it reaches Prisma.
+  const date = parsed.data.date ? new Date(parsed.data.date) : new Date()
+  if (Number.isNaN(date.getTime())) {
+    return res.status(400).json({ error: 'Date is not a valid calendar date' })
+  }
+  const row = await recordCheckIn({
+    goalId: goal.id,
+    userId: req.user!.id,
+    date,
+    note: parsed.data.note,
+  })
+
+  // Return the updated goal (including refreshed HABIT progress) so the
+  // client can replace its state without a second round-trip.
+  res.status(201).json({
+    checkIn: toCheckInResponse(row),
+    goal: await toGoalResponse(goal),
+  })
+}
+
+async function deleteCheckInHandler(req: Request, res: Response) {
+  const goal = await loadOwnedHabitGoal(req, res)
+  if (!goal) return
+
+  const dateRaw = req.params.date as string
+  const date = parseYmd(dateRaw)
+  if (!date) return res.status(400).json({ error: 'Date must be a valid YYYY-MM-DD' })
+
+  const removed = await deleteCheckIn(goal.id, date)
+  if (!removed) return res.status(404).json({ error: 'No check-in for that date' })
+
+  res.json({ goal: await toGoalResponse(goal) })
+}
+
+async function listCheckInsHandler(req: Request, res: Response) {
+  const goal = await loadOwnedHabitGoal(req, res)
+  if (!goal) return
+
+  const sinceRaw = req.query.since
+  const untilRaw = req.query.until
+  const limitRaw = req.query.limit
+
+  // parseQueryDate returns null on parse failure. Reject before passing
+  // down so the manager only sees `Date | undefined`.
+  const since = typeof sinceRaw === 'string' ? parseQueryDate(sinceRaw) : undefined
+  if (since === null) return res.status(400).json({ error: 'Invalid since date' })
+  const until = typeof untilRaw === 'string' ? parseQueryDate(untilRaw) : undefined
+  if (until === null) return res.status(400).json({ error: 'Invalid until date' })
+
+  let limit: number | undefined
+  if (typeof limitRaw === 'string') {
+    const n = Number.parseInt(limitRaw, 10)
+    if (!Number.isFinite(n) || n <= 0 || n > 500) {
+      return res.status(400).json({ error: 'limit must be 1–500' })
+    }
+    limit = n
+  }
+
+  // The null guards above narrowed since/until to `Date | undefined` —
+  // no `?? undefined` fallback needed.
+  const rows = await findCheckInsForGoal(goal.id, { since, until, limit })
+  res.json(rows.map(toCheckInResponse))
+}
+
+// Accepts YYYY-MM-DD or full ISO. Returns null on malformed input so the
+// caller can map it to a 400.
+function parseQueryDate(raw: string): Date | null {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return parseYmd(raw)
+  const d = new Date(raw)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+// Parses a YYYY-MM-DD string into a UTC midnight Date, validating that
+// the calendar components produce a real date (e.g. rejects 2026-13-99).
+function parseYmd(raw: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+  if (!m) return null
+  const year = Number(m[1])
+  const month = Number(m[2])
+  const day = Number(m[3])
+  const d = new Date(Date.UTC(year, month - 1, day))
+  if (
+    d.getUTCFullYear() !== year ||
+    d.getUTCMonth() !== month - 1 ||
+    d.getUTCDate() !== day
+  ) {
+    return null
+  }
+  return d
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // Wire format: ISO date strings + computed progress. The DB rows carry Date
@@ -129,6 +275,21 @@ async function toGoalResponse(goal: GoalWithRelations): Promise<GoalResponse> {
     movement: goal.movement,
     namedWorkout: goal.namedWorkout,
     progress,
+  }
+}
+
+function toCheckInResponse(row: GoalCheckIn): GoalCheckInResponse {
+  // `row.date` is a JS Date that the DB stored as DATE — its UTC date
+  // components are the canonical wire value.
+  const d = row.date
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return {
+    id: row.id,
+    goalId: row.goalId,
+    date: `${d.getUTCFullYear()}-${m}-${day}`,
+    note: row.note,
+    createdAt: row.createdAt.toISOString(),
   }
 }
 

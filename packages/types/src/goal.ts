@@ -46,14 +46,41 @@ const FrequencyGoalInputSchema = z.object({
   frequencyStartDate: z.string().datetime().optional(),
 })
 
-// HABIT in v1: creation only. The shape carries title + optional targetDate;
-// all PR Target / Frequency columns must stay null. Per-day check-ins land
-// in v2 via a GoalCheckIn sibling table.
+// HABIT: title + optional targetDate; all PR Target / Frequency columns
+// stay null. Per-day check-ins are recorded through a separate route
+// (see RecordGoalCheckInSchema below).
 const HabitGoalInputSchema = z.object({
   type: z.literal('HABIT'),
   title: z.string().min(1, 'Title is required'),
   targetDate: z.string().datetime().optional(),
 })
+
+// ─── Habit check-in input ─────────────────────────────────────────────────────
+
+// Input for `POST /api/goals/:goalId/check-ins`. `date` defaults to "today"
+// (server UTC) when omitted — the common case is a single tap. The route
+// accepts either YYYY-MM-DD or a full ISO datetime; the server stores
+// only the calendar date in both cases.
+//
+// `note` is optional free text capped at 280 chars to match other
+// free-text fields in the codebase.
+export const RecordGoalCheckInSchema = z.object({
+  date: z
+    .union([
+      z.string().datetime(),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD or ISO 8601'),
+    ])
+    .optional(),
+  // Min 1 rejects empty-string notes — if the user has nothing to say,
+  // they should omit the field, not send "".
+  note: z
+    .string()
+    .min(1, 'Note must be non-empty if provided')
+    .max(280, 'Note must be 280 characters or fewer')
+    .optional(),
+})
+
+export type RecordGoalCheckInInput = z.infer<typeof RecordGoalCheckInSchema>
 
 export const CreateGoalSchema = z
   .discriminatedUnion('type', [
@@ -133,7 +160,18 @@ export type UpdateGoalInput = z.infer<typeof UpdateGoalSchema>
 //   `weeksRemaining`   — weeks left in the window (>= 0)
 //   `currentWeekCount` — how many workouts in the current week
 //
-// For HABIT: no fields in v1 — the UI shows a manual Complete toggle.
+// For HABIT:
+//   `currentStreak`   — consecutive days ending today (0 if today not checked
+//                       in AND yesterday not checked in; today-only counts
+//                       as 1; the streak breaks the first day a check-in is
+//                       missing, walking backward from today).
+//   `longestStreak`   — longest run of consecutive days ever recorded
+//   `totalCheckIns`   — lifetime count across all dates
+//   `weekCheckIns`    — count within the current ISO week (Mon–Sun, UTC)
+//   `last7Days`       — newest-first array of the last 7 calendar days with
+//                       a boolean per day for whether a check-in exists.
+//                       `date` is YYYY-MM-DD.
+//   `checkedInToday`  — convenience boolean — equals `last7Days[0].checkedIn`
 export type GoalProgress =
   | {
       type: 'PR_TARGET'
@@ -152,7 +190,25 @@ export type GoalProgress =
       currentWeekCount: number
       isComplete: boolean
     }
-  | { type: 'HABIT' }
+  | {
+      type: 'HABIT'
+      currentStreak: number
+      longestStreak: number
+      totalCheckIns: number
+      weekCheckIns: number
+      last7Days: Array<{ date: string; checkedIn: boolean }>
+      checkedInToday: boolean
+    }
+
+// Wire shape for a single GoalCheckIn row. `date` is YYYY-MM-DD (date-only);
+// `createdAt` is a full ISO timestamp.
+export interface GoalCheckInResponse {
+  id: string
+  goalId: string
+  date: string
+  note: string | null
+  createdAt: string
+}
 
 // Wire shape for a Goal returned from the API. Dates are ISO strings; all
 // per-type columns are present so the UI can read them without conditional

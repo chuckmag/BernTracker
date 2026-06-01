@@ -41,6 +41,36 @@ npx jest -t "renders feed rows"
 
 **Connecting Expo Go to a local API:** set `EXPO_PUBLIC_API_URL` in the repo-root `.env` to your Mac's LAN IP (`ipconfig getifaddr en0`), not `localhost` — `localhost` resolves to the phone, not the dev machine. iOS Simulator can use `localhost` directly.
 
+**EAS build / submit workflows live in [`README.md`](./README.md).** That file documents the `build:*` / `submit:*` npm scripts, credential setup, profiles, and known gotchas — Read it when the user asks about shipping a build, not by default.
+
+**Don't remove or rename the `eas-build-post-install` script in `package.json`.** It compiles `@wodalytics/types` (`tsc` → `packages/types/dist/`) before Metro runs on the EAS worker. Without it, every EAS build fails with `Unable to resolve module @wodalytics/types`, because EAS only runs `npm install` on the worker and never builds workspace packages. Safe to remove only if `@wodalytics/types` is also removed from `dependencies`.
+
+## Dynamic Expo config — `app.config.ts`
+
+The Expo config lives in `app.config.ts` (not `app.json`). The canonical wodtech project ID (`f0a6deb9-d571-4d24-9e33-d456bf16ebe3`) is a hard default at the top of the file, with `EAS_PROJECT_ID` from `process.env` as an override.
+
+**Why a hard default and not pure env-driven?** `eas submit` (and the local CLI step of `eas build`) evaluate `app.config.ts` *in the local CLI process*, before any `eas.json` `env` block is applied. `env` blocks only run on the build worker. If `extra.eas.projectId` resolves to `undefined` locally, the CLI prompts to write the projectId back into the dynamic config — which it can't (dynamic configs aren't auto-writeable) and the command fails. Keeping the default in code lets `eas submit`/`eas build` just work.
+
+**When to set `EAS_PROJECT_ID` locally:** only for forks or throwaway test projects pointing at a different Expo project. The default covers every wodtech build/submit. Override via shell export or `apps/mobile/.env`:
+
+```bash
+EAS_PROJECT_ID=<some-other-project-id>
+```
+
+## `expo-doctor` — major-version warnings are build-breaking
+
+Treat any `❗ Major version mismatch` line from `npx expo-doctor` against an Expo-managed package as **must-fix before the next EAS build**, not informational. Patch and minor drift can usually wait, but a major-version mismatch on a native module (e.g. `expo-web-browser`, `expo-image-picker`, `expo-secure-store`) means the JS package and the autolinked native class registration are out of sync. The build succeeds, the bundle runs, and then the first `requireNativeModule('X')` call throws an unhandled JS exception — which RN routes to `RCTFatal → abort()` in release, surfacing as an immediate-launch TestFlight crash with no visible error message unless `expo-updates` is disabled.
+
+**Fix path** — from `apps/mobile/`:
+
+```bash
+npx expo install --fix     # bumps all expo packages to the SDK-recommended versions
+npm run lint && npm test   # sanity check
+# review the changes in package.json + package-lock.json before committing
+```
+
+If the doctor output suggests adding a config plugin (e.g. `Add "expo-web-browser" to plugins`), our dynamic `app.config.ts` won't accept the auto-rewrite; add it manually to the `plugins` array in the returned config. iOS treats most of these plugins as no-ops; Android often depends on them for Custom Tabs / intent-filter / permission wiring at prebuild time.
+
 ## Cross-app contracts (web parity)
 
 Mobile must mirror the per-user state shapes the web already uses, so a user can switch between web and mobile without losing context. When adding a new piece of persisted state, check `apps/web/CLAUDE.md` → *Cross-app contracts* first and match the storage key + API shape. The active mobile-parity backlog lives at #130; see the root CLAUDE.md → *Parity-first feature design* for the planning rule that governs how mobile and web stay in sync.
@@ -73,6 +103,7 @@ Key color roles:
 | Screen background | `colors.screenBg` | `#f8fafc` | `#030712` |
 | Card / panel | `colors.cardBg` | `#ffffff` | `#111827` |
 | Input background | `colors.inputBg` | `#ffffff` | `#1f2937` |
+| Recessed surface | `colors.surfaceSubtle` | `#f1f5f9` | `#1f2937` |
 | Primary text | `colors.textPrimary` | `#020617` | `#ffffff` |
 | Secondary text | `colors.textSecondary` | `#334155` | `#d1d5db` |
 | Muted / caption | `colors.textTertiary` | `#64748b` | `#9ca3af` |
@@ -82,8 +113,13 @@ Key color roles:
 | Interactive border | `colors.borderInteractive` | `#cbd5e1` | `#374151` |
 | Brand primary | `colors.primary` | `#1E5AA8` | `#5B9BE6` |
 | Brand accent (teal) | `colors.accent` | `#2BA8A4` | `#5FD4D0` |
+| On-primary text | `colors.onPrimary` | `#ffffff` | `#ffffff` |
+| On-primary overlay | `colors.onPrimaryTint` | `rgba(255,255,255,0.18)` | `rgba(255,255,255,0.18)` |
+| Modal scrim | `colors.modalScrim` | `rgba(0,0,0,0.6)` | `rgba(0,0,0,0.6)` |
 
 > **Accent text:** use `colors.accentText` (`#020617`) not white — teal has only ~1.7:1 contrast with white.
+
+> **`surfaceSubtle` vs. `borderSubtle`:** use `surfaceSubtle` when the role is "a barely-distinct recessed surface" (inner cards, quiet/secondary buttons, shimmer skeletons). Use `borderSubtle` only when the role is a 1px line (dividers, slider tracks). In dark mode the two tokens share the same value (`#1f2937`) — the semantic split is currently only load-bearing in light mode, but the distinct token makes future divergence cheap.
 
 ### Base components — `src/components/Themed*.tsx`
 

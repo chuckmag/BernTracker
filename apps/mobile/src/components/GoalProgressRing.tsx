@@ -1,0 +1,84 @@
+import { View, StyleSheet } from 'react-native'
+import Svg, { Circle } from 'react-native-svg'
+import { useTheme } from '../lib/theme'
+import ThemedText from './ThemedText'
+
+// Shared progress ring used by the home dashboard's `GoalsCard` and the
+// full `GoalsScreen` list. Two near-identical copies lived in those files
+// before the deep-review pass; consolidating here lets both callers vary
+// only the visual size while sharing the SVG geometry, the colour rules
+// (teal-while-in-progress, green-when-complete, hollow for HABIT), and
+// the percent-or-checkmark inner label.
+export interface GoalProgressRingProps {
+  percent: number // 0–100; clamped internally
+  isHabit: boolean
+  isComplete: boolean
+  size: number
+  stroke: number
+}
+
+export default function GoalProgressRing({
+  percent,
+  isHabit,
+  isComplete,
+  size,
+  stroke,
+}: GoalProgressRingProps) {
+  const { colors } = useTheme()
+  const radius = (size - stroke) / 2
+  const circumference = 2 * Math.PI * radius
+
+  if (isHabit) {
+    return (
+      <View style={[styles.ring, { width: size, height: size }]}>
+        <ThemedText
+          variant="label"
+          style={[styles.ringInnerHabit, isComplete && { color: colors.successText }]}
+        >
+          {isComplete ? '✓' : '·'}
+        </ThemedText>
+      </View>
+    )
+  }
+
+  const pct = Math.max(0, Math.min(100, percent))
+  const offset = circumference * (1 - pct / 100)
+
+  return (
+    <View style={[styles.ring, { width: size, height: size }]}>
+      <Svg width={size} height={size}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={colors.borderSubtle}
+          strokeWidth={stroke}
+          fill="none"
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={isComplete ? colors.successText : colors.primary}
+          strokeWidth={stroke}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          // Start at 12 o'clock instead of 3 — feels right for "progress".
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
+      <View style={styles.ringInner}>
+        <ThemedText style={styles.ringPct}>{pct}</ThemedText>
+      </View>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  ring: { alignItems: 'center', justifyContent: 'center' },
+  ringInner: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  ringPct: { fontSize: 11, fontWeight: '600' },
+  ringInnerHabit: { fontSize: 14, fontWeight: '700' },
+})

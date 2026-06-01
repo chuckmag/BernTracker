@@ -1,0 +1,112 @@
+# Manual CI build + Play Internal (or Production) submit for Android.
+#
+# Triggered from Actions → "build-and-submit-android" → Run workflow. The
+# runner only drives the EAS CLI — the `.aab` build happens on EAS workers,
+# and the resulting artifact is pushed straight to the Google Play track
+# wired up by the chosen `eas.json` profile.
+#
+# Prerequisites:
+#   1. Repo secret EXPO_TOKEN — an Expo access token belonging to a wodtech
+#      org member. Generate at expo.dev → Account Settings → Access Tokens.
+#   2. Google Play service account JSON uploaded to the EAS credential vault
+#      for the selected profile (`npx eas-cli@latest credentials` → Android →
+#      <profile> → Google Service Account → Upload). The `submit.*.android`
+#      blocks in `apps/mobile/eas.json` are intentionally empty (apart from
+#      `track:`) so `eas submit` resolves from the vault; without the upload,
+#      the submit step will error out. Build itself is unaffected (Android
+#      keystore is already vault-resident by default).
+#   3. First-Android-submission gotcha: the very first preview/production
+#      submission for `com.wodalytics.app` must be uploaded manually through
+#      the Play Console web UI — Google requires it. See apps/mobile/README.md.
+
+name: build-and-submit-android
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS build profile'
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
+      submit:
+        description: 'Submit the build to Google Play (uncheck to build only)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: build-and-submit-android-${{ inputs.profile }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-submit:
+    name: Build${{ inputs.submit && ' + submit' || '' }} Android (${{ inputs.profile }})
+    runs-on: ubuntu-latest
+    # EAS preview Android builds are typically 15-30 min; production can run
+    # longer. Cap at 2h so a stuck queue doesn't hold a runner forever.
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Fail fast if EXPO_TOKEN is missing
+        if: env.EXPO_TOKEN == ''
+        run: |
+          echo "::error::EXPO_TOKEN secret is not set. Add it at Settings → Secrets and variables → Actions."
+          exit 1
+
+      # eas-cli evaluates `apps/mobile/app.config.ts` in the local CLI process
+      # before shipping work to the EAS queue. That evaluator resolves Expo
+      # config plugins (currently `expo-web-browser`) against the project's
+      # node_modules — so we need a real install on the runner.
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Confirm EAS auth
+        run: npx eas-cli@latest whoami
+
+      - name: Build (non-interactive, wait for completion)
+        id: build
+        run: |
+          set -euo pipefail
+          out=$(npx eas-cli@latest build \
+            --profile "${{ inputs.profile }}" \
+            --platform android \
+            --non-interactive \
+            --wait \
+            --json)
+          build_id=$(echo "$out" | jq -r '.[0].id // empty')
+          build_url=$(echo "$out" | jq -r '.[0].artifacts.buildUrl // .[0].id // empty')
+          if [ -z "$build_id" ]; then
+            echo "::error::Could not parse build ID from eas build output:"
+            echo "$out"
+            exit 1
+          fi
+          echo "build_id=$build_id" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Android build complete::id=$build_id  url=$build_url"
+
+      - name: Submit build to Google Play
+        if: ${{ inputs.submit }}
+        run: |
+          npx eas-cli@latest submit \
+            --profile "${{ inputs.profile }}" \
+            --platform android \
+            --id "${{ steps.build.outputs.build_id }}" \
+            --non-interactive

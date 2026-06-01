@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -30,6 +29,9 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import MovementTabStrip from '../components/MovementTabStrip'
+import { useTheme } from '../lib/theme'
+import ThemedText from '../components/ThemedText'
+import ThemedView from '../components/ThemedView'
 
 type Props = StackScreenProps<RootStackParamList, 'LogResult'>
 
@@ -275,6 +277,7 @@ function buildMovementResults(movements: MovementSection[]): BuildResult<{
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function LogResultScreen({ route, navigation }: Props) {
+  const { colors } = useTheme()
   const { workoutId, resultId, existingResult } = route.params
   const { user } = useAuth()
 
@@ -297,6 +300,10 @@ export default function LogResultScreen({ route, navigation }: Props) {
   const [notes, setNotes] = useState(existingResult?.notes ?? '')
 
   const isEdit = Boolean(resultId && existingResult)
+
+  // Tint used for active-chip / checked backgrounds — 20% primary overlay
+  // reads as a recessed selection in both light and dark themes.
+  const primaryTintBg = `${colors.primary}33`
 
   useEffect(() => {
     let cancelled = false
@@ -459,41 +466,53 @@ export default function LogResultScreen({ route, navigation }: Props) {
 
   if (loadingWorkout) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#818cf8" />
-      </View>
+      <ThemedView variant="screen" style={styles.center}>
+        <ActivityIndicator color={colors.primary} />
+      </ThemedView>
     )
   }
 
   if (!workout) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.error}>{error ?? 'Workout not found.'}</Text>
-      </View>
+      <ThemedView variant="screen" style={styles.center}>
+        <ThemedText style={[styles.error, { color: colors.errorText }]}>{error ?? 'Workout not found.'}</ThemedText>
+      </ThemedView>
     )
   }
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.screenBg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.scrollContent, { flexGrow: 1 }]} keyboardShouldPersistTaps="handled">
-        <Text style={styles.workoutTitle}>{workout.title}</Text>
-        <Text style={styles.workoutType}>{workout.type.replace(/_/g, ' ')}</Text>
+        <ThemedText style={styles.workoutTitle}>{workout.title}</ThemedText>
+        <ThemedText variant="tertiary" style={styles.workoutType}>{workout.type.replace(/_/g, ' ')}</ThemedText>
 
         {/* Level chips */}
-        <Text style={styles.sectionLabel}>LEVEL</Text>
+        <ThemedText variant="tertiary" style={styles.sectionLabel}>LEVEL</ThemedText>
         <View style={styles.chipRow}>
-          {LEVELS.map((l) => (
-            <TouchableOpacity
-              key={l.value}
-              style={[styles.chip, level === l.value && styles.chipActive]}
-              onPress={() => setLevel(l.value)}
-            >
-              <Text style={[styles.chipText, level === l.value && styles.chipTextActive]}>{l.label}</Text>
-            </TouchableOpacity>
-          ))}
+          {LEVELS.map((l) => {
+            const isActive = level === l.value
+            return (
+              <TouchableOpacity
+                key={l.value}
+                style={[
+                  styles.chip,
+                  { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+                  isActive && { backgroundColor: primaryTintBg, borderColor: colors.primary },
+                ]}
+                onPress={() => setLevel(l.value)}
+              >
+                <ThemedText
+                  variant="tertiary"
+                  style={[styles.chipText, isActive && { color: colors.primary, fontWeight: '600' }]}
+                >
+                  {l.label}
+                </ThemedText>
+              </TouchableOpacity>
+            )
+          })}
         </View>
 
         {/* Sets table — Strength + Skill Work with prescription */}
@@ -533,40 +552,48 @@ export default function LogResultScreen({ route, navigation }: Props) {
 
         {/* Notes-only fallback */}
         {mode === 'notes-only' && (
-          <Text style={styles.helpText}>
+          <ThemedText variant="tertiary" style={styles.helpText}>
             This workout type doesn't have a structured score. Add notes below to record what you did.
-          </Text>
+          </ThemedText>
         )}
 
         {/* Notes — flex: 1 fills remaining scroll space */}
         <View style={styles.notesSection}>
-          <Text style={styles.sectionLabel}>NOTES</Text>
+          <ThemedText variant="tertiary" style={styles.sectionLabel}>NOTES</ThemedText>
           <TextInput
-            style={[styles.input, styles.notesInput]}
+            style={[
+              styles.input,
+              styles.notesInput,
+              { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive, color: colors.textPrimary },
+            ]}
             multiline
             value={notes}
             onChangeText={setNotes}
             placeholder="Optional"
-            placeholderTextColor="#6b7280"
+            placeholderTextColor={colors.textPlaceholder}
             testID="notes-input"
           />
         </View>
       </ScrollView>
 
       {/* Footer — pinned below scroll area so notes can fill remaining space */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { borderTopColor: colors.borderSubtle, backgroundColor: colors.screenBg }]}>
         {alreadyLogged && (
-          <Text style={styles.error}>You've already logged this workout.</Text>
+          <ThemedText style={[styles.error, { color: colors.errorText }]}>You've already logged this workout.</ThemedText>
         )}
-        {error && !alreadyLogged && <Text style={styles.error}>{error}</Text>}
+        {error && !alreadyLogged && <ThemedText style={[styles.error, { color: colors.errorText }]}>{error}</ThemedText>}
         <TouchableOpacity
-          style={[styles.submitBtn, (submitting || alreadyLogged) && styles.submitBtnDisabled]}
+          style={[
+            styles.submitBtn,
+            { backgroundColor: colors.primary },
+            (submitting || alreadyLogged) && styles.submitBtnDisabled,
+          ]}
           onPress={handleSubmit}
           disabled={submitting || alreadyLogged}
         >
           {submitting
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.submitBtnText}>{isEdit ? 'Save changes' : 'Log result'}</Text>
+            ? <ActivityIndicator color={colors.onPrimary} />
+            : <ThemedText style={[styles.submitBtnText, { color: colors.onPrimary }]}>{isEdit ? 'Save changes' : 'Log result'}</ThemedText>
           }
         </TouchableOpacity>
         {isEdit && (
@@ -575,7 +602,7 @@ export default function LogResultScreen({ route, navigation }: Props) {
             onPress={handleDelete}
             disabled={deleting}
           >
-            <Text style={styles.deleteBtnText}>{deleting ? 'Deleting…' : 'Delete result'}</Text>
+            <ThemedText style={[styles.deleteBtnText, { color: colors.errorText }]}>{deleting ? 'Deleting…' : 'Delete result'}</ThemedText>
           </TouchableOpacity>
         )}
       </View>
@@ -593,30 +620,35 @@ export default function LogResultScreen({ route, navigation }: Props) {
 const MASCOT_PR_GIF = { uri: 'https://wodalytics-images-qa.s3.us-east-2.amazonaws.com/pr-celebrations/wodaloBackSquatPr.gif' }
 
 function PRCelebrationModal({ prs, onDismiss }: { prs: NewPr[]; onDismiss: () => void }) {
+  const { colors } = useTheme()
   if (prs.length === 0) return null
+  const primaryTintBg = `${colors.primary}33`
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onDismiss}>
       <View style={prStyles.overlay}>
-        <View style={prStyles.sheet}>
+        <View style={[prStyles.sheet, { backgroundColor: colors.cardBg }]}>
           <Image source={MASCOT_PR_GIF} style={prStyles.mascot} resizeMode="contain" />
-          <Text style={prStyles.headline}>NEW PR!</Text>
+          <ThemedText style={[prStyles.headline, { color: colors.warningText }]}>NEW PR!</ThemedText>
           <ScrollView style={prStyles.prList} contentContainerStyle={prStyles.prListContent}>
             {prs.map((pr) => (
-              <View key={`${pr.movementId}-${pr.repCount}`} style={prStyles.prCard}>
-                <Text style={prStyles.movementName}>{pr.movementName}</Text>
-                <Text style={prStyles.prDetail}>
+              <View
+                key={`${pr.movementId}-${pr.repCount}`}
+                style={[prStyles.prCard, { backgroundColor: primaryTintBg, borderColor: colors.primary }]}
+              >
+                <ThemedText variant="secondary" style={prStyles.movementName}>{pr.movementName}</ThemedText>
+                <ThemedText style={[prStyles.prDetail, { color: colors.primary }]}>
                   {pr.repCount} {pr.repCount === 1 ? 'rep' : 'reps'} @ {pr.load} {pr.loadUnit.toLowerCase()}
-                </Text>
+                </ThemedText>
                 {pr.repCount > 1 && (
-                  <Text style={prStyles.e1rm}>
+                  <ThemedText variant="tertiary" style={prStyles.e1rm}>
                     Est. 1RM: {pr.estimatedOneRepMax} {pr.loadUnit.toLowerCase()}
-                  </Text>
+                  </ThemedText>
                 )}
               </View>
             ))}
           </ScrollView>
-          <TouchableOpacity style={prStyles.dismissBtn} onPress={onDismiss}>
-            <Text style={prStyles.dismissBtnText}>Keep crushing it</Text>
+          <TouchableOpacity style={[prStyles.dismissBtn, { backgroundColor: colors.primary }]} onPress={onDismiss}>
+            <ThemedText style={[prStyles.dismissBtnText, { color: colors.onPrimary }]}>Keep crushing it</ThemedText>
           </TouchableOpacity>
         </View>
       </View>
@@ -631,7 +663,6 @@ const prStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#111827',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 24,
@@ -648,7 +679,6 @@ const prStyles = StyleSheet.create({
   headline: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#fbbf24',
     letterSpacing: 2,
     marginBottom: 16,
   },
@@ -660,33 +690,27 @@ const prStyles = StyleSheet.create({
     gap: 10,
   },
   prCard: {
-    backgroundColor: '#1e1b4b',
     borderWidth: 1,
-    borderColor: '#4f46e5',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     width: '100%',
   },
   movementName: {
-    color: '#e5e7eb',
     fontSize: 15,
     fontWeight: '700',
     marginBottom: 4,
   },
   prDetail: {
-    color: '#818cf8',
     fontSize: 16,
     fontWeight: '700',
   },
   e1rm: {
-    color: '#9ca3af',
     fontSize: 12,
     marginTop: 2,
   },
   dismissBtn: {
     marginTop: 20,
-    backgroundColor: '#4f46e5',
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 32,
@@ -694,7 +718,6 @@ const prStyles = StyleSheet.create({
     alignItems: 'center',
   },
   dismissBtnText: {
-    color: '#ffffff',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -745,6 +768,9 @@ function SetsTableRN({
   onRemoveSet: (mIdx: number, sIdx: number) => void
   onUnitChange: (mIdx: number, field: 'loadUnit' | 'distanceUnit', value: LoadUnit | DistanceUnit) => void
 }) {
+  const { colors } = useTheme()
+  const primaryTintBg = `${colors.primary}33`
+
   // The columns to surface come from whichever fields the programmer
   // prescribed — anything they didn't prescribe is hidden by default.
   // Members can show extras via the "+ Column" buttons below the table.
@@ -810,37 +836,61 @@ function SetsTableRN({
         <View style={styles.unitRow}>
           {visible.has('load') && (
             <View style={styles.unitGroup}>
-              <Text style={styles.unitLabel}>Load:</Text>
+              <ThemedText variant="tertiary" style={styles.unitLabel}>Load:</ThemedText>
               <View style={styles.unitChips}>
-                {LOAD_UNITS.map((u) => (
-                  <TouchableOpacity
-                    key={u.value}
-                    style={[styles.unitChip, movement.loadUnit === u.value && styles.unitChipActive]}
-                    onPress={() => onUnitChange(movementIdx, 'loadUnit', u.value)}
-                    accessibilityLabel={`Load unit ${u.label}`}
-                    testID={`load-unit-${u.value}`}
-                  >
-                    <Text style={[styles.unitChipText, movement.loadUnit === u.value && styles.unitChipTextActive]}>{u.label}</Text>
-                  </TouchableOpacity>
-                ))}
+                {LOAD_UNITS.map((u) => {
+                  const isActive = movement.loadUnit === u.value
+                  return (
+                    <TouchableOpacity
+                      key={u.value}
+                      style={[
+                        styles.unitChip,
+                        { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+                        isActive && { backgroundColor: primaryTintBg, borderColor: colors.primary },
+                      ]}
+                      onPress={() => onUnitChange(movementIdx, 'loadUnit', u.value)}
+                      accessibilityLabel={`Load unit ${u.label}`}
+                      testID={`load-unit-${u.value}`}
+                    >
+                      <ThemedText
+                        variant="tertiary"
+                        style={[styles.unitChipText, isActive && { color: colors.primary, fontWeight: '600' }]}
+                      >
+                        {u.label}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  )
+                })}
               </View>
             </View>
           )}
           {visible.has('distance') && (
             <View style={styles.unitGroup}>
-              <Text style={styles.unitLabel}>Distance:</Text>
+              <ThemedText variant="tertiary" style={styles.unitLabel}>Distance:</ThemedText>
               <View style={styles.unitChips}>
-                {DISTANCE_UNITS.map((u) => (
-                  <TouchableOpacity
-                    key={u.value}
-                    style={[styles.unitChip, movement.distanceUnit === u.value && styles.unitChipActive]}
-                    onPress={() => onUnitChange(movementIdx, 'distanceUnit', u.value)}
-                    accessibilityLabel={`Distance unit ${u.label}`}
-                    testID={`distance-unit-${u.value}`}
-                  >
-                    <Text style={[styles.unitChipText, movement.distanceUnit === u.value && styles.unitChipTextActive]}>{u.label}</Text>
-                  </TouchableOpacity>
-                ))}
+                {DISTANCE_UNITS.map((u) => {
+                  const isActive = movement.distanceUnit === u.value
+                  return (
+                    <TouchableOpacity
+                      key={u.value}
+                      style={[
+                        styles.unitChip,
+                        { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+                        isActive && { backgroundColor: primaryTintBg, borderColor: colors.primary },
+                      ]}
+                      onPress={() => onUnitChange(movementIdx, 'distanceUnit', u.value)}
+                      accessibilityLabel={`Distance unit ${u.label}`}
+                      testID={`distance-unit-${u.value}`}
+                    >
+                      <ThemedText
+                        variant="tertiary"
+                        style={[styles.unitChipText, isActive && { color: colors.primary, fontWeight: '600' }]}
+                      >
+                        {u.label}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  )
+                })}
               </View>
             </View>
           )}
@@ -848,10 +898,10 @@ function SetsTableRN({
       )}
 
       {/* Header row */}
-      <View style={styles.tableHeaderRow}>
-        <Text style={[styles.tableHeaderCell, styles.tableSetCol]}>Set</Text>
+      <View style={[styles.tableHeaderRow, { borderBottomColor: colors.borderSubtle }]}>
+        <ThemedText variant="tertiary" style={[styles.tableHeaderCell, styles.tableSetCol]}>Set</ThemedText>
         {showColumns.map((c) => (
-          <Text key={c.key} style={styles.tableHeaderCell}>{c.label}</Text>
+          <ThemedText key={c.key} variant="tertiary" style={styles.tableHeaderCell}>{c.label}</ThemedText>
         ))}
         <View style={styles.tableRemoveCol} />
       </View>
@@ -859,15 +909,18 @@ function SetsTableRN({
       {/* Body rows */}
       {movement.sets.map((s, sIdx) => (
         <View key={sIdx} style={styles.tableRow}>
-          <Text style={[styles.tableSetIdx, styles.tableSetCol]}>{sIdx + 1}</Text>
+          <ThemedText variant="tertiary" style={[styles.tableSetIdx, styles.tableSetCol]}>{sIdx + 1}</ThemedText>
           {showColumns.map((c) => (
             <View key={c.key} style={styles.tableCell}>
               <TextInput
-                style={styles.tableInput}
+                style={[
+                  styles.tableInput,
+                  { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive, color: colors.textPrimary },
+                ]}
                 value={s[c.key]}
                 onChangeText={(v) => onUpdate(movementIdx, sIdx, c.key, v)}
                 placeholder={c.key === 'load' && planLoadPlaceholders?.[sIdx] ? planLoadPlaceholders[sIdx] : c.placeholder}
-                placeholderTextColor="#4b5563"
+                placeholderTextColor={colors.textPlaceholder}
                 keyboardType={c.numeric ? 'decimal-pad' : 'default'}
                 accessibilityLabel={`Set ${sIdx + 1} ${c.label}`}
                 testID={`set-${sIdx}-${c.key}`}
@@ -882,7 +935,7 @@ function SetsTableRN({
                 testID={`remove-set-${sIdx}`}
                 style={styles.removeBtn}
               >
-                <Text style={styles.removeBtnText}>×</Text>
+                <ThemedText variant="tertiary" style={styles.removeBtnText}>×</ThemedText>
               </TouchableOpacity>
             )}
           </View>
@@ -892,22 +945,22 @@ function SetsTableRN({
       {/* Action buttons */}
       <View style={styles.tableActions}>
         <TouchableOpacity
-          style={styles.addSetBtn}
+          style={[styles.addSetBtn, { backgroundColor: colors.surfaceSubtle }]}
           onPress={() => onAddSet(movementIdx)}
           accessibilityLabel="Add set"
           testID="add-set"
         >
-          <Text style={styles.addSetBtnText}>+ Add set</Text>
+          <ThemedText variant="secondary" style={styles.addSetBtnText}>+ Add set</ThemedText>
         </TouchableOpacity>
         {hiddenColumns.map((c) => (
           <TouchableOpacity
             key={c.key}
-            style={styles.addColBtn}
+            style={[styles.addColBtn, { backgroundColor: colors.cardBg }]}
             onPress={() => onUpdate(movementIdx, 0, c.key, c.placeholder.split(' ')[0])}
             accessibilityLabel={`Add ${c.label} column`}
             testID={`add-col-${c.key}`}
           >
-            <Text style={styles.addColBtnText}>+ {c.label}</Text>
+            <ThemedText variant="tertiary" style={styles.addColBtnText}>+ {c.label}</ThemedText>
           </TouchableOpacity>
         ))}
       </View>
@@ -928,37 +981,45 @@ function ScoreFieldsRN({
   fields: ScoreFieldState
   onChange: (next: ScoreFieldState) => void
 }) {
+  const { colors } = useTheme()
+  const primaryTintBg = `${colors.primary}33`
+
   const update = <K extends keyof ScoreFieldState>(field: K, value: ScoreFieldState[K]) =>
     onChange({ ...fields, [field]: value })
+
+  const inputStyle = [
+    styles.input,
+    { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive, color: colors.textPrimary },
+  ]
 
   if (kind === 'ROUNDS_REPS') {
     return (
       <View>
-        <Text style={styles.sectionLabel}>SCORE</Text>
+        <ThemedText variant="tertiary" style={styles.sectionLabel}>SCORE</ThemedText>
         <View style={styles.inlineInputs}>
           {_workout.tracksRounds && (
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Rounds</Text>
+              <ThemedText variant="tertiary" style={styles.inputLabel}>Rounds</ThemedText>
               <TextInput
-                style={styles.input}
+                style={inputStyle}
                 keyboardType="number-pad"
                 value={fields.rounds}
                 onChangeText={(v) => update('rounds', v)}
                 placeholder="0"
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={colors.textPlaceholder}
                 testID="rounds-input"
               />
             </View>
           )}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Reps</Text>
+            <ThemedText variant="tertiary" style={styles.inputLabel}>Reps</ThemedText>
             <TextInput
-              style={styles.input}
+              style={inputStyle}
               keyboardType="number-pad"
               value={fields.reps}
               onChangeText={(v) => update('reps', v)}
               placeholder="0"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={colors.textPlaceholder}
               testID="reps-input"
             />
           </View>
@@ -969,30 +1030,30 @@ function ScoreFieldsRN({
   if (kind === 'TIME') {
     return (
       <View>
-        <Text style={styles.sectionLabel}>TIME</Text>
+        <ThemedText variant="tertiary" style={styles.sectionLabel}>TIME</ThemedText>
         <View style={styles.inlineInputs}>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Minutes</Text>
+            <ThemedText variant="tertiary" style={styles.inputLabel}>Minutes</ThemedText>
             <TextInput
-              style={[styles.input, fields.cappedOut && styles.inputDisabled]}
+              style={[...inputStyle, fields.cappedOut && styles.inputDisabled]}
               keyboardType="number-pad"
               value={fields.minutes}
               onChangeText={(v) => update('minutes', v)}
               placeholder="0"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={colors.textPlaceholder}
               editable={!fields.cappedOut}
               testID="minutes-input"
             />
           </View>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Seconds</Text>
+            <ThemedText variant="tertiary" style={styles.inputLabel}>Seconds</ThemedText>
             <TextInput
-              style={[styles.input, fields.cappedOut && styles.inputDisabled]}
+              style={[...inputStyle, fields.cappedOut && styles.inputDisabled]}
               keyboardType="number-pad"
               value={fields.seconds}
               onChangeText={(v) => update('seconds', v)}
               placeholder="0"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={colors.textPlaceholder}
               editable={!fields.cappedOut}
               testID="seconds-input"
             />
@@ -1003,10 +1064,16 @@ function ScoreFieldsRN({
           onPress={() => update('cappedOut', !fields.cappedOut)}
           testID="capped-toggle"
         >
-          <View style={[styles.checkbox, fields.cappedOut && styles.checkboxChecked]}>
-            {fields.cappedOut && <Text style={styles.checkmark}>✓</Text>}
+          <View
+            style={[
+              styles.checkbox,
+              { borderColor: colors.borderInteractive },
+              fields.cappedOut && { backgroundColor: colors.primary, borderColor: colors.primary },
+            ]}
+          >
+            {fields.cappedOut && <ThemedText style={[styles.checkmark, { color: colors.onPrimary }]}>✓</ThemedText>}
           </View>
-          <Text style={styles.toggleLabel}>Time capped (didn't finish)</Text>
+          <ThemedText variant="secondary" style={styles.toggleLabel}>Time capped (didn't finish)</ThemedText>
         </TouchableOpacity>
       </View>
     )
@@ -1014,33 +1081,45 @@ function ScoreFieldsRN({
   if (kind === 'DISTANCE') {
     return (
       <View>
-        <Text style={styles.sectionLabel}>DISTANCE</Text>
+        <ThemedText variant="tertiary" style={styles.sectionLabel}>DISTANCE</ThemedText>
         <View style={styles.inlineInputs}>
           <View style={[styles.inputGroup, { flex: 2 }]}>
-            <Text style={styles.inputLabel}>Distance</Text>
+            <ThemedText variant="tertiary" style={styles.inputLabel}>Distance</ThemedText>
             <TextInput
-              style={styles.input}
+              style={inputStyle}
               keyboardType="decimal-pad"
               value={fields.distance}
               onChangeText={(v) => update('distance', v)}
               placeholder="0"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor={colors.textPlaceholder}
               testID="distance-input"
             />
           </View>
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Unit</Text>
+            <ThemedText variant="tertiary" style={styles.inputLabel}>Unit</ThemedText>
             <View style={styles.unitChipsCol}>
-              {DISTANCE_UNITS.map((u) => (
-                <TouchableOpacity
-                  key={u.value}
-                  style={[styles.unitChip, fields.distanceUnit === u.value && styles.unitChipActive]}
-                  onPress={() => update('distanceUnit', u.value)}
-                  testID={`score-distance-unit-${u.value}`}
-                >
-                  <Text style={[styles.unitChipText, fields.distanceUnit === u.value && styles.unitChipTextActive]}>{u.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {DISTANCE_UNITS.map((u) => {
+                const isActive = fields.distanceUnit === u.value
+                return (
+                  <TouchableOpacity
+                    key={u.value}
+                    style={[
+                      styles.unitChip,
+                      { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+                      isActive && { backgroundColor: primaryTintBg, borderColor: colors.primary },
+                    ]}
+                    onPress={() => update('distanceUnit', u.value)}
+                    testID={`score-distance-unit-${u.value}`}
+                  >
+                    <ThemedText
+                      variant="tertiary"
+                      style={[styles.unitChipText, isActive && { color: colors.primary, fontWeight: '600' }]}
+                    >
+                      {u.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                )
+              })}
             </View>
           </View>
         </View>
@@ -1050,14 +1129,14 @@ function ScoreFieldsRN({
   // CALORIES
   return (
     <View>
-      <Text style={styles.sectionLabel}>CALORIES</Text>
+      <ThemedText variant="tertiary" style={styles.sectionLabel}>CALORIES</ThemedText>
       <TextInput
-        style={styles.input}
+        style={inputStyle}
         keyboardType="number-pad"
         value={fields.calories}
         onChangeText={(v) => update('calories', v)}
         placeholder="0"
-        placeholderTextColor="#6b7280"
+        placeholderTextColor={colors.textPlaceholder}
         testID="calories-input"
       />
     </View>
@@ -1065,26 +1144,23 @@ function ScoreFieldsRN({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#030712' },
+  container: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingVertical: 16 },
   center: {
     flex: 1,
-    backgroundColor: '#030712',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  workoutTitle: { fontSize: 22, fontWeight: '700', color: '#ffffff', marginBottom: 4 },
-  workoutType: { fontSize: 13, color: '#6b7280', marginBottom: 20 },
+  workoutTitle: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
+  workoutType: { fontSize: 13, marginBottom: 20 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#6b7280',
     letterSpacing: 0.8,
     marginTop: 16,
     marginBottom: 8,
   },
   helpText: {
-    color: '#9ca3af',
     fontSize: 13,
     lineHeight: 18,
     marginTop: 16,
@@ -1093,87 +1169,71 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#111827',
     borderWidth: 1,
-    borderColor: '#374151',
     borderRadius: 16,
   },
-  chipActive: { backgroundColor: '#1e1b4b', borderColor: '#6366f1' },
-  chipText: { color: '#6b7280', fontSize: 13, fontWeight: '500' },
-  chipTextActive: { color: '#818cf8', fontWeight: '600' },
+  chipText: { fontSize: 13, fontWeight: '500' },
   inlineInputs: { flexDirection: 'row', gap: 12 },
   inputGroup: { flex: 1 },
-  inputLabel: { color: '#9ca3af', fontSize: 12, marginBottom: 4 },
+  inputLabel: { fontSize: 12, marginBottom: 4 },
   input: {
-    backgroundColor: '#111827',
     borderWidth: 1,
-    borderColor: '#374151',
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#ffffff',
   },
   inputDisabled: { opacity: 0.4 },
   notesSection: { flex: 1, minHeight: 120 },
   notesInput: { textAlignVertical: 'top', flex: 1 },
-  footer: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24, borderTopWidth: 1, borderTopColor: '#1f2937', backgroundColor: '#030712' },
+  footer: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24, borderTopWidth: 1 },
   toggle: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
   checkbox: {
     width: 20,
     height: 20,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#374151',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxChecked: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
-  checkmark: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
-  toggleLabel: { color: '#e5e7eb', fontSize: 14 },
-  error: { color: '#f87171', fontSize: 13, marginTop: 12, textAlign: 'center' },
+  checkmark: { fontSize: 14, fontWeight: '700' },
+  toggleLabel: { fontSize: 14 },
+  error: { fontSize: 13, marginTop: 12, textAlign: 'center' },
   submitBtn: {
-    backgroundColor: '#4f46e5',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 12,
   },
   submitBtnDisabled: { opacity: 0.5 },
-  submitBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
+  submitBtnText: { fontSize: 15, fontWeight: '600' },
   deleteBtn: { paddingVertical: 14, alignItems: 'center', marginTop: 8 },
-  deleteBtnText: { color: '#f87171', fontSize: 14, fontWeight: '500' },
+  deleteBtnText: { fontSize: 14, fontWeight: '500' },
 
   // Sets table
   setsSection: { marginTop: 16 },
 
   unitRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 8 },
   unitGroup: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  unitLabel: { color: '#9ca3af', fontSize: 12 },
+  unitLabel: { fontSize: 12 },
   unitChips: { flexDirection: 'row', gap: 4 },
   unitChipsCol: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   unitChip: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#111827',
     borderWidth: 1,
-    borderColor: '#374151',
     borderRadius: 6,
   },
-  unitChipActive: { backgroundColor: '#1e1b4b', borderColor: '#6366f1' },
-  unitChipText: { color: '#9ca3af', fontSize: 12, fontWeight: '500' },
-  unitChipTextActive: { color: '#818cf8', fontWeight: '600' },
+  unitChipText: { fontSize: 12, fontWeight: '500' },
 
   tableHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   tableHeaderCell: {
     flex: 1,
-    color: '#9ca3af',
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.5,
@@ -1187,17 +1247,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
   },
-  tableSetIdx: { color: '#6b7280', fontSize: 12, paddingRight: 4 },
+  tableSetIdx: { fontSize: 12, paddingRight: 4 },
   tableCell: { flex: 1, paddingHorizontal: 2 },
   tableInput: {
-    backgroundColor: '#111827',
     borderWidth: 1,
-    borderColor: '#374151',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 8,
     fontSize: 14,
-    color: '#ffffff',
   },
   removeBtn: {
     width: 28,
@@ -1205,7 +1262,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  removeBtnText: { color: '#6b7280', fontSize: 18, fontWeight: '600' },
+  removeBtnText: { fontSize: 18, fontWeight: '600' },
   tableActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1215,15 +1272,13 @@ const styles = StyleSheet.create({
   addSetBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#1f2937',
     borderRadius: 8,
   },
-  addSetBtnText: { color: '#e5e7eb', fontSize: 12, fontWeight: '600' },
+  addSetBtnText: { fontSize: 12, fontWeight: '600' },
   addColBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#111827',
     borderRadius: 8,
   },
-  addColBtnText: { color: '#9ca3af', fontSize: 12, fontWeight: '500' },
+  addColBtnText: { fontSize: 12, fontWeight: '500' },
 })

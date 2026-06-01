@@ -8,7 +8,7 @@ const ENTRY = {
   level: 'RX' as const,
   workoutGender: 'OPEN' as const,
   value: { type: 'FOR_TIME' as const, seconds: 210 },
-  notes: null,
+  notes: null as string | null,
   createdAt: '2026-05-01T10:00:00.000Z',
 }
 

@@ -1,4 +1,6 @@
-import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native'
+import { ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
+import { useTheme } from '../lib/theme'
+import ThemedText from './ThemedText'
 
 interface MovementTabStripProps {
   movements: { workoutMovementId: string; movementName: string }[]
@@ -7,6 +9,7 @@ interface MovementTabStripProps {
 }
 
 export default function MovementTabStrip({ movements, active, onChange }: MovementTabStripProps) {
+  const { colors } = useTheme()
   if (movements.length <= 1) return null
   return (
     <ScrollView
@@ -22,11 +25,17 @@ export default function MovementTabStrip({ movements, active, onChange }: Moveme
           accessibilityRole="tab"
           accessibilityState={{ selected: i === active }}
           onPress={() => onChange(i)}
-          style={[styles.chip, i === active && styles.chipActive]}
+          style={[
+            styles.chip,
+            { backgroundColor: i === active ? colors.borderInteractive : colors.borderSubtle },
+          ]}
         >
-          <Text style={[styles.chipText, i === active && styles.chipTextActive]}>
+          <ThemedText
+            variant={i === active ? undefined : 'tertiary'}
+            style={[styles.chipText, i === active && styles.chipTextActive]}
+          >
             {m.movementName}
-          </Text>
+          </ThemedText>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -40,9 +49,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#1f2937',
   },
-  chipActive: { backgroundColor: '#374151' },
-  chipText: { color: '#9ca3af', fontSize: 13, fontWeight: '500' },
-  chipTextActive: { color: '#ffffff', fontWeight: '600' },
+  chipText: { fontSize: 13, fontWeight: '500' },
+  chipTextActive: { fontWeight: '600' },
 })

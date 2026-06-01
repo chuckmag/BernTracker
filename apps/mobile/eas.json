@@ -1,0 +1,47 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://qa.wodalytics.com"
+      }
+    },
+    "preview": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://qa.wodalytics.com"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://wodalytics.com"
+      }
+    }
+  },
+  "submit": {
+    "preview": {
+      "ios": {},
+      "android": {
+        "track": "internal"
+      }
+    },
+    "production": {
+      "ios": {},
+      "android": {
+        "track": "production"
+      }
+    }
+  }
+}

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, TouchableOpacity, StyleSheet } from 'react-native'
 import { api, type Workout } from '../lib/api'
 import { styleFor } from '../lib/workoutTypeStyles'
+import { useTheme } from '../lib/theme'
+import ThemedText from './ThemedText'
+import ThemedView from './ThemedView'
 
 const MAX_DAYS = 4
 
@@ -25,6 +28,7 @@ interface Props {
 }
 
 export default function UpcomingCard({ gymId, programIds }: Props) {
+  const { colors } = useTheme()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -51,63 +55,62 @@ export default function UpcomingCard({ gymId, programIds }: Props) {
     .slice(0, MAX_DAYS)
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>COMING UP</Text>
+    <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
+        <ThemedText variant="tertiary" style={styles.headerText}>COMING UP</ThemedText>
       </View>
 
       {loading && (
         <View style={styles.shimmerContainer}>
-          <View style={styles.shimmer} />
-          <View style={[styles.shimmer, { width: '75%', marginTop: 8 }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.surfaceSubtle }]} />
+          <View style={[styles.shimmer, { backgroundColor: colors.surfaceSubtle, width: '75%', marginTop: 8 }]} />
         </View>
       )}
 
       {!loading && days.length === 0 && (
-        <Text style={styles.emptyText}>Nothing scheduled in the next 5 days</Text>
+        <ThemedText variant="tertiary" style={styles.emptyText}>Nothing scheduled in the next 5 days</ThemedText>
       )}
 
       {!loading && days.map(([dateKey, dayWorkouts], i) => {
         const isLast = i === days.length - 1
         return (
-          <View key={dateKey} style={[styles.dayBlock, !isLast && styles.dayBorder]}>
-            <Text style={styles.dayLabel}>{formatDayLabel(dateKey)}</Text>
+          <View
+            key={dateKey}
+            style={[styles.dayBlock, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.borderSubtle }]}
+          >
+            <ThemedText variant="muted" style={styles.dayLabel}>{formatDayLabel(dateKey)}</ThemedText>
             {dayWorkouts.map((workout) => {
               const ts = styleFor(workout.type)
               return (
                 <TouchableOpacity key={workout.id} style={[styles.workoutRow, { borderLeftColor: ts.accentBar }]} activeOpacity={0.7}>
                   <View style={[styles.typeBadge, { backgroundColor: ts.bgTint }]}>
-                    <Text style={[styles.typeAbbr, { color: ts.tint }]}>{ts.abbr}</Text>
+                    <ThemedText style={[styles.typeAbbr, { color: ts.tint }]}>{ts.abbr}</ThemedText>
                   </View>
-                  <Text style={styles.workoutTitle} numberOfLines={1}>{workout.title}</Text>
+                  <ThemedText style={styles.workoutTitle} numberOfLines={1}>{workout.title}</ThemedText>
                 </TouchableOpacity>
               )
             })}
           </View>
         )
       })}
-    </View>
+    </ThemedView>
   )
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#111827',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
     overflow: 'hidden',
   },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   headerText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6b7280',
     letterSpacing: 0.5,
   },
   shimmerContainer: {
@@ -116,12 +119,10 @@ const styles = StyleSheet.create({
   shimmer: {
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#1f2937',
     width: '90%',
   },
   emptyText: {
     fontSize: 13,
-    color: '#6b7280',
     textAlign: 'center',
     paddingHorizontal: 16,
     paddingVertical: 20,
@@ -130,14 +131,9 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 6,
   },
-  dayBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
-  },
   dayLabel: {
     fontSize: 9,
     fontWeight: '600',
-    color: '#4b5563',
     letterSpacing: 1,
     paddingHorizontal: 16,
     marginBottom: 4,
@@ -162,6 +158,5 @@ const styles = StyleSheet.create({
   workoutTitle: {
     flex: 1,
     fontSize: 13,
-    color: '#f9fafb',
   },
 })
