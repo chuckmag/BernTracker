@@ -20,6 +20,26 @@ jest.mock('../src/lib/api', () => ({
           get: jest.fn(),
           update: jest.fn(),
         },
+        invitations: {
+          accept:     jest.fn(),
+          decline:    jest.fn(),
+          pendingAll: jest.fn(() => Promise.resolve([])),
+        },
+        codeInvitations: {
+          accept:  jest.fn(),
+          decline: jest.fn(),
+        },
+        joinRequests: {
+          list: jest.fn(() => Promise.resolve([])),
+        },
+      },
+    },
+    me: {
+      gyms: jest.fn(() => Promise.resolve([])),
+    },
+    gyms: {
+      joinRequest: {
+        cancel: jest.fn(),
       },
     },
   },
@@ -168,5 +188,26 @@ describe('SettingsScreen', () => {
 
     await findByText('offline')
     expect(queryByTestId('save-button')).toBeNull()
+  })
+
+  test('Memberships tab swaps the body to the membership sections and back', async () => {
+    ;(api.users.me.profile.get as jest.Mock).mockResolvedValue(profileFixture())
+    ;(api.me.gyms as jest.Mock).mockResolvedValue([
+      { id: 'g1', name: 'CrossFit Test', slug: 'cf', timezone: 'UTC', role: 'MEMBER' },
+    ])
+
+    const { findByTestId, queryByTestId } = render(<SettingsScreen />)
+    // Details is the default tab — save button is visible.
+    await findByTestId('save-button')
+
+    fireEvent.press(await findByTestId('settings-tab-memberships'))
+
+    await findByTestId('my-gyms-section')
+    expect(queryByTestId('save-button')).toBeNull()
+    expect(queryByTestId('sign-out-button')).toBeNull()
+
+    fireEvent.press(await findByTestId('settings-tab-details'))
+    await findByTestId('save-button')
+    expect(queryByTestId('my-gyms-section')).toBeNull()
   })
 })
