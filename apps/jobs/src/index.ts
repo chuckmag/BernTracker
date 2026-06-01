@@ -4,6 +4,7 @@ import { runCrossfitWodJob } from './crossfitWod.js'
 import { runSeedCrossfitMovementsJob } from './seedCrossfitMovements.js'
 import { runDedupeLegacyMovementsJob } from './dedupeLegacyMovements.js'
 import { runNamedWorkoutsJob } from './namedWorkouts.js'
+import { runWodupCopierJob } from './wodupCopier.js'
 
 const log = createLogger('jobs')
 
@@ -31,6 +32,9 @@ const JOBS: Record<string, JobHandler> = {
   // Isolated phase variants — useful for local testing and one-off re-runs.
   'named-workouts-wodwell': () => runNamedWorkoutsJob({ phases: ['wodwell-girls', 'wodwell-benchmarks'] }),
   'named-workouts-crossfit': () => runNamedWorkoutsJob({ phases: ['crossfit-heroes'] }),
+  // Weekly cron — copies the current week's programmed WODs from WODup into
+  // the "CrossFit Override" program. Requires WODUP_SESSION_TOKEN env var.
+  'wodup-copier': () => runWodupCopierJob(),
 }
 
 // Returns the host (and db name) from a postgres URL without exposing
