@@ -61,7 +61,7 @@ const baseLeaderboard: DashboardLeaderboard = {
 
 const baseResult: DashboardTodayResult = {
   id: 'r1',
-  value: { score: { kind: 'TIME', seconds: 462, cappedOut: false } },
+  value: { score: { kind: 'TIME', seconds: 462, cappedOut: false }, movementResults: [] },
   level: 'RX',
   workoutGender: 'OPEN',
   primaryScoreKind: 'TIME',

@@ -41,6 +41,10 @@ import type {
   GymInvitation,
   MembershipRequestStatus,
   PendingInvitation,
+  DashboardLeaderboard,
+  DashboardTodayResult,
+  DashboardTodayWorkout as SharedDashboardTodayWorkout,
+  DashboardToday as SharedDashboardToday,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -85,6 +89,8 @@ export type {
   GymInvitation,
   MembershipRequestStatus,
   PendingInvitation,
+  DashboardLeaderboard,
+  DashboardTodayResult,
 }
 // PATCH /api/users/me/profile body alias — the shared Zod-inferred type is
 // the authoritative shape; the alias keeps mobile call sites stable.
@@ -239,33 +245,18 @@ export interface Workout {
   canEdit?: boolean
 }
 
-export interface DashboardTodayResult {
-  id: string
-  value: ResultValue
-  level: WorkoutLevel
-  workoutGender: WorkoutGender
-  primaryScoreKind: string | null
-  primaryScoreValue: number | null
-  createdAt: string
-  notes: string | null
+// Mobile's `Workout` is leaner than the API response — the dashboard endpoint
+// also returns the workout's program, namedWorkout, and result count. Pin the
+// shared generic to a mobile-specific include shape so call sites can read
+// those fields directly without a cast.
+type DashboardWorkoutWithIncludes = Workout & {
+  program: { id: string; name: string } | null
+  namedWorkout: { id: string; name: string; category: string } | null
+  _count: { results: number }
 }
 
-export interface DashboardLeaderboard {
-  rank: number | null
-  totalLogged: number
-  percentile: number | null
-}
-
-export interface DashboardToday {
-  workout: (Workout & { program: { id: string; name: string } | null; namedWorkout: { id: string; name: string; category: string } | null; _count: { results: number } }) | null
-  myResult: DashboardTodayResult | null
-  leaderboard: DashboardLeaderboard | null
-  gymMemberCount: number
-  /** Subscribers to the hero workout's program via UserProgram. Used when isHeroWorkoutGymAffiliated is false. */
-  programSubscriberCount: number
-  /** False for unaffiliated programs (e.g. CrossFit Mainsite) — use programSubscriberCount for the social count. */
-  isHeroWorkoutGymAffiliated: boolean
-}
+export type DashboardTodayWorkout = SharedDashboardTodayWorkout<DashboardWorkoutWithIncludes>
+export type DashboardToday = SharedDashboardToday<DashboardWorkoutWithIncludes>
 
 export interface LeaderboardEntry {
   id: string

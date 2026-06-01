@@ -1,4 +1,4 @@
-import type { WorkoutLevel, WorkoutGender } from './result.js'
+import type { ResultValue, WorkoutLevel, WorkoutGender } from './result.js'
 import type { WorkoutType, WorkoutCategory } from './workout.js'
 import type { MovementCategory, MovementPrType } from './movement.js'
 
@@ -178,4 +178,47 @@ export interface BenchmarkHistoryEntry {
 export interface BenchmarkHistoryData {
   namedWorkout: NamedWorkout
   history: BenchmarkHistoryEntry[]
+}
+
+// ── Dashboard "today" ─────────────────────────────────────────────────────────
+//
+// GET /api/gyms/:gymId/dashboard/today response. Web and mobile both consume it,
+// so the shared parts live here. The `workout` payload itself is structurally
+// the same on both surfaces (includes program, namedWorkout, _count) but each
+// app's local `Workout` interface differs — web's is fuller (dayOrder, etc.),
+// mobile's is leaner — so `DashboardTodayWorkout` and `DashboardToday` are
+// parameterized by `TWorkout` and each surface instantiates with its own
+// `Workout` extended with the include shape.
+
+export interface DashboardLeaderboard {
+  rank: number | null
+  totalLogged: number
+  percentile: number | null
+}
+
+export interface DashboardTodayResult {
+  id: string
+  value: ResultValue
+  level: WorkoutLevel
+  workoutGender: WorkoutGender
+  primaryScoreKind: string | null
+  primaryScoreValue: number | null
+  createdAt: string
+  notes: string | null
+}
+
+export interface DashboardTodayWorkout<TWorkout = unknown> {
+  workout: TWorkout
+  myResult: DashboardTodayResult | null
+  leaderboard: DashboardLeaderboard | null
+  /** Subscribers to this workout's program via UserProgram. Used when isHeroWorkoutGymAffiliated is false. */
+  programSubscriberCount: number
+  /** False for unaffiliated programs (e.g. CrossFit Mainsite) — use programSubscriberCount for the social count. */
+  isHeroWorkoutGymAffiliated: boolean
+}
+
+export interface DashboardToday<TWorkout = unknown> {
+  /** All published workouts for today, recovery (warmup/mobility/cooldown) first. Frontend pre-selects the first non-recovery entry as the default active tab. */
+  workouts: DashboardTodayWorkout<TWorkout>[]
+  gymMemberCount: number
 }

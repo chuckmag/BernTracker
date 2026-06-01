@@ -14,6 +14,7 @@ import { api, type DashboardToday, type GymProgram } from '../lib/api'
 import { useGym } from '../context/GymContext'
 import { useAuth } from '../context/AuthContext'
 import { useProgramFilter } from '../context/ProgramFilterContext'
+import { isRecoveryWorkoutType } from '../lib/workoutTypeStyles'
 import WodHeroCard from '../components/WodHeroCard'
 import LeaderboardCard from '../components/LeaderboardCard'
 import UpcomingCard from '../components/UpcomingCard'
@@ -46,6 +47,7 @@ export default function HomeScreen() {
   const { available, defaultProgramId } = useProgramFilter()
   const [selectedProgramId, setSelectedProgramId] = useState<string>('')
   const [data, setData] = useState<DashboardToday | null>(null)
+  const [activeWorkoutIdx, setActiveWorkoutIdx] = useState(0)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -97,6 +99,10 @@ export default function HomeScreen() {
       const programIds = selectedProgramId ? [selectedProgramId] : undefined
       const result = await api.gyms.dashboard.today(activeGym.id, programIds)
       setData(result)
+      // Pre-select the first non-recovery workout (warmup/mobility/cooldown tabs
+      // appear first in the strip for natural class flow, but the main WOD is the default).
+      const firstMain = result.workouts?.findIndex((w) => !isRecoveryWorkoutType(w.workout.type)) ?? -1
+      setActiveWorkoutIdx(firstMain === -1 ? 0 : firstMain)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
     } finally {
@@ -131,6 +137,10 @@ export default function HomeScreen() {
   const greeting = greetingFor(firstNameOf(user))
   const showPicker = available.length > 1
   const upcomingProgramIds = selectedProgramId ? [selectedProgramId] : undefined
+  // Resolve the active entry once so LeaderboardCard and HotTodayCard can't
+  // diverge from WodHeroCard if `activeWorkoutIdx` is stale (e.g. just after a
+  // refetch that shrank the array).
+  const activeEntry = data?.workouts?.[activeWorkoutIdx] ?? data?.workouts?.[0] ?? null
 
   return (
     <ThemedView variant="screen" style={styles.root}>
@@ -166,16 +176,20 @@ export default function HomeScreen() {
         )}
 
         {!loading && data && (
-          <>
-            <WodHeroCard data={data} />
-            {data.workout && (
-              <LeaderboardCard
-                workoutId={data.workout.id}
-                workoutTitle={data.workout.title}
-                myUserId={user?.id ?? ''}
-              />
-            )}
-          </>
+          <WodHeroCard
+            workouts={data.workouts ?? []}
+            gymMemberCount={data.gymMemberCount}
+            activeIdx={activeWorkoutIdx}
+            onActiveIdxChange={setActiveWorkoutIdx}
+          />
+        )}
+
+        {!loading && activeEntry && (
+          <LeaderboardCard
+            workoutId={activeEntry.workout.id}
+            workoutTitle={activeEntry.workout.title}
+            myUserId={user?.id ?? ''}
+          />
         )}
 
         {/* My Goals — fetches its own data; renders regardless of WOD presence. */}
@@ -186,7 +200,7 @@ export default function HomeScreen() {
         )}
 
         {/* Hot Today — top results by social activity (reactions + comments) */}
-        {!loading && data?.workout && <HotTodayCard workoutId={data.workout.id} />}
+        {!loading && activeEntry && <HotTodayCard workoutId={activeEntry.workout.id} />}
       </ScrollView>
     </ThemedView>
   )

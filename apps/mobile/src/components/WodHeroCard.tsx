@@ -1,10 +1,10 @@
-import { View, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { styleFor } from '../lib/workoutTypeStyles'
 import { formatResultValue } from '../lib/format'
-import type { DashboardToday } from '../lib/api'
+import type { DashboardTodayWorkout } from '../lib/api'
 import { useTheme } from '../lib/theme'
 import ThemedText from './ThemedText'
 import ThemedView from './ThemedView'
@@ -28,15 +28,17 @@ function formatTime(iso: string): string {
 }
 
 type Props = {
-  data: DashboardToday
+  workouts: DashboardTodayWorkout[]
+  gymMemberCount: number
+  activeIdx: number
+  onActiveIdxChange: (idx: number) => void
 }
 
-export default function WodHeroCard({ data }: Props) {
+export default function WodHeroCard({ workouts, gymMemberCount, activeIdx, onActiveIdxChange }: Props) {
   const { colors } = useTheme()
   const nav = useNavigation<Nav>()
-  const { workout, myResult, leaderboard, gymMemberCount, programSubscriberCount = 0, isHeroWorkoutGymAffiliated = true } = data
 
-  if (!workout) {
+  if (workouts.length === 0) {
     return (
       <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
         <ThemedText variant="secondary" style={styles.emptyTitle}>No workout today</ThemedText>
@@ -45,18 +47,59 @@ export default function WodHeroCard({ data }: Props) {
     )
   }
 
+  const entry = workouts[activeIdx] ?? workouts[0]
+  const { workout, myResult, leaderboard, programSubscriberCount = 0, isHeroWorkoutGymAffiliated = true } = entry
   const ts = styleFor(workout.type)
   const scored = myResult ? formatResultValue(myResult.value as Parameters<typeof formatResultValue>[0]) : null
   const levelLabel = myResult ? (LEVEL_LABELS[myResult.level] ?? myResult.level) : null
 
   function goToWod() {
-    nav.navigate('WodDetail', { workoutId: workout!.id })
+    nav.navigate('WodDetail', { workoutId: workout.id })
   }
 
   return (
     <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
-      {/* Accent strip */}
+      {/* Accent strip — tracks the active tab's workout type */}
       <View style={[styles.accentStrip, { backgroundColor: ts.accentBar }]} />
+
+      {/* Workout tabs — only when there are multiple workouts today */}
+      {workouts.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsRow}
+          accessibilityRole="tablist"
+        >
+          {workouts.map((e, i) => {
+            const tabTs = styleFor(e.workout.type)
+            const isActive = i === activeIdx
+            return (
+              <TouchableOpacity
+                key={e.workout.id}
+                onPress={() => onActiveIdxChange(i)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
+                activeOpacity={0.7}
+                style={[
+                  styles.tab,
+                  isActive
+                    ? { backgroundColor: tabTs.bgTint, borderColor: tabTs.tint }
+                    : { backgroundColor: colors.surfaceSubtle, borderColor: colors.borderInteractive },
+                ]}
+              >
+                <ThemedText style={[styles.tabAbbr, { color: isActive ? tabTs.tint : colors.textTertiary }]}>{tabTs.abbr}</ThemedText>
+                <ThemedText
+                  variant={isActive ? 'secondary' : 'tertiary'}
+                  style={styles.tabTitle}
+                  numberOfLines={1}
+                >
+                  {e.workout.title}
+                </ThemedText>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+      )}
 
       {/* Header */}
       <View style={styles.headerRow}>
@@ -149,6 +192,32 @@ const styles = StyleSheet.create({
   },
   accentStrip: {
     height: 3,
+  },
+  tabsRow: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 2,
+    gap: 6,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    maxWidth: 180,
+  },
+  tabAbbr: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  tabTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    flexShrink: 1,
   },
   headerRow: {
     flexDirection: 'row',
