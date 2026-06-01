@@ -74,7 +74,12 @@ export default function BirthdayField({
   }
 
   function handleIOSDone() {
+    // First-open with no committed value: the spinner is *showing* initialDate
+    // (2000-01-01) but the user never touched the wheel, so iosDraft is null.
+    // Commit the displayed default so Done means what it looks like and the
+    // onboarding validator doesn't reject an apparently-filled field.
     if (iosDraft !== null) onChange(iosDraft)
+    else if (!value) onChange(toYmd(initialDate))
     setIosDraft(null)
     setOpen(false)
   }
@@ -95,7 +100,8 @@ export default function BirthdayField({
           { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive },
         ]}
         accessibilityRole="button"
-        accessibilityLabel={`${label}, ${display ?? 'not set'}, tap to pick a date`}
+        accessibilityLabel={`${label}, tap to pick a date`}
+        accessibilityValue={{ text: display ?? 'not set' }}
         testID={testID}
       >
         <ThemedText style={{ color: display ? colors.textPrimary : colors.textPlaceholder }}>
@@ -127,7 +133,7 @@ export default function BirthdayField({
           animationType="slide"
           onRequestClose={handleIOSCancel}
         >
-          <Pressable style={styles.iosBackdrop} onPress={handleIOSCancel}>
+          <Pressable style={[styles.iosBackdrop, { backgroundColor: colors.modalScrim }]} onPress={handleIOSCancel}>
             <Pressable onPress={(e) => e.stopPropagation()}>
               <ThemedView variant="card" style={[styles.iosSheet, { borderColor: colors.borderSubtle }]}>
                 <View style={[styles.iosSheetHeader, { borderBottomColor: colors.borderSubtle }]}>
@@ -189,7 +195,6 @@ const styles = StyleSheet.create({
   },
   iosBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   iosSheet: {

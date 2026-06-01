@@ -89,12 +89,41 @@ describe('BirthdayField', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  test('iOS: Done with no scrolls is a no-op', () => {
+  test('iOS: Done with no scrolls leaves an already-set value untouched', () => {
     Platform.OS = 'ios'
     const onChange = jest.fn()
     const { getByTestId } = render(<BirthdayField value="1990-04-15" onChange={onChange} />)
     fireEvent.press(getByTestId('birthday-field'))
     fireEvent.press(getByTestId('birthday-field-done'))
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  test('iOS: Done with no scrolls from empty commits the displayed default', () => {
+    // The spinner opens showing 2000-01-01 when the field is empty. If the
+    // user taps Done without scrolling, they reasonably expect the visible
+    // date to land in the field — otherwise the onboarding validator rejects
+    // them on the next tap.
+    Platform.OS = 'ios'
+    const onChange = jest.fn()
+    const { getByTestId } = render(<BirthdayField value="" onChange={onChange} />)
+    fireEvent.press(getByTestId('birthday-field'))
+    fireEvent.press(getByTestId('birthday-field-done'))
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith('2000-01-01')
+  })
+
+  test('a11y: stable label + dynamic accessibilityValue', () => {
+    // Screen readers announce label and value separately; the value should
+    // reflect the current display string without rewriting the label each
+    // render.
+    const empty = render(<BirthdayField value="" onChange={() => {}} />)
+    const emptyTrigger = empty.getByTestId('birthday-field')
+    expect(emptyTrigger.props.accessibilityLabel).toBe('Birthday, tap to pick a date')
+    expect(emptyTrigger.props.accessibilityValue).toEqual({ text: 'not set' })
+
+    const filled = render(<BirthdayField value="1990-04-15" onChange={() => {}} />)
+    const filledTrigger = filled.getByTestId('birthday-field')
+    expect(filledTrigger.props.accessibilityLabel).toBe('Birthday, tap to pick a date')
+    expect(filledTrigger.props.accessibilityValue?.text).toMatch(/1990/)
   })
 })
