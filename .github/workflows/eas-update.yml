@@ -75,6 +75,12 @@ jobs:
         run: npm ci
         working-directory: .
 
+      # Metro resolves `@wodalytics/types` to its compiled `dist/`, which the
+      # EAS-worker-only `eas-build-post-install` hook doesn't build for us here.
+      - name: Build shared packages
+        run: npm run build --workspace=@wodalytics/types
+        working-directory: .
+
       - name: Confirm EAS auth
         run: npx eas-cli@latest whoami
 
