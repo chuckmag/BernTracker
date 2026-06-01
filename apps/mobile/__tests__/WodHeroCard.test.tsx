@@ -1,12 +1,3 @@
-/**
- * WodHeroCard tests
- *
- * Locks in the contract that mobile reads the array shape returned by
- * GET /api/gyms/:gymId/dashboard/today: { workouts: [...], gymMemberCount }.
- * Previously mobile assumed { workout: ... | null }, which always rendered
- * "No workout today" even when the web showed a workout for the same day.
- */
-
 import React from 'react'
 import { render, fireEvent } from '@testing-library/react-native'
 import WodHeroCard from '../src/components/WodHeroCard'
@@ -75,7 +66,7 @@ describe('WodHeroCard', () => {
 
   it('renders one tab per workout when multiple workouts are scheduled', () => {
     const workouts: DashboardTodayWorkout[] = [
-      { ...makeEntry({ id: 'w-warmup', title: 'Warm Up', type: 'WARMUP' as any }) },
+      { ...makeEntry({ id: 'w-warmup', title: 'Warm Up', type: 'WARMUP' }) },
       { ...makeEntry({ id: 'w-main', title: 'Fran' }) },
     ]
     const { getByText, getAllByText } = render(
@@ -94,7 +85,7 @@ describe('WodHeroCard', () => {
   it('calls onActiveIdxChange when a tab is tapped', () => {
     const onActiveIdxChange = jest.fn()
     const workouts: DashboardTodayWorkout[] = [
-      { ...makeEntry({ id: 'w-warmup', title: 'Warm Up', type: 'WARMUP' as any }) },
+      { ...makeEntry({ id: 'w-warmup', title: 'Warm Up', type: 'WARMUP' }) },
       { ...makeEntry({ id: 'w-main', title: 'Fran' }) },
     ]
     const { getByText } = render(

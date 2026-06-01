@@ -137,6 +137,10 @@ export default function HomeScreen() {
   const greeting = greetingFor(firstNameOf(user))
   const showPicker = available.length > 1
   const upcomingProgramIds = selectedProgramId ? [selectedProgramId] : undefined
+  // Resolve the active entry once so LeaderboardCard and HotTodayCard can't
+  // diverge from WodHeroCard if `activeWorkoutIdx` is stale (e.g. just after a
+  // refetch that shrank the array).
+  const activeEntry = data?.workouts?.[activeWorkoutIdx] ?? data?.workouts?.[0] ?? null
 
   return (
     <ThemedView variant="screen" style={styles.root}>
@@ -171,31 +175,20 @@ export default function HomeScreen() {
           </ThemedView>
         )}
 
-        {!loading && data && (data.workouts?.length ?? 0) > 0 && (() => {
-          const activeEntry = data.workouts[activeWorkoutIdx] ?? data.workouts[0]
-          return (
-            <>
-              <WodHeroCard
-                workouts={data.workouts}
-                gymMemberCount={data.gymMemberCount}
-                activeIdx={activeWorkoutIdx}
-                onActiveIdxChange={setActiveWorkoutIdx}
-              />
-              <LeaderboardCard
-                workoutId={activeEntry.workout.id}
-                workoutTitle={activeEntry.workout.title}
-                myUserId={user?.id ?? ''}
-              />
-            </>
-          )
-        })()}
-
-        {!loading && data && !(data.workouts?.length) && (
+        {!loading && data && (
           <WodHeroCard
-            workouts={[]}
+            workouts={data.workouts ?? []}
             gymMemberCount={data.gymMemberCount}
-            activeIdx={0}
+            activeIdx={activeWorkoutIdx}
             onActiveIdxChange={setActiveWorkoutIdx}
+          />
+        )}
+
+        {!loading && activeEntry && (
+          <LeaderboardCard
+            workoutId={activeEntry.workout.id}
+            workoutTitle={activeEntry.workout.title}
+            myUserId={user?.id ?? ''}
           />
         )}
 
@@ -207,9 +200,7 @@ export default function HomeScreen() {
         )}
 
         {/* Hot Today — top results by social activity (reactions + comments) */}
-        {!loading && data && (data.workouts?.length ?? 0) > 0 && (
-          <HotTodayCard workoutId={(data.workouts[activeWorkoutIdx] ?? data.workouts[0]).workout.id} />
-        )}
+        {!loading && activeEntry && <HotTodayCard workoutId={activeEntry.workout.id} />}
       </ScrollView>
     </ThemedView>
   )

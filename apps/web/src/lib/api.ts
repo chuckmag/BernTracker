@@ -35,6 +35,10 @@ import type {
   GymJoinRequest,
   MembershipRequestStatus,
   PendingInvitation,
+  DashboardLeaderboard,
+  DashboardTodayResult,
+  DashboardTodayWorkout as SharedDashboardTodayWorkout,
+  DashboardToday as SharedDashboardToday,
 } from '@wodalytics/types'
 import { WORKOUT_TYPE_STYLES } from './workoutTypeStyles'
 import keycloak from './keycloak'
@@ -65,6 +69,8 @@ export type {
   GoalResponse,
   CreateGoalInput,
   UpdateGoalInput,
+  DashboardLeaderboard,
+  DashboardTodayResult,
 }
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
@@ -342,38 +348,8 @@ export interface ResultHistoryPage {
   pages: number
 }
 
-export interface DashboardTodayResult {
-  id: string
-  value: Record<string, unknown>
-  level: WorkoutLevel
-  workoutGender: WorkoutGender
-  primaryScoreKind: string | null
-  primaryScoreValue: number | null
-  createdAt: string
-  notes: string | null
-}
-
-export interface DashboardLeaderboard {
-  rank: number | null
-  totalLogged: number
-  percentile: number | null
-}
-
-export interface DashboardTodayWorkout {
-  workout: Workout
-  myResult: DashboardTodayResult | null
-  leaderboard: DashboardLeaderboard | null
-  /** Subscribers to this workout's program via UserProgram. Used when isHeroWorkoutGymAffiliated is false. */
-  programSubscriberCount: number
-  /** False for unaffiliated programs (e.g. CrossFit Mainsite) — use programSubscriberCount for the social count. */
-  isHeroWorkoutGymAffiliated: boolean
-}
-
-export interface DashboardToday {
-  /** All published workouts for today, non-recovery first. Index 0 is the default hero. */
-  workouts: DashboardTodayWorkout[]
-  gymMemberCount: number
-}
+export type DashboardTodayWorkout = SharedDashboardTodayWorkout<Workout>
+export type DashboardToday = SharedDashboardToday<Workout>
 
 export interface MyGym {
   id: string
