@@ -1,9 +1,11 @@
-# Manual EAS Update publish — ships a JS-only OTA bundle to a given branch.
+# EAS Update publish — ships a JS-only OTA bundle to a given branch.
 #
-# Triggered from Actions → "eas-update" → Run workflow. Pick the EAS Update
-# branch (defaults match the channel names configured in `apps/mobile/eas.json`
-# build profiles), optionally type a message that shows up in the EAS dashboard,
-# and click Run.
+# Triggers:
+#   - push to main when the mobile bundle's inputs change (paths below) →
+#     auto-publish to the `preview` channel. Production stays manual so an
+#     accidental main commit can't reach App Store users.
+#   - workflow_dispatch → pick `preview` or `production` and an optional
+#     dashboard message.
 #
 # Unlike `build-and-submit-*`, this never touches App Store Connect or Google
 # Play — `eas update` only publishes the JS bundle (via `expo export`) and
@@ -22,6 +24,20 @@
 name: eas-update
 
 on:
+  push:
+    branches: [main]
+    # Anything that changes the JS bundle Metro ships. Keep in sync with
+    # apps/mobile/metro.config.js's watchFolders + workspace deps.
+    paths:
+      - 'apps/mobile/src/**'
+      - 'apps/mobile/app.config.ts'
+      - 'apps/mobile/index.ts'
+      - 'apps/mobile/babel.config.js'
+      - 'apps/mobile/metro.config.js'
+      - 'apps/mobile/package.json'
+      - 'packages/types/src/**'
+      - 'package-lock.json'
+      - '.github/workflows/eas-update.yml'
   workflow_dispatch:
     inputs:
       branch:
@@ -37,12 +53,12 @@ on:
         required: false
 
 concurrency:
-  group: eas-update-${{ inputs.branch }}
+  group: eas-update-${{ inputs.branch || 'preview' }}
   cancel-in-progress: false
 
 jobs:
   publish:
-    name: Publish EAS Update (${{ inputs.branch }})
+    name: Publish EAS Update (${{ inputs.branch || 'preview' }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -112,7 +128,7 @@ jobs:
       # quotes could otherwise execute arbitrary commands.
       - name: Publish update
         env:
-          UPDATE_BRANCH: ${{ inputs.branch }}
+          UPDATE_BRANCH: ${{ inputs.branch || 'preview' }}
           UPDATE_MESSAGE: ${{ steps.msg.outputs.message }}
         run: |
           npx eas-cli@latest update \
