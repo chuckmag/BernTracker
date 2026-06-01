@@ -16,6 +16,11 @@ import { useTheme, type ThemeMode } from '../lib/theme'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
 import AvatarUploader from '../components/AvatarUploader'
+import MyGymsSection from '../components/MyGymsSection'
+import MyInvitationsSection from '../components/MyInvitationsSection'
+import MyJoinRequestsSection from '../components/MyJoinRequestsSection'
+
+type Tab = 'details' | 'memberships'
 
 // Mirrors the web Profile.tsx Details tab — same fields, same order, same
 // labels. Theme picker mirrors the cross-app `wodalytics-theme` AsyncStorage
@@ -39,6 +44,8 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 export default function SettingsScreen() {
   const { logout } = useAuth()
   const { colors, mode: themeMode, setMode: setThemeMode } = useTheme()
+
+  const [tab, setTab] = useState<Tab>('details')
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [firstName, setFirstName] = useState('')
@@ -137,6 +144,36 @@ export default function SettingsScreen() {
     >
       <ThemedView variant="screen" style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {/* Tab strip — Details / Memberships, mirrors web Profile.tsx */}
+          <View style={[styles.tabBar, { borderBottomColor: colors.borderSubtle }]}>
+            {(['details', 'memberships'] as const).map((t) => {
+              const active = tab === t
+              const label = t === 'details' ? 'Details' : 'Memberships'
+              return (
+                <TouchableOpacity
+                  key={t}
+                  onPress={() => setTab(t)}
+                  style={[styles.tabButton, active && { borderBottomColor: colors.primary }]}
+                  testID={`settings-tab-${t}`}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                >
+                  <ThemedText style={[styles.tabLabel, { color: active ? colors.textPrimary : colors.textTertiary }]}>
+                    {label}
+                  </ThemedText>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+
+          {tab === 'memberships' ? (
+            <View style={styles.tabBody}>
+              <MyGymsSection />
+              <MyInvitationsSection />
+              <MyJoinRequestsSection />
+            </View>
+          ) : (
+            <>
           {/* Avatar uploader + identity row */}
           <ThemedView variant="card" style={[styles.card, { borderColor: colors.borderSubtle }]}>
             <AvatarUploader size="lg" />
@@ -287,6 +324,8 @@ export default function SettingsScreen() {
           >
             <ThemedText style={[styles.signOutText, { color: colors.errorText }]}>Sign out</ThemedText>
           </TouchableOpacity>
+            </>
+          )}
         </ScrollView>
       </ThemedView>
     </KeyboardAvoidingView>
@@ -306,6 +345,22 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 16,
   },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    marginHorizontal: -16,
+    marginTop: -16,
+    paddingHorizontal: 16,
+  },
+  tabButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    marginBottom: -1,
+  },
+  tabLabel: { fontSize: 14, fontWeight: '600' },
+  tabBody: { gap: 24 },
   card: {
     borderRadius: 16,
     borderWidth: 1,

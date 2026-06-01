@@ -41,6 +41,7 @@ import type {
   GymInvitation,
   MembershipRequestStatus,
   PendingInvitation,
+  GymJoinRequest,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -85,6 +86,7 @@ export type {
   GymInvitation,
   MembershipRequestStatus,
   PendingInvitation,
+  GymJoinRequest,
 }
 // PATCH /api/users/me/profile body alias — the shared Zod-inferred type is
 // the authoritative shape; the alias keeps mobile call sites stable.
@@ -616,6 +618,14 @@ export const api = {
       if (programIds?.length) qs.set('programIds', programIds.join(','))
       return request<Workout[]>(`/api/gyms/${gymId}/workouts?${qs}`)
     },
+
+    // Member-side join-request actions on a specific gym. Cancel is the only
+    // op surfaced by the mobile Memberships tab today; create lives on a
+    // future BrowseGyms screen (#130).
+    joinRequest: {
+      cancel: (gymId: string) =>
+        request<void>(`/api/gyms/${gymId}/join-request`, { method: 'DELETE' }),
+    },
   },
 
   workouts: {
@@ -760,6 +770,12 @@ export const api = {
           request<Invitation>(`/api/invitations/code/${code}/accept`, { method: 'POST' }),
         decline: (code: string) =>
           request<Invitation>(`/api/invitations/code/${code}/decline`, { method: 'POST' }),
+      },
+
+      // Outgoing USER_REQUESTED join requests the caller has open. Cancelling
+      // is done via the gym-scoped endpoint below (`gyms.joinRequest.cancel`).
+      joinRequests: {
+        list: () => request<GymJoinRequest[]>('/api/users/me/join-requests'),
       },
 
       // Avatar upload / removal. RN's FormData appends image files as the
