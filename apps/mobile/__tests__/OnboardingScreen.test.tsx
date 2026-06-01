@@ -41,6 +41,19 @@ jest.mock('../src/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }))
 
+// Mock BirthdayField with a plain TextInput so the test can drive its
+// value/onChange contract via fireEvent.changeText — the native date picker
+// is exercised separately in BirthdayField.test.tsx.
+jest.mock('../src/components/BirthdayField', () => {
+  const { TextInput } = jest.requireActual('react-native')
+  return {
+    __esModule: true,
+    default: ({ value, onChange, testID }: { value: string; onChange: (next: string) => void; testID?: string }) => (
+      <TextInput value={value} onChangeText={onChange} testID={testID} />
+    ),
+  }
+})
+
 jest.mock('../src/lib/theme', () => ({
   __esModule: true,
   useTheme: () => ({
@@ -154,17 +167,17 @@ describe('OnboardingScreen', () => {
     await findByTestId('birthday-input')
   })
 
-  test('blocks step 1 submit when birthday is not YYYY-MM-DD', async () => {
+  test('blocks step 1 submit when birthday has not been picked', async () => {
     const { findByTestId, findByText } = render(<OnboardingScreen />)
 
     fireEvent.changeText(await findByTestId('first-name-input'), 'Alex')
     fireEvent.changeText(await findByTestId('last-name-input'), 'Doe')
     fireEvent.press(await findByTestId('next-button'))
 
-    fireEvent.changeText(await findByTestId('birthday-input'), '01/15/1990')
+    // Step 1 is now showing; advance without picking a date.
     fireEvent.press(await findByTestId('next-button'))
 
-    await findByText(/YYYY-MM-DD/)
+    await findByText(/Please pick your birthday/)
     expect(api.users.me.profile.update).not.toHaveBeenCalled()
   })
 
