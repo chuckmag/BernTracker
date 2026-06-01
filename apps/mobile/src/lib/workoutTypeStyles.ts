@@ -86,3 +86,8 @@ export const UNKNOWN_TYPE_STYLE: WorkoutTypeStyle = {
 export function styleFor(type: string): WorkoutTypeStyle {
   return WORKOUT_TYPE_STYLES[type as WorkoutType] ?? UNKNOWN_TYPE_STYLE
 }
+
+/** True for warmup / mobility / cooldown types — used to skip past recovery entries when choosing a default active workout. */
+export function isRecoveryWorkoutType(type: WorkoutType): boolean {
+  return WORKOUT_TYPE_STYLES[type]?.category === 'Warmup/Recovery'
+}

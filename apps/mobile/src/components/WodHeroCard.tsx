@@ -1,10 +1,10 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RootStackParamList } from '../../App'
 import { styleFor } from '../lib/workoutTypeStyles'
 import { formatResultValue } from '../lib/format'
-import type { DashboardToday } from '../lib/api'
+import type { DashboardTodayWorkout } from '../lib/api'
 
 type Nav = StackNavigationProp<RootStackParamList>
 
@@ -25,14 +25,16 @@ function formatTime(iso: string): string {
 }
 
 type Props = {
-  data: DashboardToday
+  workouts: DashboardTodayWorkout[]
+  gymMemberCount: number
+  activeIdx: number
+  onActiveIdxChange: (idx: number) => void
 }
 
-export default function WodHeroCard({ data }: Props) {
+export default function WodHeroCard({ workouts, gymMemberCount, activeIdx, onActiveIdxChange }: Props) {
   const nav = useNavigation<Nav>()
-  const { workout, myResult, leaderboard, gymMemberCount, programSubscriberCount = 0, isHeroWorkoutGymAffiliated = true } = data
 
-  if (!workout) {
+  if (workouts.length === 0) {
     return (
       <View style={styles.card}>
         <Text style={styles.emptyTitle}>No workout today</Text>
@@ -41,18 +43,58 @@ export default function WodHeroCard({ data }: Props) {
     )
   }
 
+  const entry = workouts[activeIdx] ?? workouts[0]
+  const { workout, myResult, leaderboard, programSubscriberCount = 0, isHeroWorkoutGymAffiliated = true } = entry
   const ts = styleFor(workout.type)
   const scored = myResult ? formatResultValue(myResult.value as Parameters<typeof formatResultValue>[0]) : null
   const levelLabel = myResult ? (LEVEL_LABELS[myResult.level] ?? myResult.level) : null
 
   function goToWod() {
-    nav.navigate('WodDetail', { workoutId: workout!.id })
+    nav.navigate('WodDetail', { workoutId: workout.id })
   }
 
   return (
     <View style={styles.card}>
-      {/* Accent strip */}
+      {/* Accent strip — tracks the active tab's workout type */}
       <View style={[styles.accentStrip, { backgroundColor: ts.accentBar }]} />
+
+      {/* Workout tabs — only when there are multiple workouts today */}
+      {workouts.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsRow}
+          accessibilityRole="tablist"
+        >
+          {workouts.map((e, i) => {
+            const tabTs = styleFor(e.workout.type)
+            const isActive = i === activeIdx
+            return (
+              <TouchableOpacity
+                key={e.workout.id}
+                onPress={() => onActiveIdxChange(i)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
+                activeOpacity={0.7}
+                style={[
+                  styles.tab,
+                  isActive
+                    ? { backgroundColor: tabTs.bgTint, borderColor: tabTs.tint }
+                    : styles.tabInactive,
+                ]}
+              >
+                <Text style={[styles.tabAbbr, { color: isActive ? tabTs.tint : '#9ca3af' }]}>{tabTs.abbr}</Text>
+                <Text
+                  style={[styles.tabTitle, isActive ? { color: '#e5e7eb' } : { color: '#9ca3af' }]}
+                  numberOfLines={1}
+                >
+                  {e.workout.title}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+      )}
 
       {/* Header */}
       <View style={styles.headerRow}>
@@ -137,6 +179,36 @@ const styles = StyleSheet.create({
   },
   accentStrip: {
     height: 3,
+  },
+  tabsRow: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 2,
+    gap: 6,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    maxWidth: 180,
+  },
+  tabInactive: {
+    backgroundColor: '#1f2937',
+    borderColor: '#374151',
+  },
+  tabAbbr: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  tabTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    flexShrink: 1,
   },
   headerRow: {
     flexDirection: 'row',

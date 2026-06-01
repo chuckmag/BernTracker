@@ -205,15 +205,20 @@ export interface DashboardLeaderboard {
   percentile: number | null
 }
 
-export interface DashboardToday {
-  workout: (Workout & { program: { id: string; name: string } | null; namedWorkout: { id: string; name: string; category: string } | null; _count: { results: number } }) | null
+export interface DashboardTodayWorkout {
+  workout: Workout & { program: { id: string; name: string } | null; namedWorkout: { id: string; name: string; category: string } | null; _count: { results: number } }
   myResult: DashboardTodayResult | null
   leaderboard: DashboardLeaderboard | null
-  gymMemberCount: number
-  /** Subscribers to the hero workout's program via UserProgram. Used when isHeroWorkoutGymAffiliated is false. */
+  /** Subscribers to this workout's program via UserProgram. Used when isHeroWorkoutGymAffiliated is false. */
   programSubscriberCount: number
   /** False for unaffiliated programs (e.g. CrossFit Mainsite) — use programSubscriberCount for the social count. */
   isHeroWorkoutGymAffiliated: boolean
+}
+
+export interface DashboardToday {
+  /** All published workouts for today, recovery (warmup/mobility/cooldown) first. Frontend pre-selects the first non-recovery entry as the default active tab. */
+  workouts: DashboardTodayWorkout[]
+  gymMemberCount: number
 }
 
 export interface LeaderboardEntry {
