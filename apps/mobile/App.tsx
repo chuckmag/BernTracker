@@ -25,6 +25,7 @@ import UserProfileScreen from './src/screens/UserProfileScreen'
 import WodResultDetailScreen from './src/screens/WodResultDetailScreen'
 import SettingsScreen from './src/screens/SettingsScreen'
 import OnboardingScreen from './src/screens/OnboardingScreen'
+import BrowseGymsScreen from './src/screens/BrowseGymsScreen'
 import AvatarHeaderButton from './src/components/AvatarHeaderButton'
 import GoalsScreen from './src/screens/GoalsScreen'
 import GoalDetailScreen from './src/screens/GoalDetailScreen'
@@ -57,6 +58,10 @@ export type RootStackParamList = {
   // reflected on revisit.
   Goals: undefined
   GoalDetail: { goalId: string }
+  // Public gym catalog (#505 / parity with web /gyms/browse). Reachable from:
+  //   - OnboardingScreen step 2 (when the user has no pending invitations)
+  //   - SettingsScreen → "Find another gym"
+  BrowseGyms: undefined
 }
 
 export type MainTabParamList = {
@@ -93,9 +98,21 @@ export type HistoryStackParamList = {
   History: undefined
 }
 
+// Tiny stack used only while `user.onboardedAt === null`. Lets
+// `OnboardingScreen` push the public gym catalog so a user who joined the
+// app without a pre-existing invitation can find a gym during onboarding
+// (#505). Once `onboardedAt` flips, RootNavigator drops this stack in
+// favour of `RootStackNavigator` which has its own `BrowseGyms` route for
+// post-onboarding use from Settings.
+export type OnboardingStackParamList = {
+  Onboarding: undefined
+  BrowseGyms: undefined
+}
+
 // ── Navigators ───────────────────────────────────────────────────────────────
 
 const RootStack = createStackNavigator<RootStackParamList>()
+const OnboardingStack = createStackNavigator<OnboardingStackParamList>()
 const Tab = createBottomTabNavigator<MainTabParamList>()
 const HomeStack = createStackNavigator<HomeStackParamList>()
 const FeedStack = createStackNavigator<FeedStackParamList>()
@@ -300,6 +317,7 @@ function RootStackNavigator() {
       />
       <RootStack.Screen name="Goals" component={GoalsScreen} options={{ title: 'Goals' }} />
       <RootStack.Screen name="GoalDetail" component={GoalDetailScreen} options={{ title: 'Goal' }} />
+      <RootStack.Screen name="BrowseGyms" component={BrowseGymsScreen} options={{ title: 'Find a gym' }} />
     </RootStack.Navigator>
   )
 }
@@ -320,11 +338,31 @@ function RootNavigator() {
 
   if (!user) return <LoginScreen />
   // Onboarding gate: a user with `onboardedAt === null` hasn't filled in the
-  // four required profile fields yet. Show OnboardingScreen until they do.
-  // Once `maybeMarkOnboarded` flips the column and `refreshUser()` picks it up,
-  // this branch falls through to the main app.
-  if (user.onboardedAt === null) return <OnboardingScreen />
+  // four required profile fields yet. Show the onboarding stack (which adds
+  // a BrowseGyms route on top of OnboardingScreen so step 2 can push the
+  // gym catalog) until they do. Once `maybeMarkOnboarded` flips the column
+  // and `refreshUser()` picks it up, this branch falls through to the main
+  // app.
+  if (user.onboardedAt === null) return <OnboardingStackNavigator />
   return <RootStackNavigator />
+}
+
+function OnboardingStackNavigator() {
+  const { colors } = useTheme()
+  return (
+    <OnboardingStack.Navigator screenOptions={buildStackScreenOptions(colors)}>
+      <OnboardingStack.Screen
+        name="Onboarding"
+        component={OnboardingScreen}
+        options={{ headerShown: false }}
+      />
+      <OnboardingStack.Screen
+        name="BrowseGyms"
+        component={BrowseGymsScreen}
+        options={{ title: 'Find a gym' }}
+      />
+    </OnboardingStack.Navigator>
+  )
 }
 
 // ── App root ─────────────────────────────────────────────────────────────────

@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
+import type { StackNavigationProp } from '@react-navigation/stack'
 import {
   api,
   type IdentifiedGender,
@@ -21,6 +23,7 @@ import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
 import AvatarUploader from '../components/AvatarUploader'
 import BirthdayField from '../components/BirthdayField'
+import type { OnboardingStackParamList } from '../../App'
 
 // Mirror of apps/web/src/pages/Onboarding.tsx. Three sequential steps:
 //   0 — name (firstName + lastName)
@@ -60,9 +63,12 @@ function invitationKey(item: PendingInvitation): string {
   return item.kind === 'membershipRequest' ? item.data.id : `code-${item.data.code}`
 }
 
+type Nav = StackNavigationProp<OnboardingStackParamList, 'Onboarding'>
+
 export default function OnboardingScreen() {
   const { user, refreshUser } = useAuth()
   const { colors } = useTheme()
+  const navigation = useNavigation<Nav>()
 
   const [step, setStep] = useState<0 | 1 | 2>(0)
 
@@ -136,18 +142,15 @@ export default function OnboardingScreen() {
           identifiedGender: gender,
         })
 
-        // Defer refreshUser() until we know which branch we're in — calling it
-        // here would flip user.onboardedAt to non-null and trip RootNavigator
-        // into MainTabs before we can land on step 2.
+        // Defer refreshUser() until step 2 lets the user act on invitations or
+        // browse the public gym catalog — calling it here would flip
+        // user.onboardedAt to non-null and trip RootNavigator into MainTabs
+        // before we get a chance to surface the gym-joining options. The
+        // pre-existing OnboardingStack keeps the user inside this flow even
+        // after `maybeMarkOnboarded` runs on the server.
         const pending = await api.users.me.invitations.pendingAll().catch(() => [] as PendingInvitation[])
-        const withGym = pending.filter((item) => !!item.data.gymId)
-        if (withGym.length > 0) {
-          setPendingInvitations(withGym)
-          setStep(2)
-        } else {
-          // No invites — refresh now so RootNavigator routes to MainTabs.
-          await refreshUser()
-        }
+        setPendingInvitations(pending.filter((item) => !!item.data.gymId))
+        setStep(2)
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to finish onboarding')
       } finally {
@@ -156,8 +159,10 @@ export default function OnboardingScreen() {
       return
     }
 
-    // Step 2: invitations handled — refresh AuthUser so the now-non-null
-    // onboardedAt lets RootNavigator route into MainTabs.
+    // Step 2: invitations/browse handled — refresh AuthUser so the now-non-null
+    // onboardedAt lets RootNavigator route into MainTabs. A user who hasn't
+    // joined any gym yet still gets through; gym-less MainTabs is a separate
+    // gap (existing dead-end, not introduced here).
     await refreshUser()
   }
 
@@ -315,15 +320,17 @@ export default function OnboardingScreen() {
             {step === 2 && (
               <View style={styles.fieldGroup}>
                 <View>
-                  <ThemedText style={styles.invitesHeading}>You've been invited to a gym!</ThemedText>
+                  <ThemedText style={styles.invitesHeading}>
+                    {pendingInvitations.length > 0 ? 'You\'ve been invited to a gym!' : 'Find your gym'}
+                  </ThemedText>
                   <ThemedText variant="tertiary" style={styles.fieldHint}>
-                    Accept or decline below. You can always manage invitations from Profile later.
+                    {pendingInvitations.length > 0
+                      ? 'Accept or decline below, or search for a different gym. You can always manage memberships from Profile later.'
+                      : 'No invitations yet. Browse the gym catalog and send a request — staff will approve you.'}
                   </ThemedText>
                 </View>
 
-                {pendingInvitations.length === 0 ? (
-                  <ThemedText variant="tertiary">All done — tap Continue to get started.</ThemedText>
-                ) : (
+                {pendingInvitations.length === 0 ? null : (
                   pendingInvitations.map((item) => {
                     const key = invitationKey(item)
                     const gymName = item.kind === 'membershipRequest'
@@ -374,6 +381,16 @@ export default function OnboardingScreen() {
                 {inviteError && (
                   <ThemedText style={[styles.error, { color: colors.errorText }]}>{inviteError}</ThemedText>
                 )}
+
+                <TouchableOpacity
+                  style={[styles.findGymButton, { borderColor: colors.borderInteractive }]}
+                  onPress={() => navigation.navigate('BrowseGyms')}
+                  testID="find-gym-button"
+                >
+                  <ThemedText style={[styles.findGymButtonText, { color: colors.primary }]}>
+                    {pendingInvitations.length > 0 ? 'Find another gym' : 'Browse gyms →'}
+                  </ThemedText>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -547,6 +564,17 @@ const styles = StyleSheet.create({
   },
   inviteButtonSecondaryText: {
     fontSize: 13,
+    fontWeight: '600',
+  },
+  findGymButton: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  findGymButtonText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   actionRow: {

@@ -42,6 +42,8 @@ export const COLORS = {
     successText: '#15803d', // emerald-700
     warningText: '#b45309', // amber-700
     errorText:   '#be123c', // rose-700
+    successBg:   'rgba(16, 185, 129, 0.15)', // emerald-500/15 — mirrors web bg-emerald-500/15
+    warningBg:   'rgba(245, 158, 11, 0.15)', // amber-500/15
     // Interactive
     rowHoverBg:  '#f8fafc', // slate-50
     selectedBg:  '#f1f5f9', // slate-100
@@ -81,6 +83,8 @@ export const COLORS = {
     successText: '#34d399', // emerald-400
     warningText: '#fbbf24', // amber-400
     errorText:   '#fb7185', // rose-400
+    successBg:   'rgba(16, 185, 129, 0.18)', // emerald-500/18 — mirrors web bg-emerald-500/15 with a touch more presence in dark
+    warningBg:   'rgba(245, 158, 11, 0.18)', // amber-500/18
     // Interactive
     rowHoverBg:  '#1f2937', // gray-800
     selectedBg:  '#1f2937', // gray-800

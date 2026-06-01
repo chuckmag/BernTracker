@@ -41,6 +41,9 @@ import type {
   GymInvitation,
   MembershipRequestStatus,
   PendingInvitation,
+  BrowseGym,
+  GymBrowseStatus,
+  GymJoinRequest,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -85,6 +88,9 @@ export type {
   GymInvitation,
   MembershipRequestStatus,
   PendingInvitation,
+  BrowseGym,
+  GymBrowseStatus,
+  GymJoinRequest,
 }
 // PATCH /api/users/me/profile body alias — the shared Zod-inferred type is
 // the authoritative shape; the alias keeps mobile call sites stable.
@@ -615,6 +621,18 @@ export const api = {
       const qs = new URLSearchParams({ from, to })
       if (programIds?.length) qs.set('programIds', programIds.join(','))
       return request<Workout[]>(`/api/gyms/${gymId}/workouts?${qs}`)
+    },
+
+    browse: (search?: string) => {
+      const qs = search?.trim() ? `?search=${encodeURIComponent(search.trim())}` : ''
+      return request<BrowseGym[]>(`/api/gyms${qs}`)
+    },
+
+    joinRequest: {
+      create: (gymId: string) =>
+        request<GymJoinRequest>(`/api/gyms/${gymId}/join-request`, { method: 'POST' }),
+      cancel: (gymId: string) =>
+        request<GymJoinRequest>(`/api/gyms/${gymId}/join-request`, { method: 'DELETE' }),
     },
   },
 

@@ -15,6 +15,11 @@ import React from 'react'
 import { render, fireEvent, waitFor } from '@testing-library/react-native'
 import OnboardingScreen from '../src/screens/OnboardingScreen'
 
+const mockNavigate = jest.fn()
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: mockNavigate }),
+}))
+
 jest.mock('../src/lib/api', () => ({
   api: {
     users: {
@@ -181,11 +186,11 @@ describe('OnboardingScreen', () => {
     expect(api.users.me.profile.update).not.toHaveBeenCalled()
   })
 
-  test('submits the four required fields and calls refreshUser when no invites exist', async () => {
+  test('submits the four required fields; always shows step 2; refreshUser fires after "Go to app"', async () => {
     ;(api.users.me.profile.update as jest.Mock).mockResolvedValue({})
     ;(api.users.me.invitations.pendingAll as jest.Mock).mockResolvedValue([])
 
-    const { findByTestId } = render(<OnboardingScreen />)
+    const { findByTestId, findByText } = render(<OnboardingScreen />)
 
     fireEvent.changeText(await findByTestId('first-name-input'), 'Alex')
     fireEvent.changeText(await findByTestId('last-name-input'), 'Doe')
@@ -203,6 +208,17 @@ describe('OnboardingScreen', () => {
         identifiedGender: 'FEMALE',
       })
     })
+
+    // Step 2 always shows now — user sees the "Find your gym" heading and
+    // a "Browse gyms" entry point even without pending invitations.
+    await findByText('Find your gym')
+    await findByTestId('find-gym-button')
+    // refreshUser is NOT called yet — only fires when the user explicitly
+    // confirms they're done with the gym step.
+    expect(mockRefreshUser).not.toHaveBeenCalled()
+
+    // User taps "Go to app →" to finish onboarding.
+    fireEvent.press(await findByTestId('next-button'))
     await waitFor(() => expect(mockRefreshUser).toHaveBeenCalled())
   })
 
@@ -289,6 +305,23 @@ describe('OnboardingScreen', () => {
 
     fireEvent.press(await findByTestId('invite-decline-inv-9'))
     await waitFor(() => expect(api.users.me.invitations.decline).toHaveBeenCalledWith('inv-9'))
+  })
+
+  test('"Browse gyms" button on step 2 navigates to BrowseGyms screen', async () => {
+    ;(api.users.me.profile.update as jest.Mock).mockResolvedValue({})
+    ;(api.users.me.invitations.pendingAll as jest.Mock).mockResolvedValue([])
+
+    const { findByTestId } = render(<OnboardingScreen />)
+
+    fireEvent.changeText(await findByTestId('first-name-input'), 'Alex')
+    fireEvent.changeText(await findByTestId('last-name-input'), 'Doe')
+    fireEvent.press(await findByTestId('next-button'))
+
+    fireEvent.changeText(await findByTestId('birthday-input'), '1990-04-15')
+    fireEvent.press(await findByTestId('next-button'))
+
+    fireEvent.press(await findByTestId('find-gym-button'))
+    expect(mockNavigate).toHaveBeenCalledWith('BrowseGyms')
   })
 
   test('pre-fills first/last name when the existing profile carries a single `name`', async () => {

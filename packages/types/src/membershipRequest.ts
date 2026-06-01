@@ -44,6 +44,22 @@ export type PendingInvitation =
   | { kind: 'invitation'; data: Invitation }
   | { kind: 'membershipRequest'; data: GymInvitation }
 
+// Browse-public-gyms response (GET /api/gyms?search=…).
+// `callerStatus` is the relationship between the requesting user and each
+// gym, computed by the API so the client can pick the right CTA without
+// re-deriving from memberships + outstanding requests.
+export type GymBrowseStatus = 'NONE' | 'MEMBER' | 'REQUEST_PENDING'
+
+export interface BrowseGym {
+  id: string
+  name: string
+  slug: string
+  timezone: string
+  logoUrl: string | null
+  memberCount: number
+  callerStatus: GymBrowseStatus
+}
+
 // User-requested join (slice D2 of #120). Same shape as GymInvitation but with
 // the invitedBy slot null and a `user` join populated for the staff-side list.
 export interface GymJoinRequest {
