@@ -36,6 +36,7 @@ on:
       - 'apps/mobile/metro.config.js'
       - 'apps/mobile/package.json'
       - 'packages/types/src/**'
+      - 'packages/types/package.json'
       - 'package-lock.json'
       - '.github/workflows/eas-update.yml'
   workflow_dispatch:
@@ -54,7 +55,10 @@ on:
 
 concurrency:
   group: eas-update-${{ inputs.branch || 'preview' }}
-  cancel-in-progress: false
+  # A newer commit on main supersedes whatever's in flight for the same
+  # channel — the stale bundle is about to be overwritten anyway, no point
+  # paying for it to finish.
+  cancel-in-progress: true
 
 jobs:
   publish:
