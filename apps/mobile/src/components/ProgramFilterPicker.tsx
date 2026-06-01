@@ -9,6 +9,8 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native'
+import { useNavigation, type NavigationProp } from '@react-navigation/native'
+import type { RootStackParamList } from '../../App'
 import { useProgramFilter } from '../context/ProgramFilterContext'
 
 /**
@@ -25,8 +27,30 @@ import { useProgramFilter } from '../context/ProgramFilterContext'
 export default function ProgramFilterPicker() {
   const { selected, available, loading, toggle, clear } = useProgramFilter()
   const [open, setOpen] = useState(false)
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>()
 
-  if (!available.length && !loading) return null
+  function goToBrowse() {
+    setOpen(false)
+    navigation.navigate('BrowsePrograms')
+  }
+
+  if (!available.length && !loading) {
+    // Even with no available programs, surface the Browse entry point so a
+    // first-run member who hasn't joined any programs yet can still find the
+    // public catalog. Tap renders a tiny chevron in the header that opens
+    // BrowsePrograms directly.
+    return (
+      <TouchableOpacity
+        style={styles.headerButton}
+        onPress={goToBrowse}
+        accessibilityLabel="Browse public programs"
+        testID="program-filter-browse-empty"
+      >
+        <Text style={styles.headerButtonText} numberOfLines={1}>Browse programs</Text>
+        <Text style={styles.chevron}>›</Text>
+      </TouchableOpacity>
+    )
+  }
 
   const labelText = (() => {
     if (selected.length === 0) return 'All programs'
@@ -92,6 +116,16 @@ export default function ProgramFilterPicker() {
                 })
               )}
             </ScrollView>
+
+            {/* Discovery entry point for BrowsePrograms (#507) — mirrors the
+                "Browse public programs →" footer on the web picker. */}
+            <TouchableOpacity
+              style={styles.browseRow}
+              onPress={goToBrowse}
+              testID="program-filter-browse"
+            >
+              <Text style={styles.browseRowText}>Browse public programs →</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.doneBtn}
@@ -171,6 +205,13 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
   checkmark: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
   rowLabel: { color: '#e5e7eb', fontSize: 15, flex: 1 },
+  browseRow: {
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#1f2937',
+    marginTop: 8,
+  },
+  browseRowText: { color: '#818cf8', fontSize: 15, fontWeight: '500' },
   doneBtn: {
     backgroundColor: '#4f46e5',
     borderRadius: 10,

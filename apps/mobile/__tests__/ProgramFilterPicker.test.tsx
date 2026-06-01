@@ -5,8 +5,14 @@
  */
 
 import React from 'react'
-import { render, fireEvent, waitFor } from '@testing-library/react-native'
+import { render, fireEvent } from '@testing-library/react-native'
 import ProgramFilterPicker from '../src/components/ProgramFilterPicker'
+
+const mockNavigate = jest.fn()
+
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: mockNavigate }),
+}))
 
 jest.mock('../src/context/ProgramFilterContext', () => ({
   useProgramFilter: jest.fn(),
@@ -42,10 +48,15 @@ function setContext(overrides: Partial<ReturnType<typeof useProgramFilter>>) {
 describe('ProgramFilterPicker', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  test('renders nothing when no programs are available', () => {
+  test('shows a Browse-programs entry point even when no programs are available', () => {
+    // Empty state pivots to a "Browse programs" chevron so first-run members
+    // can still reach the public catalog (#507).
     setContext({ available: [], loading: false })
-    const { queryByTestId } = render(<ProgramFilterPicker />)
+    const { queryByTestId, getByTestId } = render(<ProgramFilterPicker />)
     expect(queryByTestId('program-filter-button')).toBeNull()
+    const browse = getByTestId('program-filter-browse-empty')
+    fireEvent.press(browse)
+    expect(mockNavigate).toHaveBeenCalledWith('BrowsePrograms')
   })
 
   test('label is "All programs" with empty selection', () => {
@@ -87,5 +98,17 @@ describe('ProgramFilterPicker', () => {
     fireEvent.press(getByTestId('program-filter-button'))
     fireEvent.press(getByTestId('program-filter-clear'))
     expect(clear).toHaveBeenCalled()
+  })
+
+  test('"Browse public programs" footer navigates to BrowsePrograms and closes the modal', () => {
+    setContext({ available: [PROG('a', 'Alpha')] })
+
+    const { getByTestId, queryByTestId } = render(<ProgramFilterPicker />)
+    fireEvent.press(getByTestId('program-filter-button'))
+    fireEvent.press(getByTestId('program-filter-browse'))
+    expect(mockNavigate).toHaveBeenCalledWith('BrowsePrograms')
+    // The Done button (only rendered inside the open modal) disappears after
+    // the footer press because goToBrowse() closes the modal.
+    expect(queryByTestId('program-filter-done')).toBeNull()
   })
 })

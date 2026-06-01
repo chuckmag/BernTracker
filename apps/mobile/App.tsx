@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar'
 import { ActivityIndicator, Image, Text, View } from 'react-native'
-import { NavigationContainer } from '@react-navigation/native'
+import { NavigationContainer, type NavigatorScreenParams } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createStackNavigator } from '@react-navigation/stack'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
@@ -20,6 +20,7 @@ import BenchmarkDetailScreen from './src/screens/BenchmarkDetailScreen'
 import ResultDetailScreen from './src/screens/ResultDetailScreen'
 import UserProfileScreen from './src/screens/UserProfileScreen'
 import WodResultDetailScreen from './src/screens/WodResultDetailScreen'
+import BrowseProgramsScreen from './src/screens/BrowseProgramsScreen'
 import type { LeaderboardEntry, MovementPrType, BenchmarkSummaryEntry } from './src/lib/api'
 
 // ── Param lists ──────────────────────────────────────────────────────────────
@@ -27,7 +28,10 @@ import type { LeaderboardEntry, MovementPrType, BenchmarkSummaryEntry } from './
 // Detail screens (WodDetail, LogResult) live on the root stack so they can be
 // pushed from any tab. Tabs only carry their list screens.
 export type RootStackParamList = {
-  Main: undefined
+  // Typed as NavigatorScreenParams so root-stack screens (e.g. BrowsePrograms
+  // modal) can navigate cross-stack into a specific tab via
+  // `navigation.navigate('Main', { screen: 'FeedTab' })`.
+  Main: NavigatorScreenParams<MainTabParamList> | undefined
   WodDetail: { workoutId: string; from?: 'feed' | 'history' | 'movement-history' | 'wodalytics' }
   LogResult: { workoutId: string; resultId?: string; existingResult?: LeaderboardEntry }
   ResultDetail: { workoutId: string; resultId: string; from?: 'dashboard' }
@@ -42,6 +46,7 @@ export type RootStackParamList = {
     | { mode: 'create'; scheduledAt: string; workoutId?: never }
     | { mode: 'edit'; workoutId: string; scheduledAt?: never }
   WodResultDetail: { entry: LeaderboardEntry; workoutTitle?: string }
+  BrowsePrograms: undefined
 }
 
 export type MainTabParamList = {
@@ -190,6 +195,11 @@ function RootStackNavigator() {
         name="WodResultDetail"
         component={WodResultDetailScreen}
         options={({ route }) => ({ title: route.params.workoutTitle ?? 'Result' })}
+      />
+      <RootStack.Screen
+        name="BrowsePrograms"
+        component={BrowseProgramsScreen}
+        options={{ title: 'Browse programs', presentation: 'modal' }}
       />
     </RootStack.Navigator>
   )

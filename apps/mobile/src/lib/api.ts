@@ -154,6 +154,10 @@ export interface Program {
   description: string | null
   visibility: 'PUBLIC' | 'PRIVATE'
   coverColor: string | null
+  // Populated on the Browse catalog responses (#507). Both keys are
+  // independently optional — Personal Program for example only ever surfaces
+  // `workouts` — so subtypes can narrow as needed.
+  _count?: { members?: number; workouts?: number }
 }
 
 // User's private "Personal Program" (#183). Same Program shape with
@@ -569,6 +573,29 @@ export const api = {
       if (programIds?.length) qs.set('programIds', programIds.join(','))
       return request<Workout[]>(`/api/gyms/${gymId}/workouts?${qs}`)
     },
+
+    programs: {
+      // PUBLIC programs in the gym that the caller hasn't joined yet — drives
+      // the "From your gym" section of BrowsePrograms (#507).
+      browse: (gymId: string) =>
+        request<GymProgram[]>(`/api/gyms/${gymId}/programs/browse`),
+    },
+  },
+
+  programs: {
+    // PUBLIC programs that aren't tied to any gym (e.g. CrossFit Mainsite WOD)
+    // and that the caller hasn't already joined. Drives the "Public programs"
+    // section of BrowsePrograms (#507).
+    publicCatalog: () =>
+      request<Program[]>('/api/programs/public-catalog'),
+
+    // Self-subscribe to a PUBLIC program. Server returns 403 on PRIVATE,
+    // 409 on duplicate. Drives the Join button on BrowsePrograms.
+    subscribe: (id: string) =>
+      request<{ programId: string; userId: string; role: 'MEMBER' | 'PROGRAMMER'; joinedAt: string }>(
+        `/api/programs/${id}/subscribe`,
+        { method: 'POST' },
+      ),
   },
 
   workouts: {
