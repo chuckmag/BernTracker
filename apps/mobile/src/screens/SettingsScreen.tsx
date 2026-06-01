@@ -18,13 +18,12 @@ import { useTheme, type ThemeMode } from '../lib/theme'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
 import AvatarUploader from '../components/AvatarUploader'
+import BirthdayField from '../components/BirthdayField'
 import type { RootStackParamList } from '../../App'
 
 // Mirrors the web Profile.tsx Details tab — same fields, same order, same
 // labels. Theme picker mirrors the cross-app `wodalytics-theme` AsyncStorage
 // contract from apps/web/CLAUDE.md → *Cross-app contracts*.
-
-const BIRTHDAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 const GENDER_OPTIONS: { value: NonNullable<IdentifiedGender>; label: string }[] = [
   { value: 'FEMALE',            label: 'Female' },
@@ -80,10 +79,6 @@ export default function SettingsScreen() {
 
   async function handleSave() {
     setError(null)
-    if (birthday && !BIRTHDAY_PATTERN.test(birthday)) {
-      setError('Birthday must be in YYYY-MM-DD format.')
-      return
-    }
     setSaving(true)
     try {
       const updated = await api.users.me.profile.update({
@@ -190,24 +185,12 @@ export default function SettingsScreen() {
               />
             </View>
 
-            <View style={styles.field}>
-              <ThemedText variant="label" style={styles.fieldLabel}>Birthday</ThemedText>
-              <TextInput
-                value={birthday}
-                onChangeText={setBirthday}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.textPlaceholder}
-                keyboardType="numbers-and-punctuation"
-                autoCapitalize="none"
-                autoCorrect={false}
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive, color: colors.textPrimary },
-                ]}
-                testID="birthday-input"
-              />
-              <ThemedText variant="tertiary" style={styles.fieldHint}>Used to determine your age category for results.</ThemedText>
-            </View>
+            <BirthdayField
+              value={birthday}
+              onChange={setBirthday}
+              helper="Used to determine your age category for results."
+              testID="birthday-input"
+            />
 
             <View style={styles.field}>
               <ThemedText variant="label" style={styles.fieldLabel}>Identified gender</ThemedText>

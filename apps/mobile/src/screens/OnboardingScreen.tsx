@@ -22,6 +22,7 @@ import { useTheme } from '../lib/theme'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
 import AvatarUploader from '../components/AvatarUploader'
+import BirthdayField from '../components/BirthdayField'
 import type { OnboardingStackParamList } from '../../App'
 
 // Mirror of apps/web/src/pages/Onboarding.tsx. Three sequential steps:
@@ -31,8 +32,6 @@ import type { OnboardingStackParamList } from '../../App'
 // Step 1's submit calls PATCH /api/users/me/profile; the server's
 // `maybeMarkOnboarded` flips `onboardedAt` once the four required fields
 // are set, after which `refreshUser()` unblocks the RootNavigator gate.
-
-const BIRTHDAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 const GENDER_OPTIONS: { value: NonNullable<IdentifiedGender>; label: string }[] = [
   { value: 'FEMALE',            label: 'Female' },
@@ -114,7 +113,7 @@ export default function OnboardingScreen() {
   }
 
   function step1Valid(): boolean {
-    return BIRTHDAY_PATTERN.test(birthday)
+    return birthday.length > 0
   }
 
   async function handleNext() {
@@ -131,7 +130,7 @@ export default function OnboardingScreen() {
 
     if (step === 1) {
       if (!step1Valid()) {
-        setError('Birthday must be in YYYY-MM-DD format.')
+        setError('Please pick your birthday.')
         return
       }
       setSubmitting(true)
@@ -282,26 +281,12 @@ export default function OnboardingScreen() {
 
             {step === 1 && (
               <View style={styles.fieldGroup}>
-                <View style={styles.field}>
-                  <ThemedText variant="label" style={styles.fieldLabel}>Birthday</ThemedText>
-                  <TextInput
-                    value={birthday}
-                    onChangeText={setBirthday}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={colors.textPlaceholder}
-                    keyboardType="numbers-and-punctuation"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    style={[
-                      styles.input,
-                      { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive, color: colors.textPrimary },
-                    ]}
-                    testID="birthday-input"
-                  />
-                  <ThemedText variant="tertiary" style={styles.fieldHint}>
-                    Used to determine your age category for results.
-                  </ThemedText>
-                </View>
+                <BirthdayField
+                  value={birthday}
+                  onChange={setBirthday}
+                  helper="Used to determine your age category for results."
+                  testID="birthday-input"
+                />
 
                 <View style={styles.field}>
                   <ThemedText variant="label" style={styles.fieldLabel}>Identified gender</ThemedText>
