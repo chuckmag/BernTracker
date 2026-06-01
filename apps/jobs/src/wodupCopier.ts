@@ -4,6 +4,7 @@ import {
   fetchWodUpWeek,
   type FetchImpl,
   type WodUpWod,
+  type WodUpComponent,
 } from './lib/wodupClient.js'
 import { classifyWorkoutType } from './lib/crossfitWodClassifier.js'
 import {
@@ -83,7 +84,13 @@ export async function runWodupCopierJob(deps: WodupCopierJobDeps = {}): Promise<
       continue
     }
 
-    const { title, description } = buildWorkoutContent(wod)
+    const content = buildWorkoutContent(wod)
+    if (!content) {
+      log.info(`${externalSourceId} has no main components (warmup-only WOD) — skipping`)
+      skipped++
+      continue
+    }
+    const { title, description } = content
     const type = classifyWorkoutType(description)
     // Noon UTC on the scheduled date keeps the workout in the right calendar
     // day regardless of the viewer's timezone offset.
@@ -125,40 +132,50 @@ export function currentWeekRange(now: Date): { startDate: Date; endDate: Date } 
 /**
  * Builds the WODalytics title and description from a WODup WOD.
  *
- * Single-component: title = component name (or wod name or date).
- * Multi-component: title = wod name or date; description = "A: name\ndesc\n\nB: ..."
+ * Components with `prefix === null` are WarmUp entries — they are skipped
+ * so only the main workout components (A, B, C...) are included. If a WOD
+ * has ONLY warmup components (standalone mobility WODs) it returns null and
+ * the caller skips it.
+ *
+ * Single main component: title = workout name (or label or date).
+ * Multi main component:  title = wod name or date; desc = "A: name\nbody\n\nB: ..."
  */
-function buildWorkoutContent(wod: WodUpWod): { title: string; description: string } {
-  const components = wod.wodComponents.filter((c) => c.workout.description?.trim())
+function buildWorkoutContent(
+  wod: WodUpWod,
+): { title: string; description: string } | null {
+  // Skip prefix:null components — those are WarmUp entries
+  const components = wod.wodComponents.filter((c) => c.prefix !== null)
 
-  if (components.length === 0) {
-    const title = wod.name?.trim() || wod.occursOn
-    return { title, description: title }
-  }
+  if (components.length === 0) return null
 
   if (components.length === 1) {
     const c = components[0]!
-    const title = wod.name?.trim() || c.workout.name?.trim() || wod.occursOn
-    return { title, description: buildComponentText(c.workout.description, c.workout.details) }
+    const body = componentBody(c)
+    const title = wod.name?.trim() || c.workout.name?.trim() || c.workout.description?.trim() || wod.occursOn
+    return { title, description: body || title }
   }
 
   const title = wod.name?.trim() || wod.occursOn
   const parts = components.map((c) => {
-    const header = c.workout.name?.trim()
-      ? `${c.prefix}: ${c.workout.name.trim()}`
-      : c.prefix
-    const body = buildComponentText(c.workout.description, c.workout.details)
-    return `${header}\n${body}`
+    const label = c.workout.name?.trim() || c.workout.description?.trim() || ''
+    const header = label ? `${c.prefix}: ${label}` : String(c.prefix)
+    const body = componentBody(c)
+    return body ? `${header}\n${body}` : header
   })
   return { title, description: parts.join('\n\n') }
 }
 
-function buildComponentText(
-  description: string | null | undefined,
-  details: string | null | undefined,
-): string {
-  const parts: string[] = []
-  if (description?.trim()) parts.push(description.trim())
-  if (details?.trim()) parts.push(details.trim())
-  return parts.join('\n\n')
+/**
+ * Returns the full prescription text for a single component.
+ *
+ * WODup stores the full text in two different places depending on workout type:
+ *   - Generic/WarmUp: `details.description` (can be several paragraphs)
+ *   - Named/Strength (ForTime, FranStyle, Strength...): `workout.description`
+ *     is the prescription; `details` has movement IDs but no prose description
+ */
+function componentBody(c: WodUpComponent): string {
+  const details = c.workout.details as Record<string, unknown> | null | undefined
+  const detailsDesc = details?.['description']
+  if (typeof detailsDesc === 'string' && detailsDesc.trim()) return detailsDesc.trim()
+  return c.workout.description?.trim() ?? ''
 }

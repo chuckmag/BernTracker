@@ -31,7 +31,9 @@ function check(label: string, expected: unknown, actual: unknown) {
   }
 }
 
-// Builds a WodUpWod fixture — single-component by default.
+// Builds a WodUpWod fixture — single main component (prefix:A) by default.
+// The description lives in details.description (Generic type pattern) so the
+// copier's componentBody() helper is exercised.
 function makeWod(overrides: Partial<WodUpWod> = {}): WodUpWod {
   return {
     id: `wod-${SENTINEL}`,
@@ -44,10 +46,14 @@ function makeWod(overrides: Partial<WodUpWod> = {}): WodUpWod {
         prefix: 'A',
         workout: {
           id: `inner-${SENTINEL}`,
-          type: 'Conditioning',
-          name: 'For Time',
-          description: 'For time:\n21-15-9\nThrusters (95/65 lb)\nPull-ups',
-          details: null,
+          type: 'Generic',
+          name: null,
+          description: 'METCON',
+          details: {
+            description: 'For time:\n21-15-9\nThrusters (95/65 lb)\nPull-ups',
+            name: 'METCON',
+            type: 'Generic',
+          },
         },
       },
     ],
@@ -55,17 +61,16 @@ function makeWod(overrides: Partial<WodUpWod> = {}): WodUpWod {
   }
 }
 
-// Wraps a WodUpWod[] in the TimelineFetchMore GraphQL response envelope.
+// Wraps a WodUpWod[] in the GymPublishedWods GraphQL response envelope.
 function makeWodupResponse(wods: WodUpWod[]): Response {
   const body = {
     data: {
       currentUser: {
-        activityTimeline: [
-          {
-            date: '2026-06-02',
-            completedWodsOccursOnDate: wods,
-          },
-        ],
+        themeGym: {
+          id: '992',
+          name: 'CrossFit Override',
+          publishedWods: wods,
+        },
       },
     },
   }
@@ -117,12 +122,10 @@ async function runHappyPathScenario() {
   check('workout created', true, w !== null)
   check('externalSourceId correct', externalSourceId, w?.externalSourceId)
   check('linked to program', programId, w?.programId)
-  check('title preserved', wod.name!, w?.title)
-  check(
-    'description from component',
-    wod.wodComponents[0]!.workout.description!,
-    w?.description,
-  )
+  check('title is wod name', wod.name!, w?.title)
+  // description comes from details.description (Generic type), not workout.description
+  const expectedDesc = (wod.wodComponents[0]!.workout.details as Record<string, unknown>)['description']
+  check('description from details.description', expectedDesc, w?.description)
   check('type classified as FOR_TIME', 'FOR_TIME', w?.type)
   check('status published', 'PUBLISHED', w?.status)
   check('scheduledAt date correct', '2026-06-02', w?.scheduledAt.toISOString().slice(0, 10))
@@ -148,6 +151,19 @@ async function runMultiComponentScenario() {
     name: `Multi ${SENTINEL}`,
     occursOn: '2026-06-03',
     wodComponents: [
+      // WarmUp (prefix:null) — should be skipped
+      {
+        id: `comp-warm-${SENTINEL}`,
+        prefix: null,
+        workout: {
+          id: `inner-warm-${SENTINEL}`,
+          type: 'WarmUp',
+          name: null,
+          description: 'Warm Up',
+          details: { description: '10 min easy row', name: 'Warm Up', type: 'WarmUp' },
+        },
+      },
+      // Strength component (description is the prescription; details has no description)
       {
         id: `comp-a-${SENTINEL}`,
         prefix: 'A',
@@ -156,18 +172,23 @@ async function runMultiComponentScenario() {
           type: 'Strength',
           name: 'Back Squat',
           description: '5x5 Back Squat',
-          details: null,
+          details: { movements: [], type: 'Strength' },
         },
       },
+      // Generic component (full text in details.description)
       {
         id: `comp-b-${SENTINEL}`,
         prefix: 'B',
         workout: {
           id: `inner-b-${SENTINEL}`,
-          type: 'Conditioning',
-          name: 'Metcon',
-          description: 'AMRAP 10:\n10 Box Jumps\n10 Kettlebell Swings',
-          details: null,
+          type: 'Generic',
+          name: null,
+          description: 'METCON',
+          details: {
+            description: 'AMRAP 10:\n10 Box Jumps\n10 Kettlebell Swings',
+            name: 'METCON',
+            type: 'Generic',
+          },
         },
       },
     ],
@@ -180,11 +201,46 @@ async function runMultiComponentScenario() {
   check('multi-component workout created', true, w !== null)
   check('title is wod name', `Multi ${SENTINEL}`, w?.title)
   check(
-    'description contains both components',
+    'description contains A: Back Squat (Strength — from workout.description)',
     true,
-    w?.description.includes('A: Back Squat') && w?.description.includes('B: Metcon'),
+    w?.description.includes('A: Back Squat'),
   )
-  check('AMRAP description → type AMRAP', 'AMRAP', w?.type)
+  check(
+    'description contains B: METCON (Generic — from details.description)',
+    true,
+    w?.description.includes('B: METCON') && w?.description.includes('AMRAP 10:'),
+  )
+  check('warmup component excluded from description', false, w?.description.includes('easy row'))
+  check('AMRAP text in B drives type classification', 'AMRAP', w?.type)
+}
+
+async function runWarmupOnlyScenario() {
+  console.log('\n=== runWodupCopierJob — warmup-only WOD: skipped with no workout created ===')
+  const warmupWod = makeWod({
+    id: `wod-warmup-${SENTINEL}`,
+    occursOn: '2026-06-05',
+    wodComponents: [
+      {
+        id: `comp-warm-only-${SENTINEL}`,
+        prefix: null,
+        workout: {
+          id: `inner-warm-only-${SENTINEL}`,
+          type: 'WarmUp',
+          name: null,
+          description: 'Hero Challenge Mobility',
+          details: { description: '10 min mobility flow', name: 'Hero Challenge', type: 'WarmUp' },
+        },
+      },
+    ],
+  })
+  const before = await prisma.workout.count({
+    where: { externalSourceId: { contains: SENTINEL } },
+  })
+  await runWodupCopierJob({ fetchImpl: async () => makeWodupResponse([warmupWod]) })
+  const after = await prisma.workout.count({
+    where: { externalSourceId: { contains: SENTINEL } },
+  })
+  check('warmup-only WOD produces no workout', before, after)
 }
 
 async function runEmptyResponseScenario() {
@@ -331,6 +387,7 @@ async function main() {
     await runHappyPathScenario()
     await runIdempotencyScenario()
     await runMultiComponentScenario()
+    await runWarmupOnlyScenario()
     await runEmptyResponseScenario()
     await runUpstreamErrorScenario()
     await runFetcherThrowsScenario()

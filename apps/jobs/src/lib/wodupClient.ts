@@ -4,16 +4,18 @@ import { createLogger } from '@wodalytics/server'
 const log = createLogger('wodup-client')
 
 const FETCH_TIMEOUT_MS = 15_000
-const WODUP_GRAPHQL_URL = 'https://www.wodup.com/api/graphql?op=TimelineFetchMore'
+// activityTimeline only returns WODs the user has already logged results for —
+// useless for future weeks. publishedWods on the gym returns ALL scheduled WODs
+// regardless of whether the member has completed them.
+const WODUP_GRAPHQL_URL = 'https://www.wodup.com/api/graphql?op=GymPublishedWods'
 
-// Fetches the signed-in user's activity timeline for a date range. Returns
-// the gym-programmed WODs scheduled on each day in that range.
-const TIMELINE_QUERY = `
-  query TimelineFetchMore($startDate: Date!, $endDate: Date!) {
+const GYM_WODS_QUERY = `
+  query GymPublishedWods($startDate: Date!, $endDate: Date!) {
     currentUser {
-      activityTimeline(startDate: $startDate, endDate: $endDate) {
-        date
-        completedWodsOccursOnDate {
+      themeGym {
+        id
+        name
+        publishedWods(startDate: $startDate, endDate: $endDate, limit: 50) {
           id
           name
           occursOn
@@ -35,15 +37,22 @@ const TIMELINE_QUERY = `
   }
 `
 
+// `details` is a polymorphic object whose shape varies by workout type:
+//   - Generic/WarmUp: { description: string, name: string, type: string, ... }
+//   - ForTime/FranStyle/Strength named workouts: { movements: [...], type: string }
+// We only access `details.description` in the copier via a safe getter.
 const WodComponentSchema = z.object({
   id: z.string(),
-  prefix: z.string(),
+  prefix: z.string().nullable(),
   workout: z.object({
     id: z.string(),
     type: z.string().nullable().optional(),
+    // Named workout name (e.g. "Hildy", "Donny") or null for unnamed
     name: z.string().nullable().optional(),
+    // Short label / prescription for named workouts (e.g. "For Time: Rowing…")
+    // and WarmUp components. Generic workouts put full text in details.description.
     description: z.string().nullable().optional(),
-    details: z.string().nullable().optional(),
+    details: z.record(z.unknown()).nullable().optional(),
   }),
 })
 
@@ -55,15 +64,14 @@ const WodSchema = z.object({
   wodComponents: z.array(WodComponentSchema),
 })
 
-const TimelineResponseSchema = z.object({
+const GymWodsResponseSchema = z.object({
   data: z.object({
     currentUser: z.object({
-      activityTimeline: z.array(
-        z.object({
-          date: z.string(),
-          completedWodsOccursOnDate: z.array(WodSchema),
-        }),
-      ),
+      themeGym: z.object({
+        id: z.string(),
+        name: z.string(),
+        publishedWods: z.array(WodSchema),
+      }),
     }),
   }),
 })
@@ -80,9 +88,13 @@ function formatDate(date: Date): string {
 }
 
 /**
- * Fetches programmed WODs from the WODup GraphQL API for the given date range.
+ * Fetches the gym's published WODs for the given date range from WODup.
  *
- * Auth uses the session_token cookie (obtained from browser DevTools, ~4 month TTL).
+ * Uses `currentUser.themeGym.publishedWods` which returns all scheduled class
+ * WODs regardless of whether the member has logged results — unlike the
+ * `activityTimeline` field which only returns completed workouts.
+ *
+ * Auth: session_token cookie from browser DevTools (~4 month TTL).
  * Returns [] on any upstream error — callers soft-fail per jobs convention.
  */
 export async function fetchWodUpWeek(
@@ -108,8 +120,8 @@ export async function fetchWodUpWeek(
         'User-Agent': 'WODalytics/1.0 (+https://github.com/chuckmag/WODalytics)',
       },
       body: JSON.stringify({
-        operationName: 'TimelineFetchMore',
-        query: TIMELINE_QUERY,
+        operationName: 'GymPublishedWods',
+        query: GYM_WODS_QUERY,
         variables,
       }),
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -139,18 +151,11 @@ export async function fetchWodUpWeek(
     return []
   }
 
-  const parsed = TimelineResponseSchema.safeParse(raw)
+  const parsed = GymWodsResponseSchema.safeParse(raw)
   if (!parsed.success) {
     log.warning(`schema mismatch from WODup response: ${parsed.error.message}`)
     return []
   }
 
-  const wods: WodUpWod[] = []
-  for (const day of parsed.data.data.currentUser.activityTimeline) {
-    for (const wod of day.completedWodsOccursOnDate) {
-      wods.push(wod)
-    }
-  }
-
-  return wods
+  return parsed.data.data.currentUser.themeGym.publishedWods
 }
