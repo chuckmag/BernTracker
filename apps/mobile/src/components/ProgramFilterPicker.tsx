@@ -8,6 +8,8 @@ import {
   View,
   ActivityIndicator,
 } from 'react-native'
+import { useNavigation, type NavigationProp } from '@react-navigation/native'
+import type { RootStackParamList } from '../../App'
 import { useProgramFilter } from '../context/ProgramFilterContext'
 import { useTheme } from '../lib/theme'
 import ThemedText from './ThemedText'
@@ -21,15 +23,34 @@ import ThemedView from './ThemedView'
  *   - Tap → modal with checkbox-style toggle rows
  *   - "Clear" pill resets to empty (= all programs) — matches the web semantics
  *
- * Hidden entirely if the user has no available programs (avoids a useless
- * dropdown for first-run gyms).
+ * When the caller has no available programs (first-run gym), the picker
+ * collapses into a single "Browse programs ›" pill so the public catalog
+ * (#507) is still reachable.
  */
 export default function ProgramFilterPicker() {
   const { colors } = useTheme()
   const { selected, available, loading, toggle, clear } = useProgramFilter()
   const [open, setOpen] = useState(false)
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>()
 
-  if (!available.length && !loading) return null
+  function goToBrowse() {
+    setOpen(false)
+    navigation.navigate('BrowsePrograms')
+  }
+
+  if (!available.length && !loading) {
+    return (
+      <TouchableOpacity
+        style={[styles.headerButton, { backgroundColor: colors.inputBg }]}
+        onPress={goToBrowse}
+        accessibilityLabel="Browse public programs"
+        testID="program-filter-browse-empty"
+      >
+        <ThemedText variant="secondary" style={styles.headerButtonText} numberOfLines={1}>Browse programs</ThemedText>
+        <ThemedText style={[styles.chevron, { color: colors.primary }]}>›</ThemedText>
+      </TouchableOpacity>
+    )
+  }
 
   const labelText = (() => {
     if (selected.length === 0) return 'All programs'
@@ -103,6 +124,18 @@ export default function ProgramFilterPicker() {
                 )}
               </ScrollView>
 
+              {/* Discovery entry point for BrowsePrograms (#507) — mirrors the
+                  "Browse public programs →" footer on the web picker. */}
+              <TouchableOpacity
+                style={[styles.browseRow, { borderTopColor: colors.borderSubtle }]}
+                onPress={goToBrowse}
+                testID="program-filter-browse"
+              >
+                <ThemedText style={[styles.browseRowText, { color: colors.primary }]}>
+                  Browse public programs →
+                </ThemedText>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={[styles.doneBtn, { backgroundColor: colors.primary }]}
                 onPress={() => setOpen(false)}
@@ -175,6 +208,12 @@ const styles = StyleSheet.create({
   },
   checkmark: { fontSize: 14, fontWeight: '700' },
   rowLabel: { fontSize: 15, flex: 1 },
+  browseRow: {
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    marginTop: 8,
+  },
+  browseRowText: { fontSize: 15, fontWeight: '500' },
   doneBtn: {
     borderRadius: 10,
     paddingVertical: 12,
