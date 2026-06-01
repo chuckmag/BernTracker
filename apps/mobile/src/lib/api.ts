@@ -41,6 +41,7 @@ import type {
   GymInvitation,
   MembershipRequestStatus,
   PendingInvitation,
+  CreateAppInviteInput,
 } from '@wodalytics/types'
 import { discovery, CLIENT_ID as KEYCLOAK_CLIENT_ID } from './keycloak'
 
@@ -85,6 +86,7 @@ export type {
   GymInvitation,
   MembershipRequestStatus,
   PendingInvitation,
+  CreateAppInviteInput,
 }
 // PATCH /api/users/me/profile body alias — the shared Zod-inferred type is
 // the authoritative shape; the alias keeps mobile call sites stable.
@@ -828,6 +830,17 @@ export const api = {
       remove: (commentId: string) =>
         request<void>(`/api/comments/${commentId}`, { method: 'DELETE' }),
     },
+  },
+
+  // App-only friend invites (no gym context) — POST /api/invitations.
+  // Server returns a fresh Invitation with a short alphanumeric `code` the
+  // caller can share via the native Share sheet.
+  invitations: {
+    create: (input: CreateAppInviteInput) =>
+      request<Invitation>('/api/invitations', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
   },
 
   plans: {

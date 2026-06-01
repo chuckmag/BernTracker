@@ -24,6 +24,7 @@ import ResultDetailScreen from './src/screens/ResultDetailScreen'
 import UserProfileScreen from './src/screens/UserProfileScreen'
 import WodResultDetailScreen from './src/screens/WodResultDetailScreen'
 import SettingsScreen from './src/screens/SettingsScreen'
+import InviteFriendScreen from './src/screens/InviteFriendScreen'
 import OnboardingScreen from './src/screens/OnboardingScreen'
 import AvatarHeaderButton from './src/components/AvatarHeaderButton'
 import GoalsScreen from './src/screens/GoalsScreen'
@@ -51,6 +52,7 @@ export type RootStackParamList = {
     | { mode: 'edit'; workoutId: string; scheduledAt?: never }
   WodResultDetail: { entry: LeaderboardEntry; workoutTitle?: string }
   Settings: undefined
+  InviteFriend: undefined
   // Goals (#434) — list + detail. The home card and Goals screen both push
   // GoalDetail with the goal id; the screen fetches the goal via
   // api.goals.get so any external mutation (auto-complete, archive) is
@@ -297,6 +299,11 @@ function RootStackNavigator() {
         name="Settings"
         component={SettingsScreen}
         options={{ title: 'Profile', presentation: 'modal' }}
+      />
+      <RootStack.Screen
+        name="InviteFriend"
+        component={InviteFriendScreen}
+        options={{ title: 'Invite a friend' }}
       />
       <RootStack.Screen name="Goals" component={GoalsScreen} options={{ title: 'Goals' }} />
       <RootStack.Screen name="GoalDetail" component={GoalDetailScreen} options={{ title: 'Goal' }} />
