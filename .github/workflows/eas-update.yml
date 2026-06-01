@@ -1,0 +1,141 @@
+# EAS Update publish — ships a JS-only OTA bundle to a given branch.
+#
+# Triggers:
+#   - push to main when the mobile bundle's inputs change (paths below) →
+#     auto-publish to the `preview` channel. Production stays manual so an
+#     accidental main commit can't reach App Store users.
+#   - workflow_dispatch → pick `preview` or `production` and an optional
+#     dashboard message.
+#
+# Unlike `build-and-submit-*`, this never touches App Store Connect or Google
+# Play — `eas update` only publishes the JS bundle (via `expo export`) and
+# uploads it to EAS's update server. Live builds with `expo-updates` in the
+# matching `runtimeVersion` pick it up automatically on next launch.
+#
+# Prerequisites:
+#   1. Repo secret EXPO_TOKEN — an Expo access token belonging to a wodtech
+#      org member. (Same secret used by `build-and-submit-*`.)
+#   2. The EAS Update *channel* in `eas.json` (`preview` / `production`) must
+#      already be pointed at the matching update branch in the Expo dashboard
+#      (EAS → Updates → Channels → Edit). This is a one-time per-channel
+#      setup; the workflow auto-creates the branch on first publish but
+#      cannot create the channel→branch mapping.
+
+name: eas-update
+
+on:
+  push:
+    branches: [main]
+    # Anything that changes the JS bundle Metro ships. Keep in sync with
+    # apps/mobile/metro.config.js's watchFolders + workspace deps.
+    paths:
+      - 'apps/mobile/src/**'
+      - 'apps/mobile/app.config.ts'
+      - 'apps/mobile/index.ts'
+      - 'apps/mobile/babel.config.js'
+      - 'apps/mobile/metro.config.js'
+      - 'apps/mobile/package.json'
+      - 'packages/types/src/**'
+      - 'packages/types/package.json'
+      - 'package-lock.json'
+      - '.github/workflows/eas-update.yml'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'EAS Update branch (typically matches the eas.json channel name)'
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
+      message:
+        description: 'Update message shown in the EAS dashboard (defaults to commit subject)'
+        type: string
+        required: false
+
+concurrency:
+  group: eas-update-${{ inputs.branch || 'preview' }}
+  # A newer commit on main supersedes whatever's in flight for the same
+  # channel — the stale bundle is about to be overwritten anyway, no point
+  # paying for it to finish.
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish EAS Update (${{ inputs.branch || 'preview' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Fail fast if EXPO_TOKEN is missing
+        if: env.EXPO_TOKEN == ''
+        run: |
+          echo "::error::EXPO_TOKEN secret is not set. Add it at Settings → Secrets and variables → Actions."
+          exit 1
+
+      # eas update runs `expo export` locally to produce the JS bundle before
+      # uploading it, so the project's node_modules must be present.
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .
+
+      # Metro resolves `@wodalytics/types` to its compiled `dist/`, which the
+      # EAS-worker-only `eas-build-post-install` hook doesn't build for us here.
+      - name: Build shared packages
+        run: npm run build --workspace=@wodalytics/types
+        working-directory: .
+
+      - name: Confirm EAS auth
+        run: npx eas-cli@latest whoami
+
+      - name: Resolve update message
+        id: msg
+        env:
+          INPUT_MESSAGE: ${{ inputs.message }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_MESSAGE}" ]; then
+            msg="${INPUT_MESSAGE}"
+          else
+            # Fall back to the commit subject so the dashboard entry is at
+            # least traceable to a SHA.
+            msg=$(git -C "${{ github.workspace }}" log -1 --pretty=%s)
+          fi
+          # Multiline-safe write of the resolved message to step output.
+          {
+            echo "message<<EOF"
+            echo "$msg"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Update message: $msg"
+
+      # Pass interpolated values via env vars so the shell never sees the raw
+      # ${{ ... }} expression. The default message (`steps.msg.outputs.message`)
+      # falls back to the commit subject, which is attacker-influenced on a
+      # public repo — a subject containing `$(...)`, backticks, or unbalanced
+      # quotes could otherwise execute arbitrary commands.
+      - name: Publish update
+        env:
+          UPDATE_BRANCH: ${{ inputs.branch || 'preview' }}
+          UPDATE_MESSAGE: ${{ steps.msg.outputs.message }}
+        run: |
+          npx eas-cli@latest update \
+            --branch "$UPDATE_BRANCH" \
+            --message "$UPDATE_MESSAGE" \
+            --non-interactive

@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Text } from 'react-native'
 import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg'
 import { useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
-import type { RootStackParamList } from '../../../App'
+import type { RootStackParamList } from '../../App'
 import { useTheme } from '../lib/theme'
 import ThemedText from './ThemedText'
 import ThemedView from './ThemedView'
@@ -28,16 +28,15 @@ function fullDate(iso: string): string {
 
 interface TrajectoryChartProps {
   points: StrengthTrajectoryData['points']
-  isDark: boolean
   selectedIndex: number | null
   onSelectIndex: (i: number | null) => void
 }
 
-function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: TrajectoryChartProps) {
+function TrajectoryChart({ points, selectedIndex, onSelectIndex }: TrajectoryChartProps) {
   const { colors } = useTheme()
   const lineColor = colors.primary
-  const gridColor = isDark ? '#1f2937' : '#e2e8f0'
-  const tickColor = isDark ? '#6b7280' : '#64748b'
+  const gridColor = colors.borderSubtle
+  const tickColor = colors.textTertiary
 
   if (points.length < 2) {
     return (
@@ -118,7 +117,7 @@ function TrajectoryChart({ points, isDark, selectedIndex, onSelectIndex }: Traje
             cy={toY(pointValues[i])}
             r={isSelected ? 4 : 2.5}
             fill={lineColor}
-            stroke={isSelected ? (isDark ? '#ffffff' : '#1e293b') : 'none'}
+            stroke={isSelected ? colors.textPrimary : 'none'}
             strokeWidth={isSelected ? 1.5 : 0}
           />
         )
@@ -139,7 +138,7 @@ function PointCallout({ point, onNavigate }: PointCalloutProps) {
   return (
     <View style={[styles.callout, { backgroundColor: `${colors.primary}1a` }]}>
       <View style={styles.calloutLeft}>
-        <Text style={styles.calloutDate}>{fullDate(point.date)}</Text>
+        <ThemedText variant="tertiary" style={styles.calloutDate}>{fullDate(point.date)}</ThemedText>
         <Text style={[styles.calloutEffort, { color: colors.primary }]}>{effort} {point.loadUnit}</Text>
         {best !== null && (
           <Text style={[styles.calloutE1rm, { color: colors.primary }]}>Est. 1RM: {best.e1rm} {point.loadUnit}</Text>
@@ -157,7 +156,7 @@ interface StrengthPRCardProps {
 }
 
 export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
-  const { colors, isDark } = useTheme()
+  const { colors } = useTheme()
   const navigation = useNavigation<RootNav>()
   const [selectedId, setSelectedId] = useState<string>(movements[0]?.movementId ?? '')
   const [trajectory, setTrajectory] = useState<StrengthTrajectoryData | null>(null)
@@ -253,7 +252,6 @@ export default function StrengthPRCard({ movements }: StrengthPRCardProps) {
               </View>
               <TrajectoryChart
                 points={trajectory.points}
-                isDark={isDark}
                 selectedIndex={selectedDotIndex}
                 onSelectIndex={setSelectedDotIndex}
               />
@@ -350,7 +348,6 @@ const styles = StyleSheet.create({
   },
   calloutDate: {
     fontSize: 11,
-    color: '#9ca3af',
   },
   calloutEffort: {
     fontSize: 13,

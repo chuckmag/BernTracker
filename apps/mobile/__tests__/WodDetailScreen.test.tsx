@@ -34,6 +34,10 @@ jest.mock('../src/lib/api', () => ({
       get: jest.fn(),
       results: jest.fn(),
     },
+    plans: {
+      getForUser: jest.fn().mockResolvedValue(null),
+      listForWorkout: jest.fn().mockResolvedValue([]),
+    },
     social: {
       reactions: {
         listForResult: jest.fn().mockResolvedValue([]),
@@ -62,6 +66,10 @@ const WORKOUT = {
   status: 'PUBLISHED' as const,
   scheduledAt: '2026-06-15T12:00:00.000Z',
   programId: 'prog-1',
+  workoutMovements: [],
+  timeCapSeconds: null,
+  tracksRounds: false,
+  externalSourceId: null,
 }
 
 function makeEntry(id: string, userId: string, userName: string) {
@@ -278,7 +286,9 @@ describe('WodDetailScreen', () => {
       <WodDetailScreen navigation={makeNavigation()} route={makeRoute()} />,
     )
 
-    // The highlight style adds backgroundColor: '#1e1b4b' to the current user's row.
+    // The highlight style adds a 20% primary-tint overlay (`${colors.primary}33`)
+    // to the current user's row. In the Jest env (no ThemeProvider), useTheme
+    // falls back to the light palette → colors.primary = '#1E5AA8'.
     const meText = await findByText('Me')
 
     // Walk up the tree until we find a node with the highlight backgroundColor.
@@ -293,7 +303,7 @@ describe('WodDetailScreen', () => {
       return null
     }
 
-    const highlight = '#1e1b4b'
+    const highlight = '#1E5AA833'
     expect(findAncestorWithBg(meText, highlight)).not.toBeNull()
     expect(findAncestorWithBg(await findByText('Alice'), highlight)).toBeNull()
   })

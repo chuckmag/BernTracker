@@ -30,7 +30,6 @@ vi.mock('../lib/api', () => ({
       },
     },
     namedWorkouts: { list: vi.fn() },
-    movements: { detect: vi.fn() },
     workouts: { update: vi.fn(), delete: vi.fn() },
   },
   TYPE_ABBR: {
@@ -49,7 +48,6 @@ beforeEach(() => {
   vi.mocked(api.me.personalProgram.get).mockResolvedValue(baseProgram)
   vi.mocked(api.me.personalProgram.workouts.list).mockResolvedValue([])
   vi.mocked(api.namedWorkouts.list).mockResolvedValue([])
-  vi.mocked(api.movements.detect).mockResolvedValue([])
 })
 
 function renderPage() {

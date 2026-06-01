@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -20,6 +19,10 @@ import { formatResultValue } from '../lib/format'
 import MovementHistorySection from '../components/MovementHistorySection'
 import ResultReactions from '../components/ResultReactions'
 import WorkoutPlanModal from '../components/WorkoutPlanModal'
+import { useTheme } from '../lib/theme'
+import ThemedText from '../components/ThemedText'
+import ThemedView from '../components/ThemedView'
+import MarkdownText from '../components/MarkdownText'
 
 type Props = StackScreenProps<RootStackParamList, 'WodDetail'>
 
@@ -57,6 +60,7 @@ const DIVISION_FILTERS: { label: string; value: AgeDivision | null }[] = [
 ]
 
 export default function WodDetailScreen({ route, navigation }: Props) {
+  const { colors } = useTheme()
   const { workoutId } = route.params
   const { user } = useAuth()
   const { activeGym } = useGym()
@@ -111,12 +115,12 @@ export default function WodDetailScreen({ route, navigation }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Edit workout"
             >
-              <Text style={styles.headerEditText}>Edit</Text>
+              <ThemedText style={[styles.headerEditText, { color: colors.primary }]}>Edit</ThemedText>
             </TouchableOpacity>
           )
         : undefined,
     })
-  }, [canEdit, navigation, workoutId])
+  }, [canEdit, navigation, workoutId, colors])
 
   // Always fetch the unfiltered leaderboard and apply filters client-side.
   // This way the user's "your result" badge keeps showing their RX entry even
@@ -181,17 +185,17 @@ export default function WodDetailScreen({ route, navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#818cf8" />
-      </View>
+      <ThemedView variant="screen" style={styles.center}>
+        <ActivityIndicator color={colors.primary} />
+      </ThemedView>
     )
   }
 
   if (error || !workout) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error ?? 'Workout not found.'}</Text>
-      </View>
+      <ThemedView variant="screen" style={styles.center}>
+        <ThemedText style={[styles.errorText, { color: colors.errorText }]}>{error ?? 'Workout not found.'}</ThemedText>
+      </ThemedView>
     )
   }
 
@@ -203,18 +207,23 @@ export default function WodDetailScreen({ route, navigation }: Props) {
     ? `https://www.crossfit.com/workout/${workout.externalSourceId.replace('crossfit-mainsite:w', '').slice(2)}`
     : null
 
+  // Tint used for "active filter chip" and "your result" highlights — a 20%
+  // primary overlay reads as a recessed selection in both themes.
+  const primaryTintBg = `${colors.primary}33`
+
   return (
     <>
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ThemedView variant="screen" style={styles.container}>
+    <ScrollView contentContainerStyle={styles.content}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: colors.borderSubtle }]}>
         <View style={styles.typeBadgeRow}>
           <View style={[styles.typeBadge, { backgroundColor: typeStyle.bgTint }]}>
-            <Text style={[styles.typeText, { color: typeStyle.tint }]}>{typeStyle.label.toUpperCase()}</Text>
+            <ThemedText style={[styles.typeText, { color: typeStyle.tint }]}>{typeStyle.label.toUpperCase()}</ThemedText>
           </View>
-          <Text style={styles.dateText}>{scheduledDate}</Text>
+          <ThemedText variant="tertiary" style={styles.dateText}>{scheduledDate}</ThemedText>
         </View>
-        <Text style={styles.title}>{workout.title}</Text>
+        <ThemedText style={styles.title}>{workout.title}</ThemedText>
       </View>
 
       {/* Coach notes — collapsible. Default state per role (#184): expanded for
@@ -229,13 +238,13 @@ export default function WodDetailScreen({ route, navigation }: Props) {
             accessibilityRole="button"
             accessibilityState={{ expanded: showCoachNotes }}
           >
-            <Text style={styles.coachNotesLabel}>COACH NOTES</Text>
-            <Text style={styles.coachNotesChevron}>{showCoachNotes ? '−' : '+'}</Text>
+            <ThemedText variant="muted" style={styles.coachNotesLabel}>COACH NOTES</ThemedText>
+            <ThemedText variant="tertiary" style={styles.coachNotesChevron}>{showCoachNotes ? '−' : '+'}</ThemedText>
           </TouchableOpacity>
           {showCoachNotes ? (
-            <Text style={styles.coachNotesBody} testID="coach-notes-body">
-              {workout.coachNotes}
-            </Text>
+            <View style={styles.coachNotesBody}>
+              <MarkdownText source={workout.coachNotes} variant="secondary" testID="coach-notes-body" />
+            </View>
           ) : null}
         </View>
       ) : null}
@@ -243,8 +252,8 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       {/* Description */}
       {workout.description ? (
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>WORKOUT</Text>
-          <Text style={styles.description}>{workout.description}</Text>
+          <ThemedText variant="muted" style={styles.sectionLabel}>WORKOUT</ThemedText>
+          <MarkdownText source={workout.description} variant="secondary" />
         </View>
       ) : null}
 
@@ -255,7 +264,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
           onPress={() => Linking.openURL(cfUrl)}
           activeOpacity={0.7}
         >
-          <Text style={styles.sourceLinkText}>View on CrossFit.com →</Text>
+          <ThemedText style={[styles.sourceLinkText, { color: colors.primary }]}>View on CrossFit.com →</ThemedText>
         </TouchableOpacity>
       ) : null}
 
@@ -263,7 +272,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       {user && (
         <View style={styles.section}>
           <View style={styles.planHeader}>
-            <Text style={styles.sectionLabel}>MY PLAN</Text>
+            <ThemedText variant="muted" style={styles.sectionLabel}>MY PLAN</ThemedText>
             <TouchableOpacity
               onPress={() => {
                 setPlanTarget({ id: user.id, name: user.name, firstName: user.firstName, lastName: user.lastName, email: user.email })
@@ -272,14 +281,14 @@ export default function WodDetailScreen({ route, navigation }: Props) {
               hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
               accessibilityRole="button"
             >
-              <Text style={styles.planEditBtn}>{myPlan ? 'Edit' : 'Set Plan'}</Text>
+              <ThemedText style={[styles.planEditBtn, { color: colors.primary }]}>{myPlan ? 'Edit' : 'Set Plan'}</ThemedText>
             </TouchableOpacity>
           </View>
           {myPlan ? (
-            <View style={styles.planCard}>
+            <View style={[styles.planCard, { backgroundColor: colors.surfaceSubtle }]}>
               {myPlan.level && (
-                <View style={styles.planLevelBadge}>
-                  <Text style={styles.planLevelText}>{LEVEL_LABELS[myPlan.level]}</Text>
+                <View style={[styles.planLevelBadge, { backgroundColor: primaryTintBg }]}>
+                  <ThemedText style={[styles.planLevelText, { color: colors.primary }]}>{LEVEL_LABELS[myPlan.level]}</ThemedText>
                 </View>
               )}
               {myPlan.value?.movementResults?.map((mr) => {
@@ -290,16 +299,20 @@ export default function WodDetailScreen({ route, navigation }: Props) {
                   .filter(Boolean)
                   .join(', ')
                 return (
-                  <Text key={mr.workoutMovementId} style={styles.planMovementRow}>
-                    <Text style={styles.planMovementName}>{wm.movement.name}</Text>
-                    {label ? <Text style={styles.planMovementLabel}>  {label}</Text> : null}
-                  </Text>
+                  <ThemedText key={mr.workoutMovementId} variant="secondary" style={styles.planMovementRow}>
+                    <ThemedText style={styles.planMovementName}>{wm.movement.name}</ThemedText>
+                    {label ? <ThemedText variant="tertiary" style={styles.planMovementLabel}>  {label}</ThemedText> : null}
+                  </ThemedText>
                 )
               })}
-              {myPlan.notes ? <Text style={styles.planNotes}>{myPlan.notes}</Text> : null}
+              {myPlan.notes ? (
+                <View style={styles.planNotes}>
+                  <MarkdownText source={myPlan.notes} variant="tertiary" />
+                </View>
+              ) : null}
             </View>
           ) : (
-            <Text style={styles.planEmpty}>No plan set yet.</Text>
+            <ThemedText variant="muted" style={styles.planEmpty}>No plan set yet.</ThemedText>
           )}
         </View>
       )}
@@ -307,7 +320,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       {/* Log Result CTA */}
       {hasLogged ? (
         <TouchableOpacity
-          style={styles.resultBadge}
+          style={[styles.resultBadge, { backgroundColor: primaryTintBg }]}
           onPress={() =>
             navigation.navigate('LogResult', {
               workoutId: workout.id,
@@ -318,24 +331,24 @@ export default function WodDetailScreen({ route, navigation }: Props) {
           activeOpacity={0.8}
           testID="result-badge"
         >
-          <Text style={styles.resultBadgeLabel}>YOUR RESULT — TAP TO EDIT</Text>
-          <Text style={styles.resultBadgeValue}>{formatResultValue(userResult.value)}</Text>
-          <Text style={styles.resultBadgeLevel}>{LEVEL_LABELS[userResult.level]}</Text>
+          <ThemedText style={[styles.resultBadgeLabel, { color: colors.primary }]}>YOUR RESULT — TAP TO EDIT</ThemedText>
+          <ThemedText style={styles.resultBadgeValue}>{formatResultValue(userResult.value)}</ThemedText>
+          <ThemedText style={[styles.resultBadgeLevel, { color: colors.primary }]}>{LEVEL_LABELS[userResult.level]}</ThemedText>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
-          style={styles.logButton}
+          style={[styles.logButton, { backgroundColor: colors.primary }]}
           onPress={() => navigation.navigate('LogResult', { workoutId: workout.id })}
           activeOpacity={0.8}
         >
-          <Text style={styles.logButtonText}>Log Result</Text>
+          <ThemedText style={[styles.logButtonText, { color: colors.onPrimary }]}>Log Result</ThemedText>
         </TouchableOpacity>
       )}
 
       {/* Your History — hidden when arriving from movement-history or WODalytics to prevent nesting */}
       {user && route.params.from !== 'movement-history' && route.params.from !== 'wodalytics' && workout.workoutMovements.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>YOUR HISTORY</Text>
+          <ThemedText variant="muted" style={styles.sectionLabel}>YOUR HISTORY</ThemedText>
           {workout.workoutMovements.map((wm) => (
             <MovementHistorySection
               key={wm.movement.id}
@@ -350,11 +363,11 @@ export default function WodDetailScreen({ route, navigation }: Props) {
       {/* Member Plans (staff only) */}
       {isStaff && (
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>
+          <ThemedText variant="muted" style={styles.sectionLabel}>
             MEMBER PLANS{memberPlans.length > 0 ? ` (${memberPlans.length})` : ''}
-          </Text>
+          </ThemedText>
           {memberPlans.length === 0 ? (
-            <Text style={styles.planEmpty}>No plans set yet.</Text>
+            <ThemedText variant="muted" style={styles.planEmpty}>No plans set yet.</ThemedText>
           ) : (
             memberPlans.map((plan) => {
               const memberName = plan.user?.firstName
@@ -363,7 +376,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
               return (
                 <TouchableOpacity
                   key={plan.userId}
-                  style={styles.memberPlanRow}
+                  style={[styles.memberPlanRow, { borderBottomColor: colors.borderSubtle }]}
                   onPress={() => {
                     if (!plan.user) return
                     setPlanTarget({
@@ -380,14 +393,14 @@ export default function WodDetailScreen({ route, navigation }: Props) {
                   accessibilityLabel={`Edit ${memberName}'s plan`}
                 >
                   <View style={styles.memberPlanInfo}>
-                    <Text style={styles.memberPlanName}>{memberName}</Text>
+                    <ThemedText style={styles.memberPlanName}>{memberName}</ThemedText>
                     {plan.level ? (
-                      <View style={styles.planLevelBadge}>
-                        <Text style={styles.planLevelText}>{LEVEL_LABELS[plan.level]}</Text>
+                      <View style={[styles.planLevelBadge, { backgroundColor: primaryTintBg }]}>
+                        <ThemedText style={[styles.planLevelText, { color: colors.primary }]}>{LEVEL_LABELS[plan.level]}</ThemedText>
                       </View>
                     ) : null}
                   </View>
-                  <Text style={styles.memberPlanEdit}>Edit →</Text>
+                  <ThemedText style={[styles.memberPlanEdit, { color: colors.primary }]}>Edit →</ThemedText>
                 </TouchableOpacity>
               )
             })
@@ -397,7 +410,7 @@ export default function WodDetailScreen({ route, navigation }: Props) {
 
       {/* Leaderboard */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>LEADERBOARD</Text>
+        <ThemedText variant="muted" style={styles.sectionLabel}>LEADERBOARD</ThemedText>
 
         {/* Level filter chips */}
         <ScrollView
@@ -406,18 +419,28 @@ export default function WodDetailScreen({ route, navigation }: Props) {
           style={styles.filterRow}
           contentContainerStyle={styles.filterContent}
         >
-          {LEVEL_FILTERS.map((f) => (
-            <TouchableOpacity
-              key={`level-${f.label}`}
-              style={[styles.chip, levelFilter === f.value && styles.chipActive]}
-              onPress={() => setLevelFilter(f.value)}
-              testID={`level-chip-${f.label}`}
-            >
-              <Text style={[styles.chipText, levelFilter === f.value && styles.chipTextActive]}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {LEVEL_FILTERS.map((f) => {
+            const isActive = levelFilter === f.value
+            return (
+              <TouchableOpacity
+                key={`level-${f.label}`}
+                style={[
+                  styles.chip,
+                  { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+                  isActive && { backgroundColor: primaryTintBg, borderColor: colors.primary },
+                ]}
+                onPress={() => setLevelFilter(f.value)}
+                testID={`level-chip-${f.label}`}
+              >
+                <ThemedText
+                  variant="tertiary"
+                  style={[styles.chipText, isActive && { color: colors.primary, fontWeight: '600' }]}
+                >
+                  {f.label}
+                </ThemedText>
+              </TouchableOpacity>
+            )
+          })}
         </ScrollView>
 
         {/* Gender filter chips */}
@@ -427,18 +450,28 @@ export default function WodDetailScreen({ route, navigation }: Props) {
           style={styles.filterRow}
           contentContainerStyle={styles.filterContent}
         >
-          {GENDER_FILTERS.map((f) => (
-            <TouchableOpacity
-              key={`gender-${f.label}`}
-              style={[styles.chip, genderFilter === f.value && styles.chipActive]}
-              onPress={() => setGenderFilter(f.value)}
-              testID={`gender-chip-${f.label}`}
-            >
-              <Text style={[styles.chipText, genderFilter === f.value && styles.chipTextActive]}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {GENDER_FILTERS.map((f) => {
+            const isActive = genderFilter === f.value
+            return (
+              <TouchableOpacity
+                key={`gender-${f.label}`}
+                style={[
+                  styles.chip,
+                  { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+                  isActive && { backgroundColor: primaryTintBg, borderColor: colors.primary },
+                ]}
+                onPress={() => setGenderFilter(f.value)}
+                testID={`gender-chip-${f.label}`}
+              >
+                <ThemedText
+                  variant="tertiary"
+                  style={[styles.chipText, isActive && { color: colors.primary, fontWeight: '600' }]}
+                >
+                  {f.label}
+                </ThemedText>
+              </TouchableOpacity>
+            )
+          })}
         </ScrollView>
 
         {/* Age division filter chips */}
@@ -448,27 +481,41 @@ export default function WodDetailScreen({ route, navigation }: Props) {
           style={styles.filterRow}
           contentContainerStyle={styles.filterContent}
         >
-          {DIVISION_FILTERS.map((f) => (
-            <TouchableOpacity
-              key={`division-${f.label}`}
-              style={[styles.chip, divisionFilter === f.value && styles.chipActive]}
-              onPress={() => setDivisionFilter(f.value)}
-              testID={`division-chip-${f.label}`}
-            >
-              <Text style={[styles.chipText, divisionFilter === f.value && styles.chipTextActive]}>
-                {f.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {DIVISION_FILTERS.map((f) => {
+            const isActive = divisionFilter === f.value
+            return (
+              <TouchableOpacity
+                key={`division-${f.label}`}
+                style={[
+                  styles.chip,
+                  { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+                  isActive && { backgroundColor: primaryTintBg, borderColor: colors.primary },
+                ]}
+                onPress={() => setDivisionFilter(f.value)}
+                testID={`division-chip-${f.label}`}
+              >
+                <ThemedText
+                  variant="tertiary"
+                  style={[styles.chipText, isActive && { color: colors.primary, fontWeight: '600' }]}
+                >
+                  {f.label}
+                </ThemedText>
+              </TouchableOpacity>
+            )
+          })}
         </ScrollView>
 
         {visibleLeaderboard.length === 0 ? (
-          <Text style={styles.emptyLeaderboard}>{emptyLeaderboardCopy}</Text>
+          <ThemedText variant="muted" style={styles.emptyLeaderboard}>{emptyLeaderboardCopy}</ThemedText>
         ) : (
           visibleLeaderboard.map((entry, idx) => (
             <TouchableOpacity
               key={entry.id}
-              style={[styles.leaderboardRow, entry.user.id === user?.id && styles.leaderboardRowHighlight]}
+              style={[
+                styles.leaderboardRow,
+                { borderBottomColor: colors.borderSubtle },
+                entry.user.id === user?.id && { ...styles.leaderboardRowHighlight, backgroundColor: primaryTintBg },
+              ]}
               onPress={() =>
                 navigation.navigate('WodResultDetail', {
                   entry,
@@ -479,10 +526,10 @@ export default function WodDetailScreen({ route, navigation }: Props) {
               accessibilityRole="button"
               accessibilityLabel={`View ${entry.user.name}'s result`}
             >
-              <Text style={styles.rank}>{idx + 1}</Text>
+              <ThemedText variant="muted" style={styles.rank}>{idx + 1}</ThemedText>
               <View style={styles.leaderboardInfo}>
-                <Text style={styles.leaderboardName}>{entry.user.name}</Text>
-                <Text style={styles.leaderboardValue}>{formatResultValue(entry.value)}</Text>
+                <ThemedText style={styles.leaderboardName}>{entry.user.name}</ThemedText>
+                <ThemedText variant="tertiary" style={styles.leaderboardValue}>{formatResultValue(entry.value)}</ThemedText>
                 <ResultReactions
                   resultId={entry.id}
                   onCommentPress={() =>
@@ -493,12 +540,13 @@ export default function WodDetailScreen({ route, navigation }: Props) {
                   }
                 />
               </View>
-              <Text style={styles.leaderboardLevel}>{LEVEL_LABELS[entry.level]}</Text>
+              <ThemedText variant="tertiary" style={styles.leaderboardLevel}>{LEVEL_LABELS[entry.level]}</ThemedText>
             </TouchableOpacity>
           ))
         )}
       </View>
     </ScrollView>
+    </ThemedView>
 
     {showPlanModal && planTarget && workout && (
       <WorkoutPlanModal
@@ -540,15 +588,10 @@ export default function WodDetailScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  // Indigo accent for the header Edit affordance — matches the existing
-  // headerDoneText pattern in the editor screen. Hardcoded indigo here is
-  // an intentional outlier; the rest of the screen still uses fixed dark
-  // tones so theme-token migration would touch much more than this slice.
   headerEditBtn: { paddingHorizontal: 12, paddingVertical: 6, marginRight: 4 },
-  headerEditText: { color: '#818cf8', fontSize: 15, fontWeight: '600' },
+  headerEditText: { fontSize: 15, fontWeight: '600' },
   container: {
     flex: 1,
-    backgroundColor: '#030712',
   },
   content: {
     paddingBottom: 40,
@@ -557,10 +600,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#030712',
   },
   errorText: {
-    color: '#f87171',
     fontSize: 15,
   },
   header: {
@@ -568,7 +609,6 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   typeBadgeRow: {
     flexDirection: 'row',
@@ -577,7 +617,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   typeBadge: {
-    backgroundColor: '#1e1b4b',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -585,17 +624,14 @@ const styles = StyleSheet.create({
   typeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#818cf8',
     letterSpacing: 0.5,
   },
   dateText: {
     fontSize: 13,
-    color: '#6b7280',
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#ffffff',
     lineHeight: 30,
   },
   section: {
@@ -605,14 +641,8 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4b5563',
     letterSpacing: 0.8,
     marginBottom: 10,
-  },
-  description: {
-    fontSize: 15,
-    color: '#d1d5db',
-    lineHeight: 22,
   },
   sourceLink: {
     marginHorizontal: 20,
@@ -620,7 +650,6 @@ const styles = StyleSheet.create({
   },
   sourceLinkText: {
     fontSize: 13,
-    color: '#818cf8',
   },
   coachNotesHeader: {
     flexDirection: 'row',
@@ -628,42 +657,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  // Same visual as sectionLabel but without its own marginBottom (the row owns
-  // spacing so the chevron stays vertically centered).
   coachNotesLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4b5563',
     letterSpacing: 0.8,
   },
   coachNotesChevron: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#6b7280',
     paddingHorizontal: 6,
   },
   coachNotesBody: {
-    fontSize: 15,
-    color: '#d1d5db',
-    lineHeight: 22,
+    marginTop: 4,
   },
   logButton: {
     marginHorizontal: 20,
     marginTop: 20,
-    backgroundColor: '#4f46e5',
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
   },
   logButtonText: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
   resultBadge: {
     marginHorizontal: 20,
     marginTop: 20,
-    backgroundColor: '#1e1b4b',
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -674,17 +694,14 @@ const styles = StyleSheet.create({
   resultBadgeLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#6366f1',
     letterSpacing: 0.5,
   },
   resultBadgeValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#ffffff',
   },
   resultBadgeLevel: {
     fontSize: 12,
-    color: '#818cf8',
   },
   filterRow: {
     marginBottom: 12,
@@ -697,24 +714,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: '#111827',
     borderWidth: 1,
-    borderColor: '#374151',
-  },
-  chipActive: {
-    backgroundColor: '#1e1b4b',
-    borderColor: '#6366f1',
   },
   chipText: {
     fontSize: 13,
-    color: '#6b7280',
-  },
-  chipTextActive: {
-    color: '#818cf8',
-    fontWeight: '600',
   },
   emptyLeaderboard: {
-    color: '#4b5563',
     fontSize: 14,
     textAlign: 'center',
     paddingVertical: 20,
@@ -724,10 +729,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 11,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   leaderboardRowHighlight: {
-    backgroundColor: '#1e1b4b',
     borderRadius: 8,
     paddingHorizontal: 8,
     marginHorizontal: -8,
@@ -736,7 +739,6 @@ const styles = StyleSheet.create({
     width: 28,
     fontSize: 14,
     fontWeight: '700',
-    color: '#4b5563',
   },
   leaderboardInfo: {
     flex: 1,
@@ -744,16 +746,13 @@ const styles = StyleSheet.create({
   leaderboardName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
   },
   leaderboardValue: {
     fontSize: 12,
-    color: '#9ca3af',
     marginTop: 1,
   },
   leaderboardLevel: {
     fontSize: 12,
-    color: '#6b7280',
   },
   planHeader: {
     flexDirection: 'row',
@@ -763,17 +762,14 @@ const styles = StyleSheet.create({
   },
   planEditBtn: {
     fontSize: 13,
-    color: '#818cf8',
   },
   planCard: {
-    backgroundColor: '#1f2937',
     borderRadius: 8,
     padding: 12,
     gap: 6,
   },
   planLevelBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#1e1b4b',
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -781,31 +777,23 @@ const styles = StyleSheet.create({
   },
   planLevelText: {
     fontSize: 12,
-    color: '#818cf8',
     fontWeight: '600',
   },
   planMovementRow: {
     fontSize: 14,
-    color: '#d1d5db',
     lineHeight: 20,
   },
   planMovementName: {
     fontWeight: '600',
-    color: '#ffffff',
   },
   planMovementLabel: {
-    color: '#9ca3af',
     fontSize: 13,
   },
   planNotes: {
-    fontSize: 13,
-    color: '#6b7280',
-    fontStyle: 'italic',
     marginTop: 2,
   },
   planEmpty: {
     fontSize: 14,
-    color: '#4b5563',
   },
   memberPlanRow: {
     flexDirection: 'row',
@@ -813,7 +801,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   memberPlanInfo: {
     flexDirection: 'row',
@@ -824,10 +811,8 @@ const styles = StyleSheet.create({
   memberPlanName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
   },
   memberPlanEdit: {
     fontSize: 13,
-    color: '#818cf8',
   },
 })

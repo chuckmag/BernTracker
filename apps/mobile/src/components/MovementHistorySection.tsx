@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
   View,
-  Text,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
@@ -23,6 +22,9 @@ import {
 } from '../lib/api'
 import { shortDate } from '../lib/format'
 import { bestE1RMFromSets } from '../lib/e1rm'
+import { useTheme } from '../lib/theme'
+import ThemedText from './ThemedText'
+import ThemedView from './ThemedView'
 
 // ─── STRENGTH PR table (1–10RM scaffold, ??? for untested) ───────────────────
 
@@ -35,11 +37,12 @@ interface StrengthPrTableProps {
 }
 
 function StrengthPrTable({ entries, onTapEmpty, onTapFilled }: StrengthPrTableProps) {
+  const { colors } = useTheme()
   const byReps = new Map(entries.map((e) => [e.reps, e]))
   const unit = entries[0]?.unit ?? 'LB'
   return (
     <View>
-      <Text style={s.subLabel}>PR TABLE · {unit}</Text>
+      <ThemedText variant="label" style={s.subLabel}>PR TABLE · {unit}</ThemedText>
       <View style={s.rmGrid}>
         {RM_RANGE.map((reps) => {
           const entry = byReps.get(reps)
@@ -47,24 +50,31 @@ function StrengthPrTable({ entries, onTapEmpty, onTapFilled }: StrengthPrTablePr
             return (
               <TouchableOpacity
                 key={reps}
-                style={s.rmCell}
+                style={[
+                  s.rmCell,
+                  { backgroundColor: colors.cardBg, borderColor: colors.borderSubtle },
+                ]}
                 onPress={() => onTapFilled(entry.workoutId)}
                 activeOpacity={0.7}
               >
-                <Text style={s.rmRep}>{reps}RM</Text>
-                <Text style={s.rmLoad}>{String(entry.maxLoad)}</Text>
+                <ThemedText variant="tertiary" style={s.rmRep}>{reps}RM</ThemedText>
+                <ThemedText style={s.rmLoad}>{String(entry.maxLoad)}</ThemedText>
               </TouchableOpacity>
             )
           }
           return (
             <TouchableOpacity
               key={reps}
-              style={[s.rmCell, s.rmCellEmpty]}
+              style={[
+                s.rmCell,
+                s.rmCellEmpty,
+                { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+              ]}
               onPress={() => onTapEmpty(reps)}
               activeOpacity={0.7}
             >
-              <Text style={s.rmRep}>{reps}RM</Text>
-              <Text style={s.rmEmpty}>???</Text>
+              <ThemedText variant="tertiary" style={s.rmRep}>{reps}RM</ThemedText>
+              <ThemedText variant="muted" style={s.rmEmpty}>???</ThemedText>
             </TouchableOpacity>
           )
         })}
@@ -76,6 +86,7 @@ function StrengthPrTable({ entries, onTapEmpty, onTapFilled }: StrengthPrTablePr
 // ─── Est. 1RM trend (proportional bar chart, no external library) ─────────────
 
 function E1RMTrend({ results }: { results: MovementHistoryResult[] }) {
+  const { colors } = useTheme()
   const points = [...results]
     .sort((a, b) => a.workout.scheduledAt.localeCompare(b.workout.scheduledAt))
     .map((r) => {
@@ -95,16 +106,24 @@ function E1RMTrend({ results }: { results: MovementHistoryResult[] }) {
 
   return (
     <View style={s.trendSection}>
-      <Text style={s.subLabel}>EST. 1RM TREND</Text>
+      <ThemedText variant="label" style={s.subLabel}>EST. 1RM TREND</ThemedText>
       {points.map((p, i) => (
         <View key={i} style={s.trendRow}>
-          <Text style={s.trendDate}>{p.date}</Text>
-          <View style={s.trendTrack}>
-            <View style={[s.trendBar, { width: `${Math.round((p.e1rm / max) * 100)}%` }]} />
+          <ThemedText variant="tertiary" style={s.trendDate}>{p.date}</ThemedText>
+          <View style={[s.trendTrack, { backgroundColor: colors.borderSubtle }]}>
+            <View
+              style={[
+                s.trendBar,
+                {
+                  backgroundColor: colors.primary,
+                  width: `${Math.round((p.e1rm / max) * 100)}%`,
+                },
+              ]}
+            />
           </View>
           <View style={s.trendRight}>
-            <Text style={s.trendE1rm}>{p.e1rm}</Text>
-            <Text style={s.trendEffort}>{p.effort}</Text>
+            <ThemedText variant="secondary" style={s.trendE1rm}>{p.e1rm}</ThemedText>
+            <ThemedText variant="tertiary" style={s.trendEffort}>{p.effort}</ThemedText>
           </View>
         </View>
       ))}
@@ -134,24 +153,30 @@ interface PastResultCardProps {
 }
 
 function PastResultCard({ result, onPress }: PastResultCardProps) {
+  const { colors } = useTheme()
   const visibleSets = result.movementSets.slice(0, 4)
   return (
-    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.7}>
-      <View style={s.cardHeader}>
-        <Text style={s.cardDate}>{shortDate(result.workout.scheduledAt)}</Text>
-        <Text style={s.cardTitle} numberOfLines={1}>{result.workout.title}</Text>
-      </View>
-      <View style={s.cardSets}>
-        {visibleSets.map((set, i) => (
-          <Text key={i} style={s.cardSet}>
-            <Text style={s.cardSetNum}>{i + 1}  </Text>
-            {describeSet(set, result.loadUnit)}
-          </Text>
-        ))}
-        {result.movementSets.length > 4 && (
-          <Text style={s.cardMore}>+{result.movementSets.length - 4} more</Text>
-        )}
-      </View>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <ThemedView variant="card" style={[s.card, { borderColor: colors.borderSubtle }]}>
+        <View style={[s.cardHeader, { borderBottomColor: colors.borderSubtle }]}>
+          <ThemedText variant="tertiary" style={s.cardDate}>{shortDate(result.workout.scheduledAt)}</ThemedText>
+          <ThemedText variant="secondary" style={s.cardTitle} numberOfLines={1}>{result.workout.title}</ThemedText>
+        </View>
+        <View style={s.cardSets}>
+          {visibleSets.map((set, i) => (
+            <ThemedText key={i} variant="tertiary" style={s.cardSet}>
+              <ThemedText variant="label">{i + 1}  </ThemedText>
+              {describeSet(set, result.loadUnit)}
+            </ThemedText>
+          ))}
+          {result.movementSets.length > 4 && (
+            <ThemedText variant="label" style={s.cardMore}>+{result.movementSets.length - 4} more</ThemedText>
+          )}
+        </View>
+      </ThemedView>
     </TouchableOpacity>
   )
 }
@@ -167,6 +192,7 @@ interface BackfillModalProps {
 }
 
 function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: BackfillModalProps) {
+  const { colors, isDark } = useTheme()
   const [loadInput, setLoadInput] = useState('')
   const [notes, setNotes] = useState('')
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -215,41 +241,50 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
     }
   }
 
+  const inputStyle = {
+    backgroundColor: colors.inputBg,
+    borderColor: colors.borderInteractive,
+    color: colors.textPrimary,
+  }
+
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
-        style={s.modalOverlay}
+        style={[s.modalOverlay, { backgroundColor: colors.modalScrim }]}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={s.modalSheet}>
+        <ThemedView
+          variant="card"
+          style={[s.modalSheet, { borderColor: colors.borderSubtle }]}
+        >
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <Text style={s.modalTitle}>{rm}RM — {movementName}</Text>
-            <Text style={s.modalSubtitle}>Log your max effort for this rep count</Text>
+            <ThemedText style={s.modalTitle}>{rm}RM — {movementName}</ThemedText>
+            <ThemedText variant="tertiary" style={s.modalSubtitle}>Log your max effort for this rep count</ThemedText>
 
-            <Text style={s.fieldLabel}>LOAD (LB)</Text>
+            <ThemedText variant="label" style={s.fieldLabel}>LOAD (LB)</ThemedText>
             <TextInput
-              style={s.loadInput}
+              style={[s.loadInput, inputStyle]}
               value={loadInput}
               onChangeText={setLoadInput}
               keyboardType="decimal-pad"
               placeholder="e.g. 185"
-              placeholderTextColor="#4b5563"
+              placeholderTextColor={colors.textPlaceholder}
               autoFocus
             />
 
-            <Text style={s.fieldLabel}>NOTES (OPTIONAL)</Text>
+            <ThemedText variant="label" style={s.fieldLabel}>NOTES (OPTIONAL)</ThemedText>
             <TextInput
-              style={s.notesInput}
+              style={[s.notesInput, inputStyle]}
               value={notes}
               onChangeText={setNotes}
               placeholder="How did it feel? Any context…"
-              placeholderTextColor="#4b5563"
+              placeholderTextColor={colors.textPlaceholder}
               multiline
               numberOfLines={3}
               textAlignVertical="top"
             />
 
-            <Text style={s.fieldLabel}>DATE</Text>
+            <ThemedText variant="label" style={s.fieldLabel}>DATE</ThemedText>
             {Platform.OS === 'ios' ? (
               <DateTimePicker
                 value={selectedDate}
@@ -258,18 +293,18 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
                 maximumDate={maxDate}
                 onChange={(_, date) => { if (date) setSelectedDate(date) }}
                 style={s.datePicker}
-                themeVariant="dark"
+                themeVariant={isDark ? 'dark' : 'light'}
               />
             ) : (
               <>
                 <TouchableOpacity
-                  style={s.dateRow}
+                  style={[s.dateRow, inputStyle]}
                   onPress={() => setShowAndroidPicker(true)}
                   activeOpacity={0.7}
                 >
-                  <Text style={s.dateLabel}>
+                  <ThemedText variant="secondary" style={s.dateLabel}>
                     {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </Text>
+                  </ThemedText>
                 </TouchableOpacity>
                 {showAndroidPicker && (
                   <DateTimePicker
@@ -288,23 +323,27 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
           </ScrollView>
 
           <View style={s.modalActions}>
-            <TouchableOpacity style={s.cancelBtn} onPress={onClose} activeOpacity={0.7}>
-              <Text style={s.cancelBtnText}>Cancel</Text>
+            <TouchableOpacity
+              style={[s.cancelBtn, { backgroundColor: colors.surfaceSubtle }]}
+              onPress={onClose}
+              activeOpacity={0.7}
+            >
+              <ThemedText variant="tertiary" style={s.cancelBtnText}>Cancel</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[s.saveBtn, saving && s.saveBtnDisabled]}
+              style={[s.saveBtn, { backgroundColor: colors.primary }, saving && s.saveBtnDisabled]}
               onPress={handleSave}
               activeOpacity={0.8}
               disabled={saving}
             >
               {saving ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={colors.onPrimary} />
               ) : (
-                <Text style={s.saveBtnText}>Save</Text>
+                <ThemedText style={[s.saveBtnText, { color: colors.onPrimary }]}>Save</ThemedText>
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </ThemedView>
       </KeyboardAvoidingView>
     </Modal>
   )
@@ -315,10 +354,14 @@ function BackfillModal({ movementId, movementName, rm, onClose, onSaved }: Backf
 interface Props {
   movementId: string
   movementName: string
-  navigation: StackNavigationProp<RootStackParamList, 'WodDetail'>
+  // Loose nav type so this component can be mounted from any screen in
+  // the root stack (WodDetail, GoalDetail, etc.). The component only
+  // pushes to 'WodDetail' internally.
+  navigation: StackNavigationProp<RootStackParamList>
 }
 
 export default function MovementHistorySection({ movementId, movementName, navigation }: Props) {
+  const { colors } = useTheme()
   const [data, setData] = useState<MovementHistoryPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [pendingRm, setPendingRm] = useState<number | null>(null)
@@ -336,7 +379,7 @@ export default function MovementHistorySection({ movementId, movementName, navig
   if (loading) {
     return (
       <View style={s.loadingRow}>
-        <ActivityIndicator size="small" color="#818cf8" />
+        <ActivityIndicator size="small" color={colors.primary} />
       </View>
     )
   }
@@ -349,7 +392,7 @@ export default function MovementHistorySection({ movementId, movementName, navig
 
   return (
     <View style={s.root}>
-      <Text style={s.movementName}>{movementName}</Text>
+      <ThemedText variant="tertiary" style={s.movementName}>{movementName}</ThemedText>
 
       {isStrength && (
         <StrengthPrTable
@@ -363,7 +406,7 @@ export default function MovementHistorySection({ movementId, movementName, navig
 
       {hasResults && (
         <View style={s.pastResults}>
-          <Text style={s.subLabel}>PAST RESULTS</Text>
+          <ThemedText variant="label" style={s.subLabel}>PAST RESULTS</ThemedText>
           {data.results.map((r) => (
             <PastResultCard
               key={r.id}
@@ -396,6 +439,10 @@ export default function MovementHistorySection({ movementId, movementName, navig
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
+//
+// Module-level static styles. Anything theme-dependent (background, border,
+// text color) is layered on inline at the call site from useTheme() — see the
+// design-system docs in apps/mobile/CLAUDE.md.
 
 const s = StyleSheet.create({
   root: {
@@ -409,14 +456,12 @@ const s = StyleSheet.create({
   movementName: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6b7280',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   subLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#4b5563',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -430,32 +475,26 @@ const s = StyleSheet.create({
   },
   rmCell: {
     alignItems: 'center',
-    backgroundColor: '#111827',
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#1f2937',
     paddingHorizontal: 10,
     paddingVertical: 6,
     minWidth: 52,
   },
   rmCellEmpty: {
     borderStyle: 'dashed',
-    borderColor: '#374151',
   },
   rmRep: {
     fontSize: 10,
-    color: '#6b7280',
   },
   rmLoad: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#ffffff',
     marginTop: 2,
   },
   rmEmpty: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#374151',
     marginTop: 2,
   },
 
@@ -471,19 +510,16 @@ const s = StyleSheet.create({
   },
   trendDate: {
     fontSize: 11,
-    color: '#6b7280',
     width: 46,
   },
   trendTrack: {
     flex: 1,
     height: 6,
-    backgroundColor: '#1f2937',
     borderRadius: 3,
     overflow: 'hidden',
   },
   trendBar: {
     height: '100%',
-    backgroundColor: '#818cf8',
     borderRadius: 3,
   },
   trendRight: {
@@ -493,11 +529,9 @@ const s = StyleSheet.create({
   trendE1rm: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#e5e7eb',
   },
   trendEffort: {
     fontSize: 10,
-    color: '#6b7280',
   },
 
   // Past result cards
@@ -505,10 +539,8 @@ const s = StyleSheet.create({
     gap: 6,
   },
   card: {
-    backgroundColor: '#111827',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1f2937',
     overflow: 'hidden',
   },
   cardHeader: {
@@ -518,17 +550,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   cardDate: {
     fontSize: 11,
-    color: '#6b7280',
     flexShrink: 0,
   },
   cardTitle: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#d1d5db',
     flex: 1,
   },
   cardSets: {
@@ -538,15 +567,10 @@ const s = StyleSheet.create({
   },
   cardSet: {
     fontSize: 12,
-    color: '#9ca3af',
     fontVariant: ['tabular-nums'],
-  },
-  cardSetNum: {
-    color: '#4b5563',
   },
   cardMore: {
     fontSize: 11,
-    color: '#4b5563',
     marginTop: 2,
   },
 
@@ -554,16 +578,13 @@ const s = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   modalSheet: {
-    backgroundColor: '#111827',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: '#1f2937',
     paddingTop: 24,
     paddingHorizontal: 24,
     paddingBottom: 0,
@@ -572,28 +593,22 @@ const s = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#f9fafb',
     marginBottom: 4,
   },
   modalSubtitle: {
     fontSize: 13,
-    color: '#6b7280',
     marginBottom: 24,
   },
   fieldLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#4b5563',
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   loadInput: {
-    backgroundColor: '#0f172a',
     borderWidth: 1,
-    borderColor: '#374151',
     borderRadius: 8,
-    color: '#f9fafb',
     fontSize: 20,
     fontWeight: '600',
     paddingHorizontal: 14,
@@ -601,11 +616,8 @@ const s = StyleSheet.create({
     marginBottom: 20,
   },
   notesInput: {
-    backgroundColor: '#0f172a',
     borderWidth: 1,
-    borderColor: '#374151',
     borderRadius: 8,
-    color: '#f9fafb',
     fontSize: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -617,9 +629,7 @@ const s = StyleSheet.create({
     marginHorizontal: -8,
   },
   dateRow: {
-    backgroundColor: '#0f172a',
     borderWidth: 1,
-    borderColor: '#374151',
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 14,
@@ -628,7 +638,6 @@ const s = StyleSheet.create({
   dateLabel: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#e5e7eb',
   },
   modalActions: {
     flexDirection: 'row',
@@ -638,7 +647,6 @@ const s = StyleSheet.create({
   },
   cancelBtn: {
     flex: 1,
-    backgroundColor: '#1f2937',
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
@@ -646,11 +654,9 @@ const s = StyleSheet.create({
   cancelBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#9ca3af',
   },
   saveBtn: {
     flex: 2,
-    backgroundColor: '#4f46e5',
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
@@ -661,6 +667,5 @@ const s = StyleSheet.create({
   saveBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#ffffff',
   },
 })

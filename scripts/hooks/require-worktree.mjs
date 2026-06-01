@@ -27,6 +27,12 @@
 import { existsSync, lstatSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 
+// In GitHub Actions the runner checkout is a plain (non-worktree) git dir,
+// and the project hooks are restored by the Claude review action from
+// origin/main. The worktree-enforcement policy is a local-developer rule —
+// blocking the review agent here only wastes its turn budget.
+if (process.env.GITHUB_ACTIONS === 'true') process.exit(0)
+
 // ─── Read hook context from stdin ──────────────────────────────────────────
 let raw = ''
 for await (const chunk of process.stdin) raw += chunk

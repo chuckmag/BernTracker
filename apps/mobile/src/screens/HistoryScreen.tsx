@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import {
   View,
-  Text,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -15,6 +14,9 @@ import type { HistoryStackParamList, MainTabParamList, RootStackParamList } from
 import { api, type ResultHistoryItem } from '../lib/api'
 import { formatResultValue, monthKey, shortDate } from '../lib/format'
 import { styleFor } from '../lib/workoutTypeStyles'
+import { useTheme } from '../lib/theme'
+import ThemedText from '../components/ThemedText'
+import ThemedView from '../components/ThemedView'
 
 type Props = CompositeScreenProps<
   StackScreenProps<HistoryStackParamList, 'History'>,
@@ -30,8 +32,6 @@ interface MonthBlock {
   month: string
   results: ResultHistoryItem[]
 }
-
-const PAGE_SIZE = 20
 
 function groupByMonth(results: ResultHistoryItem[]): MonthBlock[] {
   const byMonth: Record<string, ResultHistoryItem[]> = {}
@@ -50,26 +50,31 @@ function groupByMonth(results: ResultHistoryItem[]): MonthBlock[] {
 function ResultRow({ item, onPress }: { item: ResultHistoryItem; onPress: () => void }) {
   const ts = styleFor(item.workout.type)
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.rowLeft}>
-        <View style={[styles.typeBadge, { backgroundColor: ts.bgTint }]}>
-          <Text style={[styles.typeAbbr, { color: ts.tint }]}>{ts.abbr}</Text>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <ThemedView variant="card" style={styles.row}>
+        <View style={styles.rowLeft}>
+          <View style={[styles.typeBadge, { backgroundColor: ts.bgTint }]}>
+            <ThemedText style={[styles.typeAbbr, { color: ts.tint }]}>{ts.abbr}</ThemedText>
+          </View>
+          <View style={styles.rowBody}>
+            <ThemedText style={styles.rowTitle} numberOfLines={1}>{item.workout.title}</ThemedText>
+            <ThemedText variant="tertiary" style={styles.rowMeta}>
+              {shortDate(item.workout.scheduledAt)} · {item.level.replace('_', '+')}
+            </ThemedText>
+          </View>
         </View>
-        <View style={styles.rowBody}>
-          <Text style={styles.rowTitle} numberOfLines={1}>{item.workout.title}</Text>
-          <Text style={styles.rowMeta}>{shortDate(item.workout.scheduledAt)} · {item.level.replace('_', '+')}</Text>
-        </View>
-      </View>
-      <Text style={styles.rowValue}>{formatResultValue(item.value)}</Text>
+        <ThemedText variant="secondary" style={styles.rowValue}>{formatResultValue(item.value)}</ThemedText>
+      </ThemedView>
     </TouchableOpacity>
   )
 }
 
 function MonthBlockItem({ block, onRowPress }: { block: MonthBlock; onRowPress: (item: ResultHistoryItem) => void }) {
+  const { colors } = useTheme()
   return (
     <View style={styles.monthBlock}>
-      <Text style={styles.monthHeader}>{block.month.toUpperCase()}</Text>
-      <View style={styles.divider} />
+      <ThemedText variant="tertiary" style={styles.monthHeader}>{block.month.toUpperCase()}</ThemedText>
+      <View style={[styles.divider, { backgroundColor: colors.borderSubtle }]} />
       {block.results.map((r) => (
         <ResultRow key={r.id} item={r} onPress={() => onRowPress(r)} />
       ))}
@@ -78,6 +83,7 @@ function MonthBlockItem({ block, onRowPress }: { block: MonthBlock; onRowPress: 
 }
 
 export default function HistoryScreen(_props: Props) {
+  const { colors } = useTheme()
   const navigation = useNavigation<RootNav>()
   const [blocks, setBlocks] = useState<MonthBlock[]>([])
   const [page, setPage] = useState(1)
@@ -115,80 +121,85 @@ export default function HistoryScreen(_props: Props) {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#818cf8" />
-      </View>
+      <ThemedView variant="screen" style={styles.center}>
+        <ActivityIndicator color={colors.primary} />
+      </ThemedView>
     )
   }
 
   return (
-    <FlatList
-      style={styles.container}
-      contentContainerStyle={blocks.length === 0 ? styles.centerContent : styles.listContent}
-      data={blocks}
-      keyExtractor={(b) => b.month}
-      renderItem={({ item }) => <MonthBlockItem block={item} onRowPress={handleRowPress} />}
-      ListEmptyComponent={
-        <View style={styles.center}>
-          <Text style={styles.emptyTitle}>No results yet.</Text>
-          <Text style={styles.emptyBody}>Log your first result on a workout to start your history.</Text>
-          {error && <Text style={styles.error}>{error}</Text>}
-        </View>
-      }
-      ListFooterComponent={
-        pages > 1 ? (
-          <View style={styles.pagination}>
-            <TouchableOpacity
-              style={[styles.pageBtn, page <= 1 && styles.pageBtnDisabled]}
-              disabled={page <= 1}
-              onPress={() => load(page - 1)}
-            >
-              <Text style={styles.pageBtnText}>Prev</Text>
-            </TouchableOpacity>
-            <Text style={styles.pageMeta}>Page {page} of {pages}</Text>
-            <TouchableOpacity
-              style={[styles.pageBtn, page >= pages && styles.pageBtnDisabled]}
-              disabled={page >= pages}
-              onPress={() => load(page + 1)}
-            >
-              <Text style={styles.pageBtnText}>Next</Text>
-            </TouchableOpacity>
+    <ThemedView variant="screen" style={styles.container}>
+      <FlatList
+        contentContainerStyle={blocks.length === 0 ? styles.centerContent : styles.listContent}
+        data={blocks}
+        keyExtractor={(b) => b.month}
+        renderItem={({ item }) => <MonthBlockItem block={item} onRowPress={handleRowPress} />}
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <ThemedText variant="tertiary" style={styles.emptyTitle}>No results yet.</ThemedText>
+            <ThemedText variant="tertiary" style={styles.emptyBody}>Log your first result on a workout to start your history.</ThemedText>
+            {error && <ThemedText style={[styles.error, { color: colors.errorText }]}>{error}</ThemedText>}
           </View>
-        ) : null
-      }
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#818cf8" />
-      }
-    />
+        }
+        ListFooterComponent={
+          pages > 1 ? (
+            <View style={styles.pagination}>
+              <TouchableOpacity
+                style={[
+                  styles.pageBtn,
+                  { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+                  page <= 1 && styles.pageBtnDisabled,
+                ]}
+                disabled={page <= 1}
+                onPress={() => load(page - 1)}
+              >
+                <ThemedText variant="secondary" style={styles.pageBtnText}>Prev</ThemedText>
+              </TouchableOpacity>
+              <ThemedText variant="tertiary" style={styles.pageMeta}>Page {page} of {pages}</ThemedText>
+              <TouchableOpacity
+                style={[
+                  styles.pageBtn,
+                  { backgroundColor: colors.cardBg, borderColor: colors.borderInteractive },
+                  page >= pages && styles.pageBtnDisabled,
+                ]}
+                disabled={page >= pages}
+                onPress={() => load(page + 1)}
+              >
+                <ThemedText variant="secondary" style={styles.pageBtnText}>Next</ThemedText>
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+        }
+      />
+    </ThemedView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#030712' },
+  container: { flex: 1 },
   listContent: { paddingVertical: 16 },
   centerContent: { flex: 1 },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#030712',
     paddingHorizontal: 24,
   },
   emptyTitle: {
-    color: '#9ca3af',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 6,
     textAlign: 'center',
   },
   emptyBody: {
-    color: '#6b7280',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
   },
   error: {
-    color: '#f87171',
     fontSize: 13,
     marginTop: 12,
     textAlign: 'center',
@@ -197,13 +208,11 @@ const styles = StyleSheet.create({
   monthHeader: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#6b7280',
     letterSpacing: 0.8,
     marginBottom: 6,
   },
-  divider: { height: 1, backgroundColor: '#1f2937', marginBottom: 8 },
+  divider: { height: 1, marginBottom: 8 },
   row: {
-    backgroundColor: '#111827',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
@@ -224,9 +233,9 @@ const styles = StyleSheet.create({
   },
   typeAbbr: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
   rowBody: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '600', color: '#ffffff', marginBottom: 2 },
-  rowMeta: { fontSize: 12, color: '#6b7280' },
-  rowValue: { fontSize: 14, fontWeight: '600', color: '#e5e7eb', marginLeft: 8 },
+  rowTitle: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
+  rowMeta: { fontSize: 12 },
+  rowValue: { fontSize: 14, fontWeight: '600', marginLeft: 8 },
   pagination: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -237,12 +246,10 @@ const styles = StyleSheet.create({
   pageBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#111827',
     borderWidth: 1,
-    borderColor: '#374151',
     borderRadius: 8,
   },
   pageBtnDisabled: { opacity: 0.4 },
-  pageBtnText: { color: '#e5e7eb', fontSize: 14, fontWeight: '500' },
-  pageMeta: { color: '#6b7280', fontSize: 13 },
+  pageBtnText: { fontSize: 14, fontWeight: '500' },
+  pageMeta: { fontSize: 13 },
 })

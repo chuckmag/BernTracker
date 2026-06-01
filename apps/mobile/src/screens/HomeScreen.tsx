@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
-  Text,
   ScrollView,
   RefreshControl,
   StyleSheet,
@@ -20,6 +19,10 @@ import WodHeroCard from '../components/WodHeroCard'
 import LeaderboardCard from '../components/LeaderboardCard'
 import UpcomingCard from '../components/UpcomingCard'
 import HotTodayCard from '../components/HotTodayCard'
+import GoalsCard from '../components/GoalsCard'
+import { useTheme } from '../lib/theme'
+import ThemedText from '../components/ThemedText'
+import ThemedView from '../components/ThemedView'
 
 function firstNameOf(user: { firstName?: string | null; name?: string | null } | null): string | null {
   if (user?.firstName) return user.firstName
@@ -38,6 +41,7 @@ function dashboardStorageKey(gymId: string): string {
 }
 
 export default function HomeScreen() {
+  const { colors } = useTheme()
   const { activeGym } = useGym()
   const { user } = useAuth()
   const { available, defaultProgramId } = useProgramFilter()
@@ -135,75 +139,79 @@ export default function HomeScreen() {
   const upcomingProgramIds = selectedProgramId ? [selectedProgramId] : undefined
 
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#818cf8" />}
-    >
-      {/* Greeting row: 60% greeting, 30% program picker */}
-      <View style={styles.greetingRow}>
-        <Text style={styles.greeting}>{greeting}</Text>
-        {showPicker && (
-          <View style={styles.pickerSlot}>
-            <DashboardProgramPicker
-              available={available}
-              selectedId={selectedProgramId}
-              onSelect={handleSelectProgram}
-            />
-          </View>
+    <ThemedView variant="screen" style={styles.root}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      >
+        {/* Greeting row: 60% greeting, 30% program picker */}
+        <View style={styles.greetingRow}>
+          <ThemedText style={styles.greeting}>{greeting}</ThemedText>
+          {showPicker && (
+            <View style={styles.pickerSlot}>
+              <DashboardProgramPicker
+                available={available}
+                selectedId={selectedProgramId}
+                onSelect={handleSelectProgram}
+              />
+            </View>
+          )}
+        </View>
+
+        {loading && !refreshing && (
+          <ThemedView variant="card" style={[styles.loadingCard, { borderColor: colors.borderSubtle }]}>
+            <View style={[styles.loadingShimmer, { backgroundColor: colors.surfaceSubtle }]} />
+            <View style={[styles.loadingShimmer, { backgroundColor: colors.surfaceSubtle, width: '70%', marginTop: 8 }]} />
+          </ThemedView>
         )}
-      </View>
 
-      {loading && !refreshing && (
-        <View style={styles.loadingCard}>
-          <View style={styles.loadingShimmer} />
-          <View style={[styles.loadingShimmer, { width: '70%', marginTop: 8 }]} />
-        </View>
-      )}
+        {!loading && error && (
+          <ThemedView variant="card" style={[styles.errorCard, { borderColor: colors.borderSubtle }]}>
+            <ThemedText variant="tertiary" style={styles.errorText}>{error}</ThemedText>
+          </ThemedView>
+        )}
 
-      {!loading && error && (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
+        {!loading && data && (data.workouts?.length ?? 0) > 0 && (() => {
+          const activeEntry = data.workouts[activeWorkoutIdx] ?? data.workouts[0]
+          return (
+            <>
+              <WodHeroCard
+                workouts={data.workouts}
+                gymMemberCount={data.gymMemberCount}
+                activeIdx={activeWorkoutIdx}
+                onActiveIdxChange={setActiveWorkoutIdx}
+              />
+              <LeaderboardCard
+                workoutId={activeEntry.workout.id}
+                workoutTitle={activeEntry.workout.title}
+                myUserId={user?.id ?? ''}
+              />
+            </>
+          )
+        })()}
 
-      {!loading && data && (data.workouts?.length ?? 0) > 0 && (() => {
-        const activeEntry = data.workouts[activeWorkoutIdx] ?? data.workouts[0]
-        return (
-          <>
-            <WodHeroCard
-              workouts={data.workouts}
-              gymMemberCount={data.gymMemberCount}
-              activeIdx={activeWorkoutIdx}
-              onActiveIdxChange={setActiveWorkoutIdx}
-            />
-            <LeaderboardCard
-              workoutId={activeEntry.workout.id}
-              workoutTitle={activeEntry.workout.title}
-              myUserId={user?.id ?? ''}
-            />
-          </>
-        )
-      })()}
+        {!loading && data && !(data.workouts?.length) && (
+          <WodHeroCard
+            workouts={[]}
+            gymMemberCount={data.gymMemberCount}
+            activeIdx={0}
+            onActiveIdxChange={setActiveWorkoutIdx}
+          />
+        )}
 
-      {!loading && data && !(data.workouts?.length) && (
-        <WodHeroCard
-          workouts={[]}
-          gymMemberCount={data.gymMemberCount}
-          activeIdx={0}
-          onActiveIdxChange={setActiveWorkoutIdx}
-        />
-      )}
+        {/* My Goals — fetches its own data; renders regardless of WOD presence. */}
+        {!loading && <GoalsCard />}
 
-      {!loading && activeGym && (
-        <UpcomingCard gymId={activeGym.id} programIds={upcomingProgramIds} />
-      )}
+        {!loading && activeGym && (
+          <UpcomingCard gymId={activeGym.id} programIds={upcomingProgramIds} />
+        )}
 
-      {/* Hot Today — top results by social activity (reactions + comments) */}
-      {!loading && data && (data.workouts?.length ?? 0) > 0 && (
-        <HotTodayCard workoutId={(data.workouts[activeWorkoutIdx] ?? data.workouts[0]).workout.id} />
-      )}
-    </ScrollView>
+        {/* Hot Today — top results by social activity (reactions + comments) */}
+        {!loading && data && (data.workouts?.length ?? 0) > 0 && (
+          <HotTodayCard workoutId={(data.workouts[activeWorkoutIdx] ?? data.workouts[0]).workout.id} />
+        )}
+      </ScrollView>
+    </ThemedView>
   )
 }
 
@@ -216,6 +224,7 @@ function DashboardProgramPicker({
   selectedId: string
   onSelect: (id: string) => void
 }) {
+  const { colors } = useTheme()
   const [open, setOpen] = useState(false)
 
   const selectedGp = available.find((gp) => gp.program.id === selectedId)
@@ -235,33 +244,38 @@ function DashboardProgramPicker({
   return (
     <>
       <TouchableOpacity
-        style={styles.pickerBtn}
+        style={[styles.pickerBtn, { backgroundColor: colors.inputBg, borderColor: colors.borderInteractive }]}
         onPress={() => setOpen(true)}
         accessibilityLabel="Filter by program"
       >
-        <Text style={styles.pickerBtnText}>{label}</Text>
-        <Text style={styles.pickerChevron}>▾</Text>
+        <ThemedText variant="secondary" style={styles.pickerBtnText}>{label}</ThemedText>
+        <ThemedText style={[styles.pickerChevron, { color: colors.primary }]}>▾</ThemedText>
       </TouchableOpacity>
 
       <Modal animationType="fade" transparent visible={open} onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Program</Text>
-            {options.map((p) => {
-              const isSelected = selectedId === p.id
-              return (
-                <TouchableOpacity
-                  key={p.id}
-                  style={styles.sheetRow}
-                  onPress={() => { onSelect(p.id); setOpen(false) }}
-                >
-                  <Text style={[styles.sheetRowText, isSelected && styles.sheetRowSelected]}>
-                    {p.name}{p.isDefault ? ' (Default)' : ''}
-                  </Text>
-                  {isSelected && <Text style={styles.sheetCheckmark}>✓</Text>}
-                </TouchableOpacity>
-              )
-            })}
+        <Pressable style={[styles.backdrop, { backgroundColor: colors.modalScrim }]} onPress={() => setOpen(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <ThemedView variant="card" style={styles.sheet}>
+              <ThemedText style={styles.sheetTitle}>Program</ThemedText>
+              {options.map((p) => {
+                const isSelected = selectedId === p.id
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[styles.sheetRow, { borderBottomColor: colors.borderSubtle }]}
+                    onPress={() => { onSelect(p.id); setOpen(false) }}
+                  >
+                    <ThemedText
+                      variant="secondary"
+                      style={[styles.sheetRowText, isSelected && { color: colors.primary, fontWeight: '600' }]}
+                    >
+                      {p.name}{p.isDefault ? ' (Default)' : ''}
+                    </ThemedText>
+                    {isSelected && <ThemedText style={[styles.sheetCheckmark, { color: colors.primary }]}>✓</ThemedText>}
+                  </TouchableOpacity>
+                )
+              })}
+            </ThemedView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -272,7 +286,6 @@ function DashboardProgramPicker({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#030712',
   },
   content: {
     padding: 14,
@@ -288,7 +301,6 @@ const styles = StyleSheet.create({
     flex: 6,
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
     letterSpacing: -0.3,
     flexWrap: 'wrap',
   },
@@ -299,33 +311,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1f2937',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#374151',
     flexShrink: 1,
   },
   pickerBtnText: {
-    color: '#e5e7eb',
     fontSize: 12,
     fontWeight: '500',
     flex: 1,
     flexWrap: 'wrap',
   },
   pickerChevron: {
-    color: '#818cf8',
     fontSize: 11,
     marginLeft: 4,
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#111827',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingTop: 20,
@@ -335,7 +341,6 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
     marginBottom: 12,
   },
   sheetRow: {
@@ -344,46 +349,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
   },
   sheetRowText: {
     fontSize: 15,
-    color: '#d1d5db',
     flex: 1,
   },
-  sheetRowSelected: {
-    color: '#818cf8',
-    fontWeight: '600',
-  },
   sheetCheckmark: {
-    color: '#818cf8',
     fontSize: 16,
     fontWeight: '700',
     marginLeft: 8,
   },
   loadingCard: {
-    backgroundColor: '#111827',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
     padding: 20,
     minHeight: 120,
   },
   loadingShimmer: {
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#1f2937',
     width: '90%',
   },
   errorCard: {
-    backgroundColor: '#111827',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#1f2937',
     padding: 20,
   },
   errorText: {
     fontSize: 14,
-    color: '#9ca3af',
   },
 })

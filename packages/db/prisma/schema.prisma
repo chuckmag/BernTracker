@@ -206,6 +206,33 @@ enum WorkoutImportStatus {
   FAILED
 }
 
+// Personal goals set by a member. Three shapes:
+//   PR_TARGET — hit a target PR on a Movement or a NamedWorkout (benchmark).
+//   FREQUENCY — log N workouts per week for M weeks (rolling window).
+//   HABIT     — open-ended habit (e.g. "avoid added sugars"). v1 supports
+//               creating habit goals so the goal feels real on the
+//               dashboard, but check-in recording (the manual tap that
+//               registers progress) lands in v2 alongside the GoalCheckIn
+//               table. Until then a habit goal is title + optional target
+//               date with no progress affordance.
+enum GoalType {
+  PR_TARGET
+  FREQUENCY
+  HABIT
+}
+
+// Lifecycle of a Goal.
+//   ACTIVE    — being chased; surfaces on the dashboard card.
+//   COMPLETED — auto-flipped by detect* hooks when the target is met (or
+//               manually marked complete by the user).
+//   ARCHIVED  — user-dismissed without completion; hidden from the active
+//               list but kept for history.
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -249,6 +276,8 @@ model User {
   workoutPlans          UserWorkoutPlan[]
   createdWorkoutPlans   UserWorkoutPlan[]      @relation("UserWorkoutPlanCreatedBy")
   benchmarkResults      BenchmarkResult[]
+  goals                 Goal[]
+  goalCheckIns          GoalCheckIn[]
 }
 
 model OAuthAccount {
@@ -439,6 +468,7 @@ model NamedWorkout {
   templateWorkoutId String?   @unique
   templateWorkout   Workout?  @relation("NamedWorkoutTemplate", fields: [templateWorkoutId], references: [id])
   workouts          Workout[] @relation("NamedWorkoutInstances")
+  goals             Goal[]
 }
 
 model BenchmarkResult {
@@ -587,6 +617,7 @@ model Movement {
   variations Movement[]        @relation("MovementVariations")
   workouts   WorkoutMovement[]
   prs        MovementPR[]
+  goals      Goal[]
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
@@ -740,4 +771,117 @@ model UserWorkoutPlan {
 
   @@unique([userId, workoutId])
   @@index([workoutId])
+}
+
+// ─── Goals ────────────────────────────────────────────────────────────────────
+
+// A member's personal goal. Three shapes:
+//
+// PR_TARGET — chase a target PR on a Movement (e.g. "Back Squat 1RM 315 lb")
+//   OR a NamedWorkout benchmark (e.g. "Fran sub-4:00"). Exactly one of
+//   movementId / namedWorkoutId is set. `targetPrType` picks the dimension
+//   (LOAD vs MAX_REPS vs TIME vs DISTANCE vs CALORIES). The numeric target
+//   lives in `targetValue`; the unit (when needed) lives in `targetLoadUnit`
+//   or `targetDistanceUnit`. For LOAD goals, `targetRepCount` says which
+//   rep PR is being chased (1RM, 3RM, …). Auto-completion is driven by the
+//   existing `detectAndUpsertStrengthPrs` hook (movements) and the
+//   BenchmarkResult write path (benchmarks).
+//
+// FREQUENCY — log `frequencyPerWeek` workouts per week for
+//   `frequencyWeeks` weeks. `frequencyStartDate` defaults to `createdAt`
+//   if null. Progress is derived at read time from Result row counts in
+//   the rolling window; no separate progress table.
+//
+// HABIT — open-ended habit (e.g. "avoid added sugars"). In v1 the row
+//   stores only `title` + optional `targetDate`; every PR_TARGET and
+//   FREQUENCY column stays null. The goal renders on the dashboard but
+//   has no progress affordance until v2 adds a GoalCheckIn sibling table
+//   for the manual tap that registers a check-in. Completion is manual
+//   (user marks status=COMPLETED) — there is no auto-detection.
+//
+// Cross-type invariants (enforced at the API layer via Zod, not in the DB):
+//   - PR_TARGET ⇒ XOR(movementId, namedWorkoutId), targetPrType + targetValue set.
+//   - FREQUENCY ⇒ frequencyPerWeek + frequencyWeeks set.
+//   - HABIT     ⇒ all PR_TARGET / FREQUENCY columns null.
+model Goal {
+  id         String     @id @default(cuid())
+  userId     String
+  type       GoalType
+  status     GoalStatus @default(ACTIVE)
+  title      String
+  // Optional target date — encouraged via a SMART-goal hint in the UI but
+  // never required. Date-only since "by Friday" is the granularity users
+  // think in.
+  targetDate DateTime?  @db.Date
+
+  // ─── PR Target fields ────────────────────────────────────────────────
+  movementId         String?
+  namedWorkoutId     String?
+  targetPrType       MovementPrType?
+  // The numeric target. Interpretation depends on `targetPrType`:
+  //   LOAD     → weight (paired with targetLoadUnit + targetRepCount)
+  //   TIME     → seconds
+  //   MAX_REPS → reps
+  //   DISTANCE → distance value (paired with targetDistanceUnit)
+  //   CALORIES → calories
+  targetValue        Float?
+  targetLoadUnit     LoadUnit?
+  targetDistanceUnit DistanceUnit?
+  // For LOAD goals only: 1, 3, 5, … — matches MovementPR.repCount.
+  targetRepCount     Int?
+
+  // ─── Frequency fields ────────────────────────────────────────────────
+  frequencyPerWeek   Int?
+  frequencyWeeks     Int?
+  // Null = compute weeks-elapsed from createdAt.
+  frequencyStartDate DateTime? @db.Date
+
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movement     Movement?     @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  namedWorkout NamedWorkout? @relation(fields: [namedWorkoutId], references: [id], onDelete: Cascade)
+  checkIns     GoalCheckIn[]
+
+  @@index([userId, status])
+  @@index([userId, type])
+  @@index([movementId])
+  @@index([namedWorkoutId])
+}
+
+// One per-day confirmation that a HABIT-type Goal was honored. Progress
+// for habit goals is derived at read time from these rows (current streak,
+// longest streak, per-week counts), matching how PR-Target / Frequency
+// progress are derived from MovementPR / BenchmarkResult / Result rows.
+//
+// Only meaningful for Goal.type == HABIT. The schema does NOT enforce
+// that — the API layer rejects check-ins on PR_TARGET / FREQUENCY goals,
+// same pattern as the existing Goal cross-type invariants (enforced in
+// Zod, not the DB).
+//
+// One row per (goalId, date). Re-tapping today is a no-op upsert at the
+// manager layer, not a duplicate row — `note` may be edited via that
+// upsert.
+model GoalCheckIn {
+  id        String   @id @default(cuid())
+  goalId    String
+  userId    String
+  // Date-only — the habit was honored on this calendar day.
+  date      DateTime @db.Date
+  // Optional free-text note. Most check-ins are a single tap with no
+  // commentary; the API layer caps length (≤ 280 chars) to match other
+  // free-text fields in the codebase.
+  note      String?
+  createdAt DateTime @default(now())
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, date])
+  // Streak walk reads the most recent rows first per goal.
+  @@index([goalId, date(sort: Desc)])
+  // Cross-goal per-user reads (future use: profile streak summary).
+  @@index([userId, date(sort: Desc)])
 }

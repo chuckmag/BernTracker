@@ -1,0 +1,98 @@
+# Deterministic parity-first gate (no LLM, no API key needed).
+#
+# Per CLAUDE.md → "Parity-first feature design": any PR touching a phone-
+# suitable surface (apps/web/src/** or apps/mobile/**) must include a
+# `**Surface coverage:**` line in the PR body declaring which surfaces this
+# PR covers and linking sibling issues/PRs for the others.
+#
+# This workflow fails CI when that line is missing, and posts a sticky comment
+# explaining what to add. It's intentionally simple — no LLM, no flakiness.
+
+name: surface-coverage-check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: surface-coverage-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: List changed files
+        id: files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          files=$(gh pr diff "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --name-only)
+          echo "$files"
+          echo "files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$files" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Detect phone-suitable surface
+        id: detect
+        env:
+          FILES: ${{ steps.files.outputs.files }}
+        run: |
+          set -euo pipefail
+          touches_web=$(echo "$FILES" | grep -E '^apps/web/src/' || true)
+          touches_mobile=$(echo "$FILES" | grep -E '^apps/mobile/' || true)
+          if [ -n "$touches_web" ] || [ -n "$touches_mobile" ]; then
+            echo "phone_suitable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "phone_suitable=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify Surface coverage line is present
+        if: steps.detect.outputs.phone_suitable == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          marker="<!-- surface-coverage-check -->"
+          # Case-insensitive search for the required line. Accept "Surface coverage:"
+          # with or without the surrounding ** markdown bold.
+          if echo "$PR_BODY" | grep -qiE '(\*\*)?Surface coverage:(\*\*)?'; then
+            echo "✅ Surface coverage line found."
+            # Clean up any previous failure comment.
+            existing=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1 || true)
+            if [ -n "$existing" ]; then
+              gh api -X DELETE "repos/${{ github.repository }}/issues/comments/$existing" > /dev/null
+            fi
+            exit 0
+          fi
+
+          body="$marker
+          🚦 **Surface coverage line missing.**
+
+          This PR touches a phone-suitable surface (\`apps/web/src/**\` or \`apps/mobile/**\`), so per CLAUDE.md → *Parity-first feature design* the PR body must include a \`**Surface coverage:**\` line declaring which surfaces this PR covers and linking sibling issues/PRs for the others.
+
+          Add one of these to the PR body and re-run:
+
+          - \`**Surface coverage:** Covers web + mobile.\`
+          - \`**Surface coverage:** Covers web. Mobile: #NNN.\`
+          - \`**Surface coverage:** Covers mobile. Web: #NNN.\`
+          - \`**Surface coverage:** Desk-suitable only — N/A on mobile/web: <one-line rationale>.\`
+
+          See \`CLAUDE.md\` → *Pull requests* → *Testing section format* for the full template.
+          "
+
+          existing=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1 || true)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" -f body="$body" > /dev/null
+          else
+            gh pr comment "$PR_NUMBER" --repo "${{ github.repository }}" --body "$body"
+          fi
+
+          echo "::error::Surface coverage line missing from PR body. See the sticky comment for guidance."
+          exit 1

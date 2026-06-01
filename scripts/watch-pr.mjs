@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * watch-pr.mjs — Background daemon that watches a GitHub PR and tears down
- * the linked worktree when the PR is merged.
+ * watch-pr.mjs — Background daemon that watches a GitHub PR. Two jobs:
+ *   1. Tear down the linked worktree when the PR is merged.
+ *   2. Pull new review/issue/inline comments and append them to an inbox file
+ *      that local Claude Code hooks read on session boundaries.
  *
  * Spawned automatically by the PostToolUse hook (scripts/hooks/spawn-pr-watcher.mjs)
  * after `gh pr create` runs in a linked worktree. Can also be invoked manually:
@@ -13,7 +15,7 @@
  * from the current working directory (must be a linked worktree).
  *
  * Lifecycle:
- *   OPEN    → poll every POLL_INTERVAL_MS
+ *   OPEN    → poll every POLL_INTERVAL_MS (state + new comments)
  *   MERGED  → stop dev servers + git worktree remove → exit 0
  *   CLOSED  → log "closed without merge, keeping worktree" → exit 0
  *   Timeout → exit after MAX_AGE_DAYS
@@ -21,11 +23,22 @@
  * State files written to <main-repo>/.git/watch-pr/<pr-number>/:
  *   pid         — this process's PID (kill it to cancel watching)
  *   watcher.log — timestamped activity log
+ *   seen.json   — IDs of feedback entries already pulled (so restarts don't replay)
+ *   inbox.jsonl — append-only stream of new comments for the local Claude hooks
+ *
+ * Env:
+ *   WODALYTICS_PR_NOTIFY=1 — fire a macOS notification for each new comment
  */
 import { spawnSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, writeFileSync, appendFileSync, readFileSync, lstatSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  parseRepoFromPrUrl,
+  normalizeFeedback,
+  diffNew,
+  mergeSeen,
+} from './lib/pr-feedback.mjs'
 
 // ─── Args / auto-detect ────────────────────────────────────────────────────
 const prUrl = process.argv[2]
@@ -74,11 +87,111 @@ writeFileSync(resolve(watchDir, 'pid'), String(process.pid) + '\n')
 writeFileSync(resolve(watchDir, 'worktree'), worktreePath + '\n')
 
 const logFile = resolve(watchDir, 'watcher.log')
+const seenFile = resolve(watchDir, 'seen.json')
+const inboxFile = resolve(watchDir, 'inbox.jsonl')
 
 function log(msg) {
   const line = `${new Date().toISOString()}  ${msg}\n`
   process.stdout.write(line)
   appendFileSync(logFile, line)
+}
+
+// ─── Feedback fetch + diff ─────────────────────────────────────────────────
+const repo = parseRepoFromPrUrl(prUrl)
+if (!repo) log(`Could not parse owner/repo from URL "${prUrl}" — comment polling disabled.`)
+
+function loadSeen() {
+  if (!existsSync(seenFile)) return null
+  try {
+    return JSON.parse(readFileSync(seenFile, 'utf8'))
+  } catch (err) {
+    log(`seen.json unreadable (${err.message}) — treating as first run.`)
+    return null
+  }
+}
+
+function fetchFeedback() {
+  if (!repo) return null
+  // Two calls: gh pr view covers comments+reviews, gh api covers inline review comments.
+  const view = spawnSync(
+    'gh',
+    ['pr', 'view', prUrl, '--json', 'comments,reviews'],
+    { encoding: 'utf8', timeout: 30_000 },
+  )
+  if (view.status !== 0) {
+    log(`gh pr view --json comments,reviews failed (exit ${view.status}): ${(view.stderr || '').trim()}`)
+    return null
+  }
+  let viewJson
+  try {
+    viewJson = JSON.parse(view.stdout || '{}')
+  } catch (err) {
+    log(`Could not parse gh pr view JSON: ${err.message}`)
+    return null
+  }
+
+  const inline = spawnSync(
+    'gh',
+    ['api', `repos/${repo.owner}/${repo.repo}/pulls/${prNumber}/comments`, '--paginate'],
+    { encoding: 'utf8', timeout: 30_000 },
+  )
+  let reviewComments = []
+  if (inline.status === 0 && inline.stdout.trim()) {
+    try {
+      // --paginate concatenates JSON arrays with no separator; ungroup with a regex split.
+      // Easiest robust parse: replace `][` with `,` so it forms one array.
+      const merged = inline.stdout.replace(/\]\s*\[/g, ',')
+      reviewComments = JSON.parse(merged)
+    } catch (err) {
+      log(`Could not parse inline review comments JSON: ${err.message}`)
+    }
+  } else if (inline.status !== 0) {
+    log(`gh api inline comments failed (exit ${inline.status}): ${(inline.stderr || '').trim()}`)
+  }
+
+  return normalizeFeedback({
+    issueComments: viewJson.comments ?? [],
+    reviews: viewJson.reviews ?? [],
+    reviewComments,
+  })
+}
+
+function notify(entry) {
+  if (process.env.WODALYTICS_PR_NOTIFY !== '1') return
+  if (process.platform !== 'darwin') return
+  const titleSafe = `PR #${prNumber} — ${entry.author}`.replace(/"/g, '\\"')
+  const previewSafe = entry.body.slice(0, 120).replace(/[\n"]/g, ' ')
+  spawnSync(
+    'osascript',
+    ['-e', `display notification "${previewSafe}" with title "${titleSafe}"`],
+    { timeout: 3_000 },
+  )
+}
+
+function pollFeedback() {
+  if (!repo) return
+  const current = fetchFeedback()
+  if (!current) return  // failure already logged
+
+  const seen = loadSeen()
+  if (seen === null) {
+    // Seed mode — record everything currently on the PR without replaying.
+    const seeded = mergeSeen({}, current)
+    writeFileSync(seenFile, JSON.stringify(seeded, null, 2) + '\n')
+    log(`Seeded seen.json with ${current.length} existing entries (no replay).`)
+    return
+  }
+
+  const fresh = diffNew(current, seen)
+  if (fresh.length === 0) return
+
+  log(`PR #${prNumber}: ${fresh.length} new comment(s).`)
+  for (const entry of fresh) {
+    appendFileSync(inboxFile, JSON.stringify(entry) + '\n')
+    notify(entry)
+  }
+  const nextSeen = mergeSeen(seen, fresh)
+  writeFileSync(seenFile, JSON.stringify(nextSeen, null, 2) + '\n')
 }
 
 // ─── Config ────────────────────────────────────────────────────────────────
@@ -161,16 +274,28 @@ async function poll() {
     process.exit(0)
   }
 
+  // Pull new comments while the PR is open. Wrapped in try/catch so a
+  // transient gh failure never takes down the teardown watcher.
+  try {
+    pollFeedback()
+  } catch (err) {
+    log(`pollFeedback threw: ${err.stack ?? err.message}`)
+  }
+
   if (Date.now() - startedAt > MAX_AGE_MS) {
     log(`Watcher exceeded ${MAX_AGE_MS / 86400000} days. Exiting without teardown.`)
     process.exit(0)
   }
 }
 
-// Initial check immediately, then on interval
+// Initial check immediately, then on interval. The setInterval handle is
+// intentionally NOT unref'd — the watcher is a long-running daemon and the
+// scheduled timer is the only thing keeping the event loop alive between
+// polls. With `.unref()`, the process exited immediately after the first
+// poll, so comments arriving more than a few seconds after spawn were never
+// pulled until something else re-spawned the watcher.
 poll().then(() => {
-  const timer = setInterval(poll, POLL_INTERVAL_MS)
-  timer.unref()  // don't keep the process alive if nothing else is running
+  setInterval(poll, POLL_INTERVAL_MS)
 
   process.on('SIGTERM', () => {
     log('Received SIGTERM — exiting without teardown.')

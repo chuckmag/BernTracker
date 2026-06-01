@@ -1,4 +1,5 @@
 import { Image, View, Text, StyleSheet } from 'react-native'
+import { useTheme } from '../lib/theme'
 
 const SIZES = {
   sm: { box: 32, text: 11 },
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export default function UserAvatar({ avatarUrl, firstName, lastName, name, size = 'sm' }: Props) {
+  const { colors } = useTheme()
   const { box, text } = SIZES[size]
   const radius = box / 2
 
@@ -35,15 +37,15 @@ export default function UserAvatar({ avatarUrl, firstName, lastName, name, size 
     return (
       <Image
         source={{ uri: avatarUrl }}
-        style={[styles.image, { width: box, height: box, borderRadius: radius }]}
+        style={[styles.image, { width: box, height: box, borderRadius: radius, backgroundColor: colors.borderInteractive }]}
         accessibilityRole="image"
       />
     )
   }
 
   return (
-    <View style={[styles.placeholder, { width: box, height: box, borderRadius: radius }]}>
-      <Text style={[styles.initials, { fontSize: text }]}>
+    <View style={[styles.placeholder, { width: box, height: box, borderRadius: radius, backgroundColor: colors.primary }]}>
+      <Text style={[styles.initials, { fontSize: text, color: colors.onPrimary }]}>
         {initialsOf(firstName, lastName, name)}
       </Text>
     </View>
@@ -51,16 +53,12 @@ export default function UserAvatar({ avatarUrl, firstName, lastName, name, size 
 }
 
 const styles = StyleSheet.create({
-  image: {
-    backgroundColor: '#374151',
-  },
+  image: {},
   placeholder: {
-    backgroundColor: '#4f46e5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   initials: {
-    color: '#ffffff',
     fontWeight: '600',
   },
 })

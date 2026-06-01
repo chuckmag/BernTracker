@@ -7,7 +7,9 @@ const workspaceRoot = path.resolve(projectRoot, '../..')
 const config = getDefaultConfig(projectRoot)
 
 // Watch the whole monorepo so Metro can resolve shared packages at the root.
-config.watchFolders = [workspaceRoot]
+// Spread Expo's defaults rather than replacing — expo-doctor flags a missing
+// defaults entry as a build-blocking error on EAS workers.
+config.watchFolders = [...(config.watchFolders ?? []), workspaceRoot]
 
 // Resolution order: local workspace first, root as fallback.
 config.resolver.nodeModulesPaths = [

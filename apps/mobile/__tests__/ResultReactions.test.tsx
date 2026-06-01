@@ -41,10 +41,20 @@ describe('ResultReactions', () => {
     LIST_MOCK.mockResolvedValue([])
   })
 
-  it('renders without crashing and shows all 6 emojis', async () => {
-    const { getAllByRole } = render(<ResultReactions resultId={RESULT_ID} />)
+  it('renders an "Add reaction" affordance with the full 6-emoji picker hidden until pressed', async () => {
+    const { findByLabelText, queryByLabelText, getAllByLabelText } = render(
+      <ResultReactions resultId={RESULT_ID} />,
+    )
+
+    // Closed by default: add button is visible, picker buttons are not.
+    const addButton = await findByLabelText('Add reaction')
+    expect(queryByLabelText(/^React with /)).toBeNull()
+
+    fireEvent.press(addButton)
+
+    // After tapping, all 6 ALLOWED_EMOJIS are rendered as picker buttons.
     await waitFor(() => {
-      expect(getAllByRole('button').length).toBeGreaterThanOrEqual(6)
+      expect(getAllByLabelText(/^React with /)).toHaveLength(6)
     })
   })
 
@@ -54,50 +64,45 @@ describe('ResultReactions', () => {
     expect(await findByText('3')).toBeTruthy()
   })
 
-  it('calls addToResult when an unreacted emoji is tapped', async () => {
+  it('calls addToResult when an unreacted emoji is tapped from the picker', async () => {
     ADD_MOCK.mockResolvedValue({ added: true, emoji: '🔥', count: 1, userReacted: true })
     LIST_MOCK.mockResolvedValue([])
-    const { getAllByRole } = render(<ResultReactions resultId={RESULT_ID} />)
-    await waitFor(() => getAllByRole('button'))
+    const { findByLabelText } = render(<ResultReactions resultId={RESULT_ID} />)
 
-    const buttons = getAllByRole('button')
-    fireEvent.press(buttons[0])
+    fireEvent.press(await findByLabelText('Add reaction'))
+    fireEvent.press(await findByLabelText('React with 🔥'))
 
     await waitFor(() => expect(ADD_MOCK).toHaveBeenCalledWith(RESULT_ID, '🔥'))
   })
 
-  it('calls removeFromResult when a reacted emoji is tapped', async () => {
+  it('calls removeFromResult when a reacted emoji pill is tapped', async () => {
     LIST_MOCK.mockResolvedValue([{ emoji: '🔥', count: 2, userReacted: true }])
     REMOVE_MOCK.mockResolvedValue(undefined)
-    const { getAllByRole } = render(<ResultReactions resultId={RESULT_ID} />)
-    await waitFor(() => getAllByRole('button'))
+    const { findByLabelText } = render(<ResultReactions resultId={RESULT_ID} />)
 
-    const buttons = getAllByRole('button')
-    fireEvent.press(buttons[0])
+    // Active reactions render as standalone pills (not in the picker), so we
+    // can target the 🔥 pill directly via its accessibility label.
+    const pill = await findByLabelText(/🔥 2 reactions, tap to remove/)
+    fireEvent.press(pill)
 
     await waitFor(() => expect(REMOVE_MOCK).toHaveBeenCalledWith(RESULT_ID, '🔥'))
   })
 
   it('renders comment pill when onCommentPress is provided', async () => {
     const onPress = jest.fn()
-    const { getAllByRole } = render(
+    const { findByLabelText } = render(
       <ResultReactions resultId={RESULT_ID} onCommentPress={onPress} commentCount={5} />,
     )
-    await waitFor(() => {
-      const buttons = getAllByRole('button')
-      expect(buttons.length).toBeGreaterThanOrEqual(7)
-    })
+    expect(await findByLabelText(/5 comments, tap to view/)).toBeTruthy()
   })
 
   it('calls onCommentPress when comment pill is tapped', async () => {
     const onPress = jest.fn()
-    const { getAllByRole } = render(
+    const { findByLabelText } = render(
       <ResultReactions resultId={RESULT_ID} onCommentPress={onPress} commentCount={2} />,
     )
-    await waitFor(() => getAllByRole('button'))
 
-    const buttons = getAllByRole('button')
-    fireEvent.press(buttons[buttons.length - 1])
+    fireEvent.press(await findByLabelText(/2 comments, tap to view/))
     expect(onPress).toHaveBeenCalledTimes(1)
   })
 })

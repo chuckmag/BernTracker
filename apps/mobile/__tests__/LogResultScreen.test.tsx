@@ -35,6 +35,9 @@ jest.mock('../src/lib/api', () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    plans: {
+      getForUser: jest.fn().mockResolvedValue(null),
+    },
   },
   deriveWorkoutGender: jest.requireActual('@wodalytics/types').deriveWorkoutGender,
 }))
