@@ -12,6 +12,11 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }))
 
+const mockNavigate = jest.fn()
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: mockNavigate }),
+}))
+
 jest.mock('../src/lib/api', () => ({
   api: {
     users: {
@@ -168,5 +173,14 @@ describe('SettingsScreen', () => {
 
     await findByText('offline')
     expect(queryByTestId('save-button')).toBeNull()
+  })
+
+  test('Invite a friend row pushes the InviteFriend route', async () => {
+    ;(api.users.me.profile.get as jest.Mock).mockResolvedValue(profileFixture())
+
+    const { findByTestId } = render(<SettingsScreen />)
+
+    fireEvent.press(await findByTestId('invite-friend-button'))
+    expect(mockNavigate).toHaveBeenCalledWith('InviteFriend')
   })
 })

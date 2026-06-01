@@ -10,12 +10,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
+import type { StackNavigationProp } from '@react-navigation/stack'
 import { api, type IdentifiedGender, type UserProfile } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useTheme, type ThemeMode } from '../lib/theme'
 import ThemedText from '../components/ThemedText'
 import ThemedView from '../components/ThemedView'
 import AvatarUploader from '../components/AvatarUploader'
+import type { RootStackParamList } from '../../App'
+
+type Nav = StackNavigationProp<RootStackParamList, 'Settings'>
 
 // Mirrors the web Profile.tsx Details tab — same fields, same order, same
 // labels. Theme picker mirrors the cross-app `wodalytics-theme` AsyncStorage
@@ -39,6 +44,7 @@ const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
 export default function SettingsScreen() {
   const { logout } = useAuth()
   const { colors, mode: themeMode, setMode: setThemeMode } = useTheme()
+  const navigation = useNavigation<Nav>()
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [firstName, setFirstName] = useState('')
@@ -279,6 +285,19 @@ export default function SettingsScreen() {
               : <ThemedText style={[styles.saveButtonText, { color: colors.onPrimary }]}>Save changes</ThemedText>}
           </TouchableOpacity>
 
+          {/* Invite a friend — distinct from danger-zone sign-out, but kept on the
+              same dedicated row so the primary save action above stays uncrowded. */}
+          <TouchableOpacity
+            style={[styles.inviteRow, { borderColor: colors.borderInteractive }]}
+            onPress={() => navigation.navigate('InviteFriend')}
+            testID="invite-friend-button"
+          >
+            <ThemedText style={[styles.inviteRowText, { color: colors.textPrimary }]}>
+              Invite a friend
+            </ThemedText>
+            <ThemedText variant="tertiary" style={styles.inviteRowChevron}>›</ThemedText>
+          </TouchableOpacity>
+
           {/* Sign out — danger zone, lives at the bottom out of muscle-memory reach */}
           <TouchableOpacity
             style={[styles.signOutButton, { borderColor: colors.errorText }]}
@@ -384,6 +403,24 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  inviteRow: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  inviteRowText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  inviteRowChevron: {
+    fontSize: 20,
+    fontWeight: '400',
   },
   signOutButton: {
     borderWidth: 1,
