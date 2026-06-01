@@ -75,11 +75,8 @@ jobs:
         run: npm ci
         working-directory: .
 
-      # Metro resolves `@wodalytics/types` to its compiled `dist/index.js`
-      # (see apps/mobile/metro.config.js). During `eas build`, EAS workers run
-      # the `eas-build-post-install` hook in apps/mobile/package.json which
-      # builds it — but `expo export` runs locally on this runner, where that
-      # hook never fires. Build it explicitly so the bundle can resolve.
+      # Metro resolves `@wodalytics/types` to its compiled `dist/`, which the
+      # EAS-worker-only `eas-build-post-install` hook doesn't build for us here.
       - name: Build shared packages
         run: npm run build --workspace=@wodalytics/types
         working-directory: .
