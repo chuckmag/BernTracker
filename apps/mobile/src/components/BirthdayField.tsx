@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Modal, Platform, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useTheme } from '../lib/theme'
@@ -62,7 +62,10 @@ export default function BirthdayField({
 
   const display = formatDisplay(value)
   const initialDate = fromYmd(value) ?? new Date(2000, 0, 1)
-  const maxDate = new Date()
+  // Stable Date reference — the iOS picker resets its scroll position if
+  // `maximumDate` changes identity mid-spin, and we re-render on every
+  // wheel tick while the draft is updating.
+  const maxDate = useMemo(() => new Date(), [])
 
   function handleAndroidChange(event: DateTimePickerEvent, picked?: Date) {
     setOpen(false)
