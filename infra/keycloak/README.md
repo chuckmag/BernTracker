@@ -48,9 +48,13 @@ When making realm changes: edit `realm-wodalytics.json`, then regenerate the dev
 cd infra/keycloak
 jq '
   (.clients[] | select(.clientId == "wodalytics-web") | .redirectUris) += ["*"] |
-  (.clients[] | select(.clientId == "wodalytics-web") | .webOrigins) += ["*"]
+  (.clients[] | select(.clientId == "wodalytics-web") | .webOrigins) += ["*"] |
+  del(.smtpServer)
 ' realm-wodalytics.json > realm-wodalytics-dev.json
 ```
+`del(.smtpServer)` keeps the local Keycloak from attempting to reach Google's
+SMTP relay (no app password is provisioned locally; the dev import would fail
+the configuration test).
 
 **User Profile — unmanaged attribute policy (required for custom user attributes):**
 
@@ -139,5 +143,38 @@ curl -H "Authorization: Bearer <admin-token>" \
 - Google IDP `clientId` / `clientSecret` — set via Keycloak admin after import
 - `KEYCLOAK_ADMIN_PASSWORD` — Railway env var only
 - `KC_DB_PASSWORD` — Railway env var only
+- `SMTP_PASSWORD` — Google Workspace app password for `no-reply@wodalytics.com`, Railway env var only. The realm JSON carries the `__SMTP_PASSWORD__` placeholder; `docker-entrypoint.sh` substitutes the value at boot, and strips the `smtpServer` block entirely when the var is unset so the placeholder is never pushed to Keycloak.
 
 All three OAuth clients are public clients (PKCE, no secret) — there are no client secrets to manage or rotate.
+
+## SMTP / outbound email
+
+The realm is configured to send transactional email (password reset, verify
+email, etc.) from `no-reply@wodalytics.com` via Google Workspace's SMTP relay
+service. The configuration lives in `realm-wodalytics.json` under `smtpServer`:
+
+| Field | Value |
+|---|---|
+| host | `smtp-relay.gmail.com` |
+| port | `587` (STARTTLS) |
+| from | `no-reply@wodalytics.com` |
+| user | `no-reply@wodalytics.com` |
+| password | `__SMTP_PASSWORD__` (substituted at boot from Railway env var) |
+
+**To enable email sending on a Railway environment:**
+
+```bash
+railway variables --set SMTP_PASSWORD=<google-workspace-app-password> \
+  --project c218e9bc-d755-43de-a2b8-1f3e21b6c7e5 \
+  --environment qa \
+  --service bfe642c5-1cd9-4369-853b-c01e50ec6d4a
+```
+
+Redeploy WODalytics-Auth. The entrypoint substitutes the placeholder and the
+realm is reconciled with working SMTP. Without the env var the realm imports
+with no `smtpServer` block and password-reset emails do not send (Keycloak
+surfaces an error instead of bouncing into spam).
+
+Local dev (`docker compose up`) imports `realm-wodalytics-dev.json`, which has
+`smtpServer` stripped at regeneration time — no SMTP password is needed
+locally and password-reset flows will not deliver email in dev.
