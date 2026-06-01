@@ -61,10 +61,10 @@ export default function BirthdayField({
   const [iosDraft, setIosDraft] = useState<string | null>(null)
 
   const display = formatDisplay(value)
-  const initialDate = fromYmd(value) ?? new Date(2000, 0, 1)
-  // Stable Date reference — the iOS picker resets its scroll position if
-  // `maximumDate` changes identity mid-spin, and we re-render on every
-  // wheel tick while the draft is updating.
+  // Stable Date references — the iOS picker resets its scroll position if
+  // `value` or `maximumDate` changes identity mid-spin, and we re-render on
+  // every wheel tick while the draft is updating.
+  const initialDate = useMemo(() => fromYmd(value) ?? new Date(2000, 0, 1), [value])
   const maxDate = useMemo(() => new Date(), [])
 
   function handleAndroidChange(event: DateTimePickerEvent, picked?: Date) {
@@ -204,7 +204,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     borderWidth: 1,
-    paddingBottom: 24,
+    // 34pt clears the iPhone X+ home indicator without pulling in
+    // useSafeAreaInsets — the spinner wheel was being clipped behind it.
+    paddingBottom: 34,
   },
   iosSheetHeader: {
     flexDirection: 'row',
